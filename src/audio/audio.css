@@ -1,0 +1,81 @@
+/* The sound control. Deliberately the same object as the language pill —
+   same panel colour, same radius, same edge — so the top-right corner reads as
+   one set of controls rather than two teams' worth. */
+
+.sound {
+  position: absolute;
+  top: calc(var(--pad-t) + 44px);
+  right: var(--pad-r);
+  display: flex;
+  align-items: center;
+  gap: .42rem;
+  padding: .32rem .5rem .32rem .42rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  color: var(--ink-mute);
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
+  line-height: 1;
+  transition: color .18s, border-color .18s, background .18s;
+}
+.sound:hover, .sound:focus-visible { color: var(--cyan); border-color: rgba(95, 230, 255, .5); }
+.sound:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sound svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round; }
+
+/* The waves on the speaker are the mute state: present, or struck through. */
+.sound .wave { transition: opacity .18s; }
+.sound.off .wave { opacity: 0; }
+.sound .slash { opacity: 0; transition: opacity .18s; stroke: currentColor; }
+.sound.off .slash { opacity: 1; }
+.sound.off { color: var(--ink-mute); }
+
+/* ---- the meter -----------------------------------------------------------
+   Five bars driven by the master analyser. This is the only audio-reactive
+   pixel in the game and it is two millimetres tall, which is the correct size
+   for a thing whose entire job is to prove the sound is alive. */
+.sound .meter { display: flex; align-items: flex-end; gap: 2px; height: 13px; }
+.sound .meter i {
+  display: block;
+  width: 2px;
+  height: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: .55;
+  transform-origin: 50% 100%;
+  transform: scaleY(var(--v, 1));
+  transition: transform .09s linear;
+}
+.sound:not(.off) .meter i { background: var(--cyan); opacity: .8; }
+.sound.off .meter i { transform: scaleY(1); opacity: .28; }
+.sound.off .slash { stroke-width: 1.9; }
+
+/* Before the first gesture the browser will not let us make a sound, so the
+   control says so by breathing rather than by shouting. A dead grey control
+   reads as broken; a faintly lit one reads as waiting for you. */
+.sound.locked { color: rgba(158, 203, 224, .85); }
+.sound.locked .meter i { background: var(--cyan); opacity: .4; }
+.sound.locked { animation: sound-wait 2.8s ease-in-out infinite; }
+@keyframes sound-wait {
+  0%, 100% { border-color: var(--panel-edge); }
+  50% { border-color: rgba(95, 230, 255, .45); }
+}
+
+/* A phone on its side is 844 px wide: every rule below is a phone rule, and
+   without the second half of this query none of them applied in landscape.
+   (perf/hud, w3: the breakpoint only — the declarations are untouched.) */
+@media (max-width: 760px), (max-height: 520px) and (orientation: landscape) {
+  .sound { top: calc(var(--pad-t) + 40px); padding: .26rem .42rem; }
+  .sound .meter { height: 11px; }
+}
+
+/* A player who has asked for less motion gets a control that still reports the
+   state of the audio — lit or not — but does not animate to do it. */
+@media (prefers-reduced-motion: reduce) {
+  .sound, .sound.locked { animation: none; }
+  .sound .meter i { transition: none; transform: none; height: 5px; }
+  .sound:not(.off) .meter i { height: 8px; }
+}

@@ -1,0 +1,120 @@
+/* Build system chrome. Owned by src/build — deliberately kept out of
+   src/ui/style.css so the HUD area and the build area never fight over it. */
+
+/* These sit inside #ui, and `#ui > *{pointer-events:auto}` is an ID selector:
+   it beats any plain `pointer-events:none` a class declares for itself. That is
+   precisely the bug that once ate this whole feature — a full-screen overlay
+   that swallowed every click, so the canvas never got the one that asks for
+   pointer lock and nothing could be built. The tag layer covers the entire
+   viewport, so it has to win the specificity fight explicitly. */
+#ui .axiom,
+#ui .axiom-aim,
+#ui .axiom-tags { pointer-events: none; }
+#ui .axiom-clear { pointer-events: auto; }
+
+/* Bottom-left: the only strip of the frame that neither the build wheel, the
+   companion's subtitle nor the chapter card ever claims. */
+.axiom {
+  position: absolute; left: var(--pad-l);
+  bottom: calc(22px + var(--safe));
+  display: flex; align-items: center; gap: .55rem;
+  padding: .3rem .55rem .3rem .5rem;
+  background: rgba(9, 17, 32, .72); border: 1px solid var(--panel-edge);
+  border-radius: 999px; backdrop-filter: blur(14px);
+  font-size: .58rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-mute); white-space: nowrap; pointer-events: none;
+  opacity: 0; translate: 0 6px; transition: opacity .35s, translate .35s;
+}
+.axiom.show { opacity: .62; translate: 0 0; }
+.axiom.show.armed { opacity: 1; border-color: rgba(95, 230, 255, .42); }
+.axiom.armed b { color: var(--cyan); }
+.axiom .gauge {
+  width: 116px; height: 5px; border-radius: 3px; overflow: hidden;
+  background: rgba(255, 255, 255, .1); position: relative;
+}
+.axiom .gauge i {
+  display: block; height: 100%; width: 100%;
+  background: linear-gradient(90deg, #3fb6e8, var(--cyan));
+  box-shadow: 0 0 10px rgba(95, 230, 255, .55);
+  transform-origin: left center; transition: transform .12s linear;
+}
+.axiom .gauge.low i { background: linear-gradient(90deg, #a8425c, var(--rose)); }
+.axiom b { color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+.axiom .keys { display: flex; gap: .35rem; }
+.axiom .keys kbd {
+  font: inherit; font-size: .56rem; letter-spacing: .1em;
+  border: 1px solid rgba(126, 190, 255, .28); border-radius: 4px;
+  padding: .1rem .3rem; color: var(--ink-dim); background: rgba(255, 255, 255, .04);
+}
+.axiom.spend .gauge i { transition: none; }
+
+/* the remove prompt, right under the crosshair where the eye already is */
+.axiom-aim {
+  position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%);
+  padding: .22rem .6rem; border-radius: 999px; pointer-events: none;
+  background: rgba(9, 17, 32, .74); border: 1px solid rgba(255, 194, 95, .5);
+  color: var(--amber); font-size: .62rem; letter-spacing: .18em; text-transform: uppercase;
+  opacity: 0; transition: opacity .16s;
+}
+.axiom-aim.show { opacity: 1; }
+
+/* touch: a thumb needs a target for the verb a keyboard gets a key for */
+.axiom-clear {
+  position: absolute; right: var(--pad-r);
+  bottom: calc(150px + var(--safe));
+  width: 58px; height: 58px; border-radius: 50%; display: none;
+  place-items: center; text-align: center; line-height: 1.05;
+  background: rgba(9, 17, 32, .7); border: 1px solid rgba(255, 194, 95, .45);
+  color: var(--amber); font-size: .52rem; letter-spacing: .12em; text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+.axiom-clear.show { display: grid; }
+
+/* ---------- manipulatives: real mathematics hung on what you built --------- */
+.axiom-tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.axiom-tag {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: .3rem .6rem; border-radius: 8px; white-space: nowrap;
+  background: rgba(6, 14, 28, .78); border: 1px solid rgba(126, 190, 255, .34);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, .5);
+  color: #eaf6ff; font-size: 1rem; line-height: 1;
+  backdrop-filter: blur(6px);
+}
+.axiom-tag .katex { color: #eaf6ff; font-size: 1em; }
+.axiom-tag.small { font-size: .82rem; padding: .22rem .45rem; }
+.axiom-tag.lede {
+  border-color: rgba(95, 230, 255, .5); color: var(--cyan);
+  font-size: .62rem; letter-spacing: .18em; text-transform: uppercase;
+}
+.axiom-tag.warm { border-color: rgba(255, 194, 95, .45); }
+
+/* A phone on its side is 844 px wide: every rule below is a phone rule, and
+   without the second half of this query none of them applied in landscape.
+   (perf/hud, w3: the breakpoint only — the declarations are untouched.) */
+@media (max-width: 760px), (max-height: 520px) and (orientation: landscape) {
+  /* On a phone a thumb owns both bottom corners, the chips own the top and the
+     companion owns the middle of the foot. The one strip left is the flank. */
+  .axiom {
+    left: max(10px,var(--sa-l)); bottom: auto; top: 44%;
+    padding: .26rem .42rem; font-size: .5rem; gap: .35rem;
+  }
+  .axiom .gauge { width: 56px; height: 4px; }
+  .axiom .keys { display: none; }
+  /* Sits in the gap between the hotbar column and the companion's channel.
+     `--hud-b` (src/ui/style.css) is whatever the on-screen controls are
+     claiming at the foot of this particular screen, so the button rides above
+     them instead of above a fixed 392 px that was only ever true of one
+     phone in one orientation. */
+  .axiom-clear { right: max(14px,var(--sa-r)); bottom: calc(var(--hud-b) + 160px); }
+}
+/* Sideways the flank is 390 px tall and the chapter card, the charge chip and
+   the thumbstick's home ring are all queuing for it. 44% lands the chip inside
+   the card; this is the one band between the card and the ring. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .axiom { top: calc(var(--pad-t) + 196px); }
+  /* the strip between the sound chip and the top of the thumb cluster */
+  .axiom-clear { bottom: calc(var(--hud-b) + 95px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .axiom, .axiom-aim { transition: none; }
+}

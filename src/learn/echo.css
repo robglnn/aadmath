@@ -1,0 +1,87 @@
+/* ==========================================================================
+   The echo's own rows.
+   Lives with the module that decides what they say, so the pedagogy can change
+   the shape of the ladder without reaching into the rift's stylesheet.
+   ========================================================================== */
+
+/* The counterexample: the cadet's own value, put back into the statement.
+   It is the first thing the panel shows after a slip, so it reads as evidence
+   rather than as commentary — boxed, cool, and lit from inside. */
+.rf-echo-probe {
+  position: relative;
+  margin: 0 0 .7rem;
+  padding: .7rem .8rem .65rem 1rem;
+  border: 1px solid rgba(120, 200, 255, .28);
+  border-left-width: 2px;
+  border-left-color: rgba(120, 200, 255, .75);
+  background:
+    linear-gradient(180deg, rgba(70, 160, 220, .13), rgba(6, 11, 22, 0)),
+    rgba(8, 16, 30, .45);
+  opacity: 0;
+  animation: rf-ghost .8s cubic-bezier(.2, .8, .2, 1) forwards;
+}
+/* A counterexample is one statement. Letting the browser break it across lines
+   turns "14 - 7 = 7" into "14 - 7 =" and a stray 7 on the next row, which reads
+   as a different and wrong claim. It scrolls sideways instead. */
+.rf-echo-math, .rf-echo-math .katex { white-space: nowrap; }
+
+.rf-echo-probe .rf-echo-math {
+  font-size: 1.02rem;
+  color: #eaf6ff;
+  text-shadow: 0 0 16px rgba(120, 200, 255, .45);
+}
+.rf-echo-probe .rf-echo-math .katex { color: #eaf6ff; }
+.rf-echo-probe .rf-echo-why { color: #a9c4e0; }
+
+/* the line where the statement refuses the entry outright */
+.rf-echo-probe.verdict {
+  border-color: rgba(255, 140, 150, .34);
+  border-left-color: rgba(255, 140, 150, .85);
+  background:
+    linear-gradient(180deg, rgba(220, 90, 110, .14), rgba(6, 11, 22, 0)),
+    rgba(22, 10, 16, .45);
+}
+.rf-echo-probe.verdict .rf-echo-math {
+  color: #ffe3e6;
+  text-shadow: 0 0 16px rgba(255, 120, 140, .5);
+}
+.rf-echo-probe.verdict .rf-echo-math .katex { color: #ffe3e6; }
+.rf-echo-probe.verdict .rf-echo-why { color: #e6b6bd; }
+
+/* A move that survived only as far as its left-hand side: the reason is still
+   legible, the value is gone. This is the completion problem — the rung that
+   asks the cadet to supply the step rather than read it. */
+.rf-echo-step.masked .rf-echo-math {
+  color: #dfe7fb;
+  opacity: .95;
+}
+.rf-echo-step.masked .rf-echo-math .katex { color: #dfe7fb; }
+.rf-echo-step.masked::before {
+  background: transparent;
+  box-shadow: none;
+  border: 1px solid var(--rf-vio);
+}
+.rf-echo-step.masked .rf-echo-math .mord.amsrm,
+.rf-echo-step.masked .rf-echo-math .katex .mord + .mord.amsrm {
+  color: var(--rf-vio);
+}
+
+/* the value a different tear landed on: the only number the ladder ever gives
+   away, and it belongs to a problem that is not this one */
+.rf-echo-step.landing .rf-echo-math {
+  font-size: 1.14rem;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(167, 139, 255, .75);
+}
+.rf-echo-step.landing:not(.burned)::before {
+  background: #fff;
+  box-shadow: 0 0 14px #fff;
+}
+
+/* The rail of layers still buried never scrolls out of reach. Once the trace
+   is three rungs deep the panel overflows, and a control that has fallen below
+   the fold is a control the cadet will conclude does not exist. */
+@media (max-width: 900px) {
+  .rf-echo-probe { padding: .55rem .6rem .5rem .8rem; }
+  .rf-echo-probe .rf-echo-math { font-size: .92rem; }
+}

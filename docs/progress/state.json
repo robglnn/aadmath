@@ -1,0 +1,163 @@
+{
+  "title": "ASCENT — The Cipher Worlds",
+  "subtitle": "Adaptive Algebra I mastery, built to a Fortnite / Breath of the Wild bar",
+  "updated": "wave 2",
+  "wave": 2,
+  "summary": "Wave A closed: 30 agents, zero passes. Critics scored world 3, fx 3, player 4, learn-ux 5. A coherence pass then unified the lighting to one golden hour, fixed aerial perspective, restored the player's shadow, and found the click-swallowing modal that had silently broken building since the first commit. 60fps on an M4. Wave B now re-enters every piece seeded with its exact unclosed gap.",
+  "metrics": {
+    "fps": 94,
+    "draws": 174,
+    "tris": 511076,
+    "consoleErrors": 0,
+    "itemsValidated": 15096,
+    "masteryRate": 86.5,
+    "masteryPct": 94.9,
+    "trueMasteryPct": 94.9,
+    "lowestQuintilePct": 86.3,
+    "mastery": 94,
+    "pedagogySituations": 310,
+    "situations": 310
+  },
+  "pieces": [
+    {
+      "id": "world",
+      "name": "World & art direction",
+      "status": "judging",
+      "score": 3,
+      "note": "Sightlines genuinely fixed - 4/5 far worlds unoccluded from spawn, ashen centre-frame at arrival, terrace runnable - but the horizon is flat paper triangles and black cutouts, the lookout does not read as built, and a straight run up the Spine renders pure black. 5/10."
+    },
+    {
+      "id": "player",
+      "name": "Movement, camera & game feel",
+      "status": "building",
+      "score": 4,
+      "note": "camera collision that never buries the lens, planted feet, real landing weight, fall pose"
+    },
+    {
+      "id": "build",
+      "name": "Axiom building system",
+      "status": "judging",
+      "score": null,
+      "note": "Material identity gap CLOSED (ramp holds slate-blue through cold dawn, white noon, orange dusk and night; ramp and floor are opaque treaded decks) but Polish SCIANA loses its acute at all 4 viewports, Spanish place button ellipsises to CONSTR on both phones, and no gamepad button changes piece kind so a pad player can only build walls. 5/10, fail."
+    },
+    {
+      "id": "learn-ux",
+      "name": "Rift learning surface",
+      "status": "building",
+      "score": 5,
+      "note": "killing fixed-height boxes; echo must reflow not clip; 414x896 fit"
+    },
+    {
+      "id": "pedagogy",
+      "name": "Content, item bank & mastery model",
+      "status": "building",
+      "score": 6,
+      "note": "situation bank 71 -> 310; deck ledger makes a repeat impossible inside a session"
+    },
+    {
+      "id": "i18n",
+      "name": "EN / ES / PL localisation",
+      "status": "building",
+      "score": 9,
+      "note": "wave 3 round 1: transcreation quality pass, PL case/aspect, locale math typography, overflow at all viewports"
+    },
+    {
+      "id": "narrative",
+      "name": "Narrative, voice & progression",
+      "status": "judging",
+      "score": null,
+      "note": "two clocks: chapter turns on rifts sealed (3/7/16/28), rank still costs mastery; verified 10 rifts -> ch3, silver"
+    },
+    {
+      "id": "fx",
+      "name": "Post-processing & atmosphere",
+      "status": "judging",
+      "score": 8,
+      "note": "4/10 — gap NOT closed: volumetric march renders height fog not shafts (zero god rays facing a low sun through a tower); beacon lights nothing it stands next to; motes vanish when the sun is behind you; the seal beat is a 2D bar glued to screen centre at every pitch; pixel ratio ceiling 1.5 (0.84 in the harness) softens every wide frame on an M4 doing 6.4ms"
+    },
+    {
+      "id": "audio",
+      "name": "Audio & music",
+      "status": "building",
+      "score": null,
+      "note": "w3r1 done: envelope fix (score was silent between chords), transient fix, fall wind, breathing, momentum, softening slips, 30Hz automation"
+    },
+    {
+      "id": "perf",
+      "name": "Performance & platform reach",
+      "status": "building",
+      "score": null,
+      "note": "mobile-first HUD: safe areas, touch controls, gamepad end-to-end at 390x844 and 414x896"
+    }
+  ],
+  "log": [
+    {
+      "t": "wave 0",
+      "m": "Scaffold, engine, world, player, builder, rifts, mastery engine, KaTeX, i18n, screenshot harness."
+    },
+    {
+      "t": "wave 0",
+      "m": "3000 generated items pass strict-KaTeX + exact-answer validation."
+    },
+    {
+      "t": "pedagogy",
+      "m": "item bank verified by independent parser/solver; validate-items 12180 items x 3 locales green"
+    },
+    {
+      "t": "wave 1",
+      "m": "player: rebuilt locomotion, animation, camera and input from scratch"
+    },
+    {
+      "t": "wave 1",
+      "m": "Capture moved to frozen production builds — concurrent hot-reloads were destroying screenshots mid-run."
+    },
+    {
+      "t": "wave 1",
+      "m": "Mastery simulation verified independently: 96.3% of synthetic learners reach true mastery; lowest ability quintile 89.3%; hollow-mastery claims 0.9%."
+    },
+    {
+      "t": "coherence",
+      "m": "one hour of day in src/world/daylight.js; player shadow restored; build regression fixed (closed rift panel was eating every click); shafts no longer veil the frame; 1.28->1.75 effective pixel ratio at 60fps"
+    },
+    {
+      "t": "coherence",
+      "m": "one hour of day (src/world/daylight.js); player shadow restored; build regression fixed - the closed rift panel was eating every click; shafts no longer veil the frame; effective pixel ratio 1.28 to 1.75 at 60fps"
+    },
+    {
+      "t": "coherence",
+      "m": "Root cause found: #ui>* pointer-events beat the closed rift dialog, so every click since the first build landed on an invisible modal. Building and pointer-lock restored."
+    },
+    {
+      "t": "wave 2",
+      "m": "learn-ux: rig fits the tear (zero scroll 1280x720-1600x900), aperture language inside, seal beat replaced by a weld in the world"
+    },
+    {
+      "t": "wave 2",
+      "m": "fx: shadow-marched volumetrics replace screen-space shafts; beacon is a Gaussian column; defocus deleted"
+    },
+    {
+      "t": "wave 2",
+      "m": "player: cadet silhouette rebuilt, footprints/grit/skid marks, grass bends underfoot"
+    },
+    {
+      "t": "wave 2",
+      "m": "build: lattice you can stand on — ramp rush to 25 m, Q to clear, three anchors, beam becomes the balance"
+    },
+    {
+      "t": "wave 2",
+      "m": "audio: full Web Audio layer, no samples; tools/audio-probe.sh records and measures the real mix"
+    },
+    {
+      "t": "blocker",
+      "m": "cadet shadow: it was in the map all along — a cast shadow that only removed the sun could not move a person-sized patch of ground"
+    },
+    {
+      "t": "i18n",
+      "m": "opening beats survive a mid-speech locale change; check-i18n.mjs + i18n-drive.mjs gate it in CI"
+    },
+    {
+      "t": "wave 3",
+      "m": "pedagogy: 310 situations, zero repeats in a 45-item session, 95.3% true mastery held"
+    }
+  ]
+}

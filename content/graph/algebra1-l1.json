@@ -1,0 +1,758 @@
+{
+  "id": "algebra1-level1",
+  "title": "Algebra I — Level 1: The Language of Balance",
+  "description": "From reading a variable to solving linear equations with the unknown on both sides, including the cases that have no solution or infinitely many. Every node is a rift line in the Cipher Worlds.",
+  "framework": "CCSS-M",
+  "standardsMap": "content/standards/ccss-algebra1-l1.json",
+  "masteryThreshold": 0.95,
+  "mastery": {
+    "pL": 0.95,
+    "cleanRun": 3,
+    "minDifficulty": 3,
+    "checkItems": 3,
+    "checkMinDifficulty": 4,
+    "checkRequiresUnseenForm": true,
+    "checkRequiresNonSymbolic": true,
+    "reviewIntervals": [
+      6,
+      16,
+      40,
+      90
+    ],
+    "note": "Mastery is not granted by a posterior alone. A learner must (a) reach pL >= 0.95 under Bayesian Knowledge Tracing counting only unassisted responses as strong evidence, (b) string together three unassisted correct responses at difficulty band 3 or above, and then (c) pass a proving run: three consecutive unassisted items at band 4 or above, drawn from the item forms the learner has practised least, at least one of them in a non-symbolic representation, with worked-example support switched off. (c) is a near-transfer test, so the gate cannot be cleared by memorising one template. The bands themselves are measured, not asserted: tools/validate-items.mjs scores every generated item with generators.demandOf() and fails the build unless mean demand rises strictly from band 1 to band 5 within every skill, so 'band 4' names a real step up rather than a label."
+  },
+  "commonMisconceptions": [
+    {
+      "id": "arith-slip",
+      "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+    },
+    {
+      "id": "sign-slip",
+      "text": "Loses or invents a minus sign somewhere in the chain."
+    },
+    {
+      "id": "partial-rule",
+      "text": "Applies part of the rule and stops before finishing it."
+    },
+    {
+      "id": "off-by-one-row",
+      "text": "Reads the neighbouring row of a table instead of the one asked for."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "var-meaning",
+      "prereqs": [],
+      "worldSite": "shoal",
+      "bigIdea": "A letter is a placeholder for a number that has not been named yet — not a label, not an object, not its own position in the alphabet.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.2.A",
+          "text": "Write expressions that record operations with numbers and with letters standing for numbers."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.B.6",
+          "text": "Use variables to represent numbers and write expressions when solving a real-world or mathematical problem; understand that a variable can represent an unknown number, or, depending on the purpose at hand, any number in a specified set."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+          "text": "Interpret parts of an expression, such as terms, factors, and coefficients."
+        }
+      ],
+      "practices": [
+        "MP.2",
+        "MP.6"
+      ],
+      "standardsNote": "6.EE.A.2.A and 6.EE.B.6 are covered by the contextual and choose-the-expression forms, where the learner must produce or select the expression that records a described situation. HSA.SSE.A.1.A is covered by the coefficient-reading forms, which ask what the number written against a letter means.",
+      "bkt": {
+        "pInit": 0.35,
+        "pTransit": 0.28,
+        "pSlip": 0.08,
+        "pGuess": 0.2
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "letter-as-object",
+          "text": "Reads 4m as a labelled quantity — '4 metres', four of a thing called m — so the letter carries no value of its own and the answer given is simply the 4."
+        },
+        {
+          "id": "add-not-multiply",
+          "text": "Turns 'k groups of v' into k + v: the two quantities are joined by the operation that is easiest to say rather than the one the situation describes."
+        },
+        {
+          "id": "subtract-not-multiply",
+          "text": "Joins the two quantities by subtraction, often in whichever order they appeared in the sentence."
+        },
+        {
+          "id": "divide-not-multiply",
+          "text": "Shares the group size out among the groups instead of counting the groups up, so multiplication is replaced by division."
+        },
+        {
+          "id": "neg-substitution",
+          "text": "Substitutes a negative value but keeps the answer positive, as if the minus were decoration."
+        },
+        {
+          "id": "letter-as-position",
+          "text": "Assumes the letter's position in the alphabet is its value (a = 1, b = 2)."
+        },
+        {
+          "id": "implicit-mult-missed",
+          "text": "Reads 3x with x = 4 as the digits 34 rather than the product 12."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right reading of the letter, wrong arithmetic afterwards."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Answers with one of the given numbers instead of the value of the expression."
+        },
+        {
+          "id": "off-by-one-row",
+          "text": "Answers with the neighbouring row of the log rather than the burned one."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Loses a minus sign on the way through."
+        }
+      ]
+    },
+    {
+      "id": "eval-expr",
+      "prereqs": [
+        "var-meaning"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "Substituting a value for a variable turns an expression into a single number — and the substitution keeps the sign it came with.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.2.C",
+          "text": "Evaluate expressions at specific values of their variables. Include expressions that arise from formulas used in real-world problems. Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations)."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.C.9",
+          "text": "Use variables to represent two quantities in a real-world problem that change in relationship to one another; write an equation to express one quantity, thought of as the dependent variable, in terms of the other quantity, thought of as the independent variable. Analyze the relationship between the dependent and independent variables using graphs and tables, and relate these to the equation."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.B.3",
+          "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically."
+        }
+      ],
+      "practices": [
+        "MP.2",
+        "MP.4",
+        "MP.6"
+      ],
+      "standardsNote": "6.EE.A.2.C is the core; the table and graph forms carry 6.EE.C.9 by asking the learner to read the same rule as a table of pairs and as a plotted trace. 7.EE.B.3 enters at difficulty bands 3 and above, where substituted values are negative.",
+      "bkt": {
+        "pInit": 0.3,
+        "pTransit": 0.25,
+        "pSlip": 0.1,
+        "pGuess": 0.15
+      },
+      "requiredReps": [
+        "symbolic",
+        "table",
+        "graph"
+      ],
+      "misconceptions": [
+        {
+          "id": "implicit-mult-missed",
+          "text": "Adds instead of multiplying when a coefficient sits against the letter."
+        },
+        {
+          "id": "neg-substitution",
+          "text": "Drops the sign when substituting a negative value."
+        },
+        {
+          "id": "div-direction",
+          "text": "Divides the wrong way round when the variable sits over a fraction bar."
+        },
+        {
+          "id": "axis-swap",
+          "text": "Reads the input axis when the question asked for the output, or the reverse."
+        },
+        {
+          "id": "combine-unlike",
+          "text": "Merges two different variables into one before substituting."
+        },
+        {
+          "id": "strict-left-right",
+          "text": "Evaluates strictly left to right, ignoring precedence."
+        },
+        {
+          "id": "exponent-as-mult",
+          "text": "Reads a squared term as a doubling: treats x^2 as 2x when substituting."
+        },
+        {
+          "id": "neg-base-power",
+          "text": "Squares a negative substituted value and keeps the minus sign."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Substitutes and multiplies but never adds the constant on."
+        }
+      ]
+    },
+    {
+      "id": "order-ops",
+      "prereqs": [
+        "eval-expr"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "Grouping and exponents bind tighter than multiplication, which binds tighter than addition — and a fraction bar is a bracket.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.1",
+          "text": "Write and evaluate numerical expressions involving whole-number exponents."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.2.C",
+          "text": "Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations)."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.B.3",
+          "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically."
+        }
+      ],
+      "practices": [
+        "MP.3",
+        "MP.6",
+        "MP.7"
+      ],
+      "standardsNote": "The error-analysis form (two cadets disagree, one of them evaluated left to right) is the MP.3 vehicle: the learner critiques someone else's reasoning rather than only producing their own. The fraction-bar form covers the grouping half of 6.EE.A.2.C, which a plain PEMDAS drill misses.",
+      "bkt": {
+        "pInit": 0.32,
+        "pTransit": 0.24,
+        "pSlip": 0.12,
+        "pGuess": 0.15
+      },
+      "requiredReps": [
+        "symbolic",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "strict-left-right",
+          "text": "Evaluates strictly left to right, ignoring precedence."
+        },
+        {
+          "id": "exponent-as-mult",
+          "text": "Reads 3^2 as 3 times 2."
+        },
+        {
+          "id": "neg-base-power",
+          "text": "Treats -3^2 as (-3)^2, or the reverse."
+        },
+        {
+          "id": "subtract-coefficient",
+          "text": "Subtracts a divisor instead of dividing by it."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Loses the sign of the leading term."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Evaluates part of the expression and reports that as the whole."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Correct precedence, wrong arithmetic."
+        }
+      ]
+    },
+    {
+      "id": "like-terms",
+      "prereqs": [
+        "eval-expr"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "Terms combine only when they carry exactly the same variable part; a number and an x-term never merge, and x and x squared are different kinds.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.3",
+          "text": "Apply the properties of operations to generate equivalent expressions."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.4",
+          "text": "Identify when two expressions are equivalent (i.e., when the two expressions name the same number regardless of which value is substituted into them)."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.A.1",
+          "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.B",
+          "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity."
+        }
+      ],
+      "practices": [
+        "MP.7",
+        "MP.8"
+      ],
+      "standardsNote": "6.EE.A.4 is covered explicitly by the which-one-says-the-same-thing form, and the game enforces it literally: a distractor is only allowed to ship if the item verifier proves it is *not* equivalent to the prompt at fourteen sample points.",
+      "bkt": {
+        "pInit": 0.28,
+        "pTransit": 0.26,
+        "pSlip": 0.1,
+        "pGuess": 0.15
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "combine-unlike",
+          "text": "Adds 3x + 2 to get 5x."
+        },
+        {
+          "id": "coefficient-sign-lost",
+          "text": "Ignores the sign attached to a term when collecting."
+        },
+        {
+          "id": "x-and-x-squared",
+          "text": "Combines x and x squared as if they were like terms."
+        },
+        {
+          "id": "partial-distribute",
+          "text": "Doubles only part of an expression when finding a perimeter."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Collects the variable terms and forgets the constants, or the reverse."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Multiplies the coefficients instead of adding them, or slips a digit."
+        }
+      ]
+    },
+    {
+      "id": "distribute",
+      "prereqs": [
+        "like-terms"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "Multiplying a sum multiplies every term in it — it is the area of a rectangle split in two, and it runs backwards as factoring.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.A.3",
+          "text": "Apply the properties of operations to generate equivalent expressions."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.A.1",
+          "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.A.2",
+          "text": "Understand that rewriting an expression in different forms in a problem context can shed light on the problem and how the quantities in it are related."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it."
+        }
+      ],
+      "practices": [
+        "MP.4",
+        "MP.7"
+      ],
+      "standardsNote": "The factor half of 7.EE.A.1 is carried by the which-product-is-this form, and HSA.SSE.A.2 by the same item run in reverse. The area form draws a real split rectangle, which is the standard's own justification for the property rather than a mnemonic.",
+      "bkt": {
+        "pInit": 0.22,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.15
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "partial-distribute",
+          "text": "Multiplies only the first term inside the parentheses."
+        },
+        {
+          "id": "neg-distribute",
+          "text": "Fails to carry a negative factor across both terms."
+        },
+        {
+          "id": "combine-unlike",
+          "text": "Multiplies the two inside terms together instead of distributing over them."
+        },
+        {
+          "id": "coefficient-sign-lost",
+          "text": "Keeps the sign of a term when the factor outside should have flipped it."
+        },
+        {
+          "id": "div-direction",
+          "text": "Inverts a division when a fraction bar is shared out over a sum."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Opens the bracket on the first term and stops."
+        }
+      ]
+    },
+    {
+      "id": "one-step-add",
+      "prereqs": [
+        "var-meaning"
+      ],
+      "worldSite": "span",
+      "bigIdea": "An equation is a balance. Undo an addition with a subtraction, on both sides at once, and the balance survives.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.B.5",
+          "text": "Understand solving an equation or inequality as a process of answering a question: which values from a specified set, if any, make the equation or inequality true? Use substitution to determine whether a given number in a specified set makes an equation or inequality true."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.B.7",
+          "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+        }
+      ],
+      "practices": [
+        "MP.1",
+        "MP.2",
+        "MP.4"
+      ],
+      "standardsNote": "6.EE.B.5 is covered by the table form, where a row of an input/output log *is* the equation and the learner must find which input makes it true. The balance figure gives 6.EE.B.7 its physical meaning before any symbolic rule is stated.",
+      "bkt": {
+        "pInit": 0.34,
+        "pTransit": 0.3,
+        "pSlip": 0.08,
+        "pGuess": 0.15
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "same-op-both",
+          "text": "Repeats the operation shown instead of applying its inverse."
+        },
+        {
+          "id": "one-side-only",
+          "text": "Operates on one side of the equation only, or reports the constant as the answer."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Solves correctly but reports the value with the wrong sign."
+        },
+        {
+          "id": "swapped-roles",
+          "text": "Builds the model with the numbers in each other’s places: what was removed and what remains change ends."
+        },
+        {
+          "id": "off-by-one-row",
+          "text": "Answers with the neighbouring row of the log rather than the burned one."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right move, wrong arithmetic on the undo step."
+        }
+      ]
+    },
+    {
+      "id": "one-step-mul",
+      "prereqs": [
+        "one-step-add"
+      ],
+      "worldSite": "span",
+      "bigIdea": "A number written against the unknown is a multiplication, so it comes off by dividing both sides — never by subtracting.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.6.EE.B.7",
+          "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+        }
+      ],
+      "practices": [
+        "MP.2",
+        "MP.3",
+        "MP.6"
+      ],
+      "standardsNote": "The dispute form puts a subtract-the-coefficient solver next to a divide-by-the-coefficient solver and asks which is true — MP.3, aimed squarely at the dominant misconception for this node.",
+      "bkt": {
+        "pInit": 0.3,
+        "pTransit": 0.28,
+        "pSlip": 0.09,
+        "pGuess": 0.15
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "subtract-coefficient",
+          "text": "Subtracts the coefficient instead of dividing by it."
+        },
+        {
+          "id": "div-direction",
+          "text": "Divides the coefficient by the constant rather than the other way round."
+        },
+        {
+          "id": "one-side-only",
+          "text": "Divides one side only, or reports the total unchanged."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Loses the sign when the coefficient or the constant is negative."
+        },
+        {
+          "id": "off-by-one-row",
+          "text": "Answers with the neighbouring row of the log rather than the burned one."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right move, wrong arithmetic on the division."
+        }
+      ]
+    },
+    {
+      "id": "two-step",
+      "prereqs": [
+        "one-step-mul",
+        "order-ops"
+      ],
+      "worldSite": "span",
+      "bigIdea": "Unwrap in reverse order: the loose number comes off first, then the coefficient — the opposite of the order that built the expression.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently. Compare an algebraic solution to an arithmetic solution, identifying the sequence of the operations used in each approach."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
+          "text": "Create equations and inequalities in one variable and use them to solve problems."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.8.EE.B.5",
+          "text": "Graph proportional relationships, interpreting the unit rate as the slope of the graph."
+        }
+      ],
+      "practices": [
+        "MP.1",
+        "MP.4",
+        "MP.7"
+      ],
+      "standardsNote": "HSA.CED.A.1 is covered by the modelling form, where the learner chooses the equation that records the situation rather than solving one that was handed to them. The graph form covers the reading half of 8.EE.B.5 by asking where a plotted trace reaches a given height.",
+      "bkt": {
+        "pInit": 0.2,
+        "pTransit": 0.26,
+        "pSlip": 0.1,
+        "pGuess": 0.12
+      },
+      "requiredReps": [
+        "symbolic",
+        "context",
+        "graph"
+      ],
+      "misconceptions": [
+        {
+          "id": "wrong-unwrap-order",
+          "text": "Divides before removing the constant term."
+        },
+        {
+          "id": "sign-on-constant",
+          "text": "Adds the constant to both sides when it should have been subtracted."
+        },
+        {
+          "id": "subtract-coefficient",
+          "text": "Subtracts the coefficient at the last step instead of dividing."
+        },
+        {
+          "id": "div-direction",
+          "text": "Divides the wrong way round on the final step."
+        },
+        {
+          "id": "axis-swap",
+          "text": "Reports the height of the trace when the question asked for the position along it."
+        },
+        {
+          "id": "swapped-roles",
+          "text": "Builds the model with the rate and the fixed fee swapped."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Solves correctly but reports the value with the wrong sign."
+        },
+        {
+          "id": "collect-wrong-side",
+          "text": "Moves a term across the equals sign without flipping its sign."
+        }
+      ]
+    },
+    {
+      "id": "multi-step",
+      "prereqs": [
+        "two-step",
+        "distribute"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "Simplify each side completely — expand, then collect — before you start undoing anything.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.8.EE.C.7.B",
+          "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.REI.A.1",
+          "text": "Explain each step in solving a simple equation as following from the equality of numbers asserted at the previous step, starting from the assumption that the original equation has a solution. Construct a viable argument to justify a solution method."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers."
+        }
+      ],
+      "practices": [
+        "MP.1",
+        "MP.3",
+        "MP.7",
+        "MP.8"
+      ],
+      "standardsNote": "HSA.REI.A.1 is not decorative here: every worked line the game shows is machine-checked to have the same solution set as the line above it, so the justification a learner reads is guaranteed sound rather than merely plausible.",
+      "bkt": {
+        "pInit": 0.15,
+        "pTransit": 0.24,
+        "pSlip": 0.12,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "distribute-then-forget",
+          "text": "Distributes but does not collect the resulting like terms."
+        },
+        {
+          "id": "partial-distribute",
+          "text": "Multiplies only the first term inside the bracket."
+        },
+        {
+          "id": "sign-on-constant",
+          "text": "Moves the constant across with the wrong sign."
+        },
+        {
+          "id": "wrong-unwrap-order",
+          "text": "Divides before removing the constant term."
+        },
+        {
+          "id": "coefficient-sign-lost",
+          "text": "Loses a sign while collecting like terms on one side."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right chain of moves, wrong arithmetic somewhere along it."
+        }
+      ]
+    },
+    {
+      "id": "both-sides",
+      "prereqs": [
+        "multi-step"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "Gather the unknown on one side by removing the same variable term from both. Sometimes it vanishes — and then the statement is either always true or never true.",
+      "standards": [
+        {
+          "code": "CCSS.MATH.CONTENT.8.EE.C.7.A",
+          "text": "Give examples of linear equations in one variable with one solution, infinitely many solutions, or no solutions. Show which of these possibilities is the case by successively transforming the given equation into simpler forms, until an equivalent equation of the form x = a, a = a, or a = b results (where a and b are different numbers)."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.8.EE.C.7.B",
+          "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.8.EE.C.8.A",
+          "text": "Understand that solutions to a system of two linear equations in two variables correspond to points of intersection of their graphs, because points of intersection satisfy both equations simultaneously."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+        },
+        {
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
+          "text": "Create equations and inequalities in one variable and use them to solve problems."
+        }
+      ],
+      "practices": [
+        "MP.1",
+        "MP.2",
+        "MP.3",
+        "MP.7"
+      ],
+      "standardsNote": "8.EE.C.7.A is a first-class item form here, not a footnote: identities and contradictions are generated deliberately and the independent solver confirms the solution set is 'all' or 'none' before the item ships. The two-trace graph form gives 8.EE.C.8.A its picture — the crossing point is the value that makes both readings equal.",
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.22,
+        "pSlip": 0.12,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "context",
+        "graph"
+      ],
+      "misconceptions": [
+        {
+          "id": "collect-wrong-side",
+          "text": "Moves the variable term across without changing its sign."
+        },
+        {
+          "id": "no-solution-confusion",
+          "text": "Reads 0 = 5 as x = 5, or reads an identity as having no solution."
+        },
+        {
+          "id": "partial-distribute",
+          "text": "Expands only part of a bracket before gathering."
+        },
+        {
+          "id": "wrong-unwrap-order",
+          "text": "Divides before removing the constant term."
+        },
+        {
+          "id": "axis-swap",
+          "text": "Reports the height at which two traces cross rather than the position."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Solves correctly but reports the value with the wrong sign."
+        },
+        {
+          "id": "coefficient-sign-lost",
+          "text": "Collects the unknown onto one side and drops the sign of its coefficient."
+        }
+      ]
+    }
+  ]
+}

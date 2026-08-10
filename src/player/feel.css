@@ -1,0 +1,19 @@
+/* Screen-space feedback for motion. Never interactive, never in the way. */
+#feel{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#feel .layer{position:absolute;inset:-6%;opacity:0;will-change:opacity,transform}
+
+/* radial speed streaks — only ever visible at the edges */
+#feel .streak{
+  background:repeating-conic-gradient(from 0deg at 50% 50%,
+    rgba(232,247,255,.20) 0deg .18deg, rgba(232,247,255,0) .18deg 3.6deg);
+  -webkit-mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,transparent 62%,rgba(0,0,0,.85) 100%);
+  mask-image:radial-gradient(ellipse 62% 62% at 50% 50%,transparent 62%,rgba(0,0,0,.85) 100%);
+  mix-blend-mode:screen;
+}
+/* a cool edge darkening that closes in as you accelerate */
+#feel .vig{
+  background:radial-gradient(ellipse 66% 66% at 50% 52%,transparent 48%,rgba(4,12,26,.45) 100%);
+}
+/* impact flash */
+#feel .flash{background:radial-gradient(ellipse 70% 70% at 50% 55%,rgba(196,236,255,.30),transparent 72%);
+  mix-blend-mode:screen}

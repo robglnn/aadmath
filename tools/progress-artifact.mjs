@@ -1,0 +1,210 @@
+/**
+ * Renders progress/state.json into a self-contained page for publishing.
+ * Re-run after each wave, then redeploy the artifact from the same file path.
+ */
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const s = JSON.parse(await readFile(path.join(ROOT, 'progress/state.json'), 'utf8'));
+
+const esc = (x) => String(x ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+const STATUS_LABEL = {
+  queued: 'queued', building: 'building', judging: 'under review',
+  passed: 'cleared', failed: 'sent back',
+};
+
+const metricRows = Object.entries(s.metrics || {}).map(([k, v]) => `
+      <div class="tel">
+        <span class="tel-k">${esc(k.replace(/([A-Z])/g, ' $1').trim())}</span>
+        <span class="tel-v">${typeof v === 'number' ? v.toLocaleString('en-US') : esc(v)}</span>
+      </div>`).join('');
+
+const pieceRows = (s.pieces || []).map((p) => `
+      <li class="piece" data-status="${esc(p.status)}">
+        <span class="stripe" aria-hidden="true"></span>
+        <div class="piece-main">
+          <h3>${esc(p.name)}</h3>
+          <p>${esc(p.note)}</p>
+        </div>
+        <div class="piece-meta">
+          <span class="status">${esc(STATUS_LABEL[p.status] || p.status)}</span>
+          ${p.score != null ? `<span class="score">${p.score}<i>/10</i></span>` : ''}
+          ${p.rounds ? `<span class="rounds">round ${p.rounds}</span>` : ''}
+        </div>
+      </li>`).join('');
+
+const logRows = (s.log || []).slice().reverse().map((l) => `
+      <li><time>${esc(l.t)}</time><span>${esc(l.m)}</span></li>`).join('');
+
+const cleared = (s.pieces || []).filter((p) => p.status === 'passed').length;
+const total = (s.pieces || []).length;
+
+const html = `<title>ASCENT — build readout</title>
+<style>
+:root{
+  color-scheme: dark light;
+  --ground:#0b1020; --raised:#121a2e; --sunk:#080d1a;
+  --line:rgba(158,180,220,.14); --line-strong:rgba(158,180,220,.26);
+  --ink:#e6ecfa; --ink-2:#a3b2cd; --ink-3:#6a7a97;
+  --ember:#ff9a4d;          /* the horizon of the world itself — the accent */
+  --ember-soft:rgba(255,154,77,.14);
+  --signal:#5fe6ff;         /* live / active only */
+  --good:#7fe0a0; --warn:#ffd166; --bad:#ff7a94;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 44px -28px rgba(0,0,0,.9);
+}
+:root[data-theme="light"]{
+  --ground:#f6f2ea; --raised:#fffdf9; --sunk:#efe9de;
+  --line:rgba(40,52,80,.13); --line-strong:rgba(40,52,80,.26);
+  --ink:#1a2135; --ink-2:#4a5670; --ink-3:#7c8699;
+  --ember:#c2521a; --ember-soft:rgba(194,82,26,.1);
+  --signal:#0f7f9c;
+  --good:#2f7d52; --warn:#9a6b0c; --bad:#b23350;
+  --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 14px 34px -28px rgba(30,20,10,.5);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --ground:#f6f2ea; --raised:#fffdf9; --sunk:#efe9de;
+    --line:rgba(40,52,80,.13); --line-strong:rgba(40,52,80,.26);
+    --ink:#1a2135; --ink-2:#4a5670; --ink-3:#7c8699;
+    --ember:#c2521a; --ember-soft:rgba(194,82,26,.1);
+    --signal:#0f7f9c;
+    --good:#2f7d52; --warn:#9a6b0c; --bad:#b23350;
+    --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 14px 34px -28px rgba(30,20,10,.5);
+  }
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding:clamp(1.5rem,4vw,3.5rem) clamp(1rem,4vw,2rem) 5rem;
+}
+.sheet{max-width:60rem;margin:0 auto;display:flex;flex-direction:column;gap:clamp(2rem,4vw,3rem)}
+
+/* ---- masthead: an instrument readout, not a hero ---- */
+.mast{display:flex;flex-direction:column;gap:.9rem}
+.eyebrow{
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  font-size:.68rem;letter-spacing:.32em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
+}
+.pip{width:6px;height:6px;border-radius:50%;background:var(--signal);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--signal) 22%,transparent);}
+@media (prefers-reduced-motion:no-preference){
+  .pip{animation:breathe 2.4s ease-in-out infinite}
+  @keyframes breathe{50%{opacity:.35}}
+}
+h1{
+  margin:0;font-size:clamp(2rem,7vw,3.6rem);line-height:.98;font-weight:800;
+  letter-spacing:.16em;text-transform:uppercase;text-wrap:balance;
+}
+h1 .thin{display:block;font-size:.3em;letter-spacing:.5em;font-weight:500;color:var(--ink-3);margin-top:.9em}
+.lede{margin:0;max-width:58ch;color:var(--ink-2);font-size:1.02rem}
+.summary{
+  margin:0;padding:1rem 1.15rem;background:var(--raised);border:1px solid var(--line);
+  border-left:2px solid var(--ember);border-radius:4px;color:var(--ink-2);
+  max-width:64ch;box-shadow:var(--shadow);
+}
+
+/* ---- telemetry strip ---- */
+.telemetry{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr));
+  border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--sunk);
+}
+.tel{padding:.85rem 1rem;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:.3rem}
+.tel:last-child{border-right:0}
+.tel-k{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.62rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.tel-v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.3rem;
+  font-variant-numeric:tabular-nums;color:var(--ink)}
+
+section h2{
+  margin:0 0 1rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;justify-content:space-between;align-items:baseline;gap:1rem;font-weight:600;
+}
+section h2 b{color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---- pieces ---- */
+.pieces{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.piece{
+  display:grid;grid-template-columns:3px 1fr auto;gap:0 1rem;align-items:center;
+  background:var(--raised);border:1px solid var(--line);border-radius:3px;
+  padding:.9rem 1.1rem .9rem 0;overflow:hidden;
+}
+.stripe{align-self:stretch;background:var(--ink-3);border-radius:3px 0 0 3px}
+.piece[data-status="building"] .stripe{background:var(--warn)}
+.piece[data-status="judging"] .stripe{background:var(--ember)}
+.piece[data-status="passed"] .stripe{background:var(--good)}
+.piece[data-status="failed"] .stripe{background:var(--bad)}
+.piece-main{padding-left:1.1rem;min-width:0}
+.piece-main h3{margin:0;font-size:1rem;font-weight:650;letter-spacing:.01em}
+.piece-main p{margin:.2rem 0 0;color:var(--ink-3);font-size:.86rem;line-height:1.45}
+.piece-meta{display:flex;align-items:center;gap:.9rem;white-space:nowrap}
+.status{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.62rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--line-strong);border-radius:999px;padding:.22rem .6rem;
+}
+.piece[data-status="passed"] .status{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent)}
+.piece[data-status="failed"] .status{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.piece[data-status="building"] .status{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.piece[data-status="judging"] .status{color:var(--ember);border-color:color-mix(in srgb,var(--ember) 45%,transparent);background:var(--ember-soft)}
+.score{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.05rem;
+  font-variant-numeric:tabular-nums;color:var(--ink)}
+.score i{font-style:normal;font-size:.7em;color:var(--ink-3)}
+.rounds{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.62rem;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ---- log ---- */
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.log li{display:grid;grid-template-columns:6.5rem 1fr;gap:1rem;padding:.6rem 0;
+  border-top:1px solid var(--line);color:var(--ink-2);font-size:.9rem}
+.log li:first-child{border-top:0}
+.log time{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.64rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);padding-top:.28rem}
+
+footer{color:var(--ink-3);font-size:.78rem;border-top:1px solid var(--line);padding-top:1rem}
+
+@media (max-width:640px){
+  .piece{grid-template-columns:3px 1fr;row-gap:.6rem}
+  .piece-meta{grid-column:2;padding-left:1.1rem}
+  .log li{grid-template-columns:1fr;gap:.15rem}
+}
+</style>
+
+<div class="sheet">
+  <header class="mast">
+    <p class="eyebrow"><span class="pip"></span>build readout · ${esc(s.updated)}</p>
+    <h1>Ascent<span class="thin">The Cipher Worlds</span></h1>
+    <p class="lede">${esc(s.subtitle)}</p>
+    <p class="summary">${esc(s.summary)}</p>
+  </header>
+
+  <div class="telemetry">${metricRows}</div>
+
+  <section>
+    <h2>Pieces <b>${cleared} of ${total} cleared</b></h2>
+    <ul class="pieces">${pieceRows}</ul>
+  </section>
+
+  <section>
+    <h2>Log</h2>
+    <ul class="log">${logRows}</ul>
+  </section>
+
+  <footer>
+    Each piece is built by a dedicated agent, then judged blind by a separate critic that
+    opens the running game, captures real pixels, plays the learning flow in English, Spanish
+    and Polish, and puts the frame beside Fortnite and Breath of the Wild. A piece clears only
+    when that critic would not send the builder back in.
+  </footer>
+</div>
+`;
+
+await writeFile(path.join(ROOT, 'progress/artifact.html'), html);
+console.log('wrote progress/artifact.html');

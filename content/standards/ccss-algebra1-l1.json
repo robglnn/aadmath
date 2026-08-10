@@ -1,0 +1,423 @@
+{
+  "framework": "Common Core State Standards for Mathematics (CCSS-M)",
+  "level": "algebra1-level1",
+  "title": "Standards alignment and mapping note — Algebra I, Level 1: The Language of Balance",
+  "mappingNote": [
+    "This document is the claim, and content/graph/algebra1-l1.json is the machine-readable copy of it. tools/validate-items.mjs fails the build if a graph node cites a standard that is not listed here, if a listed standard is claimed by no node, or if a node claims a representation that none of its item forms can actually produce. Alignment here is therefore checkable rather than asserted.",
+    "Level 1 runs from 'a letter stands for a number' to 'linear equations with the unknown on both sides, including the cases with no solution and with infinitely many'. That arc deliberately crosses grade bands: the conceptual foundations sit in Grade 6 Expressions and Equations, the procedural fluency in Grade 7, the both-sides work and the solution-set classification in Grade 8, and the justification and modelling demands in the High School Algebra conceptual category. A learner who finishes Level 1 has met the equation-solving content of HSA.REI.B.3 for linear equations in one variable.",
+    "Coverage is claimed at three depths. CORE means the standard is the thing being taught and is what the mastery gate tests. SUPPORTING means the standard is exercised inside items whose primary target is another standard. INTRODUCED means a first, deliberately partial encounter that a later level completes.",
+    "Representation coverage is treated as part of alignment, not as decoration. 6.EE.C.9 and 8.EE.B.5 explicitly require tables and graphs, so those nodes carry table and graph item forms and the mastery gate for them cannot be passed on symbolic items alone. Likewise 6.EE.A.4 ('identify when two expressions are equivalent') is enforced literally: the item verifier proves a distractor is *not* equivalent to the prompt before it is allowed to appear.",
+    "The Standards for Mathematical Practice are mapped as well as the content standards. MP.3 in particular is not left to chance: every skill from order-of-operations onward carries an error-analysis form in which two cadets disagree and the learner must decide which chain of reasoning is sound.",
+    "Deliberate exclusions at this level, each of which belongs to a later one: linear inequalities (HSA.REI.B.3, inequality half), literal equations and rearranging formulas (HSA.CED.A.4), systems solved algebraically (HSA.REI.C.6), and functions as objects with domain and range (8.F, HSF.IF). The two-trace graph item touches 8.EE.C.8.A as an INTRODUCED standard only — the crossing point is read, not solved for as a system.",
+    "Coverage is checked in both directions and at the level of individual item forms: tools/validate-items.mjs fails the build if any of the 64 item forms is never cited as evidence for a standard, or if a standard cites a form belonging to a skill it does not claim. Every form named here is generated, machine-verified against an independent solver, and rendered in strict KaTeX in all three locales before it can be cited."
+  ],
+  "standards": [
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.A.1",
+      "text": "Write and evaluate numerical expressions involving whole-number exponents.",
+      "depth": "core",
+      "nodes": [
+        "order-ops"
+      ],
+      "evidence": [
+        "oo-power",
+        "oo-negbase"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.A.2.A",
+      "text": "Write expressions that record operations with numbers and with letters standing for numbers.",
+      "depth": "core",
+      "nodes": [
+        "var-meaning"
+      ],
+      "evidence": [
+        "vm-choose",
+        "vm-context"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.A.2.C",
+      "text": "Evaluate expressions at specific values of their variables. Include expressions that arise from formulas used in real-world problems. Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations).",
+      "depth": "core",
+      "nodes": [
+        "eval-expr",
+        "order-ops"
+      ],
+      "evidence": [
+        "ee-linear",
+        "ee-two-var",
+        "ee-context",
+        "ee-fraction",
+        "oo-mixed",
+        "oo-fracbar",
+        "ee-square",
+        "oo-nested",
+        "oo-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.A.3",
+      "text": "Apply the properties of operations to generate equivalent expressions.",
+      "depth": "core",
+      "nodes": [
+        "like-terms",
+        "distribute"
+      ],
+      "evidence": [
+        "lt-collect",
+        "lt-three",
+        "ds-expand",
+        "ds-negative"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.A.4",
+      "text": "Identify when two expressions are equivalent (i.e., when the two expressions name the same number regardless of which value is substituted into them).",
+      "depth": "core",
+      "nodes": [
+        "like-terms"
+      ],
+      "evidence": [
+        "lt-equivalent",
+        "lt-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.B.5",
+      "text": "Understand solving an equation or inequality as a process of answering a question: which values from a specified set, if any, make the equation or inequality true? Use substitution to determine whether a given number in a specified set makes an equation or inequality true.",
+      "depth": "supporting",
+      "nodes": [
+        "one-step-add"
+      ],
+      "evidence": [
+        "oa-table",
+        "oa-balance"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.B.6",
+      "text": "Use variables to represent numbers and write expressions when solving a real-world or mathematical problem; understand that a variable can represent an unknown number, or, depending on the purpose at hand, any number in a specified set.",
+      "depth": "core",
+      "nodes": [
+        "var-meaning"
+      ],
+      "evidence": [
+        "vm-context",
+        "vm-position",
+        "vm-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.B.7",
+      "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers.",
+      "depth": "core",
+      "nodes": [
+        "one-step-add",
+        "one-step-mul"
+      ],
+      "evidence": [
+        "oa-symbolic",
+        "oa-context",
+        "om-symbolic",
+        "om-context",
+        "oa-model",
+        "om-balance",
+        "om-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.6.EE.C.9",
+      "text": "Use variables to represent two quantities in a real-world problem that change in relationship to one another; write an equation to express one quantity, thought of as the dependent variable, in terms of the other quantity, thought of as the independent variable. Analyze the relationship between the dependent and independent variables using graphs and tables, and relate these to the equation.",
+      "depth": "supporting",
+      "nodes": [
+        "eval-expr"
+      ],
+      "evidence": [
+        "ee-graph",
+        "ee-context",
+        "ee-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.7.EE.A.1",
+      "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients.",
+      "depth": "core",
+      "nodes": [
+        "like-terms",
+        "distribute"
+      ],
+      "evidence": [
+        "lt-collect",
+        "lt-square",
+        "ds-expand",
+        "ds-twoterm",
+        "ds-factor",
+        "lt-four",
+        "ds-share"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.7.EE.A.2",
+      "text": "Understand that rewriting an expression in different forms in a problem context can shed light on the problem and how the quantities in it are related.",
+      "depth": "supporting",
+      "nodes": [
+        "distribute"
+      ],
+      "evidence": [
+        "ds-area",
+        "ds-factor",
+        "ds-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.7.EE.B.3",
+      "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically.",
+      "depth": "supporting",
+      "nodes": [
+        "eval-expr",
+        "order-ops"
+      ],
+      "evidence": [
+        "ee-linear",
+        "oo-negbase",
+        "oo-fracbar",
+        "oo-context",
+        "oo-dispute"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
+      "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently. Compare an algebraic solution to an arithmetic solution, identifying the sequence of the operations used in each approach.",
+      "depth": "core",
+      "nodes": [
+        "one-step-mul",
+        "two-step",
+        "multi-step"
+      ],
+      "evidence": [
+        "ts-symbolic",
+        "ts-context",
+        "ts-fraction",
+        "ms-bracket",
+        "ms-context",
+        "om-fraction",
+        "ms-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.8.EE.B.5",
+      "text": "Graph proportional relationships, interpreting the unit rate as the slope of the graph.",
+      "depth": "introduced",
+      "nodes": [
+        "two-step"
+      ],
+      "evidence": [
+        "ts-graph"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.8.EE.C.7.A",
+      "text": "Give examples of linear equations in one variable with one solution, infinitely many solutions, or no solutions. Show which of these possibilities is the case by successively transforming the given equation into simpler forms, until an equivalent equation of the form x = a, a = a, or a = b results (where a and b are different numbers).",
+      "depth": "core",
+      "nodes": [
+        "both-sides"
+      ],
+      "evidence": [
+        "bs-special",
+        "bs-collect"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.8.EE.C.7.B",
+      "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms.",
+      "depth": "core",
+      "nodes": [
+        "multi-step",
+        "both-sides"
+      ],
+      "evidence": [
+        "ms-bracket",
+        "ms-collect",
+        "ms-fracbar",
+        "bs-symbolic",
+        "bs-bracket",
+        "ms-table"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.8.EE.C.8.A",
+      "text": "Understand that solutions to a system of two linear equations in two variables correspond to points of intersection of their graphs, because points of intersection satisfy both equations simultaneously.",
+      "depth": "introduced",
+      "nodes": [
+        "both-sides"
+      ],
+      "evidence": [
+        "bs-graph"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+      "text": "Interpret parts of an expression, such as terms, factors, and coefficients.",
+      "depth": "core",
+      "nodes": [
+        "var-meaning"
+      ],
+      "evidence": [
+        "vm-groups",
+        "vm-position",
+        "vm-compose"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.B",
+      "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity.",
+      "depth": "supporting",
+      "nodes": [
+        "like-terms"
+      ],
+      "evidence": [
+        "lt-perimeter",
+        "lt-square"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+      "text": "Use the structure of an expression to identify ways to rewrite it.",
+      "depth": "supporting",
+      "nodes": [
+        "distribute"
+      ],
+      "evidence": [
+        "ds-factor",
+        "ds-twoterm"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
+      "text": "Create equations and inequalities in one variable and use them to solve problems.",
+      "depth": "core",
+      "nodes": [
+        "two-step",
+        "both-sides"
+      ],
+      "evidence": [
+        "ts-model",
+        "bs-context"
+      ]
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.HSA.REI.A.1",
+      "text": "Explain each step in solving a simple equation as following from the equality of numbers asserted at the previous step, starting from the assumption that the original equation has a solution. Construct a viable argument to justify a solution method.",
+      "depth": "core",
+      "nodes": [
+        "multi-step"
+      ],
+      "evidence": [
+        "ms-dispute",
+        "ms-bracket"
+      ],
+      "note": "Every worked line the game shows is checked by an independent solver to have the same solution set as the line above it, so the justification a learner reads is provably sound."
+    },
+    {
+      "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+      "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+      "depth": "core",
+      "nodes": [
+        "one-step-add",
+        "one-step-mul",
+        "two-step",
+        "both-sides"
+      ],
+      "evidence": [
+        "oa-symbolic",
+        "om-symbolic",
+        "ts-symbolic",
+        "bs-symbolic",
+        "bs-bracket",
+        "om-dispute",
+        "bs-dispute"
+      ],
+      "note": "The inequality half of this standard is out of scope for Level 1."
+    }
+  ],
+  "practices": [
+    {
+      "code": "MP.1",
+      "text": "Make sense of problems and persevere in solving them.",
+      "nodes": [
+        "one-step-add",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "Prerequisite gating means a learner never meets a problem they were not equipped for, so persistence is asked for where it can succeed."
+    },
+    {
+      "code": "MP.2",
+      "text": "Reason abstractly and quantitatively.",
+      "nodes": [
+        "var-meaning",
+        "eval-expr",
+        "one-step-add",
+        "one-step-mul",
+        "both-sides"
+      ],
+      "how": "Contextual forms move between a situation and its symbols in both directions."
+    },
+    {
+      "code": "MP.3",
+      "text": "Construct viable arguments and critique the reasoning of others.",
+      "nodes": [
+        "order-ops",
+        "one-step-mul",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "Error-analysis items present two cadets' contradictory chains and ask which is sound; each wrong option is a real, named misconception rather than a random number."
+    },
+    {
+      "code": "MP.4",
+      "text": "Model with mathematics.",
+      "nodes": [
+        "eval-expr",
+        "distribute",
+        "one-step-add",
+        "two-step"
+      ],
+      "how": "The modelling form asks for the equation that records a situation, before any solving happens."
+    },
+    {
+      "code": "MP.6",
+      "text": "Attend to precision.",
+      "nodes": [
+        "var-meaning",
+        "eval-expr",
+        "order-ops",
+        "one-step-mul"
+      ],
+      "how": "Answers are exact rationals; the game never accepts a rounded value, and negative signs are generated deliberately from difficulty band 3."
+    },
+    {
+      "code": "MP.7",
+      "text": "Look for and make use of structure.",
+      "nodes": [
+        "like-terms",
+        "distribute",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "Factoring items ask the learner to see a sum as a product; the area model shows the distributive property as a split rectangle."
+    },
+    {
+      "code": "MP.8",
+      "text": "Look for and express regularity in repeated reasoning.",
+      "nodes": [
+        "like-terms",
+        "multi-step"
+      ],
+      "how": "Table forms make a rule visible across rows before it is written symbolically."
+    }
+  ]
+}

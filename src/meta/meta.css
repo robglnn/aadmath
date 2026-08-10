@@ -1,0 +1,841 @@
+/* ---------------------------------------------------------------------------
+   Narrative furniture: the comms channel, the chapter card, the ascension rite,
+   the cold open and the cadet dossier.
+
+   Everything here mounts inside #ui, whose `#ui > *` rule sets pointer-events
+   to auto — that ID selector is what once made an invisible full-screen dialog
+   eat every click in the game. So every full-bleed surface below re-declares
+   `pointer-events:none` through a selector that outranks it (`#ui .x`), and
+   only the specific controls take clicks back.
+
+   One CSS variable carries rank identity: --rank-ink / --rank-glow are set on
+   #ui by src/meta/index.js, so the accent on every surface changes as you
+   ascend without any of them knowing what rank means.
+--------------------------------------------------------------------------- */
+
+#ui {
+  --rank-ink: #e08a4c;
+  --rank-glow: #ff7a2f;
+  --meta-panel: linear-gradient(180deg, rgba(10, 18, 33, .88), rgba(5, 10, 20, .93));
+  --meta-edge: rgba(140, 195, 255, .18);
+  --meta-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* --------------------------------------------------------------- sigils -- */
+.sigil { display: block; overflow: visible; }
+.sig-hex {
+  fill: none; stroke: var(--rank-ink); stroke-width: 1.4; opacity: .85;
+  stroke-linejoin: round;
+}
+.sig-chev {
+  fill: none; stroke: var(--rank-ink); stroke-width: 2.6;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.sig-core { fill: var(--rank-ink); }
+.sigil.dim .sig-hex { stroke: rgba(159, 179, 208, .38); }
+.sigil.dim .sig-chev { stroke: rgba(159, 179, 208, .3); }
+.sigil.dim .sig-core { fill: rgba(159, 179, 208, .3); }
+
+/* ---------------------------------------------------------- comms panel -- */
+#ui .meta-comms {
+  /* The channel is laid out inside the band the controls leave free rather than
+     centred on the glass and hoped for: `--thumb-*` and `--hud-b` are declared
+     in src/ui/style.css off the device's real safe-area insets and whatever the
+     on-screen controls are claiming, so on a phone Marlow's line can never end
+     up underneath a thumbstick. On a pointer device all three reserves are the
+     hotbar's, and this lands where it always did. */
+  position: absolute;
+  left: calc(var(--pad-l) + var(--thumb-l)); right: calc(var(--pad-r) + var(--thumb-r));
+  bottom: calc(var(--hud-b) + 4px);
+  width: auto; max-width: 760px; margin-inline: auto;
+  display: grid; grid-template-columns: 46px 1fr; gap: .95rem; align-items: start;
+  padding: .85rem 1.1rem .95rem .9rem;
+  background: var(--meta-panel);
+  border: 1px solid var(--meta-edge);
+  border-left: 2px solid var(--rank-ink);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .07);
+  opacity: 0; translate: 0 14px; visibility: hidden;
+  transition: opacity .38s ease, translate .38s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .38s;
+  pointer-events: none;
+  z-index: 24;
+}
+#ui .meta-comms.show { opacity: 1; translate: 0 0; visibility: visible; transition-delay: 0s; }
+/* The rite prints its citation across the bottom third, which is where the
+   channel lives. For the five seconds a promotion owns the frame, the channel
+   steps back rather than being read through it. Whatever it was saying is still
+   there when the letterbox clears. */
+#ui:has(.meta-rite.show) .meta-comms.show { opacity: 0; translate: 0 10px; }
+
+.meta-face {
+  position: relative; width: 46px; height: 46px; display: grid; place-items: center;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: radial-gradient(70% 70% at 50% 35%, rgba(95, 230, 255, .34), rgba(9, 20, 38, .95));
+  box-shadow: inset 0 0 14px rgba(95, 230, 255, .3);
+}
+.meta-face svg { width: 30px; height: 30px; }
+.meta-face .iris {
+  fill: none; stroke: var(--cyan); stroke-width: 1.5; opacity: .95;
+  transform-origin: 12px 12px; animation: metaSpin 9s linear infinite;
+}
+.meta-face .iris.b { stroke: var(--rank-ink); opacity: .8; animation-duration: 6s; animation-direction: reverse; }
+.meta-face .pupil { fill: #eaf7ff; }
+@keyframes metaSpin { to { transform: rotate(360deg); } }
+
+.meta-head {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: .58rem; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-mute); margin-bottom: .38rem;
+}
+.meta-head b { color: var(--rank-ink); letter-spacing: .26em; font-weight: 700; }
+.meta-head .role { color: rgba(159, 179, 208, .62); font-weight: 400; letter-spacing: .14em; }
+.meta-wave { display: flex; align-items: flex-end; gap: 2px; height: 11px; margin-left: auto; }
+.meta-wave i {
+  display: block; width: 2px; height: 3px; border-radius: 1px;
+  background: var(--cyan); opacity: .5;
+}
+.meta-comms.talk .meta-wave i { animation: metaWave .62s ease-in-out infinite alternate; }
+.meta-wave i:nth-child(2) { animation-delay: .07s }
+.meta-wave i:nth-child(3) { animation-delay: .14s }
+.meta-wave i:nth-child(4) { animation-delay: .21s }
+.meta-wave i:nth-child(5) { animation-delay: .28s }
+.meta-wave i:nth-child(6) { animation-delay: .35s }
+.meta-wave i:nth-child(7) { animation-delay: .42s }
+.meta-wave i:nth-child(8) { animation-delay: .49s }
+.meta-wave i:nth-child(9) { animation-delay: .56s }
+@keyframes metaWave { from { height: 2px; opacity: .35 } to { height: 11px; opacity: .95 } }
+
+.meta-text {
+  font-size: .96rem; line-height: 1.48; color: #e9f2ff;
+  text-wrap: pretty; min-height: 1.4em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .55);
+}
+.meta-text .caret {
+  display: inline-block; width: .48em; height: 1.02em; margin-left: 1px;
+  vertical-align: -.16em; background: var(--rank-ink); opacity: .85;
+  animation: metaBlink 1s steps(1) infinite;
+}
+@keyframes metaBlink { 50% { opacity: 0 } }
+
+/* --------------------------------------------------------- chapter card -- */
+#ui .meta-quest {
+  position: absolute;
+  left: var(--pad-l);
+  top: calc(var(--pad-t) + 78px);
+  width: 268px; padding: .62rem .78rem .68rem;
+  background: linear-gradient(180deg, rgba(10, 18, 33, .74), rgba(5, 10, 20, .62));
+  border: 1px solid rgba(140, 195, 255, .13);
+  border-left: 2px solid var(--rank-ink);
+  border-radius: 9px; backdrop-filter: blur(12px);
+  opacity: 0; translate: -8px 0; transition: opacity .5s ease, translate .5s ease;
+  cursor: pointer; pointer-events: auto; z-index: 22;
+  text-align: left; appearance: none; font: inherit; color: inherit;
+  display: block;
+}
+.meta-quest > span { display: block; }
+.meta-quest .qh { display: flex; }
+#ui .meta-quest.show { opacity: 1; translate: 0 0; }
+#ui .meta-quest:hover { border-color: rgba(140, 195, 255, .3); background: linear-gradient(180deg, rgba(14, 24, 43, .82), rgba(7, 13, 25, .7)); }
+.meta-quest .qh { display: flex; align-items: center; gap: .42rem; }
+.meta-quest .qh .sigil { width: 17px; height: 17px; flex: 0 0 auto; }
+.meta-quest .qact {
+  font-size: .55rem; letter-spacing: .24em; text-transform: uppercase; color: var(--rank-ink);
+}
+.meta-quest .qkey {
+  margin-left: auto; font-family: var(--meta-mono); font-size: .55rem; letter-spacing: .1em;
+  color: var(--ink-mute); border: 1px solid rgba(140, 195, 255, .2);
+  border-radius: 4px; padding: .05rem .28rem; line-height: 1.35;
+}
+.meta-quest .qtitle {
+  margin-top: .3rem; font-size: .93rem; line-height: 1.2; color: #edf4ff; font-weight: 600;
+  letter-spacing: .005em;
+}
+.meta-quest .qlabel {
+  margin-top: .5rem; font-size: .5rem; letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(159, 179, 208, .55);
+}
+.meta-quest .qbody {
+  margin-top: .16rem; font-size: .76rem; line-height: 1.42; color: var(--ink-dim);
+}
+/* ---- the seal ledger: the fast clock, and the loudest thing on the card ----
+   A numeral, because a bar alone cannot be counted and a number you can count
+   is a number you can chase. It changes on every sealed statement; the +1 rises
+   off it and the bar under it closes on the next chapter. */
+.meta-quest .qseal {
+  position: relative; margin-top: .6rem; padding-top: .55rem;
+  border-top: 1px solid rgba(140, 195, 255, .13);
+}
+.meta-quest .qs-top { display: flex; align-items: baseline; gap: .44rem; }
+.meta-quest .qs-n {
+  font-size: 1.6rem; line-height: .95; font-weight: 800; font-style: normal;
+  color: #f4f9ff; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  text-shadow: 0 0 20px color-mix(in srgb, var(--rank-glow) 55%, transparent);
+}
+.meta-quest .qs-lab {
+  font-size: .5rem; letter-spacing: .2em; text-transform: uppercase; line-height: 1.25;
+  color: rgba(159, 179, 208, .62); max-width: 8.4rem;
+}
+.meta-quest .qs-plus {
+  position: absolute; right: 1px; top: .72rem; font-style: normal;
+  font-family: var(--meta-mono); font-size: .74rem; font-weight: 700;
+  color: var(--rank-ink); opacity: 0; pointer-events: none;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--rank-glow) 70%, transparent);
+}
+.meta-quest .qs-track {
+  display: block; position: relative; height: 5px; margin-top: .42rem; border-radius: 3px;
+  background: rgba(255, 255, 255, .08);
+  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .1);
+  overflow: hidden;
+}
+.meta-quest .qs-track b {
+  position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 3px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--rank-ink) 45%, transparent), var(--rank-ink));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rank-glow) 85%, transparent);
+  transition: width .55s cubic-bezier(.2, .8, .2, 1);
+}
+.meta-quest .qseal.full .qs-track b {
+  background: linear-gradient(90deg, var(--rank-ink), #fff, var(--rank-ink));
+}
+.meta-quest .qs-next {
+  display: block; margin-top: .34rem; font-size: .53rem; letter-spacing: .13em;
+  text-transform: uppercase; color: rgba(159, 179, 208, .66);
+}
+.meta-quest .qseal.pop .qs-n { animation: metaSealN .72s cubic-bezier(.2, .9, .25, 1); }
+.meta-quest .qseal.pop .qs-plus { animation: metaSealPlus 1.05s cubic-bezier(.2, .8, .2, 1); }
+.meta-quest .qseal.pop .qs-track::after {
+  content: ''; position: absolute; inset: 0; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
+  animation: metaTick .8s cubic-bezier(.3, .7, .3, 1);
+}
+@keyframes metaSealN {
+  0% { scale: 1 }
+  26% { scale: 1.22; text-shadow: 0 0 26px var(--rank-glow) }
+  100% { scale: 1 }
+}
+@keyframes metaSealPlus {
+  0% { opacity: 0; translate: 0 6px }
+  18% { opacity: 1; translate: 0 0 }
+  100% { opacity: 0; translate: 0 -16px }
+}
+
+/* The rung meter. Rank used to be a word that changed once every twenty-five
+   items, which made the ladder invisible while you were standing on it. This
+   moves on every point of standing gained, and it names the rank it is moving
+   towards, so at any moment the next rung has a distance on it. */
+.meta-quest .qrung { margin-top: .52rem; }
+.meta-quest .qr-lab {
+  display: flex; justify-content: space-between; gap: .5rem;
+  font-size: .5rem; letter-spacing: .19em; text-transform: uppercase;
+}
+.meta-quest .qr-now { font-style: normal; color: var(--rank-ink); font-weight: 700; }
+.meta-quest .qr-next { font-style: normal; color: rgba(159, 179, 208, .62); text-align: right; }
+.meta-quest .qr-track {
+  display: block; position: relative; height: 4px; margin-top: .32rem; border-radius: 2px;
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .09);
+  overflow: hidden;
+}
+.meta-quest .qr-track b {
+  position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 2px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--rank-ink) 55%, transparent), var(--rank-ink));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--rank-glow) 75%, transparent);
+  transition: width .6s cubic-bezier(.2, .8, .2, 1);
+}
+.meta-quest .qrung.full .qr-track b {
+  background: linear-gradient(90deg, var(--rank-ink), #fff, var(--rank-ink));
+}
+/* the tick: a point of standing landed, and the bar says so */
+.meta-quest .qrung.tick .qr-track::after {
+  content: ''; position: absolute; inset: 0; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .8), transparent);
+  animation: metaTick .8s cubic-bezier(.3, .7, .3, 1);
+}
+@keyframes metaTick { from { translate: -100% 0 } to { translate: 100% 0 } }
+
+/* ------------------------------------------------------- the chapter turn --
+   Not the rite. Nothing dims, nothing letterboxes, the controls are never
+   taken: a rule draws itself across the upper third, the chapter is named above
+   it and the act's title lands under it, and it is gone in three and a half
+   seconds. It happens four or five times a session, so it has to be a gesture
+   you would not mind seeing five times. */
+#ui .meta-turn {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  pointer-events: none; z-index: 23; opacity: 0; visibility: hidden;
+}
+/* The layer's own fade is a transition driven by a timer in turn.js, not an
+   animation with a fill: the global reduced-motion reset collapses every
+   animation to 0.01 ms, which would end `forwards` at opacity 0 and make the
+   plate never appear for exactly the players who most need it to be still. */
+#ui .meta-turn.show { opacity: 1; visibility: visible; }
+#ui .meta-turn.show.out { opacity: 0; transition: opacity .55s ease; }
+.meta-turn .tn-in {
+  position: relative; text-align: center; translate: 0 -14vh; width: min(92vw, 720px);
+}
+/* A soft ellipse of shade under the type — not a dim, just enough that the
+   chapter is legible when the plate lands over bright sand or a lit sky. */
+.meta-turn .tn-in::before {
+  content: ''; position: absolute; inset: -3.2rem -4rem; z-index: -1;
+  background: radial-gradient(60% 62% at 50% 50%, rgba(2, 6, 14, .62), rgba(2, 6, 14, 0) 72%);
+}
+.meta-turn .tn-kick {
+  font-size: .68rem; letter-spacing: .46em; text-transform: uppercase;
+  color: var(--rank-ink); font-weight: 700; text-indent: .46em;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--rank-glow) 65%, transparent),
+               0 2px 10px rgba(0, 0, 0, .8);
+}
+.meta-turn.show .tn-kick { animation: metaTurnKick .8s cubic-bezier(.2, .8, .2, 1) both; }
+.meta-turn .tn-rule {
+  position: relative; height: 1px; margin: .74rem auto .82rem;
+  width: min(52vw, 460px);
+}
+.meta-turn .tn-rule i {
+  position: absolute; inset: 0; scale: 0 1;
+  background: linear-gradient(90deg, transparent,
+    var(--rank-ink) 22%, #fff 50%, var(--rank-ink) 78%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--rank-glow) 70%, transparent);
+}
+.meta-turn.show .tn-rule i { animation: metaTurnRule 1s cubic-bezier(.16, .9, .2, 1) both; }
+.meta-turn .tn-seals {
+  position: absolute; right: 0; top: -1.15rem; font-weight: 400;
+  font-family: var(--meta-mono); font-size: .56rem; letter-spacing: .18em;
+  text-transform: uppercase; color: rgba(190, 210, 236, .62);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .8); opacity: 0;
+}
+.meta-turn.show .tn-seals { animation: metaFade .7s ease both .55s; }
+.meta-turn .tn-title {
+  font-size: clamp(1.45rem, 3.3vw, 2.5rem); font-weight: 600; line-height: 1.12;
+  color: #f2f7ff; letter-spacing: -.005em;
+  text-shadow: 0 4px 26px rgba(0, 0, 0, .85), 0 0 46px rgba(120, 170, 255, .18);
+}
+.meta-turn.show .tn-title { animation: metaTurnTitle 1.1s cubic-bezier(.2, .8, .2, 1) both .28s; }
+@keyframes metaTurnKick {
+  from { opacity: 0; translate: 0 8px; letter-spacing: .9em }
+  to { opacity: 1; translate: 0 0; letter-spacing: .46em }
+}
+@keyframes metaTurnRule { from { scale: 0 1 } to { scale: 1 1 } }
+@keyframes metaTurnTitle {
+  from { opacity: 0; translate: 0 14px; filter: blur(6px) }
+  to { opacity: 1; translate: 0 0; filter: blur(0) }
+}
+
+.meta-quest.turn { animation: metaTurn 1.5s ease; }
+@keyframes metaTurn {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0) }
+  22% { box-shadow: 0 0 34px 2px color-mix(in srgb, var(--rank-glow) 55%, transparent) }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0) }
+}
+
+/* ------------------------------------------------------------ cold open -- */
+#ui .meta-open { position: absolute; inset: 0; pointer-events: none; z-index: 12; }
+/* Scrims, not film bars. A solid letterbox would have to cover the HUD to look
+   deliberate; a gradient lifts the contrast under the stamp and the channel and
+   leaves every readout where the player expects it. */
+.meta-bar {
+  position: absolute; left: 0; right: 0; height: 26vh;
+  opacity: 0; transition: opacity 1.4s ease;
+}
+.meta-bar.t { top: 0; background: linear-gradient(180deg, rgba(2, 5, 11, .74), rgba(2, 5, 11, 0)); }
+.meta-bar.b { bottom: 0; background: linear-gradient(0deg, rgba(2, 5, 11, .8), rgba(2, 5, 11, 0)); }
+.meta-open.on .meta-bar { opacity: 1; }
+
+.meta-stamp {
+  position: absolute; left: max(30px, 3.4vw); top: 44%; z-index: 1;
+  opacity: 0; translate: 0 10px; transition: opacity .9s ease, translate .9s ease;
+}
+.meta-open.on .meta-stamp { opacity: 1; translate: 0 0; }
+/* The stamp lands on whatever the sky is doing, which at first light is white.
+   It carries its own ground: a soft dark wash that fades out to the right. */
+.meta-stamp::before {
+  content: ''; position: absolute; inset: -22px -90px -18px -40px; z-index: -1;
+  background: linear-gradient(100deg, rgba(2, 5, 12, .62) 0%, rgba(2, 5, 12, .34) 46%, rgba(2, 5, 12, 0) 100%);
+  filter: blur(14px);
+}
+/* The kicker above the place name: small, wide, and it arrives first. */
+.meta-stamp .s0 {
+  font-family: var(--meta-mono); font-size: .6rem; letter-spacing: .34em;
+  text-transform: uppercase; color: color-mix(in srgb, var(--rank-ink) 78%, #fff);
+  margin-bottom: .5rem;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 1);
+  opacity: 0; translate: 0 6px;
+}
+.meta-open.on .meta-stamp .s0 { animation: metaUp .9s ease forwards .15s; }
+.meta-stamp .s1 {
+  font-size: clamp(1.05rem, 2.1vw, 1.5rem); letter-spacing: .42em; text-indent: .42em;
+  text-transform: uppercase; color: #fff; font-weight: 600;
+  text-shadow: 0 2px 22px rgba(0, 0, 0, .95), 0 0 40px rgba(0, 0, 0, .6);
+}
+
+/* ----------------------------------------------------------- cine mode --
+   The first frame of Breath of the Wild carries one piece of UI. While the
+   cold open is running, every instrument in #ui stands down and the stamp is
+   the only thing on the sky; they come back as the chrome retracts. Nothing is
+   display:none — the readouts keep their layout, so nothing reflows when they
+   return. */
+#ui.meta-cine .hud-top,
+#ui.meta-cine .crosshair,
+#ui.meta-cine .buildbar,
+#ui.meta-cine .langs,
+#ui.meta-cine .sound,
+#ui.meta-cine .marlow,
+#ui.meta-cine .meta-quest {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity .55s ease;
+}
+#ui .hud-top, #ui .crosshair, #ui .buildbar, #ui .langs, #ui .sound {
+  transition: opacity .9s ease .25s;
+}
+.meta-stamp .rule {
+  height: 2px; margin: .62rem 0 .58rem; width: 0;
+  background: linear-gradient(90deg, var(--rank-ink), rgba(159, 179, 208, 0));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rank-glow) 70%, transparent);
+  transition: width 1.5s cubic-bezier(.16, .84, .28, 1) .35s;
+}
+.meta-open.on .meta-stamp .rule { width: min(330px, 34vw); }
+.meta-stamp .s2, .meta-stamp .s3 {
+  font-family: var(--meta-mono); font-size: .72rem; letter-spacing: .17em;
+  color: #eaf2fd; text-shadow: 0 1px 6px rgba(0, 0, 0, 1), 0 0 18px rgba(0, 0, 0, .9);
+}
+.meta-stamp .s3 { margin-top: .25rem; color: rgba(206, 222, 242, .92); }
+
+/* ------------------------------------------------------- ascension rite --
+   The arc's payoff, and it is built as a physical event rather than a title
+   card. Timeline, from the frame the class lands:
+
+     0.00  the bars slam in over an overshoot curve
+     0.06  the dim ramps up — bottom-lit, so the cadet stands in the light of
+           their own promotion instead of being flattened by it
+     0.10  a wave leaves the middle of the frame
+     0.14  sparks start rising off the bottom edge in the rank's colour
+     0.20  the sigil draws itself, hex then one chevron per rank
+     0.42  the rank's name lands at 1.5× and overshoots down to true
+     1.30  everything readable
+     4.60  `out` — bars retract, layer fades
+     5.20  gone
+
+   Cost: one composited layer, forty-eight two-property spans, no per-frame JS.
+   The rite never takes the controls: you can walk through your own promotion. */
+#ui .meta-rite {
+  position: absolute; inset: 0;
+  pointer-events: none; opacity: 0; visibility: hidden; z-index: 40;
+  transition: opacity .45s ease, visibility 0s linear .45s;
+  contain: layout paint;
+}
+#ui .meta-rite.show { opacity: 1; visibility: visible; transition-delay: 0s; transition-duration: .12s; }
+#ui .meta-rite.out { opacity: 0; transition-duration: .6s; }
+
+/* the ground: dark at the top, a pool of the rank's own light at the bottom */
+.rite-dim {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(64% 46% at 50% 88%, color-mix(in srgb, var(--rank-glow) 34%, transparent) 0%, transparent 72%),
+    linear-gradient(180deg, rgba(2, 4, 10, .93) 0%, rgba(3, 6, 14, .78) 46%, rgba(4, 8, 18, .58) 78%, rgba(2, 5, 12, .74) 100%);
+  opacity: 0;
+}
+.meta-rite.show .rite-dim { animation: riteDim .5s ease forwards .06s; }
+@keyframes riteDim { from { opacity: 0 } to { opacity: 1 } }
+
+/* hard letterbox — these are bars, not scrims */
+.rite-bar {
+  position: absolute; left: 0; right: 0; height: 0;
+  background: linear-gradient(180deg, #04070e, #01030700);
+  background-color: #04070e;
+  box-shadow: 0 0 0 0 transparent;
+}
+.rite-bar.t { top: 0; border-bottom: 1px solid color-mix(in srgb, var(--rank-ink) 45%, transparent); }
+.rite-bar.b { bottom: 0; border-top: 1px solid color-mix(in srgb, var(--rank-ink) 45%, transparent); }
+.meta-rite.show .rite-bar { animation: riteBar .34s cubic-bezier(.16, 1.02, .3, 1) forwards; }
+.meta-rite.out .rite-bar { animation: riteBarOut .5s cubic-bezier(.5, 0, .75, 0) forwards; }
+@keyframes riteBar { from { height: 0 } to { height: 11.5vh } }
+@keyframes riteBarOut { from { height: 11.5vh } to { height: 0 } }
+
+/* the wave that leaves the middle of the screen */
+.rite-wave {
+  position: absolute; left: 50%; top: 50%; width: 26vmin; height: 26vmin;
+  margin: -13vmin 0 0 -13vmin; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--rank-ink) 85%, #fff);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--rank-glow) 70%, transparent),
+              inset 0 0 24px color-mix(in srgb, var(--rank-glow) 40%, transparent);
+  opacity: 0; scale: .18;
+}
+.meta-rite.show .rite-wave { animation: riteWave 1.05s cubic-bezier(.14, .74, .2, 1) forwards .1s; }
+@keyframes riteWave {
+  0% { opacity: 0; scale: .18 }
+  14% { opacity: .95 }
+  100% { opacity: 0; scale: 5.2 }
+}
+
+/* particulate off the bottom of the frame, in the rank's colour */
+.rite-sparks { position: absolute; inset: 0; overflow: hidden; }
+.rite-sparks i {
+  position: absolute; left: var(--x); bottom: 8vh;
+  width: calc(var(--s) * 3px); height: calc(var(--s) * 3px); border-radius: 50%;
+  background: color-mix(in srgb, var(--rank-ink) 88%, #fff);
+  box-shadow: 0 0 calc(var(--s) * 9px) color-mix(in srgb, var(--rank-glow) 90%, transparent);
+  opacity: 0;
+}
+.meta-rite.show .rite-sparks i {
+  animation: riteSpark var(--t) cubic-bezier(.2, .6, .35, 1) infinite;
+  animation-delay: calc(.14s + var(--d));
+}
+@keyframes riteSpark {
+  0% { opacity: 0; translate: 0 0; }
+  12% { opacity: .95 }
+  70% { opacity: .7 }
+  100% { opacity: 0; translate: var(--dx) -76vh; }
+}
+
+/* the type. The top group sits in the upper half; the citation is a lower
+   third. Between them is a clear band the cadet stands in — which is the whole
+   reason the light pool is where it is. */
+.meta-rite .rite-in {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 15vh 6vw 14.5vh;
+}
+.meta-rite .sigil {
+  width: min(108px, 16vw); height: min(108px, 16vw);
+  filter: drop-shadow(0 0 26px var(--rank-glow));
+}
+.meta-rite.show .sig-hex {
+  stroke-dasharray: 128; stroke-dashoffset: 128;
+  animation: metaDraw .72s cubic-bezier(.3, .8, .3, 1) forwards .2s;
+}
+.meta-rite.show .sig-chev {
+  stroke-dasharray: 26; stroke-dashoffset: 26;
+  animation: metaDraw .34s cubic-bezier(.3, .8, .3, 1) forwards;
+  animation-delay: calc(.5s + var(--k) * .09s);
+}
+.meta-rite.show .sig-core { opacity: 0; animation: metaFade .5s ease forwards 1s; }
+@keyframes metaDraw { to { stroke-dashoffset: 0 } }
+@keyframes metaFade { to { opacity: 1 } }
+
+.rite-kicker {
+  margin-top: .95rem; font-size: .6rem; letter-spacing: .5em; text-indent: .5em;
+  text-transform: uppercase; color: rgba(235, 244, 255, .92);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, .8);
+  opacity: 0;
+}
+.meta-rite.show .rite-kicker { animation: metaUp .55s ease forwards .34s; }
+
+.rite-name {
+  margin-top: .3rem; line-height: .96; overflow: visible;
+  font-size: clamp(2.1rem, var(--rite-size, 7.2vw), 5.6rem);
+  font-weight: 800; letter-spacing: .26em; text-indent: .26em; text-transform: uppercase;
+}
+/* the word arrives at the wrong size and settles — the single beat that makes
+   a promotion read as an impact rather than as an announcement */
+.rite-name span {
+  display: inline-block; color: #fff;
+  text-shadow:
+    0 0 8px color-mix(in srgb, var(--rank-ink) 90%, transparent),
+    0 0 44px color-mix(in srgb, var(--rank-glow) 85%, transparent),
+    0 0 110px color-mix(in srgb, var(--rank-glow) 55%, transparent);
+  opacity: 0;
+}
+.meta-rite.show .rite-name span { animation: riteWord .62s cubic-bezier(.14, .9, .26, 1) forwards .42s; }
+@keyframes riteWord {
+  0% { opacity: 0; scale: 1.52; filter: blur(9px); }
+  46% { opacity: 1; filter: blur(0); }
+  72% { scale: .972 }
+  100% { opacity: 1; scale: 1; filter: blur(0); }
+}
+
+.rite-arrow {
+  margin-top: .9rem; font-family: var(--meta-mono); font-size: .7rem; letter-spacing: .3em;
+  text-transform: uppercase; color: var(--rank-ink); opacity: 0;
+}
+.meta-rite.show .rite-arrow { animation: metaUp .55s ease forwards .82s; }
+
+.rite-rule {
+  margin: auto auto 1.05rem; height: 1px; width: 0;
+  background: linear-gradient(90deg, transparent, var(--rank-ink), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--rank-glow) 60%, transparent);
+}
+.meta-rite.show .rite-rule { animation: metaRule 1.1s cubic-bezier(.16, .84, .28, 1) forwards .7s; }
+@keyframes metaRule { to { width: min(420px, 62vw) } }
+
+.rite-cite {
+  max-width: 46ch; font-size: clamp(.86rem, 1.15vw, 1.02rem); line-height: 1.52;
+  color: rgba(232, 241, 253, .92); text-wrap: pretty;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .9);
+  opacity: 0;
+}
+.meta-rite.show .rite-cite { animation: metaUp .7s ease forwards .95s; }
+@keyframes metaUp { from { opacity: 0; translate: 0 12px } to { opacity: 1; translate: 0 0 } }
+
+/* ---------------------------------------------------------- the dossier -- */
+#ui .meta-dossier {
+  position: absolute; inset: 0; z-index: 45;
+  display: grid; place-items: center;
+  background: rgba(3, 7, 15, .72); backdrop-filter: blur(9px);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .3s ease, visibility 0s linear .3s;
+}
+#ui .meta-dossier.show { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.dos-card {
+  width: min(1020px, 94vw); height: min(86vh, 800px); overflow: hidden;
+  display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(12, 21, 39, .97), rgba(6, 12, 24, .98));
+  border: 1px solid var(--meta-edge); border-radius: 16px;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, .66), inset 0 1px 0 rgba(255, 255, 255, .06);
+  padding: 1.3rem 1.5rem 1.4rem;
+  translate: 0 14px; transition: translate .35s cubic-bezier(.2, .8, .2, 1);
+}
+.meta-dossier.show .dos-card { translate: 0 0; }
+.dos-head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+.dos-head h2 {
+  margin: 0; font-size: .92rem; font-weight: 600; letter-spacing: .26em; text-transform: uppercase;
+  color: #eef4ff;
+}
+.dos-head .sub {
+  font-family: var(--meta-mono); font-size: .62rem; letter-spacing: .16em; color: var(--ink-mute);
+}
+.dos-head .x {
+  margin-left: auto; appearance: none; background: none; cursor: pointer;
+  border: 1px solid rgba(140, 195, 255, .22); color: var(--ink-dim);
+  border-radius: 7px; padding: .32rem .7rem; font: inherit; font-size: .68rem; letter-spacing: .12em;
+}
+.dos-head .x:hover { color: #fff; border-color: var(--rank-ink); }
+
+.dos-grid {
+  display: grid; grid-template-columns: 284px 1fr; gap: 1.5rem; margin-top: 1.15rem;
+  flex: 1; min-height: 0;
+}
+/* Both columns are taller than the card on a 720p laptop, so both scroll — and
+   both say so: a visible thumb plus a fade at the bottom edge, so a grid that
+   ends mid-row reads as "there is more" rather than as clipping. */
+.dos-left {
+  overflow-y: auto; padding-right: .45rem;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 30px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 30px), transparent 100%);
+}
+.dos-left::-webkit-scrollbar, .dos-log::-webkit-scrollbar, .dos-grid::-webkit-scrollbar { width: 6px; }
+.dos-left::-webkit-scrollbar-track, .dos-log::-webkit-scrollbar-track, .dos-grid::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, .05); border-radius: 3px;
+}
+.dos-left::-webkit-scrollbar-thumb, .dos-log::-webkit-scrollbar-thumb, .dos-grid::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--rank-ink) 55%, transparent); border-radius: 3px;
+}
+.dos-left, .dos-log, .dos-grid { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--rank-ink) 55%, transparent) rgba(255, 255, 255, .05); }
+.dos-right { display: flex; flex-direction: column; min-height: 0; }
+.dos-sec > h3 + .dos-log {
+  min-height: 0; overflow-y: auto; padding-right: .4rem;
+  /* the log is longer than the card: fade its bottom edge so it reads as
+     scrollable rather than as a chapter that got cut off */
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 44px), transparent 100%);
+}
+.dos-left .h-lines { margin-top: 1.3rem; }
+.dos-sec > h3 {
+  margin: 0 0 .7rem; font-size: .55rem; letter-spacing: .26em; text-transform: uppercase;
+  color: rgba(159, 179, 208, .6); font-weight: 600;
+}
+
+/* the ladder */
+.dos-ladder { display: grid; gap: .1rem; }
+.rung {
+  display: grid; grid-template-columns: 34px 1fr; gap: .6rem; align-items: center;
+  padding: .5rem .55rem; border-radius: 8px; position: relative;
+  border: 1px solid transparent;
+}
+.rung::before {
+  content: ''; position: absolute; left: 17px; top: -6px; height: 6px; width: 1px;
+  background: rgba(140, 195, 255, .2);
+}
+.rung:first-child::before { display: none; }
+.rung .sigil { width: 30px; height: 30px; }
+.rung .rn { display: block; font-size: .86rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim); }
+.rung .rc { display: block; font-size: .58rem; letter-spacing: .12em; color: rgba(159, 179, 208, .5); margin-top: .12rem; }
+.rung.done .rn { color: #e8f1ff; }
+.rung.here {
+  border-color: color-mix(in srgb, var(--rank-ink) 55%, transparent);
+  background: color-mix(in srgb, var(--rank-ink) 9%, transparent);
+}
+.rung.here .rn { color: var(--rank-ink); font-weight: 700; }
+.rung.here .rc { color: color-mix(in srgb, var(--rank-ink) 72%, #9fb3d0); }
+
+/* what standing is made of — progression you can audit */
+.dos-left .h-stand { margin-top: 1.25rem; }
+.dos-stand { display: grid; gap: .42rem; }
+.st-head { display: flex; align-items: baseline; gap: .45rem; margin-bottom: .1rem; }
+.st-head .st-n {
+  font-size: 1.5rem; font-weight: 800; line-height: 1; color: var(--rank-ink);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--rank-glow) 55%, transparent);
+}
+.st-head .st-of { font-size: .58rem; letter-spacing: .13em; color: rgba(159, 179, 208, .55); }
+.st-row {
+  display: grid; grid-template-columns: 1fr 54px 40px; gap: .5rem; align-items: center;
+  font-size: .62rem; letter-spacing: .05em; color: var(--ink-dim);
+}
+.st-row .st-lab { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-row .st-bar {
+  display: block; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .09);
+  overflow: hidden;
+}
+.st-row .st-bar i {
+  display: block; height: 100%; width: 0; border-radius: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--rank-ink) 60%, transparent), var(--rank-ink));
+  transition: width .5s ease;
+}
+.st-row .st-v {
+  font-family: var(--meta-mono); font-size: .58rem; text-align: right;
+  color: rgba(159, 179, 208, .6);
+}
+.st-row.capped .st-bar i { background: linear-gradient(90deg, var(--rank-ink), #fff); }
+.st-row.capped .st-v { color: var(--rank-ink); }
+
+.dos-int { margin-top: 1rem; }
+.dos-int .lab {
+  display: flex; justify-content: space-between; font-size: .55rem; letter-spacing: .2em;
+  text-transform: uppercase; color: rgba(159, 179, 208, .6);
+}
+.dos-int .track { height: 3px; margin-top: .4rem; background: rgba(255, 255, 255, .09); border-radius: 2px; overflow: hidden; }
+.dos-int .track i {
+  display: block; height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--rank-ink), var(--cyan));
+}
+
+/* the log */
+.dos-log { display: grid; gap: .55rem; }
+/* the fast clock, at the head of the log */
+.dos-tally {
+  display: flex; align-items: baseline; gap: .55rem;
+  padding: .1rem .1rem .5rem; border-bottom: 1px solid rgba(140, 195, 255, .12);
+}
+.dos-tally b {
+  font-size: 1.7rem; line-height: 1; font-weight: 800; color: var(--rank-ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--rank-glow) 45%, transparent);
+}
+.dos-tally span {
+  font-size: .56rem; letter-spacing: .2em; text-transform: uppercase;
+  color: rgba(159, 179, 208, .62); max-width: 12rem; line-height: 1.3;
+}
+.chap {
+  padding: .72rem .9rem; border-radius: 10px;
+  border: 1px solid rgba(140, 195, 255, .1);
+  background: rgba(255, 255, 255, .022);
+}
+.chap.on { border-color: color-mix(in srgb, var(--rank-ink) 34%, transparent); background: color-mix(in srgb, var(--rank-ink) 6%, rgba(255, 255, 255, .02)); }
+/* the coda is not a sixth chapter, it is the end of the argument */
+.chap.coda { border-style: dashed; border-color: rgba(140, 195, 255, .16); }
+.chap.coda .ch-n { color: var(--rank-ink); }
+.chap .ch-h { display: flex; align-items: baseline; gap: .6rem; }
+.chap .ch-n { font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .18em; color: var(--ink-mute); }
+.chap .ch-t { font-size: .92rem; color: #eaf2ff; font-weight: 600; }
+.chap.locked .ch-t { color: rgba(159, 179, 208, .45); }
+.chap .ch-lock {
+  margin-left: auto; font-size: .55rem; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(159, 179, 208, .45);
+}
+.chap p { margin: .45rem 0 0; font-size: .8rem; line-height: 1.52; color: var(--ink-dim); text-wrap: pretty; }
+.chap p + p { margin-top: .32rem; }
+.chap .redact {
+  margin-top: .5rem; display: flex; flex-wrap: wrap; gap: 4px;
+}
+.chap .redact i { display: block; height: 7px; border-radius: 2px; background: rgba(159, 179, 208, .13); }
+
+/* the ten lines */
+.dos-lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: .34rem; }
+.ln {
+  display: flex; align-items: center; gap: .45rem; padding: .36rem .5rem;
+  border: 1px solid rgba(140, 195, 255, .1); border-radius: 7px;
+  font-size: .66rem; line-height: 1.25; color: rgba(159, 179, 208, .55);
+}
+.ln .pip { width: 7px; height: 7px; border-radius: 50%; background: rgba(159, 179, 208, .3); flex: 0 0 auto; }
+.ln.open { color: var(--ink-dim); border-color: rgba(140, 195, 255, .2); }
+.ln.open .pip { background: var(--cyan); box-shadow: 0 0 9px var(--cyan); }
+.ln.held { color: #e8f1ff; border-color: color-mix(in srgb, var(--rank-ink) 40%, transparent); }
+.ln.held .pip { background: var(--rank-ink); box-shadow: 0 0 10px var(--rank-glow); }
+
+.dos-foot {
+  margin-top: 1.2rem; padding-top: .8rem; border-top: 1px solid rgba(255, 255, 255, .07);
+  font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .16em;
+  color: rgba(159, 179, 208, .45); text-align: center;
+}
+
+/* ------------------------------------------------------------- responsive */
+/* On a phone there is no room for two independent scrollers, so the card body
+   becomes the single one and every section renders at its full height: a
+   five-paragraph chapter is five paragraphs you can scroll to, not two lines
+   in a box. */
+@media (max-width: 900px) {
+  .dos-grid { grid-template-columns: 1fr; gap: 1.1rem; overflow-y: auto; }
+  .dos-left, .dos-right, .dos-sec > h3 + .dos-log { overflow: visible; }
+  .dos-left, .dos-sec > h3 + .dos-log {
+    -webkit-mask-image: none; mask-image: none;
+  }
+  .dos-lines { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+/* A phone on its side is 844 px wide: every rule below is a phone rule, and
+   without the second half of this query none of them applied in landscape.
+   (perf/hud, w3: the breakpoint only — the declarations are untouched.) */
+@media (max-width: 760px), (max-height: 520px) and (orientation: landscape) {
+  #ui .meta-comms {
+    grid-template-columns: 34px 1fr; gap: .7rem;
+    padding: .7rem .8rem .75rem .7rem;
+  }
+  .meta-face { width: 34px; height: 34px; }
+  .meta-face svg { width: 22px; height: 22px; }
+  .meta-text { font-size: .84rem; line-height: 1.42; }
+  .meta-head { font-size: .5rem; letter-spacing: .16em; }
+  .meta-head .role { display: none; }
+  #ui .meta-quest {
+    top: calc(var(--pad-t) + 116px);
+    width: min(220px, 56vw); padding: .5rem .6rem .55rem;
+  }
+  /* The question text goes; the seal count does not. On a phone the card is
+     mostly there to say how near the next chapter is. */
+  .meta-quest .qbody { display: none; }
+  .meta-quest .qlabel { display: none; }
+  .meta-quest .qs-n { font-size: 1.35rem; }
+  .meta-quest .qs-lab { max-width: 6.4rem; }
+  .meta-turn .tn-in { translate: 0 -18vh; }
+  .meta-stamp { top: auto; bottom: 28vh; left: max(20px, 5vw); }
+  .dos-card { padding: 1rem 1rem 1.1rem; max-height: 90vh; }
+}
+/* Short viewports: the rite's letterbox and its two type blocks have to leave a
+   band for the cadet even at 720p, and the dossier has to stop being taller
+   than the window. */
+/* A phone on its side. 390 px of height has to carry the rig, the chapter card,
+   the build charge chip and a thumbstick's resting ring down one flank, so the
+   card gives up its title line and keeps what a glance actually wants off it:
+   which chapter this is, and how near the next one is. */
+@media (max-height: 520px) and (orientation: landscape) {
+  #ui .meta-quest { top: calc(var(--pad-t) + 82px); width: min(158px, 20vw); }
+  .meta-quest .qtitle { display: none; }
+  .meta-quest .qs-n { font-size: 1.2rem; }
+  /* the rank ladder is already the rig's whole left rail, six lines above */
+  .meta-quest .qrung { display: none; }
+  #ui .meta-comms { padding: .55rem .8rem .62rem .7rem; }
+  .meta-text { font-size: .82rem; line-height: 1.4; }
+}
+@media (max-height: 780px) {
+  .meta-rite .rite-in { padding: 12.5vh 6vw 12vh; }
+  .meta-rite .sigil { width: min(84px, 13vw); height: min(84px, 13vw); }
+  .rite-cite { font-size: .84rem; }
+  .dos-card { height: min(90vh, 700px); padding: 1rem 1.2rem 1.1rem; }
+  .dos-head h2 { font-size: .82rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meta-wave i, .meta-face .iris { animation: none !important; }
+  /* the rite keeps its information and loses its physics */
+  .meta-rite .rite-sparks { display: none; }
+  .meta-rite.show .rite-wave { animation: none; opacity: 0; }
+  .meta-rite.show .rite-name span { animation: metaFade .4s ease forwards .3s; }
+  /* the fast clock keeps its numbers and loses its travel */
+  .meta-quest .qseal.pop .qs-n,
+  .meta-quest .qseal.pop .qs-plus,
+  .meta-quest .qseal.pop .qs-track::after { animation: none !important; }
+  .meta-quest .qseal.pop .qs-plus { opacity: .9; }
+  .meta-turn.show .tn-kick,
+  .meta-turn.show .tn-seals,
+  .meta-turn.show .tn-rule i,
+  .meta-turn.show .tn-title { animation: metaFade .4s ease both !important; }
+  .meta-turn .tn-rule i { scale: 1 1; }
+}

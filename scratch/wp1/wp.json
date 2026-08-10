@@ -1,0 +1,172 @@
+{
+  "report": [
+    {
+      "name": "arrival",
+      "cam": [
+        1,
+        58.9,
+        30.5
+      ],
+      "far": [
+        {
+          "id": "ember",
+          "ndcx": 0.199,
+          "ndcy": -0.976,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1052
+        },
+        {
+          "id": "glass",
+          "ndcx": 0.876,
+          "ndcy": 1.03,
+          "infront": true,
+          "occludedBy": null,
+          "dist": 1327
+        },
+        {
+          "id": "verdant",
+          "ndcx": -2.141,
+          "ndcy": -1.792,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1178
+        },
+        {
+          "id": "steps",
+          "ndcx": 13.304,
+          "ndcy": -10.873,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1192
+        },
+        {
+          "id": "ashen",
+          "ndcx": -0.108,
+          "ndcy": 0.634,
+          "infront": true,
+          "occludedBy": null,
+          "dist": 1234
+        }
+      ]
+    },
+    {
+      "name": "plaza-n",
+      "cam": [
+        1,
+        59.8,
+        4.5
+      ],
+      "far": [
+        {
+          "id": "ember",
+          "ndcx": 0.189,
+          "ndcy": -0.87,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1074
+        },
+        {
+          "id": "glass",
+          "ndcx": 0.934,
+          "ndcy": 1.158,
+          "infront": true,
+          "occludedBy": 138.3,
+          "dist": 1312
+        },
+        {
+          "id": "verdant",
+          "ndcx": -1.916,
+          "ndcy": -1.553,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1187
+        },
+        {
+          "id": "steps",
+          "ndcx": 7.836,
+          "ndcy": -6.371,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1194
+        },
+        {
+          "id": "ashen",
+          "ndcx": -0.113,
+          "ndcy": 0.72,
+          "infront": true,
+          "occludedBy": null,
+          "dist": 1211
+        }
+      ]
+    },
+    {
+      "name": "peak",
+      "cam": [
+        61.2,
+        159.8,
+        -101.3
+      ],
+      "far": [
+        {
+          "id": "ember",
+          "ndcx": 0.227,
+          "ndcy": 0.123,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1140
+        },
+        {
+          "id": "glass",
+          "ndcx": 2.441,
+          "ndcy": 3.793,
+          "infront": true,
+          "occludedBy": null,
+          "dist": 1164
+        },
+        {
+          "id": "verdant",
+          "ndcx": -1.096,
+          "ndcy": -0.056,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1148
+        },
+        {
+          "id": "steps",
+          "ndcx": 2.601,
+          "ndcy": -1.102,
+          "infront": false,
+          "occludedBy": null,
+          "dist": 1229
+        },
+        {
+          "id": "ashen",
+          "ndcx": -0.21,
+          "ndcy": 1.976,
+          "infront": true,
+          "occludedBy": null,
+          "dist": 1082
+        }
+      ]
+    }
+  ],
+  "logs": [],
+  "perf": {
+    "samples": 240,
+    "p50": 10.699999809265137,
+    "p95": 19.299999237060547,
+    "p99": 21.700000762939453,
+    "best": 1.2999999523162842,
+    "worst": 26,
+    "fps": 93.45794559118583,
+    "fps1Low": 46.08294768854844,
+    "pixelRatio": 1.32,
+    "pixelCap": 1.32,
+    "tier": "high",
+    "qualityChanges": 1,
+    "draws": 117,
+    "tris": 399920,
+    "paused": false
+  }
+}

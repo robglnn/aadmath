@@ -1,0 +1,36 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ args:['--use-gl=angle','--enable-unsafe-swiftshader','--autoplay-policy=no-user-gesture-required','--disable-gpu-vsync','--disable-frame-rate-limit'] });
+const page = await (await browser.newContext({viewport:{width:1280,height:720}})).newPage();
+await page.addInitScript(()=>{
+  window.__snd=[];
+  const patch = (Ctor)=>{ if(!Ctor) return; const p=Ctor.prototype;
+    const os=p.createBufferSource, og=p.createOscillator;
+    p.createBufferSource=function(){ const n=os.call(this); const st=n.start.bind(n);
+      n.start=(...a)=>{ window.__snd.push({t:performance.now(),kind:'buf',dur:n.buffer?n.buffer.duration:null}); return st(...a); }; return n; };
+    p.createOscillator=function(){ const n=og.call(this); const st=n.start.bind(n);
+      n.start=(...a)=>{ window.__snd.push({t:performance.now(),kind:'osc',f:n.frequency.value}); return st(...a); }; return n; };
+  };
+  patch(window.AudioContext); patch(window.OfflineAudioContext);
+});
+await page.goto('http://127.0.0.1:4788/',{waitUntil:'networkidle'});
+await page.waitForFunction(()=>!!window.__ascent);
+await page.waitForTimeout(2500);
+await page.mouse.click(640,360); await page.waitForTimeout(300); await page.keyboard.press('KeyQ');
+await page.evaluate(()=>{const a=window.__ascent; a.player.pos.set(0,58.6,22); a.player.vel.set(0,0,0); window.__snd.length=0;});
+await page.waitForTimeout(1500);
+const baseline = await page.evaluate(()=>window.__snd.length);
+await page.evaluate(()=>{window.__snd.length=0;});
+await page.keyboard.down('KeyW'); await page.keyboard.down('ShiftLeft');
+await page.waitForTimeout(3000);
+const running = await page.evaluate(()=>window.__snd.slice());
+await page.keyboard.up('KeyW'); await page.keyboard.up('ShiftLeft');
+const ctxInfo = await page.evaluate(()=>{
+  const a=window.__ascent; const au=a.audio||{};
+  return {keys:Object.keys(au), state: au.ctx?.state, sr: au.ctx?.sampleRate, muted: au.muted};
+});
+console.log('idle sources in 1.5s:', baseline);
+console.log('running sources in 3s:', running.length);
+const ts = running.map(s=>s.t); const gaps=[]; for(let i=1;i<ts.length;i++) gaps.push(+(ts[i]-ts[i-1]).toFixed(0));
+console.log('gaps ms', gaps.slice(0,40));
+console.log('audio', JSON.stringify(ctxInfo));
+await browser.close();

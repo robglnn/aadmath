@@ -1,0 +1,26 @@
+{
+  "name": "ascent-cipher-worlds",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ASCENT: The Cipher Worlds \u2014 an adaptive Algebra I mastery game",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "shot": "node tools/critic/shoot.mjs",
+    "progress": "node tools/progress.mjs",
+    "check:i18n": "node tools/check-i18n.mjs --self-test && node tools/check-i18n.mjs",
+    "check:items": "node tools/validate-items.mjs",
+    "check:scenes": "node tools/scene-audit.mjs",
+    "check": "npm run check:i18n && npm run check:items && npm run check:scenes"
+  },
+  "dependencies": {
+    "katex": "^0.16.11",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "vite": "^5.4.0"
+  }
+}

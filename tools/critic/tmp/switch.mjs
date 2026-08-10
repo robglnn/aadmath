@@ -1,0 +1,23 @@
+import { chromium } from 'playwright';
+const URL='http://127.0.0.1:4787';
+const browser = await chromium.launch({args:['--use-gl=angle','--enable-unsafe-swiftshader']});
+const ctx = await browser.newContext({viewport:{width:1600,height:900},deviceScaleFactor:1});
+const page = await ctx.newPage();
+const errs=[];page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+await page.goto(URL,{waitUntil:'networkidle'});
+await page.waitForFunction(()=>!!window.__ascent,null,{timeout:30000});
+await page.waitForTimeout(3000);
+const snap=()=>page.evaluate(()=>{const o=[];document.querySelectorAll('body *').forEach(el=>{if(el.children.length)return;const cs=getComputedStyle(el);if(cs.display==='none'||cs.visibility==='hidden')return;const s=(el.textContent||'').trim();if(s)o.push(s);});return o;});
+const before=await snap();
+// open a rift first, then switch language while it is open
+await page.evaluate(()=>window.__ascent.openRiftById('var-meaning'));
+await page.waitForTimeout(1200);
+const riftEN=await snap();
+await page.evaluate(()=>{[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='PL').click();});
+await page.waitForTimeout(1200);
+const riftPL=await snap();
+await page.screenshot({path:'/tmp/crit/switch-inrift-pl.png'});
+const stale=riftPL.filter(s=>riftEN.includes(s) && /[A-Za-z]{4}/.test(s) && !/^(EN|ES|PL|Echo)$/.test(s));
+console.log('STALE-IN-RIFT', JSON.stringify(stale,null,1));
+console.log('ERR', JSON.stringify(errs));
+await browser.close();

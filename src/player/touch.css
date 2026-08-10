@@ -1,0 +1,81 @@
+/* On-screen controls. Native-feeling: the stick appears under your thumb, the
+   buttons sit where a thumb actually reaches, nothing is ever in the way. */
+#touchpad{position:fixed;inset:0;z-index:14;pointer-events:none;display:none;
+  font-family:var(--ui);-webkit-user-select:none;user-select:none;touch-action:none}
+#touchpad.on{display:block}
+
+/* The resting home ring. Without it the floating stick is a control nobody can
+   see, and a phone player concludes the game has no analogue movement. */
+/* Both clusters sit at the foot of the screen, where a thumb rests when the
+   phone is held — not lifted 236 px up it. They used to be, because the build
+   hotbar and the companion's line were both docked across the bottom centre;
+   src/ui/style.css now moves the hotbar to the right flank on a touch device
+   and lifts every floating line above `--thumb-b`, so the foot is the pad's. */
+#touchpad .home{position:absolute;left:max(14px,var(--sa-l));
+  bottom:calc(16px + var(--sa-b));width:104px;height:104px;
+  border-radius:50%;opacity:.92;transition:opacity .22s ease;
+  background:radial-gradient(circle at 50% 50%,rgba(10,20,36,.50),rgba(6,13,26,.40) 62%,transparent 74%);
+  border:2px dashed rgba(190,235,255,.62);
+  box-shadow:0 0 20px rgba(0,0,0,.45),0 0 22px rgba(80,180,255,.20) inset}
+#touchpad .home.gone{opacity:0}
+#touchpad .home i{position:absolute;inset:0;margin:auto;width:46px;height:46px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(234,247,255,.85),rgba(127,212,255,.55) 55%,rgba(43,143,201,.42) 100%);
+  box-shadow:0 3px 14px rgba(0,0,0,.55),0 0 16px rgba(120,215,255,.45)}
+#touchpad .home::after{content:'';position:absolute;inset:-1px;border-radius:50%;
+  animation:tpulse 2.6s ease-in-out infinite;border:1px solid rgba(150,220,255,.30)}
+@keyframes tpulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.10);opacity:0}}
+
+#touchpad .stick{position:absolute;width:132px;height:132px;margin:-66px 0 0 -66px;
+  border-radius:50%;opacity:0;transition:opacity .18s ease;
+  background:radial-gradient(circle at 50% 50%,rgba(120,190,255,.10),rgba(10,20,36,.30) 62%,transparent 72%);
+  border:1.5px solid rgba(150,215,255,.30);
+  box-shadow:0 0 26px rgba(60,140,220,.22) inset}
+#touchpad .stick.on{opacity:1}
+#touchpad .stick::after{content:'';position:absolute;inset:26px;border-radius:50%;
+  border:1px dashed rgba(160,220,255,.18)}
+#touchpad .knob{position:absolute;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#eaf7ff,#7fd4ff 52%,#2b8fc9 100%);
+  box-shadow:0 4px 16px rgba(0,0,0,.42),0 0 22px rgba(95,230,255,.5);
+  opacity:0;transition:opacity .18s ease}
+#touchpad .knob.on{opacity:1}
+
+/* a thumb cluster, not a form: jump under the pad of the thumb, the rest
+   arranged where the thumb rolls to reach them */
+/* Lifted clear of the dialogue box and the hotbar: on a 414x896 phone the pad
+   used to sit on top of Marlow's first line and clip it. */
+/* Lifted clear of the dialogue box as well as the hotbar: on a 414x896 phone
+   the cluster used to sit directly on Marlow's line and the interact button
+   overlapped its right edge. */
+#touchpad .pads{position:absolute;right:max(10px,var(--sa-r));
+  bottom:calc(16px + var(--sa-b));width:132px;height:150px}
+#touchpad .btn{position:absolute;pointer-events:auto;width:46px;height:46px;border-radius:50%;
+  display:grid;place-items:center;
+  background:linear-gradient(180deg,rgba(18,32,54,.72),rgba(9,17,32,.66));
+  border:1.5px solid rgba(126,190,255,.34);backdrop-filter:blur(12px);
+  box-shadow:0 6px 18px rgba(0,0,0,.35);color:#dff0ff;transition:transform .09s ease,box-shadow .12s ease}
+#touchpad .btn svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+#touchpad .btn b{position:absolute;left:50%;transform:translateX(-50%);
+  top:calc(100% + 3px);font-size:9.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;white-space:nowrap;color:#cfe8ff;
+  text-shadow:0 1px 3px rgba(0,0,0,.85),0 0 8px rgba(0,0,0,.7);pointer-events:none}
+#touchpad .btn[data-a="jump"] b{font-size:11px;color:#eaffff}
+#touchpad .btn[data-a="jump"]{right:0;bottom:8px;width:72px;height:72px;
+  border-color:rgba(95,230,255,.55);color:#eaffff;
+  background:linear-gradient(180deg,rgba(30,74,110,.80),rgba(11,28,48,.74));
+  box-shadow:0 8px 22px rgba(0,0,0,.4),0 0 24px rgba(95,230,255,.22)}
+#touchpad .btn[data-a="jump"] svg{width:32px;height:32px}
+#touchpad .btn[data-a="dash"]{right:78px;bottom:14px}
+#touchpad .btn[data-a="glide"]{right:2px;bottom:92px}
+#touchpad .btn[data-a="interact"]{right:76px;bottom:84px}
+#touchpad .btn.press{transform:scale(.9);box-shadow:0 0 26px rgba(95,230,255,.6)}
+
+/* Sideways, a phone is only ~390 px tall. The 236 px lift that keeps the
+   cluster clear of the dialogue box in portrait puts the whole thumb pad off
+   the top of the screen in landscape — measured at 844x390, the pads sat at
+   y = -30. Both clusters drop to the bottom edge where the thumbs actually are. */
+@media (max-height:520px) and (orientation:landscape){
+  #touchpad .pads{bottom:calc(10px + var(--sa-b))}
+  #touchpad .home{bottom:calc(14px + var(--sa-b));width:88px;height:88px}
+  #touchpad .home i{width:38px;height:38px}
+}

@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
+const b = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
+const p = await b.newPage();
+p.on('console', (m) => console.log('[' + m.type() + ']', m.text().slice(0, 2000)));
+p.on('pageerror', (e) => console.log('[pageerror]', e.message.slice(0, 2000)));
+await p.goto(arg('url', 'http://127.0.0.1:5173'), { waitUntil: 'networkidle' });
+await p.waitForTimeout(6000);
+console.log('ascent?', await p.evaluate(() => !!window.__ascent));
+await b.close();

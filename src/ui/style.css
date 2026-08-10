@@ -1,0 +1,468 @@
+:root{
+  --ink:#e8f1ff; --ink-dim:#9fb3d0; --ink-mute:#6b809c;
+  --void:#050a14; --panel:rgba(9,17,32,.82); --panel-edge:rgba(126,190,255,.22);
+  --cyan:#5fe6ff; --violet:#a78bff; --amber:#ffc25f; --rose:#ff6b8a; --lime:#8ef0a8;
+  /* Deterministic. 'Rajdhani' and 'Eurostile' were named here but never
+     loaded — no @font-face, no link — so the game rendered in one typeface on
+     a machine that happens to have them installed and a different one
+     everywhere else. One game, one face. */
+  --ui:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+
+  /* ---------------------------------------------------------------------
+     The screen's own geometry, in four numbers, declared once.
+
+     `env(safe-area-inset-*)` was written out longhand in five different
+     stylesheets, each with its own fallback and its own idea of the gutter —
+     which is how a notch ends up cutting the rig on one panel and not on the
+     next. Every inset in this game now comes from here.
+
+     They are ordinary custom properties holding an `env()` value, which means
+     a capture harness can override them with an inline style and photograph a
+     notched phone on a desktop browser. That is the only way this is testable:
+     no desktop Chromium reports a safe area, so without it "correct safe
+     areas" is a claim nobody can check.
+     --------------------------------------------------------------------- */
+  --sa-t:env(safe-area-inset-top,0px);
+  --sa-r:env(safe-area-inset-right,0px);
+  --sa-b:env(safe-area-inset-bottom,0px);
+  --sa-l:env(safe-area-inset-left,0px);
+  --safe:var(--sa-b);                      /* the name the other areas use */
+  --gut:18px;                              /* breathing room off a straight edge */
+  --pad-t:max(var(--gut),var(--sa-t));
+  --pad-r:max(var(--gut),var(--sa-r));
+  --pad-b:max(var(--gut),var(--sa-b));
+  --pad-l:max(var(--gut),var(--sa-l));
+
+  /* The foot of the screen, reserved.
+     `--dock-b` is what the build hotbar claims on a pointer device;
+     `--thumb-*` is what the on-screen controls claim on a touch device, and it
+     is set by :root[data-touch] below. Anything that floats near the bottom —
+     the companion's line, a toast — is positioned off `--hud-b`, so a control
+     can never land on a sentence. */
+  --dock-b:96px;
+  --thumb-b:0px; --thumb-l:0px; --thumb-r:0px;
+  --hud-b:calc(var(--sa-b) + max(var(--dock-b),var(--thumb-b)));
+
+  /* the corner the plates are cut on — one number, so every panel is the same
+     piece of hardware */
+  --cut:11px;
+  --plate-bg:linear-gradient(168deg,rgba(13,24,42,.74),rgba(5,11,21,.60));
+  --plate-line:rgba(150,200,255,.17);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
+  font-family:var(--ui);overflow:hidden;overscroll-behavior:none;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+/* `100dvh`, not `100%`.
+   On a phone the layout viewport is the tall one — the one that includes the
+   strip of screen the URL bar is sitting on. A game pinned to it puts its
+   bottom row of controls underneath the browser's own chrome, where a thumb
+   reaches the address bar instead of the jump button. `--vp-h` is written by
+   src/core/engine.js off `visualViewport`, which is the only measurement that
+   is true on iOS while the bar is mid-slide; dvh is the fallback. */
+#app{position:fixed;top:0;left:0;width:100%;height:100dvh;height:var(--vp-h,100dvh)}
+#stage{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ui{position:absolute;inset:0;pointer-events:none;
+  padding:var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l)}
+#ui > *{pointer-events:auto}
+/* ...except the parts that are only ever *read*.
+   `#ui > *` is an ID selector, so it silently beat the `pointer-events:none`
+   that these elements already declared for themselves. Three consequences, and
+   the third is the one that ate a whole feature:
+     - the crosshair is a 14x14 box at the exact centre of the screen, which is
+       exactly where a player aims, and it swallowed the click under it;
+     - Marlow's subtitle swallowed the ones aimed low;
+     - **the rift panel is a full-screen grid that stays mounted when closed**,
+       so from the first frame of the game every click anywhere landed on an
+       invisible dialog instead of on the world. That is why building placed
+       nothing and why the canvas never even got the click that asks for
+       pointer lock. Hiding it also stops the browser compositing its blurs and
+       running its mote animations while you are playing. */
+/* The rig readout is read, never pressed — and it sits over 300x66 px of the
+   top-left corner, which is 300x66 px of world a player would otherwise be
+   able to click on. */
+#ui .crosshair,#ui .marlow,#ui .toast,#ui .hud-top{pointer-events:none}
+#ui .rift:not(.show){
+  pointer-events:none;visibility:hidden;
+  transition:opacity .3s ease,background .5s ease,visibility 0s linear .3s}
+
+/* ---------- boot ---------- */
+#boot{position:absolute;inset:0;display:grid;place-content:center;gap:.6rem;
+  text-align:center;background:radial-gradient(120% 90% at 50% 40%,#0b1830 0%,#050a14 70%);
+  z-index:50;transition:opacity .8s ease}
+#boot.gone{opacity:0;pointer-events:none}
+.boot-mark{font-size:clamp(2.6rem,9vw,5.5rem);letter-spacing:.34em;font-weight:700;
+  text-indent:.34em;background:linear-gradient(180deg,#fff,var(--cyan));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.boot-sub{font-size:clamp(.7rem,2vw,.95rem);letter-spacing:.5em;text-indent:.5em;color:var(--ink-mute)}
+.boot-bar{width:min(320px,60vw);height:2px;background:rgba(255,255,255,.12);margin:1.6rem auto 0;overflow:hidden}
+.boot-bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--violet));
+  transition:width .35s ease}
+.boot-tip{font-size:.8rem;color:var(--ink-mute);letter-spacing:.08em;min-height:1.2em}
+
+/* ---------- hud: the rig readout ----------
+   One instrument, not three chips. Everything about it is keyed to
+   `--rank-ink` / `--rank-glow`, which src/meta sets on :root from the same
+   integrity number this panel is showing — so the readout, the chapter card
+   under it and the standard in the plaza are always the same colour.
+
+   Height budget: the chapter card is pinned 78px below the top inset (116px on
+   a phone), so this panel must finish above that line. It comes in at ~66px. */
+.hud-top{position:absolute;top:var(--pad-t);left:var(--pad-l);
+  right:calc(var(--pad-r) + 124px);display:flex;align-items:flex-start}
+
+/* ---- the plate ----
+   One piece of hardware, cut the same way everywhere: a corner taken off the
+   outer edge, a hairline stroke that follows the cut, low blur so the world
+   still reads through, and a bevel on the diagonal where the light catches.
+   The rift stabiliser is built out of torn plate with cut lips; the rig, the
+   language pill and the hotbar are the same alloy, seen from outside. A
+   rounded rectangle with a 13px blur behind it is a sticker on a screenshot —
+   this is a thing bolted to the front of the frame. */
+.plate{
+  position:relative;
+  border-radius:10px;
+  background:var(--plate-bg);
+  backdrop-filter:blur(7px) saturate(1.15);
+  -webkit-backdrop-filter:blur(7px) saturate(1.15);
+  box-shadow:inset 0 0 0 1px var(--plate-line),
+             inset 0 1px 0 rgba(198,230,255,.10),
+             0 12px 34px rgba(0,0,0,.40);
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%);
+}
+/* the bevel on the cut, and the fine etched grain that stops the fill reading
+   as flat CSS paint */
+.plate::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(to bottom left,
+      color-mix(in srgb,var(--ink-rank,#8ec7ff) 58%,transparent) 0 1.5px,transparent 1.5px)
+      100% 0/calc(var(--cut) * 1.42) calc(var(--cut) * 1.42) no-repeat,
+    repeating-linear-gradient(0deg,rgba(160,205,255,.045) 0 1px,transparent 1px 3px);
+  opacity:.85;
+  clip-path:inherit}
+
+.rig{
+  width:100%;max-width:304px;
+  padding:.44rem .66rem .5rem .74rem;
+  --ink-rank:var(--rank-ink,#e08a4c);
+  --glow-rank:var(--rank-glow,#ff7a2f);
+}
+/* the rank's own light, run down the anchored edge and bled along the top —
+   the rig is lit by the same lamp the chapter card and the plaza standard are */
+.rig::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--ink-rank) 96%,white),var(--ink-rank) 62%,
+    color-mix(in srgb,var(--ink-rank) 30%,transparent));
+  box-shadow:0 0 14px -1px var(--glow-rank)}
+
+.rig-line{display:flex;align-items:baseline;gap:.5rem;position:relative}
+.rig-cap{font-size:.5rem;letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(175,198,226,.72);white-space:nowrap}
+.rig-pct{font-size:1.16rem;font-weight:700;line-height:1.05;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;color:#f2f8ff;
+  text-shadow:0 0 14px color-mix(in srgb,var(--glow-rank) 55%,transparent)}
+/* The delta rides up beside the percentage it just changed, inside the panel.
+   It is a flex item rather than an overlay so it can never land on top of the
+   number, whatever the number's width. */
+.rig-delta{margin:0 .4rem 0 auto;font-size:.62rem;font-weight:700;
+  letter-spacing:.04em;color:var(--ink-rank);opacity:0;pointer-events:none;
+  white-space:nowrap;text-shadow:0 0 10px var(--glow-rank),0 1px 4px rgba(0,0,0,.9)}
+.rig-delta:empty{margin-left:auto;margin-right:0}
+.rig.gain .rig-delta{animation:rigDelta 1.4s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes rigDelta{
+  0%{opacity:0;translate:0 5px}
+  16%{opacity:1;translate:0 0}
+  66%{opacity:1;translate:0 -8px}
+  100%{opacity:0;translate:0 -15px}
+}
+
+/* ---- the meter ----
+   Raked 16deg so it reads as an instrument rather than a progress bar, cut
+   into cells by a repeating gradient, with the rank gates drawn on it. */
+.rig-meter{position:relative;height:11px;margin:.3rem 0 .26rem;
+  transform:skewX(-16deg);border-radius:2px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(126,170,220,.09),rgba(90,130,180,.05));
+  box-shadow:inset 0 0 0 1px rgba(140,195,255,.12),inset 0 2px 7px rgba(0,0,0,.5)}
+.rig-meter > i{position:absolute;top:0;bottom:0;left:0;display:block}
+/* credit still being earned: the ghost that runs ahead of confirmed mastery */
+.rig-meter .soft{width:0;background:linear-gradient(180deg,
+  color-mix(in srgb,var(--ink-rank) 34%,transparent),
+  color-mix(in srgb,var(--ink-rank) 14%,transparent));
+  transition:width .7s cubic-bezier(.2,.8,.2,1)}
+/* mastery the rig will stand behind */
+.rig-meter .fill{width:0;background:linear-gradient(180deg,
+  color-mix(in srgb,var(--ink-rank) 92%,white),
+  var(--ink-rank) 46%,
+  color-mix(in srgb,var(--glow-rank) 88%,black));
+  box-shadow:0 0 16px color-mix(in srgb,var(--glow-rank) 62%,transparent)}
+.rig-meter .head{width:2px;margin-left:-2px;background:#fff;opacity:0;
+  box-shadow:0 0 10px 2px color-mix(in srgb,var(--glow-rank) 85%,transparent);
+  transition:left .7s cubic-bezier(.2,.8,.2,1),opacity .3s}
+/* The cells. `--cells` is set by hud.js so the count lives in one place.
+   One overlay does both states: a soft dark rule is nearly invisible against
+   the unlit track and cuts hard across the lit fill, so the meter is a smooth
+   trough when it is empty and a row of discrete cells when it is not. */
+.rig-meter .cells{right:0;width:auto;
+  background:repeating-linear-gradient(90deg,
+    transparent 0 calc(100% / var(--cells,30) - 1.3px),
+    rgba(4,9,18,.5) calc(100% / var(--cells,30) - 1.3px) calc(100% / var(--cells,30)))}
+/* The rank ladder, drawn on the meter at the same 20/40/60/80 the story uses:
+   the bar is visibly five acts long, and you can see the next one coming. */
+.rig-meter .marks{right:0;width:auto}
+.rig-meter .marks u{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;
+  background:rgba(2,6,13,.94);text-decoration:none}
+.rig-meter .marks u::after{content:'';position:absolute;left:1.5px;top:0;bottom:0;width:1px;
+  background:rgba(190,215,245,.34)}
+.rig[data-passed="1"] .marks u:nth-child(1)::after,
+.rig[data-passed="2"] .marks u:nth-child(-n+2)::after,
+.rig[data-passed="3"] .marks u:nth-child(-n+3)::after,
+.rig[data-passed="4"] .marks u::after{background:#fff;
+  box-shadow:0 0 7px 1px var(--glow-rank)}
+/* the gain sweep: a run of light down the meter when integrity rises */
+.rig-meter .sweep{right:0;width:auto;opacity:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.55) 46%,transparent 60%);
+  mix-blend-mode:screen}
+.rig.gain .rig-meter .sweep{animation:rigSweep 1.05s cubic-bezier(.3,.7,.3,1)}
+@keyframes rigSweep{
+  0%{opacity:0;transform:translateX(-100%)}
+  12%{opacity:1}
+  100%{opacity:0;transform:translateX(100%)}
+}
+.rig.gain{animation:rigLift .9s ease}
+@keyframes rigLift{
+  0%{box-shadow:0 10px 30px rgba(0,0,0,.34)}
+  22%{box-shadow:0 10px 30px rgba(0,0,0,.34),0 0 26px -2px color-mix(in srgb,var(--glow-rank) 60%,transparent)}
+  100%{box-shadow:0 10px 30px rgba(0,0,0,.34)}
+}
+.rig.rankup{animation:rigRank 2.2s ease}
+@keyframes rigRank{
+  0%{box-shadow:0 10px 30px rgba(0,0,0,.34)}
+  10%{box-shadow:0 10px 30px rgba(0,0,0,.34),0 0 46px 3px color-mix(in srgb,var(--glow-rank) 80%,transparent)}
+  100%{box-shadow:0 10px 30px rgba(0,0,0,.34)}
+}
+
+/* ---- the foot: who you are, and what you are carrying ---- */
+.rig-foot{gap:.55rem;align-items:center}
+.rig-rank,.rig-shards{display:flex;align-items:baseline;gap:.34rem;min-width:0}
+.rig-shards{margin-left:auto}
+.rig-rank em{font-style:normal;font-size:.68rem;font-weight:700;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink-rank);white-space:nowrap;
+  text-shadow:0 0 12px color-mix(in srgb,var(--glow-rank) 45%,transparent)}
+.rig-shards em{font-style:normal;font-size:.8rem;font-weight:700;line-height:1;
+  font-variant-numeric:tabular-nums;color:#eaf3ff;transition:transform .18s ease}
+.rig.shardup .rig-shards em{animation:rigPop .55s cubic-bezier(.2,1.4,.4,1)}
+@keyframes rigPop{0%{transform:scale(1)}30%{transform:scale(1.3)}100%{transform:scale(1)}}
+.rig-rank i,.rig-shards i{font-style:normal;font-size:.46rem;letter-spacing:.19em;
+  text-transform:uppercase;color:rgba(159,179,208,.60);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+/* Word order is a property of the language: `hud.capOrder` in the bundle says
+   whether the caption reads before or after the value it captions, and
+   src/ui/hud.js moves the two nodes to match. English keeps COPPER RANK;
+   Polish gets RANGA MIEDŹ rather than the two bare nouns "MIEDŹ RANGA".
+   The caption leads with a little more air when it comes first, so the eye
+   still lands on the rank rather than on its label. */
+.rig-rank[data-cap="before"] i{margin-right:.06rem;opacity:.9}
+.rig-shards svg{width:11px;height:11px;flex:0 0 auto;align-self:center;
+  fill:var(--cyan);opacity:.9;filter:drop-shadow(0 0 5px rgba(95,230,255,.7))}
+
+/* ---------- crosshair ----------
+   A dot with four ticks and a hole in the middle. The old plus sign put a 14px
+   cross over the cadet's head in every screenshot; this sits *around* what you
+   are aiming at instead of on top of it. */
+.crosshair{position:absolute;left:50%;top:50%;width:20px;height:20px;
+  transform:translate(-50%,-50%);pointer-events:none}
+.crosshair b{position:absolute;left:50%;top:50%;width:2.5px;height:2.5px;margin:-1.25px 0 0 -1.25px;
+  border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.9),0 0 8px rgba(120,215,255,.7)}
+.crosshair i{position:absolute;background:rgba(255,255,255,.82);
+  box-shadow:0 0 3px rgba(0,0,0,.85)}
+.crosshair i.n,.crosshair i.s{left:50%;width:1px;height:5px;margin-left:-.5px}
+.crosshair i.e,.crosshair i.w{top:50%;height:1px;width:5px;margin-top:-.5px}
+.crosshair i.n{top:0}.crosshair i.s{bottom:0}
+.crosshair i.w{left:0}.crosshair i.e{right:0}
+
+/* ---------- marlow / subtitle ----------
+   Laid out inside the band the controls leave free rather than centred on the
+   screen and hoped for: left and right clear the thumbs, the bottom clears
+   whatever is docked down there. On a pointer device all three reserves are
+   zero and it sits where it always did. */
+.marlow{position:absolute;left:calc(var(--pad-l) + var(--thumb-l));
+  right:calc(var(--pad-r) + var(--thumb-r));bottom:calc(var(--hud-b) + 52px);
+  width:auto;max-width:620px;margin-inline:auto;
+  padding:.8rem 1.1rem .8rem 1.2rem;--cut:13px;
+  font-size:.95rem;line-height:1.45;color:var(--ink);
+  opacity:0;translate:0 10px;transition:opacity .4s,translate .4s}
+.marlow::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--cyan);box-shadow:0 0 12px -1px var(--cyan)}
+.marlow.show{opacity:1;translate:0 0}
+.marlow em{color:var(--cyan);font-style:normal}
+
+/* ---------- rift panel ---------- */
+.rift{position:absolute;inset:0;display:grid;place-items:center;background:rgba(3,7,15,.55);
+  backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .35s}
+.rift.show{opacity:1;pointer-events:auto}
+.rift-card{width:min(680px,92vw);background:linear-gradient(180deg,rgba(12,22,42,.96),rgba(7,13,26,.96));
+  border:1px solid var(--panel-edge);border-radius:16px;padding:1.4rem 1.5rem 1.2rem;
+  box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(95,230,255,.06) inset;
+  translate:0 16px;transition:translate .35s cubic-bezier(.2,.8,.2,1)}
+.rift.show .rift-card{translate:0 0}
+.rift-head{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;
+  font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-mute)}
+.rift-math{margin:1.3rem 0 1.1rem;text-align:center;font-size:clamp(1.1rem,3.4vw,1.6rem);color:#fff}
+.rift-math .katex{color:#fff}
+.answers{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}
+.ans{appearance:none;border:1px solid var(--panel-edge);background:rgba(255,255,255,.04);
+  color:var(--ink);border-radius:10px;padding:.85rem .9rem;font:inherit;font-size:1.05rem;
+  cursor:pointer;transition:background .15s,border-color .15s,transform .1s}
+.ans:hover{background:rgba(95,230,255,.1);border-color:rgba(95,230,255,.5)}
+.ans:active{transform:scale(.98)}
+.ans.right{background:rgba(142,240,168,.16);border-color:var(--lime)}
+.ans.wrong{background:rgba(255,107,138,.14);border-color:var(--rose)}
+.rift-foot{display:flex;justify-content:space-between;align-items:center;margin-top:1rem;
+  font-size:.8rem;color:var(--ink-mute)}
+.ghost{appearance:none;background:none;border:1px solid var(--panel-edge);color:var(--ink-dim);
+  border-radius:8px;padding:.45rem .8rem;font:inherit;font-size:.8rem;cursor:pointer}
+.ghost:hover{color:var(--ink);border-color:var(--cyan)}
+
+/* the worked "echo" — explicit teaching, revealed in-world */
+.echo{margin-top:1rem;border-top:1px solid rgba(255,255,255,.08);padding-top:.9rem;display:grid;gap:.7rem}
+.echo-step{display:grid;gap:.25rem;opacity:0;translate:0 6px;animation:rise .45s forwards}
+.echo-step .why{font-size:.78rem;color:var(--ink-mute);line-height:1.4}
+@keyframes rise{to{opacity:1;translate:0 0}}
+
+/* ---------- build hotbar ----------
+   Each slot prints the digit that selects it. A hotbar that does not teach its
+   own binding is a hotbar nobody ever uses the keyboard for — and on a pad it
+   prints the shoulder button instead, because a phone and a controller have no
+   number row. */
+.buildbar{position:absolute;left:50%;bottom:calc(var(--sa-b) + 18px);transform:translateX(-50%);
+  display:flex;gap:.3rem;padding:.32rem;--cut:9px}
+.slot{position:relative;appearance:none;font:inherit;
+  width:56px;height:54px;display:grid;place-items:center;border-radius:7px;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(140,195,255,.12);color:rgba(190,209,232,.82);
+  gap:1px;cursor:pointer;transition:color .14s,border-color .14s,background .14s}
+.slot u{position:absolute;top:2px;left:4px;font-size:.5rem;font-weight:700;
+  letter-spacing:0;text-decoration:none;color:rgba(159,179,208,.62);line-height:1}
+.slot span{font-size:.56rem;letter-spacing:.11em;text-transform:uppercase;line-height:1;
+  max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.6}
+.slot:hover{color:var(--ink);border-color:rgba(140,195,255,.3)}
+.slot.on{background:rgba(95,230,255,.12);border-color:rgba(95,230,255,.55);color:var(--cyan);
+  box-shadow:0 0 18px -4px rgba(95,230,255,.6),inset 0 0 14px -8px var(--cyan)}
+.slot.on u{color:var(--cyan)}
+/* The place verb only exists where there is no mouse button to be the verb. */
+.buildbar .place{display:none}
+:root[data-touch] .buildbar .place{display:grid;height:52px;margin-top:.3rem;
+  color:#eaffff;background:linear-gradient(180deg,rgba(30,80,116,.72),rgba(11,30,50,.66));
+  border-color:rgba(95,230,255,.5);box-shadow:0 0 20px -6px rgba(95,230,255,.7)}
+:root[data-touch] .buildbar .place svg{width:22px;height:22px}
+.buildbar .place.hit{animation:slotHit .28s cubic-bezier(.2,1.4,.4,1)}
+@keyframes slotHit{0%{transform:scale(1)}40%{transform:scale(.9);
+  box-shadow:0 0 26px -2px rgba(95,230,255,.9)}100%{transform:scale(1)}}
+
+.toast{position:absolute;left:50%;top:calc(var(--pad-t) + 84px);transform:translateX(-50%);
+  padding:.6rem 1.1rem;--cut:14px;
+  font-size:.85rem;letter-spacing:.06em;white-space:nowrap;
+  opacity:0;transition:opacity .3s,translate .3s;translate:0 -8px}
+.toast.show{opacity:1;translate:0 0}
+.toast.good{color:var(--lime);--plate-line:color-mix(in srgb,var(--lime) 46%,transparent)}
+.toast.bad{color:var(--rose);--plate-line:color-mix(in srgb,var(--rose) 46%,transparent)}
+
+/* ---------- lang switch ---------- */
+.langs{position:absolute;top:var(--pad-t);right:var(--pad-r);
+  display:flex;gap:.22rem;padding:.26rem;--cut:9px}
+.langs button{appearance:none;background:none;border:0;color:var(--ink-mute);font:inherit;
+  font-size:.68rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  padding:.28rem .55rem;min-width:38px;
+  border-radius:5px;cursor:pointer;transition:color .14s,background .14s}
+.langs button:hover{color:var(--ink-dim)}
+.langs button.on{background:rgba(95,230,255,.16);color:var(--cyan);
+  box-shadow:inset 0 0 0 1px rgba(95,230,255,.35)}
+
+/* ---------- focus, for the people not using a mouse ----------
+   A gamepad moves DOM focus (src/ui/hud.js), and a keyboard always could. Both
+   need to see where they are, and the browser's default ring is invisible on
+   dark glass. */
+#ui :focus-visible,#touchpad :focus-visible{
+  outline:2px solid var(--cyan);outline-offset:2px;
+  box-shadow:0 0 0 4px rgba(95,230,255,.18),0 0 18px -2px rgba(95,230,255,.55)}
+:root[data-input="pad"] #ui :focus-visible{outline-width:3px}
+
+/* ---------- phones ----------
+   The whole top edge is 414 px wide and three things want it: the rig, the
+   language pill, and (78 px lower) the chapter card. The rig used to be three
+   chips that wrapped, which put LATTICE INTEGRITY *underneath* EN/ES/PL. It is
+   now one panel that is explicitly sized to the space left over beside the
+   pill, so nothing can wrap into anything.
+
+   The second half of the query is the one everybody forgets: **a phone on its
+   side is 844 px wide**. Every `max-width: 760px` rule in this game silently
+   stopped applying the moment the handset was rotated, so the landscape phone
+   was being laid out with desktop metrics on a 390 px-tall screen — full-size
+   captions, the desktop chapter card, the lot. A phone is a phone in both
+   orientations. */
+@media (max-width:760px),(max-height:520px) and (orientation:landscape){
+  .answers{grid-template-columns:1fr}
+  .hud-top{right:calc(var(--pad-r) + 112px)}
+  .rig{min-width:150px;padding:.36rem .5rem .42rem .56rem}
+  .rig-cap{font-size:.46rem;letter-spacing:.16em}
+  .rig-pct{font-size:1rem}
+  .rig-meter{height:9px}
+  .rig-rank em{font-size:.6rem;letter-spacing:.11em}
+  .rig-shards i{display:none}     /* the shard glyph already says it */
+  .langs{padding:.2rem;gap:.14rem}
+  .langs button{font-size:.62rem;padding:.3rem .42rem;min-width:30px;letter-spacing:.1em}
+  .toast{top:calc(var(--pad-t) + 72px);font-size:.78rem;padding:.5rem .85rem}
+  .marlow{font-size:.9rem;padding:.65rem .85rem}
+}
+
+/* ---------- a touch device ----------
+   `[data-touch]` is set on the root by src/ui/hud.js from the same test
+   src/player/touch.js uses to decide whether to mount the on-screen controls —
+   one predicate, so the HUD can never reserve a thumb zone for a pad that is
+   not there, nor forget to reserve one for a pad that is.
+
+   The foot of a phone belongs to the thumbs. Everything the HUD wants down
+   there moves out: the hotbar goes up the right flank under the language pill,
+   where a right thumb can still stretch to it and no stick can ever land on
+   it, and every floating line is lifted above `--thumb-b`. */
+:root[data-touch]{
+  --thumb-b:172px;                 /* the on-screen controls' own headroom */
+  --gut:14px;
+}
+:root[data-touch] .crosshair{opacity:.42;scale:.85}
+:root[data-touch] .buildbar{
+  left:auto;right:var(--pad-r);bottom:auto;top:calc(var(--pad-t) + 84px);
+  transform:none;flex-direction:column;gap:.22rem;padding:.24rem}
+:root[data-touch] .slot{width:46px;height:44px;gap:0}
+:root[data-touch] .slot u{display:none}            /* no number row to press */
+:root[data-touch] .slot span{font-size:.42rem;letter-spacing:.06em;max-width:42px}
+:root[data-touch] .slot svg{width:19px;height:19px}
+
+/* Landscape phones: the top edge is wide but very short, and *both* thumbs are
+   on the glass. The controls take the two bottom corners, so the free band is
+   the middle — the hotbar goes back to a row along the top, and the companion
+   speaks between the thumbs rather than under them. */
+@media (max-height:520px) and (orientation:landscape){
+  :root[data-touch]{--thumb-b:16px;--thumb-l:158px;--thumb-r:158px}
+  /* the rig gives up the width the hotbar needs in the middle of the top edge */
+  :root[data-touch] .hud-top{right:calc(var(--pad-r) + 380px)}
+  :root[data-touch] .rig{max-width:224px}
+  :root[data-touch] .buildbar{
+    left:50%;right:auto;top:var(--pad-t);transform:translateX(-50%);
+    flex-direction:row;gap:.2rem;padding:.2rem}
+  :root[data-touch] .slot{width:42px;height:38px}
+  :root[data-touch] .slot span{display:none}
+  :root[data-touch] .buildbar .place{height:38px;width:52px;margin:0 0 0 .3rem}
+  .marlow{font-size:.82rem;padding:.5rem .8rem;bottom:calc(var(--hud-b) + 10px)}
+  .toast{top:calc(var(--pad-t) + 46px)}
+}
+/* Landscape on a pointer device: still short, so the hotbar shrinks. */
+@media (max-height:520px) and (pointer:fine){
+  .buildbar{bottom:calc(var(--sa-b) + 10px);padding:.22rem}
+  .slot{width:48px;height:44px}
+  .slot span{font-size:.5rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
