@@ -51,7 +51,13 @@
 .hail:hover { border-color: rgba(120, 220, 255, .8); }
 
 /* ---------- the panel ---------- */
-.fdy {
+/* `#ui > *{pointer-events:auto}` in src/ui/style.css is an ID selector, so the
+   `pointer-events:none` below lost to it and this closed, invisible, full-bleed
+   panel was the topmost hit-testable element over the entire screen from the
+   first frame — the same defect that rule's own comment records eating the
+   rift panel. One ID of specificity here takes it back. (smallest possible
+   edit from the player/build round; foundry behaviour is unchanged) */
+#ui .fdy {
   position: absolute; inset: 0; display: grid; place-items: center;
   background: rgba(3, 7, 15, .5); backdrop-filter: blur(6px);
   opacity: 0; pointer-events: none; transition: opacity .3s;
@@ -60,7 +66,7 @@
      because `open()` refuses while anything else owns the frame. */
   z-index: 28;
 }
-.fdy.show { opacity: 1; pointer-events: auto; }
+#ui .fdy.show { opacity: 1; pointer-events: auto; }
 
 .fdy-card {
   width: min(640px, 93vw); max-height: 88vh; overflow: auto;

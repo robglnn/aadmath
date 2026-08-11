@@ -249,7 +249,7 @@ export default {
   'echo.sidesDisagree': 'The pans come out different, so the beam tips. That value is not the one holding it level.',
   'echo.notThatNumber': 'Work that out for yourself, in that order, and it does not come to {val}.',
   'echo.yourReadingAt': 'Take ${v} = {t}$. The line you wrote comes to {val} there.',
-  'echo.countItByHand': 'Now work out the tear itself at ${v} = {t}$, one term at a time. It does not come to {val} — and two lines that are the same thing cannot disagree anywhere.',
+  'echo.countItByHand': 'Now work out the rift itself at ${v} = {t}$, one term at a time. It does not come to {val} — and two lines that are the same thing cannot disagree anywhere.',
   'echo.yourModelSays': 'That is the statement you signed. Read it back as a sentence about ${v}$ and see whether it is the story you were told.',
   'echo.yourModelNames': 'Follow it to the end and it names ${v} = {val}$. Take that number back to the situation and see whether the story can carry it.',
   'echo.whereItStands': 'This is what the move left standing. The unknown is no freer than it was before you made it.',
@@ -266,7 +266,7 @@ export default {
   // without noticing, and the input that would have made their number right.
   'echo.powerIsCopies': 'A power counts copies. The small number says how many {base}s are multiplied together — it is not something to multiply {base} by.',
   'echo.bracketsYouAdded': 'Those are the brackets you read into it, closing each operation as you met it. Nothing on the page put them there, and where they sit changes what the line is worth.',
-  'echo.yoursNeeds': 'Your number is not nonsense — it is the reading this gives when ${v} = {need}$. But the tear fixes ${v} = {val}$.',
+  'echo.yoursNeeds': 'Your number is not nonsense — it is the reading this gives when ${v} = {need}$. But the rift fixes ${v} = {val}$.',
 
   // Logs. One rule wrote every line, so between any two lines the reading
   // climbs at one rate. The fractions are left unworked on purpose: working
@@ -278,23 +278,23 @@ export default {
 
   // Rewriting. An identity is refuted by one number, and one number is what
   // the cadet is handed.
-  'echo.mustAgreeAt': 'You may change how it is written. You may not change what it is worth. This is the tear with {t} in place of ${v}$ — work it out, then work your line out the same way. They have to come to the same number.',
+  'echo.mustAgreeAt': 'You may change how it is written. You may not change what it is worth. This is the rift with {t} in place of ${v}$ — work it out, then work your line out the same way. They have to come to the same number.',
   'echo.oneNumberBreaksIt': 'Two expressions that are the same thing agree at every value. Put ${v} = {t}$ into both sides of that claim and it comes apart in one step.',
 
   // The beam, mid-solve. Either the move changed which number the beam is
   // about — provable, and proved — or it was legal and got nowhere, in which
   // case the useful thing to say is what is still standing in the way.
   'echo.moveNames': 'The line your move left standing is about ${v} = {val}$.',
-  'echo.moveChangedIt': 'And that number does not hold the tear you were given level. The move undid nothing — it swapped the question for a different one.',
+  'echo.moveChangedIt': 'And that number does not hold the rift you were given level. The move undid nothing — it swapped the question for a different one.',
   'echo.stillBothSides': 'True, and no nearer. ${v}$ is still standing on both pans, and nothing is settled until it stands on one.',
   'echo.stillTwoThings': 'True, and no nearer. Two things are still wrapped round ${v}$: one added to it, one multiplying it. The added one comes off first.',
   'echo.stillMultiplied': 'True, and one move from done. ${v}$ stands alone but multiplied by {a}, and multiplying comes off by dividing — both pans at once.',
   'echo.stillAdded': 'True, and one move from done. Something is still added to ${v}$. Take it off both pans at once.',
   'echo.theTear': 'This is what the rift is asking, and nothing more than this.',
-  'echo.differentTear': 'A different tear, the same shape. This is how far it has been dug out.',
-  'echo.ownTraceOnly': 'The rig holds no other tear of this shape. This is your own line, read back to you, and the last of it stays yours.',
-  'echo.landingBurned': 'Where it landed burned away with the rest of the tear.',
-  'echo.landsAt': 'And that is the value that tear came to rest on. A different tear. A different number.',
+  'echo.differentTear': 'A different rift, the same shape. This is how far it has been dug out.',
+  'echo.ownTraceOnly': 'The rig holds no other rift of this shape. This is your own line, read back to you, and the last of it stays yours.',
+  'echo.landingBurned': 'Where it landed burned away with the rest of the rift.',
+  'echo.landsAt': 'And that is the value that rift came to rest on. A different rift. A different number.',
 
   // No unique value at all. A contradiction differs by the same amount wherever
   // you look; an identity agrees wherever you look. Two substitutions each.
@@ -318,8 +318,8 @@ export default {
   'echo.minusOutsideThePower': 'Those are the two readings, and they are not the same number. Without a bracket the power reaches only the digits; the minus is applied afterwards, to whatever the power came to.',
 
 
-  'ctx.filedTwice': 'Two survey teams filed the same quantity, and each wrote it their own way. The rig takes one line per tear and refuses the rest.',
-  'ctx.twoForms': 'The same quantity has been filed twice, in two hands, on two different forms. The rig takes one line per tear and bins the rest.',
+  'ctx.filedTwice': 'Two survey teams filed the same quantity, and each wrote it their own way. The rig takes one line per rift and refuses the rest.',
+  'ctx.twoForms': 'The same quantity has been filed twice, in two hands, on two different forms. The rig takes one line per rift and bins the rest.',
   'ctx.asPallets': 'The loading rig cannot read a bare total. It takes a count of identical pallets, and what is inside one of them.',
   'ctx.asRacks': 'The stores rig will not take a bare total. It wants a number of identical racks, and what stands in one of them.',
   'ctx.dockBill': 'The dock bill arrives with the arithmetic torn off: {b} credits to clamp on, {a} credits a cycle, and a figure at the bottom.',
@@ -610,10 +610,10 @@ export default {
   'ctx.sections': 'Each of {k} sections works {a} shifts a rotation, and every section owes {b} shifts to the galley regardless.',
 
   // ---- one quantity, filed twice, in two hands ---------------------------
-  'ctx.twoClerks': 'Two clerks wrote the same quantity down, in two hands and two different shapes. The rig takes one line per tear and refuses the rest.',
-  'ctx.twoLedgers': 'The same quantity appears in two ledgers, written two ways by people who never met. The rig takes one line per tear and bins the other.',
+  'ctx.twoClerks': 'Two clerks wrote the same quantity down, in two hands and two different shapes. The rig takes one line per rift and refuses the rest.',
+  'ctx.twoLedgers': 'The same quantity appears in two ledgers, written two ways by people who never met. The rig takes one line per rift and bins the other.',
   'ctx.twoTags': 'The crate carries two tags saying the same thing in two different notations. The rig will accept exactly one of them.',
-  'ctx.twoQuotes': 'Two yards quoted the same job and wrote the figure differently. The rig takes one line per tear and drops the rest.',
+  'ctx.twoQuotes': 'Two yards quoted the same job and wrote the figure differently. The rig takes one line per rift and drops the rest.',
   'ctx.twoManifests': 'The same load was manifested twice, in two hands, on two forms. The rig accepts one line and bins the other.',
   'ctx.asCrates': 'The loading rig cannot read a bare total. It wants a count of identical crates, and what is inside one of them.',
   'ctx.asDrums': 'The pump rig will not take a bare total. It wants a number of identical drums, and what is in a single drum.',
@@ -720,7 +720,7 @@ export default {
   'ctx.windBreak': 'A wind break stands {k} units tall. Its width {w} was woven in two panels and lashed, so nobody has ever measured it whole.',
   'ctx.coldFrame': 'A cold frame is {k} units deep. Its width {w} was glazed in two lights and puttied, so it has never been measured in one piece.',
   'ctx.shutterPanel': 'A shutter panel stands {k} units tall. Its width {w} was cast in two leaves and hinged, so nobody has measured it as one.',
-  'ctx.twoSignals': 'The same quantity has been signalled twice, from two masts, in two notations. The rig takes one line per tear and refuses the other.',
-  'ctx.twoChalks': 'Two hands chalked the same quantity onto the same board, in two shapes. The rig accepts exactly one line per tear.',
+  'ctx.twoSignals': 'The same quantity has been signalled twice, from two masts, in two notations. The rig takes one line per rift and refuses the other.',
+  'ctx.twoChalks': 'Two hands chalked the same quantity onto the same board, in two shapes. The rig accepts exactly one line per rift.',
 
 };

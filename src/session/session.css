@@ -525,6 +525,16 @@
 .sx-b li b { grid-column: 2; font-size: .86rem; font-weight: 600; color: #eaf3ff; line-height: 1.25; }
 .sx-b li span { grid-column: 2; font-size: .72rem; line-height: 1.4; color: rgba(186, 203, 226, .88); }
 
+/* THE CARD THAT ENDS A FINISHED SHARD. Past the last line, HELD and OPENED have
+   almost nothing left to say and WHAT CONTINUES has three things to say — the
+   descent, the charter and the waystation — so even thirds spend two columns on
+   white space and push the sign-off, which is the whole reason a finished
+   player comes back, under the sticky shelf. The block carrying the card gets
+   the width. Narrow frames stack these anyway and are left alone. */
+@media (min-width: 721px) {
+  .ses-close.whole .sx-blocks { grid-template-columns: 1fr 1fr 1.5fr; }
+}
+
 .sx-sign {
   margin: 1.2rem auto 0; max-width: 46ch; font-size: .84rem; line-height: 1.5;
   color: rgba(206, 222, 242, .86); text-wrap: pretty; opacity: 0;

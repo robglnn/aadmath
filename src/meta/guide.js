@@ -24,19 +24,19 @@
  *                   get wrong: close the tab mid-sentence, come back next week,
  *                   and the first frame says exactly what the last frame said,
  *                   because both are a function of the same save.
- *   THE WAYPOINT    a diamond over the tear the scheduler picked, with its
+ *   THE WAYPOINT    a diamond over the rift the scheduler picked, with its
  *                   distance in metres; off screen, an arrow pinned to the edge
  *                   of the frame that says which way to turn. "There is a rift
  *                   somewhere" becomes "it is that way, 140 m". Wandering to
  *                   all seven islands is now a choice.
  *   THE KEY         the interact prompt. `main.js` has always opened the
- *                   nearest tear on the interact key and nothing on screen has
+ *                   nearest rift on the interact key and nothing on screen has
  *                   ever said so — a verb with no prompt is a verb that does
  *                   not exist. It prints whichever binding the hands currently
  *                   holding the game actually use.
  *
  * WHAT THIS FILE DELIBERATELY DOES NOT DO. `src/world/beckon.js` labels every
- * interactable in the world and opens a tear you walk into; `src/world/verge.js`
+ * interactable in the world and opens a rift you walk into; `src/world/verge.js`
  * makes the edge of the shard a place you can see. Both are better where they
  * are. This file never draws a label on an object, never opens anything, and
  * never touches the world — it points at it. The one thing it adds beside them
@@ -49,7 +49,7 @@ import { t, num } from '../i18n/index.js';
 import { resolveObjective } from './objective.js';
 import { lexiconOf, createLexicon } from './lexicon.js';
 
-/** Inside this the tear is in hand: the marker stands down and the key shows. */
+/** Inside this the rift is in hand: the marker stands down and the key shows. */
 const REACH = 11;
 
 const RANK_TINT = ['#e0a06a', '#d9b48a', '#cfe0ee', '#ffdd8a', '#c9a6ff'];
@@ -130,7 +130,15 @@ export function createGuide(opts) {
     camera,
     player,
     isBusy: () => isBusy() || frameHeld(),
-    say: (id) => comms?.sayKey?.('guide.n.' + id, { force: true }),
+    /* A noun defines itself into a channel with ROOM IN IT, or not at all.
+       `comms.push` appends and then truncates the queue at five, so a line
+       queued behind the arrival speech is dropped on the floor — and
+       `lexicon.js` would have counted it as taught and never offered it again.
+       Refusing while the queue is full costs a few seconds; the entry is still
+       standing and fires as soon as Marlow has caught up. */
+    say: (id) => ((comms?.queue?.length ?? 0) >= 5
+      ? false
+      : comms?.sayKey?.('guide.n.' + id, { force: true })),
   });
 
   // ------------------------------------------------------------------- state
@@ -146,7 +154,7 @@ export function createGuide(opts) {
   const view = new THREE.Vector3();
   const fwd = new THREE.Vector3();
 
-  /** Which key actually opens a tear on the hands currently holding the game. */
+  /** Which key actually opens a rift on the hands currently holding the game. */
   function keyLabel() {
     const src = document.documentElement.dataset.input || 'kbm';
     if (src === 'pad') return t('guide.key.pad');
@@ -306,7 +314,7 @@ export function createGuide(opts) {
     pin.classList.toggle('edge', off);
     pin.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     // On screen the marker carries the distance and nothing else: the world
-    // already names that tear (src/world/beckon.js) and the objective card is
+    // already names that rift (src/world/beckon.js) and the objective card is
     // two hundred pixels away saying the same words. Off screen there is no
     // world label to lean on and the card is across the frame, so the name
     // comes back — it is the one state where it is doing work.

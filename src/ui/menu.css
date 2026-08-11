@@ -1,0 +1,186 @@
+/* ---------------------------------------------------------------------------
+   THE MENU — pause, help and settings on one plate. (src/ui/menu.js)
+
+   Scoped under .mnu / .mnu-pill so it can never reach another module's markup.
+   It is the same piece of hardware as every other panel in this game: a cut
+   plate, the rank's own light down the anchored edge, keycaps that match the
+   controls card exactly. Nothing here is a browser dialog.
+   --------------------------------------------------------------------------- */
+
+#ui .mnu {
+  position: absolute; inset: 0;
+  z-index: 46;                 /* over the world's plates, under the way-out card */
+  display: grid; place-items: center;
+  padding: var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l);
+  opacity: 0; pointer-events: none;
+  transition: opacity .26s ease;
+}
+#ui .mnu.show { opacity: 1; pointer-events: auto; }
+
+#ui .mnu-scrim {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(4, 9, 18, .58), rgba(3, 7, 14, .82));
+  backdrop-filter: blur(3px) saturate(.8);
+  -webkit-backdrop-filter: blur(3px) saturate(.8);
+}
+
+#ui .mnu-card {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  --cut: 16px;
+  --ink-rank: var(--rank-ink, #8ec7ff);
+  padding: 1.05rem 1.2rem 1.1rem 1.3rem;
+  scale: .985; translate: 0 6px;
+  transition: scale .3s cubic-bezier(.2, .9, .25, 1), translate .3s cubic-bezier(.2, .9, .25, 1);
+}
+#ui .mnu.show .mnu-card { scale: 1; translate: 0 0; }
+/* the rank's own light, run down the anchored edge — the same lamp as the rig */
+#ui .mnu-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--ink-rank) 96%, white), var(--ink-rank) 60%,
+    color-mix(in srgb, var(--ink-rank) 26%, transparent));
+  box-shadow: 0 0 14px -1px var(--rank-glow, rgba(95, 230, 255, .7));
+}
+
+#ui .mnu-head { display: flex; align-items: flex-start; gap: .66rem; margin-bottom: .9rem; }
+#ui .mnu-head > i {
+  width: 8px; height: 8px; flex: none; rotate: 45deg; margin-top: .34rem;
+  background: var(--rank-ink, #5fe6ff);
+  box-shadow: 0 0 12px -1px var(--rank-glow, rgba(95, 230, 255, .8));
+}
+#ui .mnu-titles { flex: 1; min-width: 0; }
+#ui .mnu-head h2 {
+  margin: 0; font-size: .84rem; font-weight: 700;
+  letter-spacing: .26em; text-transform: uppercase; color: var(--ink);
+}
+#ui .mnu-sub { margin: .28rem 0 0; font-size: .78rem; line-height: 1.35; color: var(--ink-dim); }
+
+#ui .mnu-resume, #ui .mnu-pill {
+  flex: none; display: inline-flex; align-items: center; gap: .45rem;
+  padding: .42rem .62rem; cursor: pointer;
+  font: inherit; font-size: .58rem; font-weight: 700;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--ink);
+  background: rgba(120, 190, 255, .1);
+  border: 1px solid rgba(130, 195, 255, .3); border-radius: 6px;
+  transition: background .16s, border-color .16s, color .16s;
+}
+#ui .mnu-resume:hover, #ui .mnu-resume:focus-visible {
+  background: rgba(120, 190, 255, .22); border-color: rgba(150, 220, 255, .62);
+}
+
+#ui .mnu-cols {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: .9rem 1.4rem; align-items: start;
+}
+#ui .mnu-side { display: grid; gap: .9rem; }
+#ui .mnu-sec > h3 {
+  margin: 0 0 .44rem; font-size: .56rem; font-weight: 600;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--ink-mute);
+}
+#ui .mnu-sec[hidden] { display: none; }
+#ui .mnu-sec ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+#ui .mnu-sec li, #ui .mnu-row {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: .76rem; line-height: 1.15; color: var(--ink);
+}
+#ui .mnu-verb { flex: 1; min-width: 0; }
+#ui .mnu-keys { display: flex; gap: 3px; flex: none; }
+
+#ui .mnu kbd {
+  display: inline-block; min-width: 1.32em; padding: .14em .34em .18em;
+  font: inherit; font-size: .63rem; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; text-align: center;
+  color: #dff0ff;
+  background: linear-gradient(180deg, rgba(38, 68, 104, .82), rgba(12, 26, 46, .82));
+  border: 1px solid rgba(140, 200, 255, .34);
+  border-bottom-color: rgba(140, 200, 255, .5);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(4, 10, 20, .7);
+}
+
+/* ---------- settings ---------- */
+#ui .mnu-set .mnu-row { margin-top: .34rem; }
+#ui .mnu-slider { cursor: pointer; }
+#ui .mnu-sens {
+  flex: none; width: 116px; height: 3px; appearance: none; -webkit-appearance: none;
+  background: linear-gradient(90deg, var(--cyan), rgba(126, 190, 255, .22));
+  border-radius: 2px; cursor: pointer;
+}
+#ui .mnu-sens::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #eaf7ff; border: 1px solid rgba(95, 230, 255, .8);
+  box-shadow: 0 0 10px -1px rgba(95, 230, 255, .8);
+}
+#ui .mnu-sens::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(95, 230, 255, .8);
+  background: #eaf7ff;
+}
+#ui .mnu-val {
+  flex: none; min-width: 3.1em; text-align: right;
+  font-style: normal; font-size: .66rem; font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}
+#ui .mnu-toggle {
+  flex: none; min-width: 3.4em; padding: .2rem .5rem .22rem;
+  font: inherit; font-size: .58rem; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase; cursor: pointer;
+  color: var(--ink-dim);
+  background: rgba(120, 190, 255, .07);
+  border: 1px solid rgba(130, 195, 255, .24); border-radius: 5px;
+  transition: color .16s, border-color .16s, background .16s;
+}
+#ui .mnu-toggle[aria-pressed="true"] {
+  color: var(--cyan); border-color: rgba(95, 230, 255, .55);
+  background: rgba(95, 230, 255, .12);
+}
+#ui .mnu-toggle:hover, #ui .mnu-toggle:focus-visible { color: var(--ink); }
+
+/* ---------- the one line a beaten player is looking for ---------- */
+#ui .mnu-now {
+  margin-top: 1rem; padding-top: .74rem;
+  border-top: 1px solid rgba(130, 190, 255, .16);
+}
+#ui .mnu-now h3 {
+  margin: 0 0 .3rem; font-size: .56rem; font-weight: 600;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--amber);
+}
+#ui .mnu-now p { margin: 0; font-size: .82rem; line-height: 1.42; color: var(--ink-dim); }
+
+/* ---------- the door handle ---------- */
+#ui .mnu-pill {
+  position: fixed; z-index: 24;
+  right: calc(var(--pad-r) + var(--thumb-r)); top: calc(var(--pad-t) + 120px);
+  min-height: 36px; letter-spacing: .2em; color: var(--ink-dim);
+  background: linear-gradient(168deg, rgba(13, 24, 42, .78), rgba(5, 11, 21, .66));
+  border-color: var(--plate-line);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+#ui .mnu-pill svg {
+  width: 15px; height: 15px; flex: none;
+  stroke: currentColor; stroke-width: 2; stroke-linecap: round; fill: none;
+}
+#ui .mnu-pill:hover, #ui .mnu-pill:focus-visible, #ui .mnu-pill.on {
+  color: var(--cyan); border-color: rgba(95, 230, 255, .45);
+}
+/* The card is the menu while it is open; the handle stands down under it. */
+#ui .mnu-pill.on { opacity: 0; pointer-events: none; }
+
+@media (max-width: 720px) {
+  #ui .mnu-cols { grid-template-columns: minmax(0, 1fr); }
+  #ui .mnu-card { padding: .9rem .95rem 1rem 1.05rem; }
+  #ui .mnu-head h2 { font-size: .74rem; letter-spacing: .2em; }
+  #ui .mnu-sub { font-size: .72rem; }
+  /* the launcher moves to the free corner the report leaves it, one row down */
+  #ui .mnu-pill {
+    left: var(--pad-l); right: auto; top: calc(var(--pad-t) + 112px);
+  }
+  #ui .mnu-pill b { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui .mnu, #ui .mnu-card { transition-duration: .01ms; }
+}

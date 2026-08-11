@@ -46,16 +46,28 @@ export class ColdOpen {
   }
 
   begin() {
-    this.el.classList.add('on');
     this.root.classList.add('meta-cine');
+    // world/hotfix: the stamp arrives *after* the instruments have gone, not
+    // through them. The chrome fades out in .55s and the stamp used to fade in
+    // over the same window — at 390 in Polish "Odłamek Dziewiąty · lądowisko
+    // kadetów" is 329 px wide and was photographed crossing the objective card
+    // while both were half lit. It leaves the same way; see `end()`.
+    clearTimeout(this._in);
+    this._in = setTimeout(() => { if (!this.done) this.el.classList.add('on'); }, 600);
   }
 
   /** Retract. Idempotent — movement, a rift, or the timer can all call it. */
   end() {
     if (this.done) return;
     this.done = true;
+    clearTimeout(this._in);
     this.el.classList.remove('on');
-    this.root.classList.remove('meta-cine');
+    // world/hotfix: the stamp leaves before the instruments come back, rather
+    // than the two crossfading through each other. Photographed mid-retraction
+    // at 1600x900 the objective card was legible *through* THE SKYREN LATTICE,
+    // and on a 414 phone the companion's card came up through the shard line.
+    // The stamp's fade-out is .5s (src/meta/meta.css); this is that, plus air.
+    setTimeout(() => this.root.classList.remove('meta-cine'), 560);
     setTimeout(() => { this.el.style.display = 'none'; }, 1300);
   }
 }

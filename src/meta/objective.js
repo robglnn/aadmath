@@ -19,7 +19,7 @@
  * sentence the last frame did, because both are a function of the same save.
  *
  * The four verbs are the four things the scheduler can ask for, and they are
- * deliberately different words. "Seal the tear" and "Prove the line" are not
+ * deliberately different words. "Seal the rift" and "Prove the line" are not
  * dressing on one action: the first is practice and the second is the proving
  * run that actually closes a claim, and a player who cannot tell them apart
  * cannot tell that he is nearly finished with something.
@@ -50,7 +50,7 @@ export function resolveObjective(ctx) {
   const pick = safeNext(mastery);
   let rift = pick ? rifts.list.find((r) => r.id === pick.id && !r.locked) : null;
 
-  // The scheduler named a line with no tear standing for it (it can, at the
+  // The scheduler named a line with no rift standing for it (it can, at the
   // very top of the lattice) — or named nothing at all. Fall back to the
   // nearest thing that is actually open, because an objective that points at
   // nothing is worse than an objective that points at the wrong thing.

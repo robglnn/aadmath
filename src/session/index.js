@@ -406,7 +406,7 @@ export function createSession({
         bandWas: run.startBand?.[id] ?? null,
       };
     }
-    const next = mastery.next();
+    const next = nextOpen();
     return {
       index: run.index,
       tears: run.tears,
@@ -420,7 +420,10 @@ export function createSession({
       opened: run.opened.slice(),
       chapter: run.chapterAt != null && s.chapter > run.chapterAt ? s.chapter : null,
       rank: run.rankAt && s.rank && s.rank !== run.rankAt ? t('rank.' + s.rank) : null,
-      next: next ? { id: next.id, minutes: minutesToHold(mastery, next.id, pace) } : null,
+      next,
+      // What keeps going once there is no `next` left. Never read unless the
+      // lattice is whole, and never null then. See `endgame()`.
+      endgame: next ? null : endgame(),
       lines: [...mastery.state.values()].filter((x) => x.mastered).length,
       minutes: Math.round(run.focus / 60),
       // Work done. A run that sealed nothing still has these, and they are the
@@ -431,6 +434,83 @@ export function createSession({
       extensions: run.extensions || 0,
       canMore: canExtend(),
       moreMinutes: extendMinutes(),
+    };
+  }
+
+  /**
+   * WHAT THE NEXT RUN OPENS WITH — and only ever something that is actually open.
+   *
+   * This block used to be `mastery.next()`, and `mastery.next()` answers a
+   * different question: *what is the single most useful item to serve right
+   * now.* Two of its answers are lines the learner already holds — a retention
+   * re-probe that has fallen due, and, past the last line, a rung of the
+   * sounding — and `tearsToHold` correctly reports that a line already held is
+   * zero minutes from being held. So the card printed
+   *
+   *     NEXT · Order of operations — About 0 minutes of work, and the
+   *            highest-leverage thing left open. That is where we start.
+   *
+   * one column to the right of "everything you touched today was already
+   * yours". Zero minutes is not a hook, it is the card contradicting itself,
+   * and at the endgame it said that for ever.
+   *
+   * The close therefore asks its own question — what is still open, and which
+   * of those has the most leverage — and when the honest answer is *nothing*,
+   * it is nothing: `session.close.nextDone` has existed since this file was
+   * written and was unreachable, because `mastery.next()` never returns null.
+   */
+  function nextOpen() {
+    const pick = mastery.next();
+    const id = pick && !mastery.get(pick.id)?.mastered ? pick.id : bestOpenSkill();
+    if (!id) return null;
+    const minutes = minutesToHold(mastery, id, pace);
+    // Belt and braces: an open line cannot cost nothing, and if the model ever
+    // says it does, the honest row is the one that prints no number at all.
+    return { id, minutes: minutes > 0 ? minutes : null };
+  }
+
+  /** The highest-leverage line that is unlocked and not yet held. */
+  function bestOpenSkill() {
+    let best = null;
+    let bestV = -Infinity;
+    for (const id of mastery.unlockedSkills?.() || []) {
+      if (mastery.get(id)?.mastered) continue;
+      const v = mastery.leverage?.(id) ?? 0;
+      if (best == null || v > bestV) { bestV = v; best = id; }
+    }
+    return best;
+  }
+
+  /**
+   * THE THREE THINGS THAT KEEP GOING.
+   *
+   * Holding all ten lines is not the end of the game, and the screen that ends
+   * a session was the one surface that never said so. Past the last line the
+   * loop is entirely intact and entirely unnamed:
+   *
+   *   THE SOUNDING    held lines, at the top of the bank, with nothing to lean
+   *                   on, one rung at a time. It has no floor and no ceiling,
+   *                   and it is what a spare minute is for (src/learn).
+   *   THE CHARTER     cut by depth, and depth's second term — a re-probe that
+   *                   survived a night — cannot move inside one sitting. It is
+   *                   the only thing in the game whose price is literally
+   *                   coming back tomorrow and still knowing it (src/kit).
+   *   THE WAYSTATION  what a charter buys: a permanent tower of rising air that
+   *                   is also a place, and two of them are a route (src/kit).
+   *
+   * All three are read off the objects the HUD reads, never off a tally here,
+   * and a missing kit only costs the rows it owns.
+   */
+  function endgame() {
+    let w = null;
+    let k = null;
+    try { w = mastery.watch?.() || null; } catch { /* never break the beat */ }
+    try { k = kit?.state?.() || null; } catch { /* kit is optional */ }
+    return {
+      sounding: w?.sounding?.best || 0,
+      charters: k ? k.charters : null,
+      toCharter: k ? k.toCharter : null,
+      stations: k ? k.stations : null,
     };
   }
 

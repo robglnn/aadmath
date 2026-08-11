@@ -1,0 +1,56 @@
+/* THE LEDGER STRIP — every movement of the currency, where nothing can stomp it.
+ *
+ * It sits directly under the rig, in the top-left corner, because that is where
+ * the mote count itself is: the number and the reason it moved are read in one
+ * glance. It is a separate element from `#toast` on purpose — the toast is one
+ * slot on an 1800 ms timer, and the surge line was being deleted by the "no
+ * footing" toast that the same surge caused half a second later. */
+
+.ledger{
+  position:absolute;
+  top:calc(var(--pad-t) + 108px);
+  left:var(--pad-l);
+  width:min(304px,42vw);
+  display:flex;flex-direction:column;gap:.26rem;
+  pointer-events:none;z-index:6;
+}
+
+.led-row{
+  display:flex;align-items:baseline;gap:.46rem;
+  padding:.3rem .56rem .32rem .5rem;
+  border-left:2px solid var(--led-ink,#7fd4ff);
+  background:linear-gradient(90deg,
+    color-mix(in srgb,var(--led-ink,#7fd4ff) 16%,rgba(6,12,22,.82)),
+    rgba(6,12,22,.62) 62%,rgba(6,12,22,.24));
+  backdrop-filter:blur(5px);
+  font-size:.62rem;letter-spacing:.02em;
+  color:#dbe8f6;
+  opacity:0;transform:translateX(-10px);
+  transition:opacity .34s ease,transform .34s cubic-bezier(.2,.8,.2,1);
+}
+.led-row.in{opacity:1;transform:none}
+
+.led-row.up{--led-ink:#78e0a8}
+.led-row.down{--led-ink:#ff9a5c}
+.led-row.safe{--led-ink:#8aa4c2}
+
+.led-n{
+  font-size:.86rem;font-weight:800;line-height:1;
+  font-variant-numeric:tabular-nums;
+  color:var(--led-ink);
+  text-shadow:0 0 12px color-mix(in srgb,var(--led-ink) 55%,transparent);
+  min-width:2.1em;
+}
+.led-why{flex:1;text-transform:uppercase;font-size:.54rem;letter-spacing:.14em;
+  color:rgba(214,231,247,.9);line-height:1.25}
+.led-left{font-style:normal;font-size:.54rem;letter-spacing:.1em;
+  font-variant-numeric:tabular-nums;
+  color:rgba(160,185,212,.78);white-space:nowrap}
+
+/* A phone puts the thumb zone and the companion where this would sit, and the
+   rig itself is narrower — so the strip narrows with it and drops the balance
+   tail rather than wrapping into three lines over the world. */
+@media (max-width:760px){
+  .ledger{top:calc(var(--pad-t) + 84px);width:min(220px,54vw)}
+  .led-left{display:none}
+}

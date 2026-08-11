@@ -26,6 +26,14 @@
   border-radius: 4px; text-decoration: none; font-size: .52rem; letter-spacing: 0;
   border: 1px solid rgba(126, 190, 255, .22); color: var(--ink-mute);
 }
+/* A locked chip has no hotkey, so it does not wear a keycap: the cap's border
+   comes off and a drawn padlock stands in its place. (src/ui P0 — the bare
+   interpunct in this slot read as an unassigned binding.) */
+.kit-chip u.lock { border-color: transparent; opacity: .72; }
+.kit-chip u.lock svg {
+  width: 11px; height: 11px; fill: none; stroke: currentColor;
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
 .kit-chip em { font-style: normal; font-size: .5rem; color: var(--ink-mute); opacity: .8; }
 
 .kit-chip.on {

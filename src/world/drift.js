@@ -374,7 +374,7 @@ export function createDrift(opts = {}) {
           const worth = m.rich ? RICH_VALUE : MOTE_VALUE;
           m.live = false;
           m.pop = 1;
-          wallet?.earn?.(worth);
+          wallet?.earn?.(worth, 'vein');
           if (stats.motes === 0) onFirstTake();
           stats.motes++; stats.events++;
           took += worth;

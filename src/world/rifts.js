@@ -7,7 +7,22 @@ import { merge } from './geom.js';
 import { createBeacon } from '../fx/beacon.js';
 
 const daisStone = new THREE.MeshStandardMaterial({ color: 0xc0b7a8, roughness: 0.88, flatShading: true });
-const daisGeo = new THREE.CylinderGeometry(5.4, 6.6, 2.2, 9);
+// ---- A DOORWAY, NOT A PEDESTAL -------------------------------------------
+// The dais used to stand 2.1 m proud of the ground with the ring floating a
+// further 2.3 m over that, and a cold critic wrote the consequence down: *"I
+// walked bodily into the first glowing ring five separate times, stood inside
+// its footprint… every natural walking line from the spawn plaza runs into the
+// plinth face instead of onto it."* He was reading the silhouette correctly.
+// A waist-high stone wall around a ring hung over head height is a monument you
+// look at, and the whole game asks you to walk into it.
+//
+// So the podium is now two courses of stone that top out 62 cm above the
+// ground — a kerb you step over without noticing — and the ring stands *on*
+// it, at head height, aperture open to the grass. Walking into a rift is now
+// walking through a door, which is what every player tried to do first.
+const DAIS_TOP = 0.62;    // metres of stone above the ground at the crown
+const RING_Y = 2.72;      // ring centre: a 2.4 m aperture standing on the podium
+const daisGeo = new THREE.CylinderGeometry(5.4, 6.0, 1.0, 9);
 const stepGeo = new THREE.CylinderGeometry(7.4, 8.4, 1.1, 9);
 const pillarGeo = new THREE.BoxGeometry(0.9, 4.2, 0.9);
 // the standing pad on the dais, and the bars that shut a rift the cadet has
@@ -15,6 +30,14 @@ const pillarGeo = new THREE.BoxGeometry(0.9, 4.2, 0.9);
 const padGeo = new THREE.RingGeometry(2.5, 3.4, 44);
 padGeo.rotateX(-Math.PI / 2);
 const barGeo = new THREE.BoxGeometry(5.0, 0.42, 0.42);
+// ---- THE KEYSTONE ---------------------------------------------------------
+// What a *sealed* tear looks like. A live tear is a hole with a vortex turning
+// in it; a sealed one is a hole that has been filled — a solid nonagonal plate
+// of set lattice with the seal cut across it. Nine faces, so it reads as
+// masonry rather than as a disc, and the same nine as the dais under it.
+const keyGeo = new THREE.CylinderGeometry(2.34, 2.34, 0.34, 9);
+keyGeo.rotateX(Math.PI / 2);
+const seamGeo = new THREE.BoxGeometry(4.34, 0.26, 0.42);
 
 /**
  * Rifts are the learning sites. One per graph node, laid out so that
@@ -31,17 +54,156 @@ export class Rifts {
     const ringGeo = new THREE.TorusGeometry(2.4, 0.13, 12, 64);
     const coreGeo = new THREE.CircleGeometry(2.3, 48);
 
+    // ---- WHERE THE TEARS STAND ------------------------------------------
+    // The old placement was an ideal point on a spiral followed by *"nudge to
+    // a walkable spot"* — `x *= 0.9; z *= 0.9` up to twenty-four times, which
+    // is not a nudge, it is a slide down the funnel toward the plaza. Every
+    // node whose ideal site was off the walkable island slid down the same
+    // funnel, and on the shipping graph two of them landed **87 centimetres
+    // apart**: `var-meaning`, the very first tear, and `one-step-add`, which is
+    // locked behind it.
+    //
+    // A cold critic met the result and could not name it, only suffer it: two
+    // labels on one ring in the sky, one reading OPEN THE RIFT and one reading
+    // SEALED SHUT, and — because contact takes the *nearest* dais and half of
+    // all approach bearings put the locked twin nearer — a red "Rift surge"
+    // refusal for walking into the first objective in the game. That is the P0.
+    //
+    // Placement is now a search rather than a slide. A site must (a) have
+    // ground under the whole dais, (b) stand clear of every tear already
+    // placed, and (c) be joined to its own prerequisite — or to the plaza, for
+    // a root — by a line a cadet can actually walk. Candidates are tried
+    // outward from the ideal point, nearest first, so the spiral the map is
+    // read by survives intact.
+    const MIN_SEP = 26;      // metres between two daises: no two ever overlap
+    const PAD_R = 7.2;       // the dais needs ground under all of it
+    // Metres of rise per 2.5 m of walking. The boots stop at a gradient of 1.5
+    // and mantle a 2.7 m ledge, so 2.6 is a steep hill a cadet can run up and
+    // anything above it is a face he cannot. (src/player/locomotion.js)
+    const STEP_MAX = 2.6;
+    const sites = new Map();
+
+    const padOk = (x, z) => {
+      if (heightAt(x, z) === null || slopeAt(x, z) > 0.40) return false;
+      for (let k = 0; k < 6; k++) {
+        const a2 = (k / 6) * Math.PI * 2;
+        if (heightAt(x + Math.cos(a2) * PAD_R, z + Math.sin(a2) * PAD_R) === null) return false;
+      }
+      return true;
+    };
+
+    /** Is there a walk from (ax,az) to (bx,bz) with no hole and no cliff in it? */
+    const walkable = (ax, az, bx, bz) => {
+      const d = Math.hypot(bx - ax, bz - az);
+      const n = Math.max(2, Math.ceil(d / 2.5));
+      let prev = heightAt(ax, az);
+      if (prev === null) return false;
+      for (let k = 1; k <= n; k++) {
+        const x = ax + (bx - ax) * (k / n), z = az + (bz - az) * (k / n);
+        const h = heightAt(x, z);
+        if (h === null || Math.abs(h - prev) > STEP_MAX) return false;
+        prev = h;
+      }
+      return true;
+    };
+
+    /**
+     * The nearest site to an ideal point that a cadet can actually use.
+     *
+     * Searched in rings *around the ideal point*, not around the island's
+     * centre: a tear belongs thirty-odd metres beyond the line that unlocks it,
+     * and a polar search around the origin answers "somewhere on this
+     * hundred-metre circle", which is how `order-ops` ended up a hundred and
+     * eight metres from its own prerequisite on the far side of a basin.
+     */
+    const siteFor = (ix, iz, from) => {
+      const fromH = heightAt(from.x, from.z);
+      let best = null, bestCost = Infinity, loose = null;
+      for (let ring = 0; ring < 15; ring++) {
+        const rad = ring * 5;
+        const steps = ring === 0 ? 1 : ring * 8;
+        for (let k = 0; k < steps; k++) {
+          const th = (k / steps) * Math.PI * 2 + ring * 0.19;
+          const x = ix + Math.cos(th) * rad, z = iz + Math.sin(th) * rad;
+          if (Math.hypot(x, z) > ISLAND_R - 20) continue;
+          if (!padOk(x, z)) continue;
+          let clear = true;
+          for (const s of sites.values()) {
+            if (Math.hypot(x - s.x, z - s.z) < MIN_SEP) { clear = false; break; }
+          }
+          if (!clear) continue;
+          if (!walkable(from.x, from.z, x, z)) {
+            // separated and solid, but the approach is a cliff — keep it as the
+            // answer of last resort and go on looking for a road.
+            if (!loose) loose = { x, z };
+            continue;
+          }
+          // Of the sites that work, take the one that costs the player least:
+          // drift from where the lattice says the tear lives, how far he now
+          // has to walk, and how much of that walk is climbing. A session is
+          // twenty minutes long and a hundred-metre hike between two rifts
+          // spends a quarter of it.
+          const gh2 = heightAt(x, z);
+          const climb = (fromH === null || gh2 === null) ? 0 : Math.abs(gh2 - fromH);
+          const cost = rad
+            + Math.max(0, Math.hypot(x - from.x, z - from.z) - 36) * 1.5
+            + climb * 0.7;
+          if (cost < bestCost) { bestCost = cost; best = { x, z }; }
+        }
+        if (best && rad >= bestCost) break;
+      }
+      return best || loose || { x: ix, z: iz };
+    };
+
+    // ---- THE IDEAL MAP: the lattice, laid on the ground ------------------
+    // Ideal bearings used to come off a golden-angle spiral keyed to the node's
+    // *index*, which scatters a prerequisite chain to opposite sides of the
+    // island — `distribute` two hundred metres from the line that unlocks it.
+    // A tear now stands thirty-two metres beyond its own prerequisite, on the
+    // bearing that leads away from the plaza, with siblings fanned either side.
+    // Walk outward from the landing and you are walking up the knowledge graph:
+    // the branches on the ground are the branches in the lattice.
+    const OUT = 32;          // metres a tear stands beyond its prerequisite
+    const kids = new Map();
+    for (const n of graph.nodes) {
+      for (const p of n.prereqs || []) {
+        if (!kids.has(p)) kids.set(p, []);
+        if (!kids.get(p).includes(n.id)) kids.get(p).push(n.id);
+      }
+    }
+    const plan = new Map();
+    const queue = [];
+    graph.nodes.filter((n) => !n.prereqs?.length).forEach((n, k) => {
+      // A root tear stands straight ahead of where the cadet makes planetfall.
+      plan.set(n.id, { a: -Math.PI / 2 + k * 2.2, from: null });
+      queue.push(n.id);
+    });
+    while (queue.length) {
+      const id = queue.shift();
+      const base = plan.get(id);
+      const cs = (kids.get(id) || []).filter((c) => !plan.has(c));
+      cs.forEach((c, k) => {
+        plan.set(c, { fan: (k - (cs.length - 1) / 2) * 0.72, from: id });
+        queue.push(c);
+      });
+    }
+
     graph.nodes.forEach((node, i) => {
       const tier = depthOf(graph, node.id);
-      const a = -Math.PI / 2 + i * 2.399963 + tier * 0.55;
-      const rr = 30 + tier * 26 + ((i * 13) % 9);
-      let x = Math.cos(a) * rr, z = Math.sin(a) * rr;
-      // nudge to a walkable spot
-      for (let k = 0; k < 24 && (heightAt(x, z) === null || slopeAt(x, z) > 0.45); k++) {
-        x *= 0.9; z *= 0.9;
-      }
+      const want = plan.get(node.id) || { fan: i * 0.9, from: node.prereqs?.[0] || null };
+      // A tear is reached *from the line beneath it*, so that is the walk the
+      // search has to guarantee. A root tear is reached from the landing plaza.
+      const from = sites.get(want.from) || { x: 0, z: 0 };
+      // …and it stands further out than that line does, so the map grows away
+      // from the plaza in the same order the lattice does.
+      const bear = want.from
+        ? Math.atan2(from.z, from.x) + (want.fan || 0)
+        : (want.a ?? -Math.PI / 2);
+      const site = siteFor(from.x + Math.cos(bear) * OUT, from.z + Math.sin(bear) * OUT, from);
+      const x = site.x, z = site.z;
+      sites.set(node.id, site);
       const gh = heightAt(x, z) ?? 6;
-      const y = gh + 4.4;
+      const y = gh + RING_Y;
 
       // A built place: stepped dais, four broken pillars, and a light shaft.
       //
@@ -51,15 +213,21 @@ export class Rifts {
       // the shadow pass — a quarter of the entire frame's submissions spent on
       // scenery that could not animate. One call each, same silhouette.
       const parts = [];
-      const step = stepGeo.clone(); step.translate(0, -0.2, 0); parts.push(step);
-      const top = daisGeo.clone(); top.translate(0, 1.0, 0); parts.push(top);
+      // Two courses, and most of their mass is under the turf: the outer kerb
+      // tops out 28 cm up and the crown 62 cm. You step onto a rift the way you
+      // step onto a kerb — which is to say, without noticing that you did.
+      const step = stepGeo.clone(); step.translate(0, -0.27, 0); parts.push(step);
+      const top = daisGeo.clone(); top.translate(0, DAIS_TOP - 0.5, 0); parts.push(top);
+      // The pillars are pushed out past the aperture so that the doorway itself
+      // is clear from every bearing: a stone standing in the walking line of a
+      // door is the same defect as the plinth, one metre to the left.
       for (let k = 0; k < 4; k++) {
         const a2 = (k / 4) * Math.PI * 2 + 0.4;
         const hh = 2.6 + ((i * 7 + k * 3) % 5) * 0.7;
         const p = pillarGeo.clone();
         p.scale(1, hh / 4.2, 1);
         p.rotateY(a2);
-        p.translate(Math.cos(a2) * 4.4, 1.9 + hh * 0.5, Math.sin(a2) * 4.4);
+        p.translate(Math.cos(a2) * 6.4, DAIS_TOP + hh * 0.5 - 0.3, Math.sin(a2) * 6.4);
         parts.push(p);
       }
       const dais = new THREE.Mesh(merge(parts), daisStone);
@@ -83,6 +251,10 @@ export class Rifts {
         roughness: 0.25, metalness: 0.3,
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
+      // The aperture now stands at head height, so the lens can end up behind
+      // it: a doorway you can walk through must not be a wall the camera
+      // shoves against. Same for the gate and the keystone below.
+      ring.userData.noCamBlock = true;
       g.add(ring);
 
       const coreMat = new THREE.ShaderMaterial({
@@ -154,9 +326,53 @@ export class Rifts {
         bar.rotation.z = (s - 1) * 0.62;
         bar.position.y = (s - 1) * 1.35;
         bar.castShadow = true;
+        bar.userData.noCamBlock = true;
         seal.add(bar);
       }
       g.add(seal);
+
+      // ---- THE KEYSTONE ---------------------------------------------------
+      // A critic played this cold and reported the single worst thing an
+      // interactable can do twice over: *"a spent ring looks pixel-identical to
+      // a live one"*. It did. A sealed tear differed from a live one by a hue
+      // shift on a torus — invisible at ten metres, let alone fifty — so a
+      // player who had sealed four tears was standing in a field of glowing
+      // rings with no way to tell which of them still wanted anything from him.
+      //
+      // Now the difference is *geometry*, and geometry survives distance, fog,
+      // bloom and colour-blindness. Sealed: the aperture is filled with a solid
+      // plate and the seal is cut across it, the ring stops turning, the shard
+      // crown stops orbiting, the column of light drops to a thread. Live: a
+      // hole, a vortex, a spinning ring and a hundred-metre beam. You can read
+      // the whole lattice off the skyline without a word of UI, which was the
+      // promise the seal bars already made for *locked* and nothing kept for
+      // *held*.
+      const keystone = new THREE.Group();
+      const keyMat = new THREE.MeshStandardMaterial({
+        color: 0x7fb499, emissive: 0x1d5a41, emissiveIntensity: 0.28,
+        roughness: 0.52, metalness: 0.3, flatShading: true,
+      });
+      const plate = new THREE.Mesh(keyGeo, keyMat);
+      plate.castShadow = true;
+      plate.userData.noCamBlock = true;
+      keystone.add(plate);
+      const seamMat = new THREE.MeshStandardMaterial({
+        color: 0xd6f6e4, emissive: 0x63d79a, emissiveIntensity: 1.1,
+        roughness: 0.35, metalness: 0.1, flatShading: true,
+      });
+      // A saltire, not a cross. Two bars at right angles read as a first-aid
+      // sign the moment they are green, which is a meaning this game has no
+      // use for; turned forty-five degrees the same two bars are the mark a
+      // surveyor cuts when a claim is closed.
+      for (let s = 0; s < 2; s++) {
+        const seam = new THREE.Mesh(seamGeo, seamMat);
+        seam.rotation.z = Math.PI / 4 + s * Math.PI / 2;
+        seam.position.z = 0.13;
+        keystone.add(seam);
+      }
+      keystone.visible = false;
+      keystone.scale.setScalar(0.001);
+      g.add(keystone);
 
       // ---- THE PAD --------------------------------------------------------
       // The ring floats four metres over the dais, so nobody can literally walk
@@ -168,7 +384,7 @@ export class Rifts {
         blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
       });
       const pad = new THREE.Mesh(padGeo, padMat);
-      pad.position.set(x, gh + 2.2, z);
+      pad.position.set(x, gh + DAIS_TOP + 0.06, z);
       pad.userData.noCamBlock = true;
       pad.renderOrder = 3;
       this.group.add(pad);
@@ -176,11 +392,11 @@ export class Rifts {
       this.group.add(g);
       this.list.push({
         id: node.id, node, group: g, ring, core, coreMat, light, shards, beacon, dais,
-        seal, pad, padMat,
-        pos: new THREE.Vector3(x, y, z), foot: new THREE.Vector3(x, gh + 2.2, z), tier,
+        seal, pad, padMat, keystone,
+        pos: new THREE.Vector3(x, y, z), foot: new THREE.Vector3(x, gh + DAIS_TOP, z), tier,
         locked: node.prereqs.length > 0, mastered: false, phase: Math.random() * 6.28,
         // what is standing between the cadet and this tear, filled in by sync()
-        blockers: node.prereqs.slice(), sealT: 0, hitT: 0,
+        blockers: node.prereqs.slice(), sealT: 0, hitT: 0, keyT: 0, spin: 0,
       });
     });
   }
@@ -193,15 +409,23 @@ export class Rifts {
       r.locked = !unlocked;
       r.mastered = !!st?.mastered;
       r.coreMat.uniforms.uMastered.value = r.mastered ? 1 : 0;
-      const openTarget = r.locked ? 0.08 : 1;
+      // A sealed aperture is *filled*, so the vortex behind the plate is all
+      // but shut down: what little is left is the glow in the seam, not a
+      // second live tear peeping round the keystone.
+      const openTarget = r.locked ? 0.08 : (r.mastered ? 0.14 : 1);
       r.coreMat.uniforms.uOpen.value = openTarget;
-      r.ring.material.emissiveIntensity = r.locked ? 0.25 : (r.mastered ? 3.0 : 2.2);
-      r.ring.material.color.setHex(r.locked ? 0x54606e : (r.mastered ? 0x9bffc4 : 0x9bd8ff));
-      r.light.intensity = r.locked ? 1.2 : (r.mastered ? 11 : 8);
+      r.ring.material.emissiveIntensity = r.locked ? 0.25 : (r.mastered ? 1.1 : 2.6);
+      r.ring.material.color.setHex(r.locked ? 0x54606e : (r.mastered ? 0x6fbf90 : 0x9bd8ff));
+      r.light.intensity = r.locked ? 1.2 : (r.mastered ? 4 : 9);
       r.light.color.setHex(r.mastered ? 0x8effc0 : 0x6fd0ff);
       r.shards.visible = !r.locked;
       r.beacon.material.uniforms.uCol.value.setHex(r.locked ? 0x4a5a6a : (r.mastered ? 0x8effc0 : 0x6fd0ff));
-      r.beacon.material.uniforms.uPow.value = r.locked ? 0.22 : (r.mastered ? 1.15 : 0.85);
+      // The column of light is the thing you navigate by from four hundred
+      // metres, so it is the loudest carrier of "this one still wants you".
+      // Live: a full beam. Held: a thread. Shut: embers.
+      r.basePow = r.locked ? 0.20 : (r.mastered ? 0.30 : 1.25);
+      r.baseCol = r.locked ? 0x4a5a6a : (r.mastered ? 0x8effc0 : 0x6fd0ff);
+      r.beacon.material.uniforms.uPow.value = r.basePow;
       // What is actually standing in the way — named, so the world can say it
       // out loud instead of leaving the cadet to guess.
       r.blockers = r.node.prereqs.filter((p) => !engineState.get(p)?.mastered);
@@ -210,16 +434,42 @@ export class Rifts {
     }
   }
 
+  /**
+   * Which tear the scheduler is currently asking for.
+   *
+   * The first cut of this stood a second, gold column beside the rift's own
+   * cyan one. Two additive columns on the same axis sum to white: the marker
+   * and the thing it marked cancelled each other out and produced a third
+   * colour that meant nothing. The answer was not a brighter marker — it was to
+   * stop building one. **The lead tear's own beacon turns gold.** It is already
+   * the most legible object in the game, readable as a thread of light from
+   * four hundred metres through fog and bloom, and it is already standing in
+   * exactly the right place. `src/world/afford.js` adds the chevrons falling
+   * down it and the ring on the stone; the colour does the rest.
+   */
+  setLead(id) { this.leadId = id || null; }
+
   update(dt, t) {
     for (const r of this.list) {
       r.coreMat.uniforms.uTime.value = t;
       r.beacon.material.uniforms.uTime.value = t;
-      r.ring.rotation.z = t * (r.mastered ? 0.5 : 0.22) + r.phase;
-      r.shards.rotation.z = -t * 0.35 + r.phase;
-      r.group.position.y = r.pos.y + Math.sin(t * 0.7 + r.phase) * 0.22;
+      if (r.basePow !== undefined) {
+        const lead = r.id === this.leadId;
+        r.beacon.material.uniforms.uPow.value = lead ? 1.5 : r.basePow;
+        r.beacon.material.uniforms.uCol.value.setHex(lead ? 0xffb347 : r.baseCol);
+      }
+      // MOTION IS THE SECOND TELL. A live tear turns; a held one has stopped.
+      // Colour can be lost to bloom, to a grade, to colour-blindness or to a
+      // cheap laptop panel — movement cannot. `spin` is integrated rather than
+      // read off `t`, so the ring eases to a halt when the seal lands instead
+      // of snapping to a new phase.
+      r.spin += dt * (r.locked ? 0.06 : (r.mastered ? 0.02 : 0.34));
+      r.ring.rotation.z = r.spin + r.phase;
+      r.shards.rotation.z = -(r.spin * 1.6) + r.phase;
+      r.group.position.y = r.pos.y + Math.sin(t * 0.7 + r.phase) * (r.mastered ? 0.05 : 0.22);
       // fx: this used to be a *= on the live value, i.e. a per-frame random
       // walk with no fixed point; the pulse has to be applied to a base.
-      const base = r.locked ? 1.2 : (r.mastered ? 11 : 8);
+      const base = r.locked ? 1.2 : (r.mastered ? 4 : 9);
       r.light.intensity = base * (0.94 + 0.10 * (0.5 + 0.5 * Math.sin(t * 3 + r.phase)));
 
       // the bars: shut when locked, swung open and gone when the line is yours
@@ -237,24 +487,49 @@ export class Rifts {
         r.ring.material.emissiveIntensity = 0.25 + k * 5;
       } else if (r.seal.position.x) r.seal.position.x = 0;
 
+      // the keystone: swings in when the line is held, and it is the one part
+      // of a rift that is opaque, still and lit from inside
+      r.keyT += ((r.mastered ? 1 : 0) - r.keyT) * Math.min(1, dt * 2.6);
+      r.keystone.visible = r.keyT > 0.02;
+      if (r.keystone.visible) {
+        const k = r.keyT * r.keyT * (3 - 2 * r.keyT);
+        r.keystone.scale.setScalar(0.02 + k * 0.98);
+        r.keystone.rotation.z = (1 - k) * 1.2;
+        // it breathes once every four seconds, barely — a held line is asleep,
+        // not dead
+        r.keystone.children[1].material.emissiveIntensity = 0.9 + Math.sin(t * 1.5 + r.phase) * 0.35;
+      }
+
       // the pad: a standing-here invitation that breathes, and it only breathes
       // for a door that is actually open
       const pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + r.phase);
-      r.pad.scale.setScalar(r.locked ? 0.9 : 0.98 + pulse * 0.07);
-      r.padMat.opacity = r.locked ? 0.20 + pulse * 0.05 : (r.mastered ? 0.3 : 0.42 + pulse * 0.26);
+      r.pad.scale.setScalar(r.locked ? 0.9 : (r.mastered ? 0.92 : 0.98 + pulse * 0.07));
+      r.padMat.opacity = r.locked ? 0.20 + pulse * 0.05 : (r.mastered ? 0.22 : 0.42 + pulse * 0.26);
     }
   }
 
   /** Rap on a shut door: the bars shudder, so the refusal is visible. */
   refuse(r) { r.hitT = 0.55; }
 
-  /** Nearest interactable rift within range of a world position. */
-  nearest(p, range = 6.2) {
+  /**
+   * Nearest interactable rift within range of a world position.
+   *
+   * Measured **horizontally, to the dais** — not in three dimensions to a ring
+   * hanging four and a half metres over the cadet's head. That distinction is
+   * not pedantry: with a 3-D radius of 6.2 m to the ring, a player standing on
+   * the stone *beside* the dais was 4.4 m up-and-away before he had moved a
+   * step sideways, so the interact key silently did nothing for most of the
+   * platform the game had just invited him to stand on. A critic played it cold
+   * and "pressed E eight times at every distance" with no prompt and no answer.
+   * The reach is now the built place itself: stand anywhere on the dais or its
+   * skirt and the tear is in hand.
+   */
+  nearest(p, range = 9.0) {
     let best = null, bd = range;
     for (const r of this.list) {
       if (r.locked) continue;
-      const d = p.distanceTo(r.group.position);
-      if (d < bd) { bd = d; best = r; }
+      const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
+      if (d < bd && Math.abs(p.y - r.foot.y) < 9) { bd = d; best = r; }
     }
     return best;
   }

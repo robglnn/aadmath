@@ -342,13 +342,31 @@ export function createKit(opts = {}) {
       if (!show) continue;
       b.classList.toggle('on', on);
       b.classList.toggle('carry', on && !held.has(g.id));
-      b.querySelector('u').textContent = on ? verb : LOCK;
+      // A KEYCAP IS A PROMISE. The locked chip printed a bare interpunct in
+      // the slot where every other chip prints its hotkey, so VAULT PLATE
+      // advertised itself as bound to a key that does not exist — a cold
+      // player read it as an unassigned binding and went looking for the key.
+      // A padlock is not a key, so it is drawn as one rather than typed into
+      // the keycap, and the cap itself stands down.
+      const u = b.querySelector('u');
+      u.classList.toggle('lock', !on);
+      u.innerHTML = on ? '' : LOCK_SVG;
+      if (on) u.textContent = verb;
       b.querySelector('.full').textContent = t(K(g.id, 'name'));
       b.querySelector('.sh').textContent = t(K(g.id, 'short'));
+      // The locked chip used to read "NEXT", which is not information: it sat
+      // in the HUD from the first second, could not be pressed, and nothing on
+      // screen said what would make it pressable. It now names its own price in
+      // the only currency that buys it — lines held, never motes.
       b.querySelector('em').textContent = !on
-        ? t('kit.next')
+        ? (g.lines != null ? t('kit.nextAtLines', { n: g.lines }) : t('kit.nextAtDepth'))
         : (carried && !held.has(g.id) ? t('kit.carrying', { n: carried }) : costLine(g.id));
       b.title = t(K(g.id, 'what'));
+      // …and the same sentence where a screen reader can reach it, composed
+      // from one pattern rather than concatenated in English word order.
+      b.setAttribute('aria-label', t('kit.chipAria', {
+        name: t(K(g.id, 'name')), what: t(K(g.id, 'what')),
+      }));
     }
     el.classList.add('any');
   }
@@ -426,7 +444,7 @@ export function createKit(opts = {}) {
       hud?.flash?.(t('kit.needShards', { n: cost }), 'bad');
       return false;
     }
-    return !!wallet.spend(cost);
+    return !!wallet.spend(cost, id);
   }
 
   // -------------------------------------------------------------- the shelves
@@ -505,7 +523,7 @@ export function createKit(opts = {}) {
   function buy(id) {
     const row = stock().find((s) => s.id === id);
     if (!row || row.state !== 'buy') return null;
-    if (!wallet?.spend?.(row.price)) return null;
+    if (!wallet?.spend?.(row.price, id)) return null;
     charges[id] = (charges[id] || 0) + 1;
     saveCharges();
     paint();
@@ -518,7 +536,11 @@ export function createKit(opts = {}) {
 
   /** A chip is a button as well as a readout: touch has no digit row. */
   function use(id) {
-    if (!canUse(id)) return;
+    // A chip you cannot fire yet still has to answer for itself. Its only
+    // explanation used to live in a `title` attribute, which a keyboard and a
+    // thumb never see; pressing it now says what the thing is, out loud, in
+    // the same toast the rest of the kit speaks through.
+    if (!canUse(id)) { hud?.flash?.(t(K(id, 'what')), ''); return; }
     if (id === 'vault') selectVault();
     if (id === 'flare') lightFlare();
     if (id === 'beacon') plantBeacon();
@@ -760,7 +782,7 @@ export function createKit(opts = {}) {
       hud?.flash?.(t('kit.needShards', { n: price }), 'bad');
       return false;
     }
-    if (!wallet.spend(price)) return false;
+    if (!wallet.spend(price, 'station')) return false;
     spent += 1;
     const p = [Math.round(player.pos.x), Math.round(player.pos.z), Math.round(player.pos.y * 10) / 10];
     stations.push(p);
@@ -1109,5 +1131,7 @@ export function createKit(opts = {}) {
   };
 }
 
-// i18n-allow: a padlock glyph, not a word — it says the same thing in every locale
-const LOCK = '·';
+// i18n-allow: a drawn padlock, not a word — it says the same thing in every locale
+const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<rect x="5" y="10.5" width="14" height="10" rx="2"/>'
+  + '<path d="M8.4 10.5V7.8a3.6 3.6 0 0 1 7.2 0v2.7"/></svg>';

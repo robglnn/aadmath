@@ -7,10 +7,12 @@ import { createWorld, heightAt as groundHeight } from './world/world.js';
 import { Rifts } from './world/rifts.js';
 import { Player } from './player/controller.js';
 import { setSolids } from './player/terrain.js';
+import { ControlsCard } from './player/controls.js';
 import { Builder } from './build/builder.js';
 import { createFX } from './fx/index.js';
 import { HUD } from './ui/hud.js';
 import { RiftPanel } from './ui/rift.js';
+import { Menu } from './ui/menu.js';
 import { MasteryEngine, itemSeconds } from './learn/mastery.js';
 import { safeGenerate, SKILLS, FORMS_BY_SKILL } from './learn/generators.js';
 import { analogueFor } from './learn/scaffold.js';
@@ -23,8 +25,10 @@ import { createAudio } from './audio/index.js';
 import { createDrift } from './world/drift.js';
 import { createCaches } from './world/caches.js';
 import { createBeckon } from './world/beckon.js';
+import { createAfford } from './world/afford.js';
 import { createVerge, VERGE_R } from './world/verge.js';
 import { createKit } from './kit/kit.js';
+import { createLedger } from './kit/ledger.js';
 import graph from '../content/graph/algebra1-l1.json';
 
 initI18n();
@@ -42,7 +46,6 @@ const panel = new RiftPanel(uiRoot);
 
 const saved = JSON.parse(localStorage.getItem('ascent.save') || 'null');
 const mastery = new MasteryEngine(graph, saved?.mastery);
-let shards = saved?.shards || 0;
 let streak = 0;
 
 bootBar.style.width = '35%';
@@ -84,55 +87,57 @@ audio.attach({
   player, camera: engine.camera, rifts, mastery, panel, builder, hud, uiRoot,
 });
 
+// ---------------------------------------------------------------------------
+// First contact (src/player/controls.js). The verbs on screen from the fourth
+// second, each row retiring as the cadet performs it; and the one affordance
+// that guarantees nothing in this game can ever need a page reload.
+// ---------------------------------------------------------------------------
+const controls = new ControlsCard(uiRoot, {
+  input, player, builder,
+  onRecover: () => player.recover('asked'),
+});
+player.onStuck = (on) => controls.setStuck(on);
+player.onRecover = () => hud.flash(t('firstrun.recovered'), 'good');
+
 hud.onSlot = (i) => { builder.setSlot(i); input.slot = i; hud.setSlot(i); };
 // perf/hud: the HUD follows the live input source (kbm / pad / touch) so it can
 // print the binding the player is actually holding, keep the thumb zone clear,
 // and give a controller a way through a panel. And on a touch device the hotbar
 // carries the build verb itself, because there is no mouse button to be it.
 hud.bindInput(input, engine);
-hud.onPlace = () => input._press('fire');
+// On a phone this button *is* the build verb, and pressing a button labelled
+// BUILD is as deliberate an act as picking a piece off the rack — so it draws
+// the lattice hand too. (src/build gating)
+hud.onPlace = () => { builder.drawHand(); input._press('fire'); };
 player.onFall = () => hud.flash(t('build.denied'), 'bad');
 builder.onAnchor = (n, total) => {
   // Three of these exist and each is secured once. It is the second-largest
   // single payment in the game, behind a hanging cache, and it is meant to be:
   // reaching one is a construction problem, not a walk. (reward economy)
-  shards += 60;
+  wallet.earn(60, 'anchor');
   hud.flash(t('build.anchorGot', { n, total }), 'good');
   if (n >= total) hud.say(t('build.anchorAll'));
-  hud.render(hudState());
-  save();
 };
 
 // ---------------------------------------------------------------------------
 // The world between rifts, and what mastery buys (src/world/drift.js,
 // src/world/caches.js, src/kit).
 //
-// One shared ledger. Shards used to be a number that only ever went up; they
-// are now earned in three places — a correct answer, a drift mote, a cracked
-// cache — and spent in two: the vault plate you set, and the flare you light.
-// Everything downstream reads the ledger through this object rather than
-// touching `shards`, so there is exactly one place where the number moves.
-// ---------------------------------------------------------------------------
-const wallet = {
-  count: () => shards,
-  earn(n) { shards += n; hud.render(hudState()); save(); },
-  spend(n) {
-    if (shards < n) return false;
-    shards -= n;
-    hud.render(hudState());
-    save();
-    return true;
-  },
-  /** A surge knocks shards loose. Returns what it actually cost. */
-  take(n) {
-    const got = Math.min(shards, n);
-    if (!got) return 0;
-    shards -= got;
-    hud.render(hudState());
-    save();
-    return got;
-  },
-};
+// One shared ledger. Motes are earned in three places — a correct answer, a
+// drift vein, a cracked cache — and spent on everything the kit sells. There is
+// exactly one place where the number moves, and that place is now a real module
+// rather than an object literal: src/kit/ledger.js. It keeps the same four
+// methods this object always had, and adds the two rules a cold player's
+// "shards silently reset to zero three separate times" demanded: a levy takes
+// at most a quarter of the balance so nothing but a purchase can empty the
+// wallet, and every movement is printed in the ledger's own strip — which no
+// toast can overwrite, because the surge's own knockback toast was deleting
+// the line that explained the surge.
+const wallet = createLedger({
+  root: uiRoot,
+  initial: saved?.shards,
+  onChange: () => { hud.render(hudState()); save(); },
+});
 builder.wallet = wallet;
 
 const drift = createDrift({
@@ -176,6 +181,19 @@ const kit = createKit({
 const verge = createVerge(engine.scene);
 const beckon = createBeckon({
   uiRoot, player, rifts, drift, builder, hud, verge,
+  isBusy: () => panel.open || session.blocking?.() || false,
+  onOpenRift: (r) => openRift(r),
+  // src/world/afford.js says everything there is to say about a tear, and says
+  // it with the key printed on it. One caption per object.
+  riftTags: false,
+});
+
+// world: the interact affordance and the next-objective marker. A live tear
+// carries its own verb and its own key, continuously, from seventy metres —
+// and the line the scheduler actually wants next stands under a gold column
+// with a bearing and a distance on the compass. (src/world/afford.js)
+const afford = createAfford({
+  uiRoot, scene: engine.scene, camera: engine.camera, player, rifts, mastery, kit,
   isBusy: () => panel.open || session.blocking?.() || false,
   onOpenRift: (r) => openRift(r),
 });
@@ -282,7 +300,7 @@ function openRift(rift) {
         // buys about one beacon. Everything else has to be gone and got.
         // (reward economy — see src/kit/kit.js for the sinks)
         gained = meta.assisted ? 1 : (task.kind === 'check' ? 4 : 2);
-        shards += gained;
+        wallet.earn(gained, meta.assisted ? 'assist' : 'seal');
         hud.flash(t('learn.correct'), 'good');
         if (res.justMastered) {
           hud.say(t('learn.mastered', { skill: t('skills.' + task.skill) }));
@@ -336,11 +354,16 @@ function openRift(rift) {
 }
 
 function hudState() {
-  return { shards, integrity: mastery.integrity(), soft: mastery.softIntegrity() };
+  return { shards: wallet.count(), integrity: mastery.integrity(), soft: mastery.softIntegrity() };
 }
 
 function save() {
-  localStorage.setItem('ascent.save', JSON.stringify({ mastery: mastery.save(), shards }));
+  // Never write a balance the ledger does not actually hold: a save that
+  // records something other than what is on screen is the one way a currency
+  // really can reset itself between sessions.
+  localStorage.setItem('ascent.save', JSON.stringify({
+    mastery: mastery.save(), shards: wallet.count(),
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -363,6 +386,9 @@ engine.add((dt, t2) => {
   nearRift = rifts.nearest(player.pos);
   if (nearRift && input.interact && !panel.open) openRift(nearRift);
 
+  // first contact: ticks its rows off what the cadet has actually done
+  controls.update(dt);
+
   input.endFrame();
 });
 
@@ -377,6 +403,10 @@ engine.add((dt, t2) => {
   // answers whatever he is now standing in. (src/world/beckon.js)
   verge.update(dt, t2, player, hud);
   beckon.update(dt, t2, engine.camera);
+  // …and the affordance layer last of all, because it is the only thing that
+  // has to agree with where the cadet ended the frame: the key it prints is
+  // the key that will work on the very next one. (src/world/afford.js)
+  afford.update(dt, t2);
 });
 
 // ---------------------------------------------------------------------------
@@ -429,6 +459,19 @@ const session = createSession({
 });
 engine.add((dt) => session.update(dt));
 
+// ---------------------------------------------------------------------------
+// The menu (src/ui/menu.js). Pause, help and settings on one plate, on Escape
+// and on a button that is on screen from the first frame. Built last of the
+// surfaces so that `isBusy` can ask every one of them whether it already owns
+// the frame — Escape belongs to whatever is open, and only reaches the menu
+// when the frame is the world's.
+// ---------------------------------------------------------------------------
+const menu = new Menu(uiRoot, {
+  input,
+  isBusy: () => panel.open || controls.open || report.open || session.blocking(),
+});
+engine.add(() => menu.update());
+
 // last in the frame, so it hears the state the player just moved into
 engine.add((dt) => audio.update(dt));
 
@@ -440,11 +483,14 @@ rifts.sync(mastery);
 // Boot-out + the cold open
 // ---------------------------------------------------------------------------
 requestAnimationFrame(() => requestAnimationFrame(() => {
-  setTimeout(() => { boot.classList.add('gone'); story.begin(); session.begin(); }, 700);
+  setTimeout(() => {
+    boot.classList.add('gone'); story.begin(); session.begin(); controls.begin();
+  }, 700);
 }));
 
 onLocaleChange(() => {
   applyStatic(); hud.render(hudState()); builder.relocalise(); caches.relocalise();
+  afford.relocalise();
 });
 
 // The anchors are the reason to build; said once, late enough that the opening
@@ -472,10 +518,19 @@ let clockOffset = 0;
 
 window.__ascent = {
   engine, mastery, rifts, player, hud, panel, fx, world, builder, input, story, audio,
+  // first contact + getting unstuck (src/player): critics drive the real card
+  // and the real recovery, never a mock.
+  controls,
+  // pause/help/settings (src/ui/menu.js): critics press the real Escape and
+  // read the real card, never a mock.
+  menu,
   // The reward loop: what the world produces between rifts (drift), what is
   // hung out of reach and locked behind a balance (caches), and what a sealed
   // line buys (kit). Critics read the same objects the game runs on.
   drift, caches, kit,
+  // world: what the world is actually saying about the tear in front of you and
+  // about the next one — the plates, the key on them, the compass and the road.
+  afford,
   // pedagogy/reporting: critics open the real report and read the same numbers
   // a teacher would, rather than a summary written for them.
   report, session,
@@ -603,6 +658,12 @@ window.__ascent = {
   build() { return builder.place(); },
   /** Remove the piece under the crosshair, exactly as pressing Q would. */
   unbuild() { return builder.remove(builder._aimed); },
+  /**
+   * Every movement of the currency, newest first, with the reason and the
+   * balance it left behind — so a critic can prove the wallet never moves
+   * without saying why rather than watching a counter and guessing.
+   */
+  ledger: () => wallet.history(),
   /** Ground truth for the collider: what the boots find at a column, right now. */
   surfaceAt: (x, z) => builder.solids.top(x, z),
   /** The island alone, with nothing built on it — for measuring height gained. */
@@ -616,7 +677,7 @@ window.__ascent = {
   reset() {
     localStorage.removeItem('ascent.save');
     report.tracker.reset(); story.reset(); session.reset();
-    caches.reset(); kit.reset();
+    caches.reset(); kit.reset(); wallet.reset();
     location.reload();
   },
 };

@@ -8,7 +8,7 @@
  * it, and none of them had ever been explained where he was standing.
  *
  * WHO DOES WHAT. `src/world/beckon.js` now labels every interactable in the
- * world at range — the tear's skill and whether it is shut, the vein's value
+ * world at range — the rift's skill and whether it is shut, the vein's value
  * and how long a spent one has left, the anchor. That answers *what is this
  * called and what is it worth right now*, live, on the object, for ever. This
  * file answers the other half, which a live label can never carry without
@@ -28,7 +28,7 @@
  *     held for `DWELL` seconds. Sprinting past something at forty metres does
  *     not spend its one chance to teach.
  *   ONE AT A TIME, WITH AIR. `GAP` seconds between two of them, and never
- *     while a tear, a ceremony or a session beat holds the frame.
+ *     while a rift, a ceremony or a session beat holds the frame.
  *   IN THE ORDER HE MEETS THEM. Priority only breaks a tie between two things
  *     he has walked up to in the same breath.
  */
@@ -54,29 +54,52 @@ export function lexiconOf(w) {
   const { rifts, drift, caches, builder, vergeR = 0 } = w;
   const veins = () => drift?.veins || [];
 
+  /** The nearest rift that is open to him and not yet sealed, within `range`. */
+  const nearestOpenRift = (p, range) => {
+    let best = null, bd = range;
+    for (const r of rifts.list || []) {
+      if (r.locked || r.mastered) continue;
+      const d = p.distanceTo(r.foot || r.group.position);
+      if (d < bd) { bd = d; best = r; }
+    }
+    return best ? (best.foot || best.group.position).clone() : null;
+  };
+
   return [
-    // --- the tear. The single most important word in the game. --------------
+    // --- the rift. The single most important word in the game. --------------
+    // ONE NOUN, ONE MEANING. This used to be a "tear" here, a "rift" on the
+    // chapter card and a "tear" again in the panel header, which left the
+    // player counting two things that were one thing. Now: the world *tears*
+    // (a verb, the process, four days old); where it tears, a *rift* opens
+    // (the noun, the ring, the only thing anybody counts).
     {
-      id: 'tear', pri: 0,
-      find: (p) => {
-        let best = null, bd = 40;
-        for (const r of rifts.list || []) {
-          if (r.locked || r.mastered) continue;
-          const d = p.distanceTo(r.foot || r.group.position);
-          if (d < bd) { bd = d; best = r; }
-        }
-        return best ? (best.foot || best.group.position).clone() : null;
-      },
+      id: 'rift', pri: 0,
+      find: (p) => nearestOpenRift(p, 40),
     },
-    // --- a shard, lit: the thing he had eight hundred of ---------------------
-    { id: 'shard', pri: 1, find: (p) => moteOf(veins(), p, 22, (v) => v.cool <= 0 && !v.rich) },
+    // --- a cipher mote: the thing he had eight hundred of --------------------
+    // Formerly "cipher shard", which collided head-on with Shard Nine, the
+    // island he is standing on. A shard is a piece of world; a mote is money.
+    { id: 'mote', pri: 1, find: (p) => moteOf(veins(), p, 22, (v) => v.cool <= 0 && !v.rich) },
     // --- a charged vein: the gold diamonds, and why they are gold ------------
     { id: 'charged', pri: 2, find: (p) => moteOf(veins(), p, 26, (v) => v.cool <= 0 && v.rich) },
+    /* --- the surge. A player went from nine motes to nought in two rings and
+       reported no idea why: "Rift surge — 2 shards knocked loose" names the
+       event and nothing else. The cause (an unsealed rift, every fifteen
+       seconds) and the two ways out (jump the ring; seal the rift) have to
+       arrive while he is standing in the blast radius, so `anywhere` drops the
+       look test — a ring that comes from behind is exactly the case that needs
+       explaining, and `SURGE_R` in src/world/drift.js is 34 m. */
+    {
+      // 46 m, not `SURGE_R`: a ring that lands throws you fifteen metres back,
+      // and the explanation must survive the very knock it is explaining.
+      id: 'surge', pri: 3, anywhere: true,
+      find: (p) => nearestOpenRift(p, 46),
+    },
     // --- a spent vein: the black diamonds, and why they are black ------------
-    { id: 'husk', pri: 3, find: (p) => moteOf(veins(), p, 20, (v) => v.cool > 0) },
+    { id: 'husk', pri: 4, find: (p) => moteOf(veins(), p, 20, (v) => v.cool > 0) },
     // --- a lattice anchor: the three diamond things he found -----------------
     {
-      id: 'anchor', pri: 4,
+      id: 'anchor', pri: 5,
       find: (p) => {
         let best = null, bd = 46;
         for (const a of builder?.anchors?.list || []) {
@@ -89,7 +112,7 @@ export function lexiconOf(w) {
     },
     // --- a cache: the balance hanging out over the coast ---------------------
     {
-      id: 'cache', pri: 5,
+      id: 'cache', pri: 6,
       find: (p) => {
         let best = null, bd = 110;
         for (const c of caches?.list || []) {
@@ -102,7 +125,7 @@ export function lexiconOf(w) {
     },
     // --- an updraft: the columns he found by accident ------------------------
     {
-      id: 'updraft', pri: 6,
+      id: 'updraft', pri: 7,
       find: (p) => {
         let best = null, bd = 80;
         for (const c of drift?.columns || []) {
@@ -118,7 +141,7 @@ export function lexiconOf(w) {
        turns a refusal into a promise — that the far shards are where this goes
        when the lattice holds — and that is a line, not a label. */
     {
-      id: 'verge', pri: 7,
+      id: 'verge', pri: 8,
       find: (p) => {
         if (!vergeR) return null;
         const out = Math.hypot(p.x, p.z);
@@ -153,10 +176,14 @@ export function createLexicon({ entries, seen, mark, camera, player, say, isBusy
     for (const e of entries) {
       if (seen.has(key(e.id))) continue;
       const at = e.find(player.pos);
-      // `containsPoint` is exact for a point, but a tear is five metres across
+      // `containsPoint` is exact for a point, but a rift is five metres across
       // and a cache is twenty: a thing whose centre is one pixel off the edge
       // of the screen is still a thing he is looking at.
-      const looking = at && frustum.intersectsSphere(sphere(at, 5));
+      //
+      // `anywhere` is for the one entry that is not a thing you look at but a
+      // thing that happens to you (the surge). Requiring line of sight there
+      // would withhold the explanation from precisely the player it is for.
+      const looking = at && (e.anywhere || frustum.intersectsSphere(sphere(at, 5)));
       if (!looking) { dwell.delete(e.id); continue; }
       const held = (dwell.get(e.id) || 0) + dt;
       dwell.set(e.id, held);
@@ -165,10 +192,16 @@ export function createLexicon({ entries, seen, mark, camera, player, say, isBusy
     }
 
     if (!fire || cool > 0) return;
+    /* SPEND THE ONE SHOT ONLY IF IT WAS HEARD. `comms.push` caps its queue at
+       five and silently drops the tail, so a noun pushed behind a long opening
+       speech used to be marked learned-for-ever and never said — which is how a
+       Polish cadet (longer lines, slower drain) could be told what a surge is
+       exactly never. `say` now reports whether the channel took the line, and a
+       refusal costs nothing but this frame. */
+    if (say(fire.id) === false) return;
     cool = GAP;
     dwell.delete(fire.id);
     mark(key(fire.id));
-    say(fire.id);
   }
 
   return {

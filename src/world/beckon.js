@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { t } from '../i18n/index.js';
+import { beginTagFrame, submitTag } from './tagspace.js';
 import './beckon.css';
 
 /**
@@ -38,18 +39,35 @@ import './beckon.css';
 const RIFT_LABEL = 62;      // metres: close enough that the label is about *you*
 const RIFT_MAX = 2;         // …and never more than two tears talking at once
 const RIFT_HANDOFF = 15;    // inside this, the kit's tear plate has the floor
-const RIFT_STEP = 4.6;      // …and opens when you stand on its plate
+// The dais crown is 5.4 m across at the top and 6.6 m at the skirt, and a cadet
+// who has climbed the steps and is standing on the stone under a ring has, by
+// every reading a human gives the scene, walked into it. 4.6 m meant the outer
+// third of the platform silently did nothing, which is how "walk into it" —
+// Marlow's own instruction — became a sentence the game did not honour.
+const RIFT_STEP = 5.8;      // …and opens when you stand on its plate
 const RIFT_REARM = 8.5;     // walk this far off before it will open again
 const RIFT_KNOCK = 6.4;     // a shut tear notices you from here
 const VEIN_LABEL = 21;      // …and the ground only names itself under your feet
-const ANCHOR_LABEL = 34;
-const MARK_MAX = 3;         // three chips is the most a frame may ever carry
+// A critic counted the arrival frame: LATTICE ANCHOR, STEP ONTO THE PLATE, THE
+// FOUNDRY and VAULT PLATE NEXT, all at once, with Marlow talking under them —
+// "BOTW earns the next ten minutes with a horizon; ASCENT earns it with
+// signage." The anchor is thirty metres from the spawn and was labelled from
+// thirty-four, so it was signage about something you had not gone to look at
+// yet. It reveals on approach now, like the ground and the drift already did.
+const ANCHOR_LABEL = 19;
+const MARK_MAX = 2;         // two chips is the most a frame may ever carry
+const MARK_MAX_NARROW = 1;  // …and a phone has a third of the room, so: one
 const KNOCK_COOL = 7;       // seconds before a shut tear repeats itself
 
 export function createBeckon(opts = {}) {
   const {
     uiRoot, player, rifts, drift, builder, hud, verge,
     isBusy = () => false, onOpenRift = () => {},
+    // The affordance layer (src/world/afford.js) took over every word this
+    // module used to say about a tear, and says it with the key on it. Two
+    // captions on one object is a HUD; when it is present, the tears here go
+    // quiet and this module keeps the ground, the drift and the verge.
+    riftTags = true,
   } = opts;
 
   const layer = document.createElement('div');
@@ -72,7 +90,6 @@ export function createBeckon(opts = {}) {
   }
 
   const marks = [];           // {pos, text, cls} rebuilt each frame
-  const taken = [];           // screen boxes already spoken for, this frame
   const _sort = [];
   const _v = new THREE.Vector3();
   let armed = true;           // has the cadet left the plate since it last fired
@@ -110,7 +127,7 @@ export function createBeckon(opts = {}) {
     // was unreadable the first time it was photographed: five tags stacked on
     // one another, three of them about rifts behind the camera.
     _sort.length = 0;
-    for (const r of rifts.list) {
+    for (const r of riftTags ? rifts.list : []) {
       const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
       if (d < RIFT_LABEL) _sort.push([d, r]);
     }
@@ -186,34 +203,39 @@ export function createBeckon(opts = {}) {
 
   function paint(camera) {
     const w = window.innerWidth, h = window.innerHeight;
+    const cap = (w < 760 || h < 560) ? MARK_MAX_NARROW : MARK_MAX;
     let i = 0;
-    taken.length = 0;
     for (const m of marks) {
-      if (i >= MARK_MAX) break;
+      if (i >= cap) break;
       _v.copy(m.pos);
       const d = _v.distanceTo(camera.position);
       _v.project(camera);
       if (_v.z >= 1 || Math.abs(_v.x) > 1.05 || Math.abs(_v.y) > 1.05) continue;
       const px = (_v.x * 0.5 + 0.5) * w, py = (-_v.y * 0.5 + 0.5) * h;
-      // Two labels on the same pixels are one unreadable label. The nearer
-      // thing is collected first, so the loser here is always the further one.
-      const halfW = 12 + m.text.length * 4.2;
-      let clash = false;
-      for (const q of taken) {
-        if (Math.abs(q[1] - py) < 22 && Math.abs(q[0] - px) < halfW + q[2]) { clash = true; break; }
-      }
-      if (clash) continue;
-      taken.push([px, py, halfW]);
       const s = slot(i++);
       if (s.text !== m.text) { s.el.textContent = m.text; s.text = m.text; }
       const cls = `bk-tag ${m.cls}`;
       if (s.cls !== cls) { s.el.className = cls; s.cls = cls; }
       s.el.style.display = '';
-      s.el.style.left = `${px}px`;
-      s.el.style.top = `${py}px`;
       // fades with distance so the far side of the island is a skyline rather
       // than a spreadsheet
       s.el.style.opacity = String(Math.max(0.16, 1 - Math.max(0, d - 30) / 120));
+      // Two labels on the same pixels are one unreadable label, and this module
+      // used to decide that on its own — with a width guessed from a character
+      // count, against a list of only its own boxes. One ledger now holds the
+      // whole screen, the companion's card and the foundry's plate included,
+      // and the ground yields to the tear the scheduler is asking for.
+      // (src/world/tagspace.js)
+      submitTag({
+        measure: s.el,
+        x: px, y: py, dir: 'mid',
+        pri: 10 + i, dist: d,
+        place: (cx, top, side, bw, bh) => {
+          s.el.style.left = `${Math.round(cx)}px`;
+          s.el.style.top = `${Math.round(top + bh / 2)}px`;
+        },
+        hide: () => { s.el.style.display = 'none'; },
+      });
     }
     for (; i < pool.length; i++) if (pool[i].el.style.display !== 'none') pool[i].el.style.display = 'none';
   }
@@ -225,7 +247,18 @@ export function createBeckon(opts = {}) {
   function contact(dt) {
     if (knock > 0) knock -= dt;
     if (hailT > 0) hailT -= dt;
-    const near = rifts.nearestAny(player.pos, RIFT_STEP);
+    // AN OPEN DOOR OUTRANKS A SHUT ONE. This used to be a plain
+    // `nearestAny()`, i.e. whichever dais the boots happened to be closest to
+    // — so a live tear standing beside a locked one answered a walk-in with the
+    // *locked* one's refusal for every approach bearing that put the shut dais
+    // a metre nearer. On the shipping graph those two were the first objective
+    // in the game and the line locked behind it, and a cold critic walked into
+    // the first rift five times and got a red "Rift surge" toast for it.
+    // Separating the daises (src/world/rifts.js) fixes the layout; this fixes
+    // the rule, because "you were standing marginally nearer the thing you
+    // cannot have" is never the answer a player is asking for.
+    const near = rifts.nearest(player.pos, RIFT_STEP)
+      || rifts.nearestAny(player.pos, RIFT_STEP);
     const off = rifts.nearestAny(player.pos, RIFT_REARM);
     if (!off) armed = true;
     if (isBusy() || !near) return;
@@ -247,9 +280,13 @@ export function createBeckon(opts = {}) {
     update(dt, time, camera) {
       _n = 0;
       contact(dt);
+      beginTagFrame(time);
       // A learning surface or a session beat owns the whole screen when it is
-      // up; world labels underneath it are litter.
-      if (isBusy()) {
+      // up; world labels underneath it are litter. So does the cold open, which
+      // is the one frame in the game that is *supposed* to be a sky, a place
+      // name and a voice — the ground can introduce itself once the cadet has
+      // taken a step. (src/meta/opening.js sets `meta-cine` on #ui.)
+      if (isBusy() || (uiRoot && uiRoot.classList.contains('meta-cine'))) {
         if (layer.style.display !== 'none') layer.style.display = 'none';
         return;
       }

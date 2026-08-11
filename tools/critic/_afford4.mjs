@@ -1,13 +1,6 @@
 /**
- * THE ROUND-TRIP. Fresh save. Every metre walked is a real key; every rift
- * opened is a real walk-in or a real E. Nothing is teleported and nothing is
- * opened through the harness.
- *
- *   1  walk to the tear the compass points at
- *   2  seal it (real answers)
- *   3  walk away
- *   4  walk back  -> does the prompt come back? does E still work?
- *   5  can the NEXT tear be found without wandering?
+ * Live-vs-sealed read test, and does the prompt come back.
+ * Mastery is set through the real engine; every metre walked is a real key.
  */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -15,7 +8,7 @@ import path from 'node:path';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
-const OUT = path.resolve(arg('out', 'shots/afford3'));
+const OUT = path.resolve(arg('out', 'shots/afford4'));
 const W = 1600, H = 900;
 await mkdir(OUT, { recursive: true });
 
@@ -32,16 +25,26 @@ await page.waitForTimeout(3200);
 const shot = async (n, ms = 300) => { await page.waitForTimeout(ms); await page.screenshot({ path: path.join(OUT, n + '.png') }); };
 await page.mouse.move(W / 2, H / 2);
 await page.mouse.click(W / 2, H / 2);
-await page.waitForTimeout(1200);
+await page.waitForTimeout(1000);
+
+// Seal the first tear through the real mastery engine (visual test, not an
+// interaction test) — then the interaction test below uses real keys only.
+await page.evaluate(() => {
+  const a = window.__ascent;
+  for (let i = 0; i < 14; i++) a.mastery.observe('var-meaning', true, { ms: 4200, assisted: false, kind: 'check' });
+  a.rifts.sync(a.mastery);
+});
+await page.waitForTimeout(2200);
+console.log('MASTERED?', await page.evaluate(() => window.__ascent.rifts.list.filter(r => r.mastered).map(r => r.id)));
+await shot('01-sealed-far');
 
 const AIM = (mode) => {
   const a = window.__ascent;
   const p = a.player.pos;
   let best = null, bd = 1e9;
   for (const r of a.rifts.list) {
-    if (r.locked) continue;
     if (mode === 'sealed' && !r.mastered) continue;
-    if (mode === 'live' && r.mastered) continue;
+    if (mode === 'live' && (r.mastered || r.locked)) continue;
     const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
     if (d < bd) { bd = d; best = r; }
   }
@@ -54,7 +57,6 @@ async function walk(mode, stopAt, seconds = 70) {
   const t0 = Date.now();
   await page.keyboard.down('KeyW');
   while (Date.now() - t0 < seconds * 1000) {
-    if (await page.evaluate(() => window.__ascent.panel.open)) break;
     const r = await page.evaluate(AIM, mode);
     if (!r || r.d < stopAt) break;
     const dx = Math.max(-300, Math.min(300, r.bearing * 300));
@@ -62,73 +64,45 @@ async function walk(mode, stopAt, seconds = 70) {
     await page.waitForTimeout(110);
   }
   await page.keyboard.up('KeyW');
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(300);
 }
 const probe = () => page.evaluate(() => {
   const a = window.__ascent;
   const p = a.player.pos;
   return {
     panel: a.panel.open,
-    E: a.rifts.nearest(p)?.id || null,
-    sealed: a.rifts.list.filter((r) => r.mastered).map((r) => r.id),
+    nearestE: a.rifts.nearest(p)?.id || null,
     afford: a.afford.state(),
   };
 });
 
-// --- 1 walk to it --------------------------------------------------------
-await walk('live', 4);
-console.log('1 ARRIVED', JSON.stringify(await probe()));
-await shot('01-arrived');
-
-// --- 2 seal it -----------------------------------------------------------
-for (let i = 0; i < 90; i++) {
-  const open = await page.evaluate(() => window.__ascent.panel.open);
-  if (!open) {
-    await page.keyboard.press('KeyE');
-    await page.waitForTimeout(450);
-    if (!await page.evaluate(() => window.__ascent.panel.open)) { await page.waitForTimeout(400); continue; }
-  }
-  await page.evaluate(() => { const a = window.__ascent; a.enter(a.panel.item.answer); });
-  await page.waitForTimeout(620);
-  if (await page.evaluate(() => window.__ascent.rifts.list.some((r) => r.mastered))) break;
-}
-await page.waitForTimeout(1800);
-await page.keyboard.press('Escape');
-await page.waitForTimeout(900);
-console.log('2 SEALED', JSON.stringify(await probe()));
-await shot('02-sealed-standing-on-it');
-
-// --- 3 walk away ---------------------------------------------------------
-await page.keyboard.down('KeyS');
-await page.waitForTimeout(5200);
-await page.keyboard.up('KeyS');
-await page.waitForTimeout(400);
-console.log('3 AWAY', JSON.stringify(await probe()));
-await shot('03-away-looking-back');
-
-// --- 4 walk back: does the prompt return, does E still work? -------------
-await walk('sealed', 5);
-await page.waitForTimeout(600);
-const back = await probe();
-console.log('4 BACK', JSON.stringify(back));
-await shot('04-back');
-if (!back.panel) {
-  await page.keyboard.press('KeyE');
-  await page.waitForTimeout(1100);
-  console.log('4b AFTER-E', JSON.stringify(await probe()));
-}
-await shot('05-reopened');
+// turn to face the sealed tear from range and photograph it beside a live one
+await page.evaluate(() => { const a = window.__ascent; a.player.pos.set(a.player.pos.x, a.player.pos.y, a.player.pos.z); });
+await walk('sealed', 26);
+await shot('02-sealed-26m');
+console.log('26m', JSON.stringify(await probe()));
+await walk('sealed', 6);
+await shot('03-sealed-on-plate');
+console.log('ON PLATE', JSON.stringify(await probe()));
+await page.keyboard.press('KeyE');
+await page.waitForTimeout(1200);
+console.log('AFTER E', JSON.stringify(await probe()));
+await shot('04-sealed-after-E');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(800);
 
-// --- 5 find the next one -------------------------------------------------
+// back off the plate, still facing it: what does a sealed rift read like at range
 await page.keyboard.down('KeyS');
-await page.waitForTimeout(2600);
+await page.waitForTimeout(4200);
 await page.keyboard.up('KeyS');
-await shot('06-where-next', 700);
-console.log('5 WHERE NEXT', JSON.stringify(await probe()));
+await shot('04b-sealed-from-range', 600);
+console.log('FROM RANGE', JSON.stringify(await probe()));
 
+// now walk to a live one and confirm the plate reads differently
+await walk('live', 8);
+await shot('05-live-on-plate');
+console.log('LIVE PLATE', JSON.stringify(await probe()));
 const perf = await page.evaluate(() => window.__ascent.state().perf);
-console.log('PERF p50', perf.p50, 'fps', Math.round(perf.fps), 'draws', perf.draws);
+console.log('PERF', JSON.stringify(perf));
 console.log('CONSOLE', logs.slice(0, 10));
 await browser.close();

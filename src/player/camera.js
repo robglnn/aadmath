@@ -308,6 +308,23 @@ export class CameraRig {
     if (teleported) { this.pos.copy(want); this._first = false; }
     else this.pos.lerp(want, 1 - Math.exp(-(hit < this.boom - 0.05 ? 26 : 15) * dt));
 
+    // ---- de-penetration, unconditionally, on the pixel that actually ships --
+    //
+    // Everything above solves for where the lens *should* go, and then the
+    // settle above lerps toward it — which means for as long as the target is
+    // moving, the lens the player is looking through is somewhere the solver
+    // never approved. Run into a cliff at sprint speed and the smoothed
+    // position spends most of a second inside the rock: the frame fills with
+    // backfaces, the horizon is gone, and there is no input that gets you out
+    // because the character is fine and only the camera is buried. That is the
+    // failure a critic escaped by refreshing the browser.
+    //
+    // So the last word belongs to the ground, not to the solver. Whatever the
+    // boom concluded, the drawn position is pulled back along its own line
+    // toward the cadet until the ground it is standing over is below it, and
+    // if it is still buried at the minimum boom it is simply lifted out.
+    this._clear(rig);
+
     // ---- aim point ----
     // Under the wing the lens looks *below* the pilot, which drops the horizon
     // toward the top of the frame and opens the world up underneath him. It is
@@ -358,6 +375,43 @@ export class CameraRig {
 const _sc = new THREE.Vector3();
 const _c = new THREE.Vector3();
 const _o = new THREE.Vector3();
+const _dp = new THREE.Vector3();
+
+/**
+ * The lens is never inside the island. Run on the position that is drawn.
+ *
+ * `rig` is the cadet's own aim point, which is by construction a place the
+ * player can be, so shortening the boom toward it always terminates somewhere
+ * legal. Eight steps in is plenty at 4 m of boom and costs eight heightfield
+ * samples on the frames where anything is wrong at all — on a clear frame the
+ * first test passes and it costs one.
+ */
+CameraRig.prototype._clear = function (rig) {
+  const p = this.pos;
+  const need = (x, y, z) => {
+    const h = heightAt(x, z);
+    return h === null ? -99 : (h + CLEAR * 0.82) - y;
+  };
+  if (need(p.x, p.y, p.z) <= 0) return;
+
+  _dp.copy(rig).sub(p);
+  const len = _dp.length();
+  if (len > 1e-4) {
+    _dp.multiplyScalar(1 / len);
+    // Walk in toward the cadet. The first station that is above ground wins.
+    for (let i = 1; i <= 8; i++) {
+      const d = (i / 8) * len;
+      const x = p.x + _dp.x * d, y = p.y + _dp.y * d, z = p.z + _dp.z * d;
+      if (need(x, y, z) <= 0) { p.set(x, y, z); return; }
+    }
+  }
+  // Buried the whole way in — the cadet is under the heightfield too, which is
+  // the wedged-in-a-rock-face case. Lift the lens out on the spot; the player
+  // gets a view of where they are rather than the inside of a hill, and
+  // src/player/controller.js is meanwhile offering them the way out.
+  const h = heightAt(p.x, p.z);
+  if (h !== null) p.y = Math.max(p.y, h + CLEAR);
+};
 
 /**
  * Solid things the boom must not pass through.

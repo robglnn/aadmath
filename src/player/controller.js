@@ -6,7 +6,7 @@ import { Animator } from './animator.js';
 import { CameraRig } from './camera.js';
 import { PlayerFX } from './effects.js';
 import { ScreenFeel } from './screen.js';
-import { heightAt, gradientAt } from './terrain.js';
+import { heightAt, gradientAt, slopeAt } from './terrain.js';
 import { GrassPush } from './grasspush.js';
 
 const clamp = THREE.MathUtils.clamp;
@@ -75,6 +75,22 @@ export class Player {
     this.autoTurn = 0;
     this._turnFoot = 0;
 
+    // ---- getting unstuck ---------------------------------------------------
+    // Where the cadet made planetfall, and the place recovery falls back to.
+    this.home = this.pos.clone();
+    /** True while the world has hold of the player and the player knows it. */
+    this.stuck = false;
+    this._stuckT = 0;
+    this._stuckAt = new THREE.Vector3();
+    this._winMark = this.pos.clone();
+    this._winT = 0;
+    this._winWish = 0;
+    this._recovered = 0;
+    /** Fired when `stuck` changes, so the interface can offer the way out. */
+    this.onStuck = null;
+    /** Fired after a recovery, with the reason, so the interface can say so. */
+    this.onRecover = null;
+
     this.anim.onStep = (foot, power) => this._footstep(foot, power);
 
     // The meadow bends around him. Attached from main.js once the world exists.
@@ -90,6 +106,140 @@ export class Player {
 
   /** Terrain probe, for tools that need to reason about where to stand. */
   groundAt(x, z) { return heightAt(x, z); }
+
+  // ---------------------------------------------------------------------------
+  // GETTING UNSTUCK
+  //
+  // A critic ran into the hills, wedged the cadet in the terrain with the lens
+  // inside a rock face, and found no compass, no map, no waypoint, no
+  // out-of-bounds reset and no way back except reloading the browser. A game
+  // that can be ended by walking into a hill is not shippable to a classroom,
+  // where the reload also costs the run.
+  //
+  // Three things fix that, and all three live here. The camera never sits
+  // inside geometry (src/player/camera.js). The player is *told* when the world
+  // has hold of them, without having to work it out. And there is one verb —
+  // one key, one button, one tap — that always puts them back on solid ground.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Notice a cadet who is trying to move and going nowhere, and a cadet who is
+   * somewhere the world does not have a floor.
+   */
+  _unstick(dt, wishMag) {
+    const inp = this.input;
+    if (inp && inp.pressed('recover') && inp.consume('recover')) {
+      this.recover('asked');
+      return;
+    }
+
+    const p = this.pos;
+    const h = heightAt(p.x, p.z);
+    // Buried: the surface over this column is above the cadet's own head.
+    const buried = h !== null && h > p.y + 1.15;
+    // Out of bounds: under the island with nothing to land on, still falling.
+    const outside = p.y < -40;
+    // Buried and out of bounds are facts, and are answered fast.
+    if (buried || outside) this._stuckT += dt * 3.2;
+
+    // Shoving into something is only evidence, and instantaneous speed is the
+    // wrong evidence: wedged against a hillside the cadet still twitches, and
+    // one frame over the threshold every half second was enough to keep a
+    // per-frame test permanently reset while the player went precisely nowhere
+    // for twenty seconds. So the question is asked over a window — *did you
+    // ask to move, and did you get anywhere* — which is the question a person
+    // stuck in a rock face is actually asking.
+    this._winT += dt;
+    this._winWish += wishMag * dt;
+    if (this._winT >= 0.9) {
+      const asked = this._winWish / this._winT;
+      const got = p.distanceTo(this._winMark);
+      const futile = asked > 0.5 && got < 1.0
+        && !this.loco.gliding && this.loco.mantleT <= 0 && this.loco.dashT <= 0;
+      if (futile) this._stuckT += this._winT;
+      else if (!buried && !outside) this._stuckT = Math.max(0, this._stuckT - this._winT * 2);
+      this._winMark.copy(p);
+      this._winT = 0;
+      this._winWish = 0;
+    }
+
+    // ONCE OFFERED, THE WAY OUT STAYS ON SCREEN. The obvious implementation —
+    // clear it the moment the stuck evidence stops — takes the prompt away the
+    // instant the player lets go of the stick to read it, which is the one
+    // moment it has to be there. So it latches, and the only things that clear
+    // it are recovering, or actually getting somewhere.
+    if (!this.stuck) {
+      if (this._stuckT > 1.7) {
+        this.stuck = true;
+        this._stuckAt.copy(p);
+        this.onStuck?.(true);
+      }
+    } else if (p.distanceToSquared(this._stuckAt) > 2.5 * 2.5) {
+      this.stuck = false;
+      this._stuckT = 0;
+      this.onStuck?.(false);
+    }
+    // Buried is not a suggestion — the frame is full of rock and the player
+    // cannot see the prompt they are being offered. Free them.
+    if (buried && this._stuckT > 2.6 && this.time - this._recovered > 2) {
+      this.recover('buried');
+    }
+  }
+
+  /**
+   * Put the cadet back on solid ground, wherever they are and whatever they
+   * are inside of. Never fails: the landing site is the floor of last resort.
+   */
+  recover(reason = 'asked') {
+    const p = this.pos;
+    // A recovery from something that had hold of you has to *move* you. Landing
+    // back on the same square metre, pressed against the same wall, is a button
+    // that does nothing as far as the player can tell — so when the world had
+    // hold, the search starts one ring out and the cadet visibly steps clear.
+    const away = this.stuck || reason === 'buried' || reason === 'fell';
+    const spot = this._safeSpot(p.x, p.z, away ? 3.5 : 0)
+      || this._safeSpot(this.home.x, this.home.z, 0)
+      || { x: this.home.x, y: this.home.y, z: this.home.z };
+
+    p.set(spot.x, spot.y, spot.z);
+    this.vel.set(0, 0, 0);
+    const L = this.loco;
+    L.gliding = false; L.glideOpen = 0; L.jumps = 0;
+    L.grounded = true; L.airTime = 0; L.dashT = 0; L.mantleT = 0;
+    // The lens is re-founded rather than flown, or the recovery is a two second
+    // pan out of the inside of a hill.
+    this.cam._first = true;
+    this._stuckT = 0;
+    this._recovered = this.time;
+    if (this.stuck) { this.stuck = false; this.onStuck?.(false); }
+    this.onRecover?.(reason);
+    return spot;
+  }
+
+  /**
+   * The nearest place a person could stand, searched outward in rings. Flat
+   * ground is preferred over a slope, because being put down on a 40° face is
+   * how you end up sliding straight back into the thing you were stuck in.
+   */
+  _safeSpot(x0, z0, minR = 0) {
+    const RINGS = [0, 3.5, 7, 12, 18, 26, 36].filter((r) => r >= minR);
+    let best = null;
+    for (const r of RINGS) {
+      const n = r === 0 ? 1 : 10;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const x = x0 + Math.cos(a) * r, z = z0 + Math.sin(a) * r;
+        const h = heightAt(x, z);
+        if (h === null) continue;
+        const s = slopeAt(x, z);
+        const score = r + s * 9;
+        if (!best || score < best.score) best = { x, y: h + 0.55, z, score };
+      }
+      // A whole ring of good ground: no reason to look further out.
+      if (best && best.score < r + 3) break;
+    }
+    return best;
+  }
 
   // getters other systems already rely on
   get grounded() { return this.loco.grounded; }
@@ -139,11 +289,12 @@ export class Player {
     const ev = L.update(dt, ctx);
 
     if (this.pos.y < -180) {
-      this.pos.set(0, 16, 24); this.vel.set(0, 0, 0);
-      L.gliding = false; L.glideOpen = 0; L.jumps = 0;
-      this.cam._first = true;
+      this.recover('fell');
       this.onFall?.();
     }
+
+    // Nothing in this game may ever require a page reload. (src/player)
+    this._unstick(dt, wishMag);
 
     // ---------------- reactions ----------------
     this._react(ev, dt, prevVy);

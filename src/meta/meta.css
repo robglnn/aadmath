@@ -351,6 +351,13 @@
   opacity: 0; translate: 0 10px; transition: opacity .9s ease, translate .9s ease;
 }
 .meta-open.on .meta-stamp { opacity: 1; translate: 0 0; }
+/* world/hotfix: out fast, in slow. `ColdOpen.end()` now retracts the stamp
+   *before* it lets the instruments back, because at 1600x900 the objective card
+   faded up straight through THE SKYREN LATTICE and at 414 the companion's card
+   came up through "Shard Nine · cadet landing". Two things at 60% opacity on
+   the same pixels is one thing nobody can read. */
+.meta-open .meta-stamp { transition-duration: .5s; }
+.meta-open.on .meta-stamp { transition-duration: .9s; }
 /* The stamp lands on whatever the sky is doing, which at first light is white.
    It carries its own ground: a soft dark wash that fades out to the right. */
 .meta-stamp::before {
@@ -379,9 +386,16 @@
    the only thing on the sky; they come back as the chrome retracts. Nothing is
    display:none — the readouts keep their layout, so nothing reflows when they
    return. */
+/* world/hotfix: `.kit` and `.hail` were the two instruments that never got this
+   memo. A critic counted the arrival frame — LATTICE ANCHOR, STEP ONTO THE
+   PLATE, THE FOUNDRY, VAULT PLATE NEXT, and Marlow talking under all four —
+   and the last two of those are the kit's chip strip and the foundry's plate.
+   They stand down with everything else now and come back with it. */
 #ui.meta-cine .hud-top,
 #ui.meta-cine .crosshair,
 #ui.meta-cine .buildbar,
+#ui.meta-cine .kit,
+#ui.meta-cine .hail,
 #ui.meta-cine .langs,
 #ui.meta-cine .sound,
 #ui.meta-cine .marlow,
@@ -876,7 +890,12 @@
      number is not lost — it is on the chapter card, in the same corner of the
      same screen, permanently, which is where a phone reads it anyway. */
   .meta-turn .tn-seals { display: none; }
-  .meta-stamp { top: auto; bottom: 28vh; left: max(20px, 5vw); }
+  /* world/hotfix: a 390 px phone cannot carry a four-line location stamp and a
+     five-line companion card in the same band, and the stamp was pinned 28vh
+     off the floor — which is the middle of the card. The card owns the foot of
+     a phone; the stamp takes the free sky above it and they can no longer
+     meet at any card height, in any language. */
+  .meta-stamp { top: max(96px, 20vh); bottom: auto; left: max(20px, 5vw); }
   .dos-card { padding: 1rem 1rem 1.1rem; max-height: 90vh; }
 }
 /* WHERE THE PLATE LANDS ON A PHONE. A 414 px screen stacks the rig, the run

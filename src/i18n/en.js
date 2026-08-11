@@ -16,7 +16,7 @@ export default {
     rank: 'Rank',
     // `«n|…»` inflects the noun for the count in front of it. English needs two
     // forms; see es/pl for languages that need more.
-    shards: '«n|one:Cipher shard|other:Cipher shards»',
+    shards: '«n|one:Cipher mote|other:Cipher motes»',
     mastery: 'Lattice integrity',
     build: 'Build',
     objective: 'Objective',
@@ -55,16 +55,16 @@ export default {
     ramp: 'Ramp',
     floor: 'Floor',
     beam: 'Beam',
-    placed: 'Axiom set',
+    placed: 'Placed',
     denied: 'No footing there',
     // --- lattice: charge, editing, and what the lattice is for ---
-    charge: 'Lattice',
-    keySet: 'LMB · set',
+    charge: 'Build charge',
+    keySet: 'LMB · place',
     keyClear: 'Q · clear',
     remove: 'Clear',
     removePrompt: 'Q · clear',
-    noCharge: 'Lattice charge spent',
-    alreadyThere: 'Already set there',
+    noCharge: 'Build charge spent',
+    alreadyThere: 'Already built there',
     nothingThere: 'Nothing in the crosshair',
     anchorCall: 'Three anchors hang over the plaza. Nothing on the ground reaches them — so stop standing on the ground.',
     anchorGot: 'Anchor {n} of {total} secured',
@@ -75,8 +75,11 @@ export default {
     areaModel: 'Area model',
     // --- the kit: a piece that is bought rather than given ---
     vault: 'Vault plate',
-    noShards: 'Not enough shards for that piece',
+    noShards: 'Not enough motes for that piece',
     fixed: 'That is not yours to unmake',
+    // --- first contact: the hand is stowed until it is drawn (src/build) ---
+    handOut: 'Build hand ready',
+    handStowed: 'Build hand stowed — pick a piece first, 1 to 4',
   },
 
   // Learning surface. Nothing here reads like a worksheet — the words are
@@ -84,7 +87,7 @@ export default {
   learn: {
     riftTitle: 'Rift {n} — {skill}',
     prompt: 'Stabilise the rift',
-    submit: 'Set',
+    submit: 'Seal',
     hint: 'Ask Marlow',
     check: 'Check',
     correct: 'Lattice holds.',
@@ -99,7 +102,7 @@ export default {
 
   marlow: {
     greet: "Marlow. Navigational intelligence, lightly damaged, mostly honest. You're the cadet, apparently.",
-    firstRift: "That tear in the air is a rift. It's held together by a statement that isn't true yet. Make it true and it closes. Simple. Terrifying. Go on.",
+    firstRift: "That ring of torn air is a rift. It's held together by a statement that isn't true yet. Make it true and it closes. Simple. Terrifying. Go on.",
     balance: 'Both sides of that beam carry the same weight. Whatever you do to one, do to the other, or it tips.',
     encourage: "Wrong, but usefully wrong. That's most of science.",
     nearMastery: 'The lattice is nearly whole here. One more and this whole line of sky opens up.',
@@ -136,6 +139,96 @@ export default {
     glide: 'Glide',
     build: 'Build',
     interact: 'Interact',
+    recover: 'Recover',
+  },
+
+  // ---------------------------------------------------------------------
+  // First contact — the controls card, and the way out of a hole.
+  // Additive namespace owned by src/player (controls.js, controller.js).
+  // A binding is cut into keycaps on the interpunct, so a translator owns
+  // both the words and how many caps there are.
+  // ---------------------------------------------------------------------
+  firstrun: {
+    title: 'Controls',
+    got: 'Got it',
+    recovered: 'Back on open ground',
+    stuck: {
+      title: 'Wedged',
+      body: 'Something has hold of you. Pull yourself back out onto open ground — nothing here ever needs a reload.',
+      act: 'Recover',
+    },
+    bind: {
+      kbm: {
+        move: 'W · A · S · D',
+        look: 'Mouse',
+        jump: 'Space',
+        glide: 'Hold space',
+        interact: 'E',
+        build: '1–4 · Left click',
+        dash: 'C · Left ctrl',
+        recover: 'R',
+      },
+      pad: {
+        move: 'Left stick',
+        look: 'Right stick',
+        jump: 'A',
+        glide: 'Y',
+        interact: 'X',
+        build: 'LB · RT',
+        dash: 'B',
+        recover: 'Back',
+      },
+      touch: {
+        move: 'Left thumb',
+        look: 'Drag right',
+        jump: 'Jump',
+        glide: 'Glide',
+        interact: 'Interact',
+        build: 'Rack · Place',
+        dash: 'Dash',
+        recover: 'Recover',
+      },
+    },
+  },
+
+  // ---------------------------------------------------------------------
+  // The menu — pause, help and settings. Additive namespace owned by
+  // src/ui/menu.js. A binding is cut into keycaps on the interpunct, the same
+  // contract the controls card has with this bundle, so a translator owns both
+  // the words and how many caps there are.
+  // ---------------------------------------------------------------------
+  menu: {
+    open: 'Menu',
+    title: 'Standing by',
+    sub: 'Nothing out there moves until you go back to it.',
+    resume: 'Back to the run',
+    controls: 'Controls',
+    screens: 'Screens',
+    settings: 'Settings',
+    sens: 'Look speed',
+    invert: 'Invert look',
+    on: 'On',
+    off: 'Off',
+    now: 'What to do out there',
+    nowBody: 'Walk into one of the glowing rings and press E. The rig throws the statement onto your visor — make it true and the tear closes for good.',
+    screen: {
+      progress: 'Progress report',
+      dossier: 'Cadet dossier',
+      controls: 'Controls card',
+      menu: 'This menu',
+    },
+    bind: {
+      kbm: {
+        sprint: 'Shift',
+        dash: 'C · Right click',
+        progress: 'P',
+        dossier: 'J',
+        controls: '?',
+        menu: 'Esc · F1',
+      },
+      pad: { sprint: 'L3 · LT', dash: 'B · RB' },
+      touch: { sprint: 'Push the stick', dash: 'Dash' },
+    },
   },
 
   // ---------------------------------------------------------------------
@@ -144,17 +237,17 @@ export default {
   // ---------------------------------------------------------------------
   rift: {
     tag: 'Rift {n}',
-    ident: 'Tear {code}',
-    pressure: 'Rift pressure',
+    ident: 'Rift {code}',
+    pressure: 'Still open',
     streak: '{n} «n|one:clean seal|other:clean seals»',
     disengage: 'Disengage',
     ask: 'Call the echo',
     sealed: 'Lattice sealed',
-    shards: 'Shards +{n}',
+    shards: 'Motes +{n}',
     trueNow: 'True. It closes.',
     stable: 'Stable',
     critical: 'Critical',
-    close: 'Leave the tear',
+    close: 'Leave the rift',
 
     // The resolution beat. What the rig stamps on a line it now trusts.
     seal: {
@@ -166,16 +259,16 @@ export default {
       check: 'Proving run · {n}/{m}',
       // pedagogy: the first item a new skill asks, before it teaches anything.
       // Answer it cold and the proving run has already begun.
-      probe: 'Sight-read',
-      review: 'Re-probe',
-      interleave: 'Retrieval',
+      probe: 'First sight',
+      review: 'Coming back to it',
+      interleave: 'From memory',
       // endgame: a rung of a sounding — the top of the bank, on a line already
       // held, one miss from the bottom. It proves nothing and pays well.
       deep: 'Sounding · {n}',
     },
 
     help: {
-      keypad: 'Charge the value that makes the statement true, then set it.',
+      keypad: 'Type the value that makes the statement true, then seal the rift.',
       balance: 'Choose a move. The beam applies it to both sides — that is the whole law.',
       sort: 'Send every term to the bay it belongs in.',
       area: 'Cover each part of the field with the area it carries.',
@@ -183,12 +276,12 @@ export default {
     },
 
     keypad: {
-      charge: 'Charge',
-      set: 'Set',
+      charge: 'Your answer',
+      set: 'Seal',
       back: 'Delete',
       minus: 'Negative',
       over: 'Fraction bar',
-      empty: 'Nothing charged',
+      empty: 'Nothing entered',
       narrow: 'Narrow the field',
       narrowed: 'Three readings survive the noise.',
     },
@@ -218,8 +311,8 @@ export default {
       width: 'Width',
       total: 'Total area',
       none: 'Nothing covered yet',
-      slot: 'Set an area',
-      tray: 'Area shards',
+      slot: 'Drop an area here',
+      tray: 'Field pieces',
       rejected: 'That does not cover this part of the field.',
     },
 
@@ -229,15 +322,15 @@ export default {
       slip: '{name} stood here once and slipped the same way.',
       trace: '{name} stood here once. This is the trace they left.',
       done: 'That is all {name} left behind.',
-      analogue: 'A different tear, the same shape. {name} left the whole solve behind.',
+      analogue: 'A different rift, the same shape. {name} left the whole solve behind.',
       fades: 'The rest of {name}’s trace has burned away.',
-      sealedIt: '{name} sealed it at {answer}. Yours is not the same tear.',
+      sealedIt: '{name} sealed it at {answer}. Yours is not the same rift.',
       blank: 'The last line burned away. You finish it.',
 
-      // The trace is not handed over. It is dug out of the tear one layer at a
+      // The trace is not handed over. It is dug out of the rift one layer at a
       // time, and each layer costs another push.
       call: 'Call the echo',
-      backToTear: 'Back to the tear',
+      backToTear: 'Back to the rift',
       backToTrace: 'Back to the trace',
       more: 'Push further',
       spent: 'The trace is spent',
@@ -248,7 +341,7 @@ export default {
       firstMove: 'Only the first move survived the burn. The rest is ash.',
       shape: 'The shape of the whole solve survives. The value at the end does not.',
       cameBack: 'The echo comes back louder.',
-      liveOnly: 'The rig has no other tear of this shape on record. This is your own line, read back to you.',
+      liveOnly: 'The rig has no other rift of this shape on record. This is your own line, read back to you.',
       nudge: {
         keypad: 'Say the statement to yourself before you charge anything. The value you want is the one that makes it true, not the one that sits nearest.',
         balance: 'Something is stuck to the unknown. Undo the outermost thing first, and the beam does the rest.',
@@ -349,10 +442,10 @@ export default {
       // The fast clock: rifts sealed on this shard, which is what turns the
       // chapter. It ticks on every correct answer, so it is the number on the
       // card that is allowed to be large.
-      sealed: 'Rifts sealed',
+      sealed: 'Rifts sealed in all',
       toChapter: '«n|one:# more|other:# more» to Chapter {ch}',
       sealsAll: 'Every chapter open',
-      sealsAt: '«n|one:# rift sealed|other:# rifts sealed»',
+      sealsAt: '«n|one:# rift sealed in all|other:# rifts sealed in all»',
       plusSeal: '+1',
     },
 
@@ -384,7 +477,7 @@ export default {
       title: 'The cadets before you',
       quest: 'Hundreds stood exactly where you are. Find out where they stopped.',
       b1: 'Three rifts sealed. The lattice has noticed you — you would be surprised how many cadets it never notices at all.',
-      b2: 'While you worked I read the traces the rig digs out of the tears. They are not simulations. Cadets stood exactly where you are standing. Hundreds of them.',
+      b2: 'While you worked I read the traces the rig digs out of the rifts. They are not simulations. Cadets stood exactly where you are standing. Hundreds of them.',
       b3: 'All capable. All stopped. No record says why, and that is the kind of silence somebody is paying for.',
     },
     ch3: {
@@ -477,13 +570,13 @@ export default {
 
     // The four terms standing is made of, and what each is actually worth.
     stand: {
-      seals: 'Statements sealed',
+      seals: 'From sealed rifts',
       sealsNote: 'Three for a clean seal, two for an assisted one — and it stops at twenty-six. After that, easy rifts pay nothing towards rank.',
-      proving: 'Proving runs survived',
+      proving: 'From proving runs',
       provingNote: 'Three for every item held inside a proving run: unassisted, unfamiliar, high band.',
-      lattice: 'Lattice opened',
+      lattice: 'From lines opened',
       latticeNote: 'Two for every line the lattice has opened beneath you. Won by prerequisites, not by answering.',
-      lines: 'Lines held',
+      lines: 'From lines held',
       linesNote: 'Nine apiece, and no ceiling. Above silver this is very nearly the only thing left.',
     },
 
@@ -494,7 +587,7 @@ export default {
     },
 
     voice: {
-      firstRift: 'That tear ahead of you is a rift. Walk into it and the rig throws the statement onto your visor. Press E — or whatever your hands prefer.',
+      firstRift: 'That ring of torn air ahead of you is a rift. Walk up to it and press E — or whatever your hands prefer — and the rig throws the statement onto your visor.',
       firstSeal: 'It held. That statement is now a permanent feature of reality, and your hands did it.',
       standard: 'The obelisk in the plaza is the Standard. It keeps the only honest record of you there is — five bands, one per rank, and a ring of light sitting at exactly your standing. It just moved. It will keep moving.',
       capped: 'Sealed, but the ledger has stopped paying for those. You have taken everything an easy rift can give. Standing comes out of held lines now, and held lines cost real work.',
@@ -502,7 +595,7 @@ export default {
         'Wrong, but usefully wrong. That is most of science.',
         'No. The lattice is a pedant. It wants the true value, not the one next to it.',
         'That would be a lovely answer to a slightly different question.',
-        'The tear did not so much as flicker. Look again at what is stuck to the unknown.',
+        'The rift did not so much as flicker. Look again at what is stuck to the unknown.',
         'Nobody seals one of those first time. Two cadets in nine centuries claimed otherwise. Both were lying.',
         'Steady. That statement is not trying to trick you; it is simply not finished.',
       ],
@@ -574,7 +667,7 @@ export default {
           'No. Nine hundred years of cadets missed that one too, if it helps. It never helped them either.',
           'That slipped. You have closed too many of these for me to insult you by explaining it, so I will simply wait.',
           'Missed. I have watched you not miss harder ones today, which tells me it is late, not that it is difficult.',
-          'The tear held. Rare event, these days. Go again before it gets ideas.',
+          'The rift held. Rare event, these days. Go again before it gets ideas.',
         ],
         master: [
           'Wrong — and I had to check. That is not a sentence I have said to a cadet before.',
@@ -796,17 +889,17 @@ export default {
         ],
         working: [
           'Rift. You know the drill better than the drill does.',
-          'A tear ahead. I am not going to explain it; you have shut enough of them to be bored of my voice.',
+          'A rift ahead. I am not going to explain it; you have shut enough of them to be bored of my voice.',
           'Another statement asking to be finished. Yours if you want it.',
         ],
         veteran: [
           'Rift ahead. I have not narrated one of these to you in a long time and I do not propose to start.',
-          'A tear. You have closed more of these than most of the order has read about.',
+          'A rift. You have closed more of these than most of the order has read about.',
           'There is one waiting. It does not know who is coming, which is the only advantage it has.',
         ],
         master: [
           'Rift. It will not last long.',
-          'Another tear. I mention it purely so the record shows that I mentioned it.',
+          'Another rift. I mention it purely so the record shows that I mentioned it.',
           'There is a statement ahead that has not heard about you yet.',
         ],
       },
@@ -815,7 +908,7 @@ export default {
       // a long save, and each is said once, ever.
       mile: {
         s32: 'Thirty-two. The chapters have run out and you have not, which is a problem for the record and for nobody else.',
-        s40: 'Forty sealed. The founding text keeps a table of cadets by tears closed. You are on the first page of it now, and the first page is short.',
+        s40: 'Forty sealed. The founding text keeps a table of cadets by rifts closed. You are on the first page of it now, and the first page is short.',
         s50: 'Fifty. I should be honest with you: I stopped preparing material somewhere around thirty. From here I am simply watching.',
         s64: 'Sixty-four. There is a phrase in the archive — a hand that outpaced its shard. It has been used four times in nine centuries.',
         s80: 'Eighty. The tearing on Shard Nine is now slower than the mending, for the first time since the fourth day. That is you. Only you.',
@@ -840,15 +933,15 @@ export default {
   session: {
     band: {
       run: 'Run {n}',
-      of: 'of «n|one:# tear|other:# tears»',
+      of: 'of «n|one:# rift|other:# rifts»',
       near: 'Last stretch',
       done: 'Run complete',
-      readout: '{goal}. «n|one:# tear|other:# tears» sealed of {target}.',
-      // Work done, which the tear count deliberately does not measure. See the
+      readout: '{goal}. «n|one:# rift|other:# rifts» sealed of {target}.',
+      // Work done, which the rift count deliberately does not measure. See the
       // note at the top of band.js: a wrong answer costs nothing here, and it
       // must not therefore show nothing.
       worked: '«n|one:# question worked|other:# questions worked»',
-      readoutWorked: '{goal}. «n|one:# tear|other:# tears» sealed of {target}, from {items} worked.',
+      readoutWorked: '{goal}. «n|one:# rift|other:# rifts» sealed of {target}, from {items} worked.',
     },
     goal: {
       hold: 'Hold: {skill}',
@@ -859,21 +952,21 @@ export default {
     },
     charter: {
       kick: 'Run {n} · Shard Nine',
-      /* Where the first tear stands, said as five whole sentences rather than a
+      /* Where the first rift stands, said as five whole sentences rather than a
          bearing word dropped into a slot: "51 m ahead" and "51 m to your left"
          put the distance in different places once you leave English. */
       mark: {
-        ahead: 'The tear is marked on your visor — {n} m, straight ahead.',
-        left: 'The tear is marked on your visor — {n} m, off to your left.',
-        right: 'The tear is marked on your visor — {n} m, off to your right.',
-        behind: 'The tear is marked on your visor — {n} m, behind you.',
-        here: 'The tear is marked on your visor. You are standing in it.',
+        ahead: 'The rift is marked on your visor — {n} m, straight ahead.',
+        left: 'The rift is marked on your visor — {n} m, off to your left.',
+        right: 'The rift is marked on your visor — {n} m, off to your right.',
+        behind: 'The rift is marked on your visor — {n} m, behind you.',
+        here: 'The rift is marked on your visor. You are standing in it.',
       },
       title: 'Orders',
-      goalHold: '{skill}. Seal {tears} tears on that line and it should hold — properly held, the kind that never opens again.',
-      goalHoldN: 'Seal {tears} tears and {n} lines should hold — properly held, the kind that never open again.',
-      goalPush: '{skill}. Seal {tears} tears on that line. It is a long one, and today we make it short.',
-      goalAny: 'Seal {tears} tears on this shard, and we will see what the lattice does about it.',
+      goalHold: '{skill}. Seal {tears} rifts on that line and it should hold — properly held, the kind that never opens again.',
+      goalHoldN: 'Seal {tears} rifts and {n} lines should hold — properly held, the kind that never open again.',
+      goalPush: '{skill}. Seal {tears} rifts on that line. It is a long one, and today we make it short.',
+      goalAny: 'Seal {tears} rifts on this shard, and we will see what the lattice does about it.',
       willHold: 'should hold',
       willPush: 'ground gained',
       eta: 'About «n|one:# minute|other:# minutes» at the pace you have been working. There is no clock on this — I will tell you when we are near the end.',
@@ -881,21 +974,21 @@ export default {
       begin: 'Begin the run',
       // The return beat. Said only when the last run left a record.
       kickBack: 'Run {n} · back again',
-      backHeld: 'Last time out you sealed «n|one:# tear|other:# tears», and {skill} has held ever since. It still does.',
-      backHeldN: 'Last time out you sealed {tears} tears, and «n|one:# line has|other:# lines have» held ever since. They still do.',
-      backNone: 'Last time out you sealed «n|one:# tear|other:# tears». All of it is still on the board — nothing rots here.',
+      backHeld: 'Last time out you sealed «n|one:# rift|other:# rifts», and {skill} has held ever since. It still does.',
+      backHeldN: 'Last time out you sealed {tears} rifts, and «n|one:# line has|other:# lines have» held ever since. They still do.',
+      backNone: 'Last time out you sealed «n|one:# rift|other:# rifts». All of it is still on the board — nothing rots here.',
     },
     close: {
       kick: 'Run {n} · closed',
       titleHeld: 'The line holds',
       titleMet: 'The shard is quiet',
       titleEnough: 'Enough for today',
-      tears: '«n|one:tear sealed|other:tears sealed»',
+      tears: '«n|one:rift sealed|other:rifts sealed»',
       heldLab: 'Held',
       groundLab: 'Ground gained',
       heldNote: 'Proved unassisted, at the hard band, with every worked example switched off. It is yours.',
-      groundNote: 'Down to «n|one:# tear|other:# tears» from holding — {d} closer than when the run opened.',
-      groundNoteFlat: '«n|one:# tear|other:# tears» from holding by the shortest road. Today bought the ground under it rather than the last step onto it.',
+      groundNote: 'Down to «n|one:# rift|other:# rifts» from holding — {d} closer than when the run opened.',
+      groundNoteFlat: '«n|one:# rift|other:# rifts» from holding by the shortest road. Today bought the ground under it rather than the last step onto it.',
       groundNoteFar: 'A long line. It moved today, and it moved the right way.',
       groundNoneStrong: 'Nothing new to hold',
       groundNone: 'Everything you touched today was already yours.',
@@ -915,7 +1008,7 @@ export default {
       signHeld: 'That line does not rot and it does not reset. Everything above it just became reachable.',
       rest: 'Stand down',
       more: 'One more line',
-      aria: 'Run closed. «n|one:# tear|other:# tears» sealed.',
+      aria: 'Run closed. «n|one:# rift|other:# rifts» sealed.',
       // A run that sealed nothing leads with the work instead of with a
       // screen-height zero, and the rows below say what the work bought.
       workedLab: '«n|one:question worked|other:questions worked»',
@@ -926,9 +1019,41 @@ export default {
       bandStrong: 'The bank re-cut',
       bandDown: 'Questions now open at band {n}, where you actually are. The bar for holding the line has not moved a millimetre.',
       bandUp: 'Questions now open at band {n}. You pushed the bank up today, not the other way round.',
-      groundNoteBack: '«n|one:# tear|other:# tears» from holding by the shortest road — further than at the start, because a missed gate item puts the proving run back to its first step. That is the gate being strict, not you being slow.',
+      groundNoteBack: '«n|one:# rift|other:# rifts» from holding by the shortest road — further than at the start, because a missed gate item puts the proving run back to its first step. That is the gate being strict, not you being slow.',
       moreLast: 'One more stretch is all the window has left. After that we stop, and stopping on time is the part that makes tomorrow worth anything.',
       capped: 'That is the twenty-five minutes this loop is built around. Another stretch today is worth less than the same stretch tomorrow — that is not encouragement, it is how spacing works.',
+
+      // --- states where this card could contradict its own neighbour ------
+      // Each of these exists because a clause on one block was being printed
+      // beside a block that made it false. See src/session/resolution.js.
+      groundIdleStrong: 'Nothing worked',
+      groundIdle: 'No question reached an answer this run. Nothing was spent and nothing was lost — the shard is exactly where you left it.',
+      openedHeldNoneStrong: 'Nothing above it, yet',
+      openedWholeNoneStrong: 'The lattice, complete',
+      openedWholeNone: 'There is nothing left on this shard to open. That is not the end of the work; it is the end of the map.',
+      openedHeldNone: 'A line can be worth holding and open nothing the same day. What a held line reaches is not always the next thing along.',
+      signHeldQuiet: 'That line does not rot and it does not reset. Nothing further up the lattice came within reach today — it is a web, not a staircase — and the line is banked for good.',
+
+      // --- what continues once all ten lines are held ----------------------
+      // The endgame is fully built — the descent in src/learn, the charter and
+      // the waystation in src/kit — and the screen that ends every session
+      // named none of it, so the loop written to hold a returning player was
+      // invisible from inside the game. These are the three things that keep
+      // going, said in the state the learner is actually in.
+      nextLabOpen: 'What continues',
+      soundStrong: '«n|one:The sounding — # rung down|other:The sounding — # rungs down»',
+      soundNote: 'Held lines, top of the bank, unassisted, one rung at a time. Twelve clean rungs is a descent that lands.',
+      soundStrongNone: 'The sounding',
+      soundNoteNone: 'Held lines, top of the bank, unassisted, one rung at a time. Twelve clean rungs is a descent that lands. You have not taken one down yet.',
+      charterHaveStrong: '«n|one:# charter in hand|other:# charters in hand»',
+      charterHaveNote: 'Earned by depth, spent on waystations. Nothing else in this game costs one.',
+      charterStrong: 'The next charter',
+      charterNote: 'Cut by depth, and depth only moves when a line held yesterday still holds today. {n} deeper cuts the next.',
+      stationStrong: '«n|one:# waystation standing|other:# waystations standing»',
+      stationNote: 'Stand at one, press H, and you are at the next. Two is a route; four is a different island.',
+      stationStrongNone: 'The first waystation',
+      stationNoteNone: 'What a charter and two hundred and forty motes raise: a permanent tower of rising air that is also a place. There is no last one.',
+      signWhole: 'Ten lines, all held, and none of them rots while you are gone. What is left is how deep you can go, and how much of this island you can make one step wide.',
     },
     rest: {
       say: 'Stand down. Look at something a long way off — the far range will do — and breathe with the ring. Four counts in, hold for two, six out.',
@@ -982,7 +1107,7 @@ export default {
       hollowNote: '{n} of {of} mastery claims were taken back when the line was re-tested cold.',
       hollowNone: 'No mastery claimed yet, so there is nothing to check.',
       ofHeld: 'of {n} held',
-      sight: 'Tested out cold',
+      sight: 'Held on first sight',
       sightNote: 'Proved on first contact, with no practice in front of it. The same claim on the least evidence this engine accepts — so it is re-tested cold soonest.',
       sightNone: 'No line was proved on first contact. Every claim here was earned after practice.',
       timeUnknown: 'Not measurable: part of this record was restored without its ledger, so the minutes before that are gone. They are shown as unknown, not as zero.',
@@ -1263,13 +1388,21 @@ export default {
   // congratulation. Additive keys, owned by the kit.
   kit: {
     granted: 'Line sealed',
+    // The chip's own sentence, where a screen reader and a thumb can reach it —
+    // it used to live only in a hover title, which neither of them has.
+    chipAria: '{name} — {what}',
     grantedHeld: 'Line still holding',
     locked: 'Seal {n}',
     lockedLong: 'Sealing {n} lines opens this',
     next: 'Next',
-    cost: '{n} shards',
+    // The one locked chip on the strip. "Next" alone told a new player nothing:
+    // it is not clickable yet, and nothing on screen said what would make it
+    // clickable. These say the price in the only currency that buys it.
+    nextAtLines: 'Hold «n|one:# line|other:# lines»',
+    nextAtDepth: 'Hold lines across a night',
+    cost: '{n} motes',
     held: 'Held',
-    needShards: '{n} shards needed',
+    needShards: '{n} motes needed',
     flareLit: 'Flare lit — the air is rising',
     beaconSet: 'Beacon planted — the air rises here from now on',
     vaulted: 'Vault',
@@ -1311,7 +1444,7 @@ export default {
     beacon: {
       name: 'Standing beacon',
       short: 'Beacon',
-      what: 'G — ninety shards plants a column of rising air that is still standing tomorrow. The only thing you can do to this island that lasts.',
+      what: 'G — ninety motes plants a column of rising air that is still standing tomorrow. The only thing you can do to this island that lasts.',
     },
     windstep: {
       name: 'Windstep',
@@ -1326,7 +1459,7 @@ export default {
     array: {
       name: 'Plate array',
       short: 'Array',
-      what: 'The vault plate throws you a third higher and costs six shards instead of eighteen. Plates become a staircase.',
+      what: 'The vault plate throws you a third higher and costs six motes instead of eighteen. Plates become a staircase.',
     },
     squall: {
       name: 'Squall flare',
@@ -1342,7 +1475,7 @@ export default {
     station: {
       name: 'Waystation',
       short: 'Station',
-      what: 'H — raise a permanent tower of rising air, and travel between any two of them. Costs a charter and two hundred and forty shards.',
+      what: 'H — raise a permanent tower of rising air, and travel between any two of them. Costs a charter and two hundred and forty motes.',
     },
     charter: {
       name: 'A waystation charter',
@@ -1361,7 +1494,7 @@ export default {
     // can still be bought over it, and the strip has to say so.
     carrying: '«n|one:# in hand|other:# in hand»',
     buyAt: '{name} — the foundry at the landing sells them',
-    afford: '{n} shards — enough for {name}',
+    afford: '{n} motes — enough for {name}',
   },
 
   // The drift and the hanging caches (src/world). What the island does when
@@ -1378,7 +1511,7 @@ export default {
     // purpose: practice and a proving run are not the same act, and a player
     // who cannot tell them apart cannot tell he is nearly finished.
     verb: {
-      seal: 'Seal the tear',
+      seal: 'Seal the rift',
       prove: 'Prove the line',
       watch: 'Stand the watch',
       sound: 'Sound the lattice',
@@ -1405,7 +1538,7 @@ export default {
     tally: '{held} held · {open} open · {locked} locked',
 
     prompt: {
-      open: 'Open the tear',
+      open: 'Open the rift',
       sound: 'Sound this line',
     },
     key: {
@@ -1423,27 +1556,28 @@ export default {
     // exists, and why he should care. Marlow, not a tooltip.
     // -------------------------------------------------------------------
     n: {
-      tear: 'That ring is a tear. Somewhere in the founding proof is a line that stopped being true, and this is where it comes out. Stand in it, answer what the rig throws on your visor, and the hole in the world closes behind you.',
-      shard: 'Cipher shards — loose lattice, lying where the ground bled. Run through them and they are yours. Vault plates and squall flares are cut from that, so they are worth going out of your way for.',
-      charged: 'The gold ones grew against an open tear, which is why they pay three times what a pale one does, and why standing here costs you shards every fifteen seconds. Seal that tear and the surges stop. The vein keeps paying.',
+      rift: 'That ring is a rift. Somewhere in the founding proof is a line — one rule of algebra — that stopped being true, and this is where it comes out. Stand in it, answer what the rig throws on your visor, and the hole in the world closes behind you. Seal enough rifts on the same line and you hold that line for good.',
+      surge: 'Stand this close to an open rift and it pushes back. Every fifteen seconds an unsealed rift throws a pressure ring out across the ground, and whatever it catches loses motes and its footing. Jump as it reaches you and it passes under your boots. Seal the rift and it stops for ever.',
+      mote: 'Cipher motes — loose lattice, lying where the ground bled. Run through them and they are yours. Vault plates and squall flares are cut from that, so they are worth going out of your way for.',
+      charged: 'The gold ones grew against an open rift, which is why they pay three times what a pale one does — and why an open rift throws a surge ring out here every fifteen seconds and takes motes back off you. Seal that rift and the surges stop for good. The vein keeps paying.',
       husk: 'The dark ones are spent, and the culprit is you. They re-light in about five minutes. You cannot farm a hillside on this shard, cadet — you can only range further out, which I suspect was rather the point.',
-      anchor: 'A lattice anchor: structure the founders left unfinished. Nothing in your kit reaches one from flat ground, and that is the entire idea. Set a ramp, set another off the top of it, and touch the thing. Sixty shards apiece, and there are three.',
-      cache: 'A hanging cache. The beam is holding a true statement with one weight taken out of it — walk into the counterweight that puts the beam level and the monolith opens. A hundred and twenty shards, and the air rises there for good afterwards.',
+      anchor: 'A lattice anchor: structure the founders left unfinished. Nothing in your kit reaches one from flat ground, and that is the entire idea. Place a ramp, place another off the top of it, and touch the thing. Sixty motes apiece, and there are three.',
+      cache: 'A hanging cache. The beam is holding a true statement with one weight taken out of it — walk into the counterweight that puts the beam level and the monolith opens. A hundred and twenty motes, and the air rises there for good afterwards.',
       updraft: 'Rising air, and a great deal of it. Fly into the column and it hands you sixty metres for nothing, which is how you get to the things that were put deliberately out of reach.',
       verge: 'That curtain is where Shard Nine stops, and I would rather you heard it from me than from the wing. The lands you can see are eight hundred metres of open sky away and the lattice is the only thing that crosses. Hold every line here and it will carry you out there. Until then it is a very long fall with a view.',
     },
   },
 
-  // THE FOUNDRY (src/kit/foundry.js) — the counter where cipher shards become
+  // THE FOUNDRY (src/kit/foundry.js) — the counter where cipher motes become
   // something, quoted and explained before a single one is spent. Additive
   // keys, owned by the kit.
   foundry: {
     kick: 'Cadet supply',
     name: 'The Foundry',
-    lede: 'A cipher shard is what a tear leaves behind when it closes. The foundry takes them, and hands back air you can stand on.',
-    unit: '«n|one:shard|other:shards»',
+    lede: 'A cipher mote is what a rift leaves behind when it closes. The foundry takes them, and hands back air you can stand on.',
+    unit: '«n|one:mote|other:motes»',
     hailStock: '«n|one:# thing you can afford|other:# things you can afford»',
-    hailNone: 'Where shards are spent',
+    hailNone: 'Where motes are spent',
     take: 'Take it',
     short: '{n} short',
     leave: 'Step back',
@@ -1452,8 +1586,8 @@ export default {
     inHand: 'Yours · {key}',
     carried: '«n|one:# in hand|other:# in hand» · {key}',
     bought: 'In hand. Press {key} where you want it',
-    note: 'Shards buy what is on the counter. Held lines open the rest.',
-    callout: 'Cadet — those shards are not a score. There is a foundry at the landing that turns them into lift: the lit hexagon with the three pylons, off your left shoulder.',
+    note: 'Motes buy what is on the counter. Held lines open the rest.',
+    callout: 'Cadet — those motes are not a score. There is a foundry at the landing that turns them into lift: the lit hexagon with the three pylons, off your left shoulder.',
     flare: { what: 'Six seconds of rising air under your own boots, wherever you happen to be standing. One use.' },
     beacon: { what: 'A column of rising air that is still standing tomorrow, planted wherever you choose. Nothing else you can do to this island lasts.' },
     plate: { what: 'A fifth piece for the lattice. Stand on one and it throws you twelve metres straight up.' },
@@ -1461,27 +1595,75 @@ export default {
   },
 
   field: {
-    moteTake: '+{n} shards',
+    moteTake: '+{n} motes',
     updraft: 'Updraft',
     surge: 'Rift surge',
-    surgeHit: 'Rift surge — {n} shards knocked loose',
+    surgeHit: 'Rift surge — {n} motes knocked loose · jump the ring, or seal the rift',
     balanceLock: 'Balance lock',
     balanceNo: 'The beam refuses it',
     balanceReset: 'The weights re-form',
-    cacheOpen: 'Cache broken open — {n} shards, and the air here rises for good',
+    cacheOpen: 'Cache broken open — {n} motes, and the air here rises for good',
 
     // --- what the world says when you walk up to it (src/world/beckon.js) ---
     riftOpen: 'Step onto the plate · {skill}',
     riftShut: 'Sealed · hold {skill} first',
     riftHeld: 'Held · {skill}',
-    riftRefuse: 'The bars hold. This tear opens once you hold {skill}.',
+    riftRefuse: 'The bars hold. This rift opens once you hold {skill}.',
     veinLit: 'Cipher vein · +{n} a crystal',
     veinRich: 'Charged vein · +{n} a crystal',
     veinSpent: 'Vein harvested · relights in {time}',
-    shardsFor: 'Cipher shards. The rig trades them for vault plates, flares and standing updrafts.',
+    shardsFor: 'Cipher motes. The rig trades them for vault plates, flares and standing updrafts.',
     anchorFind: 'Lattice anchor · build up to it',
     anchorHeld: 'Anchor secured',
     vergeTag: 'The verge · edge of Shard Nine',
     vergeHit: 'The verge holds. Shard Nine ends here — the far shards are a crossing nobody has made.',
+  },
+  // --- the affordance layer (src/world/afford.js): what a rift says it will
+  // do, the key that does it, and the bearing to the next one -------------
+  afford: {
+    open: 'Open the rift',
+    sound: 'Sound the line',
+    shut: 'Sealed shut',
+    needs: 'Hold {skill} first',
+    tap: 'Tap',
+    next: 'Next rift',
+    metres: '{n} m',
+  },
+
+  // ---------------------------------------------------------------------
+  // THE LEDGER (src/kit/ledger.js) — every movement of the currency, with the
+  // reason it moved and the balance it left behind.
+  //
+  // A cold player reported the wallet "silently resetting to zero" three times.
+  // Nothing reset: a rift surge levied a flat nine motes, which emptied any
+  // balance under nine, and the one line explaining it was written to the
+  // single shared toast slot and then overwritten by the "no footing" toast
+  // that the same surge's knockback fired half a second later. The strip has
+  // its own element and its own clock, and these are the words on it.
+  // Additive namespace, owned by the kit.
+  // ---------------------------------------------------------------------
+  ledger: {
+    /** What is left afterwards. Printed on every line, so the sum is never a guess. */
+    left: '{n} left',
+    /** A levy that found too little to be worth taking. See LEVY_SHARE. */
+    spared: 'Too few motes to knock loose',
+    why: {
+      // earned
+      seal: 'Rift sealed',
+      assist: 'Sealed with a worked example',
+      vein: 'Cipher vein',
+      cache: 'Hanging cache',
+      anchor: 'Lattice anchor',
+      found: 'Picked up',
+      // lost
+      surge: 'Rift surge',
+      // spent
+      spent: 'Spent',
+      vault: 'Vault plate set',
+      plate: 'Vault plate bought',
+      flare: 'Updraft flare',
+      beacon: 'Standing beacon',
+      station: 'Waystation raised',
+    },
   },
 };

@@ -37,10 +37,31 @@ import { Manipulatives } from './manipulative.js';
  * (the third sealed line, src/kit/kit.js) more than doubles both numbers, and a
  * player feels that the moment they hold the trigger down.
  */
+/**
+ * THE HAND IS STOWED UNTIL IT IS DRAWN.
+ *
+ * A cold player's first instinct in a third-person game is to click, and this
+ * game answered that instinct by slamming a four-metre wall across the frame —
+ * before the player had been told building existed, before they knew a piece
+ * could be cleared, and in the one shot that has to sell the place. A verb
+ * nobody chose is not a verb, it is an accident.
+ *
+ * So the lattice hand starts stowed. It is drawn by an act that can only be
+ * deliberate — picking a piece off the hotbar with 1–4, the wheel, a shoulder
+ * button or a tap — and once drawn it stays drawn for the rest of the save.
+ * Until then a click on the world costs nothing and says, once, what the hand
+ * is and how to draw it. The gate lives in `update()` rather than in `place()`
+ * so that everything which places a piece for its own reasons — the caches'
+ * perches, the manipulatives at a rift, the critics' harness — is untouched.
+ */
+const HAND_KEY = 'ascent.hand';
+
 const MAX_CHARGE = 78;
 const REGEN = 16;
 const REPEAT = 0.135;
 const EYE = 1.62;
+/** How often a click on a stowed hand is allowed to explain itself. Seconds. */
+const NUDGE_EVERY = 5;
 
 export class Builder {
   constructor(scene, player, opts = {}) {
@@ -56,6 +77,17 @@ export class Builder {
     this.charge = MAX_CHARGE;
     this.active = true;
     this.placedCount = 0;
+
+    // A save that does not exist yet is a player who has never held the hand.
+    // (`__ascent.reset()` clears the save, so this follows it without knowing
+    // anything about the reset path.)
+    try {
+      if (!localStorage.getItem('ascent.save')) localStorage.removeItem(HAND_KEY);
+      this.handOut = localStorage.getItem(HAND_KEY) === '1';
+    } catch { this.handOut = false; }
+    this._nudgeT = -999;   // the first click is always allowed its sentence
+    /** Called the first time the hand comes out, so the world can react. */
+    this.onHand = null;
 
     // What the cadet is allowed to set. The kit (src/kit/kit.js) opens the rest
     // of this list as lines are sealed; nothing else in the build system knows
@@ -142,13 +174,31 @@ export class Builder {
         this._removeReq = true;
         e.preventDefault();
       }
+      // Reaching for the rack draws the hand even when the piece under that
+      // digit is the one already selected — main.js only syncs the slot when it
+      // *changes*, so pressing 1 on a fresh save (slot 0) reached nothing at
+      // all and the verb stayed locked behind a key that looked like it worked.
+      const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+      if (n >= 0) this.setSlot(n);
     });
     addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || this.input?.uiOpen) return;
+      if (e.button !== 0) return;
+      // WHOSE CLICK WAS THAT. This listener is on the window and used to test
+      // nothing but `uiOpen`, so every click on a hotbar slot, a language pill
+      // or the quest card set a piece down in the world behind it — the exact
+      // fall-through that put a wall through the ORDERS card's own button.
+      // One question, asked in one place: src/core/input.js.
+      if (!this.input?.worldPointer(e)) return;
+      if (!this.handOut) return;    // a stowed hand does not even raise a ghost
       this._held = true;
       this.arm();
     });
-    addEventListener('wheel', () => { if (!this.input?.uiOpen) this.arm(); }, { passive: true });
+    addEventListener('wheel', () => {
+      if (this.input?.uiOpen) return;
+      // Reaching for the wheel is reaching for the lattice.
+      this.drawHand();
+      this.arm();
+    }, { passive: true });
     addEventListener('mouseup', (e) => { if (e.button === 0) this._held = false; });
     addEventListener('blur', () => { this._held = false; });
   }
@@ -172,10 +222,43 @@ export class Builder {
 
   setSlot(i) {
     const n = ((i % KINDS.length) + KINDS.length) % KINDS.length;
+    // Reaching for the rack is the deliberate act, and it counts even when the
+    // piece reached for is still sealed — the hand came out either way. Every
+    // route into this method is a chosen one: a digit key, the wheel, a
+    // shoulder button, a tap on the hotbar. None of them happens in passing.
+    this.drawHand();
     if (!this.allowed.has(KINDS[n])) return false;
     if (n !== this.slot) this.arm();
     this.slot = n;
     return true;
+  }
+
+  /**
+   * Draw the lattice hand, for good. Idempotent, and cheap to call from
+   * anywhere that counts as the player reaching for the build verb.
+   */
+  drawHand() {
+    if (this.handOut) return false;
+    this.handOut = true;
+    try { localStorage.setItem(HAND_KEY, '1'); } catch { /* private mode */ }
+    this.arm();
+    this.hud?.flash(t('build.handOut'), 'good');
+    this.onHand?.();
+    return true;
+  }
+
+  /**
+   * A click on a stowed hand. It costs nothing and says what the hand is.
+   *
+   * One toast, not a line from Marlow: she is mid-sentence for the first half
+   * minute of a new save, and a companion who interrupts her own cold open to
+   * explain a button the player did not ask about is worse than silence. The
+   * controls card is on screen next to this, with the same binding on it.
+   */
+  _nudge(time) {
+    if (time - this._nudgeT < NUDGE_EVERY) return;
+    this._nudgeT = time;
+    this.hud?.flash(t('build.handStowed'), '');
   }
 
   /** Open a kind for good. Called by the kit when a line is sealed. */
@@ -319,7 +402,7 @@ export class Builder {
     if (!tg.valid) return { ok: false, reason: tg.reason };
     // A kit piece is bought, not conjured. The charge is spent below; the
     // shards are spent here, and if the ledger refuses, nothing else happens.
-    if (tg.shards && !this.wallet.spend(tg.shards)) return { ok: false, reason: 'shards' };
+    if (tg.shards && !this.wallet.spend(tg.shards, tg.kind)) return { ok: false, reason: 'shards' };
     const g = this._groundBase(tg.x, tg.z);
     const piece = {
       kind: tg.kind, x: tg.x, y: tg.y, z: tg.z, yaw: tg.yaw,
@@ -375,7 +458,7 @@ export class Builder {
     }
 
     this._armT = Math.max(0, (this._armT || 0) - dt);
-    const armed = on && this._armT > 0;
+    const armed = on && this._armT > 0 && this.handOut;
 
     let tg = null;
     if (on) {
@@ -403,7 +486,11 @@ export class Builder {
 
       if (padFire) this.arm();
       this._repeat = Math.max(0, this._repeat - dt);
-      if (pressed || (held && this._repeat <= 0)) {
+      // The gate. A stowed hand answers a click with a sentence, not a wall.
+      if (!this.handOut) {
+        if (pressed) this._nudge(time);
+        this._held = false;
+      } else if (pressed || (held && this._repeat <= 0)) {
         const r = this.place();
         this._repeat = REPEAT;
         if (!r.ok && pressed) {
@@ -448,7 +535,9 @@ export class Builder {
     }
     const n = this.solids.owned;
     if (this._nShown !== n) { this._nShown = n; this.elCount.textContent = String(n); }
-    this.elRoot.classList.toggle('show', on);
+    // The charge gauge belongs to a hand that is out. Before that it is a
+    // readout for a verb the player has not been given.
+    this.elRoot.classList.toggle('show', on && this.handOut);
     this.elRoot.classList.toggle('armed', !!armed);
     this.elAim.classList.toggle('show', !!armed && !!this._aimed);
     this.elClear.classList.toggle('show', !!armed && this.input?.source === 'touch');

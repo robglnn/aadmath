@@ -14,8 +14,8 @@ export default {
 
   hud: {
     rank: 'Ranga',
-    // Rzeczownik po liczebniku się odmienia: 1 odłamek, 3 odłamki, 12 odłamków.
-    shards: '«n|one:Odłamek szyfru|few:Odłamki szyfru|many:Odłamków szyfru»',
+    // Rzeczownik po liczebniku się odmienia: 1 drobina, 3 drobiny, 12 drobin.
+    shards: '«n|one:Drobina szyfru|few:Drobiny szyfru|many:Drobin szyfru»',
     mastery: 'Spójność sieci',
     build: 'Buduj',
     objective: 'Cel',
@@ -49,15 +49,15 @@ export default {
     ramp: 'Rampa',
     floor: 'Podłoga',
     beam: 'Belka',
-    placed: 'Aksjomat ustawiony',
+    placed: 'Postawione',
     denied: 'Tam nie ma oparcia',
-    charge: 'Sieć',
+    charge: 'Zapas budowy',
     keySet: 'LPM · postaw',
     keyClear: 'Q · usuń',
     remove: 'Usuń',
     removePrompt: 'Q · usuń',
-    noCharge: 'Ładunek sieci wyczerpany',
-    alreadyThere: 'Tam już coś stoi',
+    noCharge: 'Zapas budowy wyczerpany',
+    alreadyThere: 'Tam już coś zbudowano',
     nothingThere: 'Nic na celowniku',
     anchorCall: 'Nad placem wiszą trzy kotwice. Z ziemi nie sięgniesz żadnej — więc przestań stać na ziemi.',
     anchorGot: 'Kotwica {n} z {total} zabezpieczona',
@@ -67,14 +67,17 @@ export default {
     areaModel: 'Model pola',
     // --- wyposażenie: element, który się kupuje, a nie dostaje ---
     vault: 'Płyta wyrzutni',
-    noShards: 'Za mało odłamków na ten element',
+    noShards: 'Za mało drobin na ten element',
     fixed: 'To nie twoja robota, więc tego nie rozbierzesz',
+    // --- pierwszy kontakt: ręka do kraty jest schowana, dopóki jej nie dobędziesz (src/build) ---
+    handOut: 'Ręka budowlana gotowa',
+    handStowed: 'Ręka budowlana schowana — najpierw wybierz element, od 1 do 4',
   },
 
   learn: {
     riftTitle: 'Wyrwa {n} — {skill}',
     prompt: 'Ustabilizuj wyrwę',
-    submit: 'Ustaw',
+    submit: 'Zapieczętuj',
     hint: 'Zapytaj Marlow',
     check: 'Sprawdź',
     correct: 'Sieć trzyma.',
@@ -89,7 +92,7 @@ export default {
 
   marlow: {
     greet: 'Marlow. Inteligencja nawigacyjna, lekko uszkodzona, przeważnie szczera. A ty najwyraźniej masz stopień kadeta.',
-    firstRift: 'To rozdarcie w powietrzu to wyrwa. Trzyma ją zdanie, które jeszcze nie jest prawdziwe. Uczyń je prawdziwym, a się zamknie. Proste. Przerażające. Śmiało.',
+    firstRift: 'Ten pierścień rozdartego powietrza to wyrwa. Trzyma ją zdanie, które jeszcze nie jest prawdziwe. Uczyń je prawdziwym, a się zamknie. Proste. Przerażające. Śmiało.',
     balance: 'Obie strony tej belki dźwigają ten sam ciężar. Co zrobisz jednej, zrób i drugiej, bo się przechyli.',
     encourage: 'Źle, ale pożytecznie źle. Na tym polega większość nauki.',
     nearMastery: 'Sieć jest tu prawie cała. Jeszcze jedna i otworzy się cały ten pas nieba.',
@@ -126,6 +129,94 @@ export default {
     glide: 'Szybowanie',
     build: 'Postaw',
     interact: 'Interakcja',
+    recover: 'Wydostań się',
+  },
+
+  // ---------------------------------------------------------------------
+  // Pierwszy kontakt — karta sterowania i wyjście z zaklinowania.
+  // Dodatkowa przestrzeń nazw należąca do src/player (controls.js,
+  // controller.js). Skrót dzieli się na klawisze po kropce środkowej.
+  // ---------------------------------------------------------------------
+  firstrun: {
+    title: 'Sterowanie',
+    got: 'Jasne',
+    recovered: 'Znowu na otwartym gruncie',
+    stuck: {
+      title: 'Zaklinowany',
+      body: 'Coś cię trzyma. Wydostań się na otwarty grunt — tutaj nigdy nie trzeba przeładowywać strony.',
+      act: 'Wydostań się',
+    },
+    bind: {
+      kbm: {
+        move: 'W · A · S · D',
+        look: 'Mysz',
+        jump: 'Spacja',
+        glide: 'Przytrzymaj spację',
+        interact: 'E',
+        build: '1–4 · Lewy przycisk',
+        dash: 'C · Lewy ctrl',
+        recover: 'R',
+      },
+      pad: {
+        move: 'Lewy drążek',
+        look: 'Prawy drążek',
+        jump: 'A',
+        glide: 'Y',
+        interact: 'X',
+        build: 'LB · RT',
+        dash: 'B',
+        recover: 'Back',
+      },
+      touch: {
+        move: 'Lewy kciuk',
+        look: 'Przeciągnij w prawo',
+        jump: 'Skok',
+        glide: 'Szybowanie',
+        interact: 'Interakcja',
+        build: 'Stojak · Postaw',
+        dash: 'Zryw',
+        recover: 'Wydostań się',
+      },
+    },
+  },
+
+  // ---------------------------------------------------------------------
+  // Menu — pauza, pomoc i ustawienia. Dodatkowa przestrzeń nazw należąca do
+  // src/ui/menu.js. Skrót tnie się na klawisze po interpunkcie, tak samo jak
+  // w karcie sterowania.
+  // ---------------------------------------------------------------------
+  menu: {
+    open: 'Menu',
+    title: 'W gotowości',
+    sub: 'Tam na zewnątrz nic się nie ruszy, dopóki nie wrócisz.',
+    resume: 'Wróć do przebiegu',
+    controls: 'Sterowanie',
+    screens: 'Ekrany',
+    settings: 'Ustawienia',
+    sens: 'Czułość rozglądania',
+    invert: 'Odwróć oś pionową',
+    on: 'Wł.',
+    off: 'Wył.',
+    now: 'Co robić na zewnątrz',
+    nowBody: 'Wejdź w jeden ze świecących pierścieni i naciśnij E. Sprzęt wyrzuci ci zdanie na wizjer — spraw, żeby stało się prawdziwe, a wyrwa zamknie się na dobre.',
+    screen: {
+      progress: 'Raport postępów',
+      dossier: 'Akta kadeta',
+      controls: 'Karta sterowania',
+      menu: 'To menu',
+    },
+    bind: {
+      kbm: {
+        sprint: 'Shift',
+        dash: 'C · Prawy przycisk',
+        progress: 'P',
+        dossier: 'J',
+        controls: '?',
+        menu: 'Esc · F1',
+      },
+      pad: { sprint: 'L3 · LT', dash: 'B · RB' },
+      touch: { sprint: 'Wychyl drążek', dash: 'Zryw' },
+    },
   },
 
   // ---------------------------------------------------------------------
@@ -135,12 +226,12 @@ export default {
   rift: {
     tag: 'Wyrwa {n}',
     ident: 'Wyrwa {code}',
-    pressure: 'Napięcie wyrwy',
+    pressure: 'Wciąż otwarta',
     streak: '{n} «n|one:czyste zamknięcie|few:czyste zamknięcia|many:czystych zamknięć»',
     disengage: 'Odłącz',
     ask: 'Wezwij echo',
     sealed: 'Sieć zamknięta',
-    shards: 'Odłamki +{n}',
+    shards: 'Drobiny +{n}',
     trueNow: 'Prawda. Zamyka się.',
     stable: 'Stabilna',
     critical: 'Krytyczna',
@@ -153,14 +244,14 @@ export default {
 
     kind: {
       check: 'Próba dowodowa · {n}/{m}',
-      probe: 'Bez przygotowania',
-      review: 'Powtórka',
-      interleave: 'Przypomnienie',
+      probe: 'Z marszu',
+      review: 'Powrót do niej',
+      interleave: 'Z pamięci',
       deep: 'Sondowanie · {n}',
     },
 
     help: {
-      keypad: 'Naładuj wartość, która czyni zdanie prawdziwym, i zatwierdź ją.',
+      keypad: 'Wpisz wartość, która czyni zdanie prawdziwym, i zapieczętuj wyrwę.',
       balance: 'Wybierz ruch. Belka wykona go po obu stronach — na tym polega całe prawo.',
       sort: 'Odeślij każdy wyraz do właściwej ładowni.',
       area: 'Pokryj każdą część pola powierzchnią, którą ona niesie.',
@@ -168,12 +259,12 @@ export default {
     },
 
     keypad: {
-      charge: 'Ładunek',
-      set: 'Zatwierdź',
+      charge: 'Twoja odpowiedź',
+      set: 'Zapieczętuj',
       back: 'Usuń',
       minus: 'Minus',
       over: 'Kreska ułamkowa',
-      empty: 'Brak ładunku',
+      empty: 'Brak odpowiedzi',
       narrow: 'Zawęź pole',
       narrowed: 'Z szumu zostają trzy odczyty.',
     },
@@ -203,8 +294,8 @@ export default {
       width: 'Szerokość',
       total: 'Pole całkowite',
       none: 'Nic nie pokryte',
-      slot: 'Ustaw pole',
-      tray: 'Odłamki pola',
+      slot: 'Połóż tu pole',
+      tray: 'Elementy pola',
       rejected: 'To nie pokrywa tej części pola.',
     },
 
@@ -333,10 +424,10 @@ export default {
       summit: 'Szczyt zakonu',
       // Szybszy zegar: wyrwy zamknięte na tym odłamku — to one przewracają
       // rozdział. Rusza przy każdej poprawnej odpowiedzi.
-      sealed: 'Zamknięte wyrwy',
+      sealed: 'Zamknięte wyrwy łącznie',
       toChapter: '«n|one:jeszcze #|few:jeszcze #|many:jeszcze #» do rozdziału {ch}',
       sealsAll: 'Wszystkie rozdziały otwarte',
-      sealsAt: '«n|one:# zamknięta wyrwa|few:# zamknięte wyrwy|many:# zamkniętych wyrw»',
+      sealsAt: '«n|one:# zamknięta wyrwa łącznie|few:# zamknięte wyrwy łącznie|many:# zamkniętych wyrw łącznie»',
       plusSeal: '+1',
     },
 
@@ -374,7 +465,7 @@ export default {
       title: 'Kadeci przed tobą',
       quest: 'Setki stały dokładnie tam, gdzie ty. Dowiedz się, gdzie się zatrzymali.',
       b1: 'Trzy zamknięte wyrwy. Sieć cię zauważyła — a zdziwiłoby cię, ilu kadetów nie zauważa nigdy.',
-      b2: 'W czasie twojej pracy przeczytałam ślady, które osprzęt wygrzebuje z rozdarć. To nie są symulacje. Kadeci stali dokładnie tam, gdzie ty stoisz. Setki.',
+      b2: 'W czasie twojej pracy przeczytałam ślady, które osprzęt wygrzebuje z wyrw. To nie są symulacje. Kadeci stali dokładnie tam, gdzie ty stoisz. Setki.',
       b3: 'Wszyscy zdolni. Wszyscy się zatrzymali. Żaden zapis nie mówi dlaczego, a to jest ten rodzaj ciszy, za który ktoś płaci.',
     },
     ch3: {
@@ -460,13 +551,13 @@ export default {
     },
 
     stand: {
-      seals: 'Zamknięte zdania',
+      seals: 'Za zamknięte wyrwy',
       sealsNote: 'Trzy za czyste zamknięcie, dwa za zamknięcie ze wsparciem — i zatrzymuje się na dwudziestu sześciu. Potem łatwe wyrwy nie płacą już nic w stronę rangi.',
-      proving: 'Próby dowodowe',
+      proving: 'Za próby dowodowe',
       provingNote: 'Trzy za każde zadanie utrzymane w próbie dowodowej: bez wsparcia, w nieznanej postaci, z wysokiego poziomu.',
-      lattice: 'Otwarta sieć',
+      lattice: 'Za otwarte linie',
       latticeNote: 'Dwa za każdą linię, którą sieć otworzyła pod tobą. Zdobywa się to wymaganiami, nie odpowiedziami.',
-      lines: 'Utrzymane linie',
+      lines: 'Za utrzymane linie',
       linesNote: 'Po dziewięć i bez sufitu. Powyżej srebra to praktycznie jedyne, co zostaje.',
     },
 
@@ -477,7 +568,7 @@ export default {
     },
 
     voice: {
-      firstRift: 'To rozdarcie przed tobą to wyrwa. Wejdź w nie, a osprzęt wyświetli zdanie na szybie. Naciśnij E — albo cokolwiek wolą twoje ręce.',
+      firstRift: 'Ten pierścień rozdartego powietrza przed tobą to wyrwa. Podejdź i naciśnij E — albo cokolwiek wolą twoje ręce — a osprzęt wyświetli zdanie na szybie.',
       firstSeal: 'Utrzymało się. To zdanie jest teraz trwałą cechą rzeczywistości, a zrobiły to twoje ręce.',
       standard: 'Obelisk na placu to Wzorzec. Prowadzi jedyny szczery zapis o tobie: pięć pasów, po jednym na rangę, i pierścień światła dokładnie na wysokości twojej pozycji. Właśnie drgnął. I będzie się przesuwał dalej.',
       capped: 'Zamknięte, ale rejestr przestał za takie płacić. Wszystko, co łatwa wyrwa może dać, już zostało wzięte. Od teraz pozycja bierze się z utrzymanych linii, a utrzymanie linii kosztuje prawdziwą pracę.',
@@ -485,7 +576,7 @@ export default {
         'Źle, ale pożytecznie źle. Na tym polega większość nauki.',
         'Nie. Sieć jest pedantką. Chce wartości prawdziwej, nie tej obok.',
         'To byłaby prześliczna odpowiedź na trochę inne pytanie.',
-        'Rozdarcie nawet nie drgnęło. Popatrz jeszcze raz, co przykleiło się do niewiadomej.',
+        'Wyrwa nawet nie drgnęła. Popatrz jeszcze raz, co przykleiło się do niewiadomej.',
         'Nikt nie zamyka takiej za pierwszym razem. Dwóch kadetów przez dziewięć wieków twierdziło inaczej. Obaj kłamali.',
         'Spokojnie. To zdanie nie próbuje cię oszukać; ono po prostu nie jest dokończone.',
       ],
@@ -577,7 +668,7 @@ export default {
           'Nie. Dziewięćset lat kadetów myliło się na tym samym, jeśli to pociecha. Im też nie było.',
           'Wymknęło się. Zamykasz takie zbyt długo, żebym obrażała cię tłumaczeniem, więc po prostu poczekam.',
           'Pudło. Widziałam dziś, jak nie mylisz się przy trudniejszych, co mówi mi, że jest późno, a nie że jest trudno.',
-          'Rozdarcie się utrzymało. Rzadki dziś przypadek. Wróć, zanim nabierze o sobie przekonania.',
+          'Wyrwa się utrzymała. Rzadki dziś przypadek. Wróć, zanim nabierze o sobie przekonania.',
         ],
         master: [
           'Źle — i musiałam to sprawdzić. Tego zdania nie powiedziałam jeszcze żadnemu kadetowi.',
@@ -800,17 +891,17 @@ export default {
         ],
         working: [
           'Wyrwa. Znasz procedurę lepiej niż procedura.',
-          'Przed tobą rozdarcie. Nie zamierzam go tłumaczyć: zamykasz je na tyle długo, że masz już dość mojego głosu.',
+          'Przed tobą wyrwa. Nie zamierzam jej tłumaczyć: zamykasz je na tyle długo, że masz już dość mojego głosu.',
           'Kolejne zdanie, które prosi o dokończenie. Twoje, jeśli chcesz.',
         ],
         veteran: [
           'Wyrwa przed tobą. Dawno ci takiej nie objaśniałam i nie zamierzam zaczynać.',
-          'Rozdarcie. Masz za sobą więcej takich, niż zakon zdążył o nich przeczytać.',
+          'Wyrwa. Masz za sobą więcej takich, niż zakon zdążył o nich przeczytać.',
           'Jedna czeka. Nie wie, kto nadchodzi, i to jej jedyna przewaga.',
         ],
         master: [
           'Wyrwa. Długo nie potrwa.',
-          'Kolejne rozdarcie. Wspominam o nim wyłącznie po to, żeby w zapisie stało, że wspomniałam.',
+          'Kolejna wyrwa. Wspominam o niej wyłącznie po to, żeby w zapisie stało, że wspomniałam.',
           'Przed tobą stoi zdanie, które jeszcze o tobie nie słyszało.',
         ],
       },
@@ -819,7 +910,7 @@ export default {
       // długiego zapisu, a każdy odzywa się raz w życiu.
       mile: {
         s32: 'Trzydzieści dwie. Rozdziały się skończyły, a ty nie, co jest problemem rejestru i niczyim więcej.',
-        s40: 'Czterdzieści zamkniętych. Tekst założycielski prowadzi tabelę kadetów według zamkniętych rozdarć. Jesteś już na jej pierwszej stronie, a pierwsza strona jest krótka.',
+        s40: 'Czterdzieści zamkniętych. Tekst założycielski prowadzi tabelę kadetów według zamkniętych wyrw. Jesteś już na jej pierwszej stronie, a pierwsza strona jest krótka.',
         s50: 'Pięćdziesiąt. Będę szczera: przestałam przygotowywać materiał gdzieś przy trzydziestu. Od tego miejsca po prostu patrzę.',
         s64: 'Sześćdziesiąt cztery. W archiwum jest takie sformułowanie: ręka, która wyprzedziła swój odłamek. Użyto go cztery razy w ciągu dziewięciu wieków.',
         s80: 'Osiemdziesiąt. Rozrywanie Odłamka Dziewiątego jest teraz wolniejsze niż zrastanie, pierwszy raz od czwartego dnia. To ty. Tylko ty.',
@@ -860,14 +951,14 @@ export default {
     },
     charter: {
       kick: 'Przebieg {n} · Odłamek Dziewiąty',
-      // Gdzie stoi pierwsze rozdarcie — całymi zdaniami, bo szyk dystansu i
+      // Gdzie stoi pierwsza wyrwa — całymi zdaniami, bo szyk dystansu i
       // kierunku poza angielskim wygląda inaczej.
       mark: {
-        ahead: 'Rozdarcie masz zaznaczone na szybie — {n} m, prosto przed tobą.',
-        left: 'Rozdarcie masz zaznaczone na szybie — {n} m, w lewo od ciebie.',
-        right: 'Rozdarcie masz zaznaczone na szybie — {n} m, w prawo od ciebie.',
-        behind: 'Rozdarcie masz zaznaczone na szybie — {n} m, za tobą.',
-        here: 'Rozdarcie masz zaznaczone na szybie. Stoisz w samym środku.',
+        ahead: 'Wyrwę masz zaznaczoną na szybie — {n} m, prosto przed tobą.',
+        left: 'Wyrwę masz zaznaczoną na szybie — {n} m, w lewo od ciebie.',
+        right: 'Wyrwę masz zaznaczoną na szybie — {n} m, w prawo od ciebie.',
+        behind: 'Wyrwę masz zaznaczoną na szybie — {n} m, za tobą.',
+        here: 'Wyrwę masz zaznaczoną na szybie. Stoisz w samym środku.',
       },
       title: 'Rozkazy',
       goalHold: '{skill}. Zamknij {tears} wyrw na tej linii, a powinna się utrzymać. Utrzymać naprawdę: tak, że już nigdy się nie otworzy.',
@@ -926,6 +1017,31 @@ export default {
       groundNoteBack: '«n|one:# wyrwa|few:# wyrwy|many:# wyrw» do utrzymania najkrótszą drogą — więcej niż na starcie, bo pomyłka na próbie cofa serię dowodową do pierwszego kroku. To poprzeczka jest surowa, a nie ty powolny.',
       moreLast: 'Jeszcze jeden odcinek i okno się kończy. Potem kończymy, a skończyć w porę to właśnie to, dzięki czemu jutro jest coś warte.',
       capped: 'To są te dwadzieścia pięć minut, wokół których zbudowana jest cała pętla. Kolejny odcinek dziś jest wart mniej niż ten sam odcinek jutro — to nie pocieszenie, tylko tak działa rozłożenie w czasie.',
+
+      // --- stany, w których karta mogła przeczyć samej sobie ---------------
+      groundIdleStrong: 'Nic nie przerobione',
+      groundIdle: 'W tym przebiegu żadne pytanie nie doczekało się odpowiedzi. Nic nie zostało wydane i nic nie przepadło — odłamek stoi dokładnie tam, gdzie stał.',
+      openedHeldNoneStrong: 'Nad nią na razie nic',
+      openedWholeNoneStrong: 'Sieć domknięta',
+      openedWholeNone: 'Na tym odłamku nie ma już czego otwierać. To nie koniec pracy — to koniec mapy.',
+      openedHeldNone: 'Linia może być warta utrzymania i tego samego dnia nie otworzyć niczego. To, do czego sięga utrzymana linia, nie zawsze leży tuż obok.',
+      signHeldQuiet: 'Ta linia nie gnije i nie resetuje się. Dziś nic wyżej w sieci nie znalazło się w zasięgu — to splot, nie schody — a linia i tak jest zaksięgowana na stałe.',
+
+      // --- co trwa dalej, kiedy wszystkie dziesięć linii jest utrzymanych --
+      nextLabOpen: 'Co trwa dalej',
+      soundStrong: '«n|one:Sondowanie — # szczebel w dół|few:Sondowanie — # szczeble w dół|many:Sondowanie — # szczebli w dół»',
+      soundNote: 'Utrzymane linie, szczyt banku, bez wsparcia, szczebel po szczeblu. Dwanaście czystych szczebli to pełne sondowanie.',
+      soundStrongNone: 'Sondowanie',
+      soundNoteNone: 'Utrzymane linie, szczyt banku, bez wsparcia, szczebel po szczeblu. Dwanaście czystych szczebli to pełne sondowanie. Żadnego jeszcze nie było.',
+      charterHaveStrong: '«n|one:# przywilej w ręku|few:# przywileje w ręku|many:# przywilejów w ręku»',
+      charterHaveNote: 'Daje je głębia, a wydaje się je na stacje przelotowe. Nic innego w tej grze nie kosztuje przywileju.',
+      charterStrong: 'Następny przywilej',
+      charterNote: 'Wypisuje je głębia, a głębia rusza tylko wtedy, gdy wczorajsza linia trzyma także dziś. Jeszcze {n} głębi i będzie następny.',
+      stationStrong: '«n|one:# stacja przelotowa stoi|few:# stacje przelotowe stoją|many:# stacji przelotowych stoi»',
+      stationNote: 'Stań przy jednej, naciśnij H i jesteś przy następnej. Dwie to trasa; przy czterech to już inna wyspa.',
+      stationStrongNone: 'Pierwsza stacja przelotowa',
+      stationNoteNone: 'Stawiają ją przywilej i dwieście czterdzieści drobin: wieża wznoszącego powietrza, która jest zarazem miejscem. Ostatniej nie ma.',
+      signWhole: 'Dziesięć linii, wszystkie utrzymane, i żadna nie gnije pod twoją nieobecność. Zostaje to, jak głęboko schodzisz i jak dużą część wyspy zwiniesz do jednego kroku.',
     },
     rest: {
       say: 'Odmelduj się na chwilę. Popatrz na coś bardzo daleko — pasmo na horyzoncie wystarczy — i oddychaj razem z pierścieniem. Cztery miary wdechu, dwie zatrzymania, sześć wydechu.',
@@ -978,7 +1094,7 @@ export default {
       hollowNote: 'Cofnięto {n} z {of} potwierdzeń opanowania, gdy linia została sprawdzona na zimno.',
       hollowNone: 'Nic jeszcze nie zostało potwierdzone, więc nie ma czego sprawdzać.',
       ofHeld: 'z {n} zamkniętych',
-      sight: 'Zamknięte z marszu',
+      sight: 'Utrzymane z marszu',
       sightNote: 'Udowodnione przy pierwszym kontakcie, bez żadnych ćwiczeń przed. To samo potwierdzenie na najmniejszej liczbie dowodów, jaką ten silnik przyjmuje — więc wraca na zimno najszybciej.',
       sightNone: 'Żadna linia nie została udowodniona przy pierwszym kontakcie. Każde potwierdzenie tutaj zostało zdobyte po ćwiczeniach.',
       timeUnknown: 'Nie da się zmierzyć: część tego zapisu odtworzono bez rejestru, więc wcześniejsze minuty przepadły. Pokazane jako nieznane, a nie jako zero.',
@@ -1258,13 +1374,22 @@ export default {
   // zdolność, nigdy jako gratulacje. Klucze dodawane, należą do wyposażenia.
   kit: {
     granted: 'Linia zamknięta',
+    // Zdanie kafelka tam, gdzie sięgnie po nie czytnik ekranu i kciuk — wcześniej
+    // żyło wyłącznie w dymku, którego żadne z nich nie widzi.
+    chipAria: '{name} — {what}',
     grantedHeld: 'Linia nadal trzyma',
     locked: 'Zamknij {n}',
     lockedLong: 'Otworzy się po zamknięciu {n} linii',
     next: 'Następne',
-    cost: 'Odłamki: {n}',
+    // Jedyny zablokowany kafelek paska. Samo „Następne” nic nie mówiło: wisiało
+    // na ekranie od pierwszej sekundy, nie dawało się kliknąć i nic nie mówiło,
+    // co je odblokuje. Teraz podaje cenę w jedynej walucie, która je kupuje —
+    // w utrzymanych liniach, nigdy w drobinach.
+    nextAtLines: 'Utrzymaj «n|one:# linię|few:# linie|many:# linii»',
+    nextAtDepth: 'Utrzymaj linie przez noc',
+    cost: 'Drobiny: {n}',
     held: 'Masz',
-    needShards: 'Brakuje odłamków — potrzeba {n}',
+    needShards: 'Brakuje drobin — potrzeba {n}',
     flareLit: 'Raca odpalona — powietrze się wznosi',
     beaconSet: 'Znacznik postawiony — powietrze wznosi się tu już na stałe',
     vaulted: 'Wyrzut',
@@ -1305,7 +1430,7 @@ export default {
     beacon: {
       name: 'Znacznik stały',
       short: 'Znacznik',
-      what: 'G — za dziewięćdziesiąt odłamków stawiasz słup wznoszącego się powietrza, który jutro nadal tu będzie. Jedyna rzecz, jaką możesz zrobić tej wyspie na trwałe.',
+      what: 'G — za dziewięćdziesiąt drobin stawiasz słup wznoszącego się powietrza, który jutro nadal tu będzie. Jedyna rzecz, jaką możesz zrobić tej wyspie na trwałe.',
     },
     windstep: {
       name: 'Krok wiatru',
@@ -1320,7 +1445,7 @@ export default {
     array: {
       name: 'Szereg płyt',
       short: 'Szereg',
-      what: 'Płyta wyrzuca cię o jedną trzecią wyżej i kosztuje sześć odłamków zamiast osiemnastu. Płyty stają się schodami.',
+      what: 'Płyta wyrzuca cię o jedną trzecią wyżej i kosztuje sześć drobin zamiast osiemnastu. Płyty stają się schodami.',
     },
     squall: {
       name: 'Raca szkwałowa',
@@ -1335,7 +1460,7 @@ export default {
     station: {
       name: 'Stacja przelotowa',
       short: 'Stacja',
-      what: 'H — postaw stałą wieżę wznoszącego powietrza i przemieszczaj się między dowolnymi dwiema. Kosztuje przywilej i dwieście czterdzieści odłamków.',
+      what: 'H — postaw stałą wieżę wznoszącego powietrza i przemieszczaj się między dowolnymi dwiema. Kosztuje przywilej i dwieście czterdzieści drobin.',
     },
     charter: {
       name: 'Przywilej na stację',
@@ -1354,7 +1479,7 @@ export default {
     // kupić na miejscu, a pasek musi to pokazać.
     carrying: '«n|one:# w ręku|few:# w ręku|many:# w ręku|other:# w ręku»',
     buyAt: '{name} — huta przy lądowisku je sprzedaje',
-    afford: '{n} odłamków — starczy na: {name}',
+    afford: '{n} drobin — starczy na: {name}',
   },
 
   // Dryf i wiszące skrytki (src/world). To, co wyspa robi, kiedy nikt cię
@@ -1367,7 +1492,7 @@ export default {
     label: 'Cel',
 
     verb: {
-      seal: 'Zamknij rozdarcie',
+      seal: 'Zamknij wyrwę',
       prove: 'Udowodnij linię',
       watch: 'Stań na warcie',
       sound: 'Zbadaj sieć',
@@ -1408,27 +1533,28 @@ export default {
     // dlaczego ma go to obchodzić. Marlow, nie dymek podpowiedzi.
     // -------------------------------------------------------------------
     n: {
-      tear: 'Ten pierścień to rozdarcie. Gdzieś w dowodzie założycielskim jest linia, która przestała być prawdą, i wychodzi właśnie tędy. Wejdź w środek, odpowiedz na to, co osprzęt wyrzuci ci na szybę, a dziura w świecie zamknie się za tobą.',
-      shard: 'Odłamki szyfru — luźna sieć, leżąca tam, gdzie ziemia krwawiła. Przebiegnij przez nie i są twoje. Z tego tnie się płyty wyrzutni i race, więc warto po nie nadłożyć drogi.',
-      charged: 'Te złote wyrosły przy otwartym rozdarciu: dlatego płacą trzy razy tyle co blade i dlatego stanie tutaj kosztuje cię odłamki co piętnaście sekund. Zamknij to rozdarcie, a wstrząsy ustaną. Żyła będzie płacić dalej.',
+      rift: 'Ten pierścień to wyrwa. Gdzieś w dowodzie założycielskim jest linia — jedna reguła algebry — która przestała być prawdą, i wychodzi właśnie tędy. Wejdź w środek, odpowiedz na to, co osprzęt wyrzuci ci na szybę, a dziura w świecie zamknie się za tobą. Zamknij dość wyrw na tej samej linii, a linia zostanie utrzymana na dobre.',
+      surge: 'Otwarta wyrwa oddaje ciosy. Co piętnaście sekund wyrzuca po ziemi pierścień ciśnienia, a komu stanie on na drodze, temu wytrąca drobiny i grunt spod nóg. Podskocz w chwili, gdy do ciebie dobiega, a przejdzie pod butami. Zamknij wyrwę, a skończy się to na zawsze.',
+      mote: 'Drobiny szyfru — luźna sieć, leżąca tam, gdzie ziemia krwawiła. Przebiegnij przez nie i są twoje. Z tego tnie się płyty wyrzutni i race, więc warto po nie nadłożyć drogi.',
+      charged: 'Te złote wyrosły przy otwartej wyrwie: dlatego płacą trzy razy tyle co blade — i dlatego otwarta wyrwa co piętnaście sekund wyrzuca tu pierścień ciśnienia i odbiera ci drobiny. Zamknij tę wyrwę, a wstrząsy ustaną na zawsze. Żyła będzie płacić dalej.',
       husk: 'Te ciemne są wypalone, a winny jesteś ty. Rozświetlą się po jakichś pięciu minutach. Na tym odłamku nie da się doić jednego zbocza, kadecie — można tylko sięgać dalej, co, jak podejrzewam, było zamierzone.',
-      anchor: 'Kotwica sieci: konstrukcja, której założyciele nie dokończyli. Nic z twojego wyposażenia nie sięga jej z płaskiego gruntu i o to właśnie chodzi. Postaw rampę, na jej szczycie drugą i dotknij. Po sześćdziesiąt odłamków za sztukę, a są trzy.',
-      cache: 'Wisząca skrytka. Belka trzyma prawdziwe zdanie, z którego wyjęto jeden odważnik — wejdź w tę przeciwwagę, która wypoziomuje belkę, a monolit się otworzy. Sto dwadzieścia odłamków, a powietrze wznosi się tam potem już na stałe.',
+      anchor: 'Kotwica sieci: konstrukcja, której założyciele nie dokończyli. Nic z twojego wyposażenia nie sięga jej z płaskiego gruntu i o to właśnie chodzi. Postaw rampę, na jej szczycie drugą i dotknij. Po sześćdziesiąt drobin za sztukę, a są trzy.',
+      cache: 'Wisząca skrytka. Belka trzyma prawdziwe zdanie, z którego wyjęto jeden odważnik — wejdź w tę przeciwwagę, która wypoziomuje belkę, a monolit się otworzy. Sto dwadzieścia drobin, a powietrze wznosi się tam potem już na stałe.',
       updraft: 'Wznoszące powietrze, i to sporo. Wleć w kolumnę, a da ci sześćdziesiąt metrów za darmo — tak właśnie dociera się do rzeczy, które ktoś celowo umieścił poza zasięgiem.',
       verge: 'Ta kurtyna to miejsce, w którym kończy się Odłamek Dziewiąty, i wolę, żebyś usłyszał to ode mnie niż od skrzydła. Lądy, które widzisz, dzieli od ciebie osiemset metrów otwartego nieba, a przeprawia przez nie wyłącznie sieć. Utrzymaj tu każdą linię, a cię tam przeniesie. Do tego czasu to bardzo długi lot w dół z ładnym widokiem.',
     },
   },
 
-  // HUTA (src/kit/foundry.js) — lada, przy której odłamki szyfru zamieniają się
+  // HUTA (src/kit/foundry.js) — lada, przy której drobiny szyfru zamieniają się
   // w coś konkretnego, z ceną i działaniem podanymi, zanim wyda się choć jeden.
   // Klucze dodane, należą do osprzętu.
   foundry: {
     kick: 'Zaopatrzenie kadetów',
     name: 'Huta',
-    lede: 'Odłamek szyfru to ślad, jaki zostawia po sobie zamknięta wyrwa. Huta je przyjmuje i oddaje powietrze, na którym można stanąć.',
-    unit: '«n|one:odłamek|few:odłamki|many:odłamków|other:odłamka»',
+    lede: 'Drobina szyfru to ślad, jaki zostawia po sobie zamknięta wyrwa. Huta je przyjmuje i oddaje powietrze, na którym można stanąć.',
+    unit: '«n|one:drobina|few:drobiny|many:drobin|other:drobiny»',
     hailStock: '«n|one:# rzecz w zasięgu|few:# rzeczy w zasięgu|many:# rzeczy w zasięgu|other:# rzeczy w zasięgu»',
-    hailNone: 'Tu wydaje się odłamki',
+    hailNone: 'Tu wydaje się drobiny',
     take: 'Bierz',
     short: 'Brakuje {n}',
     leave: 'Odsuń się',
@@ -1437,8 +1563,8 @@ export default {
     inHand: 'Twoje · {key}',
     carried: '«n|one:# w ręku|few:# w ręku|many:# w ręku|other:# w ręku» · {key}',
     bought: 'W ręku. Naciśnij {key} tam, gdzie ma stanąć',
-    note: 'Odłamki płacą za to, co leży na ladzie. Utrzymane linie otwierają resztę.',
-    callout: 'Kadecie — te odłamki to nie punkty. Przy lądowisku stoi huta, która zamienia je we wznoszące powietrze: rozświetlony sześciokąt o trzech pylonach, po twojej lewej.',
+    note: 'Drobiny płacą za to, co leży na ladzie. Utrzymane linie otwierają resztę.',
+    callout: 'Kadecie — te drobiny to nie punkty. Przy lądowisku stoi huta, która zamienia je we wznoszące powietrze: rozświetlony sześciokąt o trzech pylonach, po twojej lewej.',
     flare: { what: 'Sześć sekund wznoszącego powietrza pod własnymi butami, gdziekolwiek stoisz. Jedno użycie.' },
     beacon: { what: 'Komin wznoszącego powietrza, który jutro nadal tu będzie, postawiony tam, gdzie zechcesz. Nic innego, co zrobisz na tej wyspie, nie zostaje.' },
     plate: { what: 'Piąty element sieci. Stań na nim, a wyrzuci cię dwanaście metrów w górę.' },
@@ -1446,14 +1572,14 @@ export default {
   },
 
   field: {
-    moteTake: 'Odłamki: +{n}',
+    moteTake: 'Drobiny: +{n}',
     updraft: 'Komin powietrzny',
-    surge: 'Wyładowanie szczeliny',
-    surgeHit: 'Wyładowanie szczeliny — tracisz odłamki: {n}',
+    surge: 'Wyładowanie wyrwy',
+    surgeHit: 'Wyładowanie wyrwy — tracisz drobiny: {n} · przeskocz pierścień albo zamknij wyrwę',
     balanceLock: 'Zamek wagowy',
     balanceNo: 'Belka tego nie przyjmuje',
     balanceReset: 'Odważniki układają się na nowo',
-    cacheOpen: 'Skrytka otwarta — odłamki: {n}, a powietrze wznosi się tu już na stałe',
+    cacheOpen: 'Skrytka otwarta — drobiny: {n}, a powietrze wznosi się tu już na stałe',
 
     // --- co świat mówi, gdy do niego podchodzisz (src/world/beckon.js) ---
     riftOpen: 'Wejdź na płytę · {skill}',
@@ -1463,10 +1589,53 @@ export default {
     veinLit: 'Żyła szyfru · +{n} za kryształ',
     veinRich: 'Naładowana żyła · +{n} za kryształ',
     veinSpent: 'Żyła wybrana · rozświetli się za {time}',
-    shardsFor: 'Odłamki szyfru. Osprzęt wymienia je na płyty wyrzutni, race i stałe kominy powietrzne.',
+    shardsFor: 'Drobiny szyfru. Osprzęt wymienia je na płyty wyrzutni, race i stałe kominy powietrzne.',
     anchorFind: 'Kotwica sieci · dobuduj się do niej',
     anchorHeld: 'Kotwica zabezpieczona',
     vergeTag: 'Skraj · koniec Odłamka Dziewiątego',
     vergeHit: 'Skraj nie ustępuje. Tutaj kończy się Odłamek Dziewiąty — dalsze odłamki to przeprawa, której nikt nie odbył.',
+  },
+  // --- warstwa afordancji (src/world/afford.js): co oferuje wyrwa, który
+  // klawisz to robi i w którą stronę jest następna -------------------------
+  afford: {
+    open: 'Otwórz wyrwę',
+    sound: 'Zbadaj linię',
+    shut: 'Zapieczętowana',
+    needs: 'Najpierw opanuj: {skill}',
+    tap: 'Dotknij',
+    next: 'Następna wyrwa',
+    metres: '{n} m',
+  },
+
+  // ---------------------------------------------------------------------
+  // REJESTR (src/kit/ledger.js) — każdy ruch waluty, z powodem i saldem,
+  // które po nim zostaje.
+  //
+  // Nowy gracz opisał, że portfel „sam się zerował do zera” trzy razy. Nic się
+  // nie zerowało: wyładowanie wyrwy zabierało sztywno dziewięć drobin, co
+  // opróżniało każde saldo poniżej dziewięciu, a jedyny komunikat, który to
+  // tłumaczył, trafiał do wspólnego paska powiadomień i pół sekundy później
+  // kasował go komunikat „tam nie ma oparcia”, wywołany przez ten sam odrzut.
+  // Pasek ma teraz własny element i własny zegar.
+  // Klucze dodatkowe, należą do wyposażenia.
+  // ---------------------------------------------------------------------
+  ledger: {
+    left: 'zostaje {n}',
+    spared: 'Za mało drobin, żeby cokolwiek wytrącić',
+    why: {
+      seal: 'Wyrwa zamknięta',
+      assist: 'Zamknięta z rozwiązanym przykładem',
+      vein: 'Żyła szyfru',
+      cache: 'Wisząca skrytka',
+      anchor: 'Kotwica sieci',
+      found: 'Zebrane',
+      surge: 'Wyładowanie wyrwy',
+      spent: 'Wydane',
+      vault: 'Płyta wyrzutni postawiona',
+      plate: 'Płyta wyrzutni kupiona',
+      flare: 'Raca kominowa',
+      beacon: 'Znacznik stały',
+      station: 'Stacja przelotowa wzniesiona',
+    },
   },
 };

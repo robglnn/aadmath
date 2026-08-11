@@ -137,6 +137,8 @@ export class Resolution {
    *          held:string[], stalled:object|null, opened:string[],
    *          chapter:number|null, rank:string|null,
    *          next:{id:string, minutes:number|null}|null, lines:number,
+   *          endgame:{sounding:number, charters:number|null,
+   *                   toCharter:number|null, stations:number|null}|null,
    *          items:number, misses:number, echoes:number,
    *          extensions:number, canMore:boolean}} report
    */
@@ -223,6 +225,9 @@ export class Resolution {
       : (items > r.tears ? t('session.close.ofWorked', { n: items }) : '');
     this.el.classList.toggle('lead-work', leadWork);
     this.el.classList.toggle('ground', !held);
+    // The shard is finished: the third block is now carrying the card, and the
+    // stylesheet gives it the width the other two are not using.
+    this.el.classList.toggle('whole', !r.next);
 
     // The block changes its name rather than lying about its contents: a run
     // that closed nothing has not "held" anything, and labelling the honest row
@@ -243,23 +248,19 @@ export class Resolution {
     if (!opened.length) {
       opened.push(r.promoted
         ? { strong: t('rank.' + r.promoted.rank), note: t('session.close.rankNote') }
-        : { strong: t('session.close.openedNoneStrong'), note: t('session.close.openedNone') });
+        : openedNoneRow(r, held));
     }
     this._block('open', t('session.close.openedLab'), opened);
 
-    this._block('next', t('session.close.nextLab'), [r.next
-      ? {
-        strong: t('skills.' + r.next.id),
-        note: r.next.minutes != null
-          ? t('session.close.nextNote', { n: r.next.minutes })
-          : t('session.close.nextNoteUnknown'),
-      }
-      : { strong: t('session.close.nextDoneStrong'), note: t('session.close.nextDone') }]);
-
-    this.sign.textContent = t(
-      held ? 'session.close.signHeld'
-        : (leadWork ? 'session.close.signWorked' : 'session.close.sign'),
+    // NEXT is the hook, and past the last line the hook is not a skill and not
+    // a number of minutes. See `nextRows`.
+    this._block(
+      'next',
+      t(r.next ? 'session.close.nextLab' : 'session.close.nextLabOpen'),
+      nextRows(r),
     );
+
+    this.sign.textContent = t(signKey(r, held, leadWork));
     this.rest.textContent = t('session.close.rest');
     this.more.textContent = t('session.close.more');
     // ONE MORE LINE is an offer the window can run out of, and when it has, the
@@ -287,6 +288,123 @@ export class Resolution {
      shelf back to the foot of the content in the middle of the card's own
      fade-out. `show()` re-measures from scratch anyway. */
   hide() { this.el.classList.remove('show'); }
+}
+
+/**
+ * NOTHING OPENED — which is three different sentences, not one.
+ *
+ * "Nothing opened today. That is what the long lines cost, and they are the
+ * ones worth having" is a sentence about a run that spent itself on one long
+ * unclosed line. It was also being printed:
+ *
+ *   · beside a HELD block with a line in it — the tenth line, or one whose
+ *     successors are still waiting on other prerequisites — under a sign-off
+ *     that said everything above it had just become reachable;
+ *   · on a finished shard, where nothing opened because there is nothing left
+ *     to open, one column away from "nothing is open here any more".
+ *
+ * Same fact, three different reasons, and the reason is the whole content of
+ * the row.
+ */
+function openedNoneRow(r, held) {
+  if (!r.next) {
+    return {
+      strong: t('session.close.openedWholeNoneStrong'),
+      note: t('session.close.openedWholeNone'),
+    };
+  }
+  return {
+    strong: t('session.close.openedNoneStrong'),
+    note: t(held ? 'session.close.openedHeldNone' : 'session.close.openedNone'),
+  };
+}
+
+/**
+ * THE BLOCK THAT IS THE REASON THERE IS A TOMORROW.
+ *
+ * While a line is still open this is one row: the line, and what it costs at
+ * this learner's own pace. `src/session/index.js` guarantees that row is only
+ * ever a line that is genuinely open, so the minutes can never be zero.
+ *
+ * When the ten lines are held it is four, and they are the whole of what this
+ * card was missing. The endgame is fully built — the descent in `src/learn`,
+ * the charter and the waystation in `src/kit` — and the screen that ends every
+ * session named none of it, so the loop written to hold a returning player was
+ * invisible from inside the game. A learner who finished the shard read
+ * "everything you touched today was already yours" and "about 0 minutes of
+ * work" and had no way to find out that anything continued at all.
+ *
+ * Each row states what is true right now, in the state the learner is actually
+ * in: how deep the sounding has gone, whether there is a charter in hand or how
+ * much further depth has to go to cut one, and whether a waystation is standing.
+ * Nothing here is a promise the engine has not already made good on somewhere.
+ */
+function nextRows(r) {
+  if (r.next) {
+    return [{
+      strong: t('skills.' + r.next.id),
+      note: r.next.minutes != null
+        ? t('session.close.nextNote', { n: r.next.minutes })
+        : t('session.close.nextNoteUnknown'),
+    }];
+  }
+  const e = r.endgame || {};
+  const rows = [{
+    strong: t('session.close.nextDoneStrong'),
+    note: t('session.close.nextDone'),
+  }];
+  rows.push(e.sounding > 0
+    ? {
+      strong: t('session.close.soundStrong', { n: e.sounding }),
+      note: t('session.close.soundNote'),
+    }
+    : {
+      strong: t('session.close.soundStrongNone'),
+      note: t('session.close.soundNoteNone'),
+    });
+  // The kit is optional to this module, and a row about a thing that is not
+  // wired is worse than no row.
+  if (e.charters != null) {
+    rows.push(e.charters > 0
+      ? {
+        strong: t('session.close.charterHaveStrong', { n: e.charters }),
+        note: t('session.close.charterHaveNote'),
+      }
+      : {
+        strong: t('session.close.charterStrong'),
+        note: t('session.close.charterNote', { n: Math.max(1, e.toCharter || 1) }),
+      });
+  }
+  if (e.stations != null) {
+    rows.push(e.stations > 0
+      ? {
+        strong: t('session.close.stationStrong', { n: e.stations }),
+        note: t('session.close.stationNote'),
+      }
+      : {
+        strong: t('session.close.stationStrongNone'),
+        note: t('session.close.stationNoteNone'),
+      });
+  }
+  return rows;
+}
+
+/**
+ * The last line on the card, and the one most likely to argue with the rows
+ * above it.
+ *
+ *   · "Everything above it just became reachable" is a claim about the lattice,
+ *     and on a run whose held line opened nothing — the tenth line, or one
+ *     whose successors are still waiting on other prerequisites — it is false,
+ *     and it was being printed directly under OPENED · nothing.
+ *   · A learner with nothing left open is not coming back for "the line you
+ *     were on is the line we open with". They are coming back for the descent
+ *     and for what a night of holding cuts, so that is what the sign-off says.
+ */
+function signKey(r, held, leadWork) {
+  if (!r.next) return 'session.close.signWhole';
+  if (held) return r.opened.length ? 'session.close.signHeld' : 'session.close.signHeldQuiet';
+  return leadWork ? 'session.close.signWorked' : 'session.close.sign';
 }
 
 /**
@@ -324,7 +442,15 @@ function groundRows(r) {
 
 function distanceRow(r) {
   const g = r.stalled;
-  if (!g) return { strong: t('session.close.groundNoneStrong'), note: t('session.close.groundNone') };
+  if (!g) {
+    // "Everything you touched today was already yours" is a sentence about a
+    // run that touched something. A rift left open on a desk for twenty-five
+    // minutes closes the session having touched nothing, and that run does not
+    // get told it did.
+    return (r.items || 0) === 0
+      ? { strong: t('session.close.groundIdleStrong'), note: t('session.close.groundIdle') }
+      : { strong: t('session.close.groundNoneStrong'), note: t('session.close.groundNone') };
+  }
   if (g.tears == null) return { strong: t('skills.' + g.id), note: t('session.close.groundNoteFar') };
   // "Closer than when you started" is a claim, so it is only made when the
   // engine's own projection was actually taken before the first item and has

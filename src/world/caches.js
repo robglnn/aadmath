@@ -373,7 +373,7 @@ export function createCaches(opts = {}) {
     openNow(c, false);
     c.opened = true;
     save();
-    wallet?.earn?.(REWARD);
+    wallet?.earn?.(REWARD, 'cache');
     // the reward that changes the map: a standing updraft, here, for ever
     drift?.addColumn?.(c.x, c.z, 78, 8.4, true);
     audio?.unlocked?.();
