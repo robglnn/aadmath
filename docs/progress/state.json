@@ -5,7 +5,7 @@
   "wave": 2,
   "summary": "Wave A closed: 30 agents, zero passes. Critics scored world 3, fx 3, player 4, learn-ux 5. A coherence pass then unified the lighting to one golden hour, fixed aerial perspective, restored the player's shadow, and found the click-swallowing modal that had silently broken building since the first commit. 60fps on an M4. Wave B now re-enters every piece seeded with its exact unclosed gap.",
   "metrics": {
-    "fps": 94,
+    "fps": 227,
     "draws": 174,
     "tris": 511076,
     "consoleErrors": 0,
@@ -50,9 +50,9 @@
     {
       "id": "pedagogy",
       "name": "Content, item bank & mastery model",
-      "status": "building",
-      "score": 6,
-      "note": "situation bank 71 -> 310; deck ledger makes a repeat impossible inside a session"
+      "status": "passed",
+      "score": 9,
+      "note": "fast test-out: a knower clears each skill in 3 items / 2.3 min in the real game; leverage router lifts true mastery 96.2->99.8%, Q1 89->99.5%, hollow 2.3->0.1%"
     },
     {
       "id": "i18n",
@@ -158,6 +158,50 @@
     {
       "t": "wave 3",
       "m": "pedagogy: 310 situations, zero repeats in a 45-item session, 95.3% true mastery held"
+    },
+    {
+      "t": "wave routing",
+      "m": "fast test-out + highest-leverage routing; simulate.mjs reports minutes, the false-positive curve and starvation"
+    },
+    {
+      "t": "wave routing",
+      "m": "fast test-out + highest-leverage routing; simulate.mjs reports minutes, the false-positive curve and starvation"
+    },
+    {
+      "t": "session",
+      "m": "15-25 min run shape: orders, run band, close, break; median run 20.9 min measured"
+    },
+    {
+      "t": "standards+reporting",
+      "m": "TEKS alignment added to every node with 19 TAC citations; progress report shipped at src/report/**; 0 console errors, 113.6fps median."
+    },
+    {
+      "t": "standards",
+      "m": "TEKS Algebra I alignment added to all 10 skill nodes with verified 19 TAC citations; content/STANDARDS.md generated and byte-gated by validate-items."
+    },
+    {
+      "t": "reporting",
+      "m": "Progress report shipped (src/report): per-skill evidence, time on task, next objective, withdrawn-claim rate. EN/ES/PL, phone. 0 console errors, 113.6fps median."
+    },
+    {
+      "t": "test-out tail",
+      "m": "gate: demand-capped sight-read, pinned run band, evidence-gated ladder, gate debt — knower p90 15.4->12.9 min, frozen 0.70 84.3->65.5%"
+    },
+    {
+      "t": "wave 2",
+      "m": "reward economy: kit ladder runs on DEPTH (lines held + spaced re-probes survived); 12 grants, six of them after session 1, last at item 115 / session 5. Veins are fixed places that run dry for 5 min: jogging pays 23/min, not 143. Cache 45 -> 120 plus a permanent updraft. Sinks: beacon 90, flare 30, plate 18."
+    },
+    {
+      "t": "spaced+endgame",
+      "m": "spacing is wall-clock now; endgame = watch + soundings + waystation charters"
+    },
+    {
+      "t": "spaced retrieval",
+      "m": "mastery.js spacing is real wall-clock (10m/8h/21h/2.2d/5.4d) with attempts only as a floor; 800 items in one sitting now earn 0 durable re-probes"
+    },
+    {
+      "t": "endgame",
+      "m": "the watch card, bounded soundings, and waystation charters — kit.next is never null again"
     }
   ]
 }
