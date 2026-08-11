@@ -359,6 +359,20 @@ export default {
   'ask.howManyReadings': 'Jeśli ${v} = {val}$, ile to odczytów?',
   'ask.howManyLumens': 'Jeśli ${v} = {val}$, ile to lumenów?',
   'ask.howManyDegrees': 'Jeśli ${v} = {val}$, ile to stopni?',
+  // Pytanie nazywa ten rzeczownik, który policzyła sytuacja nad nim, i żaden
+  // inny. Powstały, bo wcześniejsze pytania dzieliły ze sobą sytuacje liczące
+  // co innego: łatę poszycia mierzy się w płatach blachy, a nie w szybach,
+  // wózek wyciąga rudę z wyrobiska, a nie idzie na stępkę, boja sondująca
+  // robi hałas, a nie światło. Tabela jednostek siedzi w
+  // tools/check-context-ask.mjs i wywraca build, gdy coś się nie zgadza.
+  'ask.howManyPlates': 'Jeśli ${v} = {val}$, ile to płatów blachy?',
+  'ask.howManyTonnesRaised': 'Jeśli ${v} = {val}$, ile ton wyjedzie z wyrobiska?',
+  'ask.howManyTonnesBarged': 'Jeśli ${v} = {val}$, ile ton pójdzie na barkę?',
+  'ask.howManySecondsPing': 'Jeśli ${v} = {val}$, ile to sekund nadawania?',
+  'ask.howManyDaysAir': 'Jeśli ${v} = {val}$, na ile dni starczy powietrza?',
+  'ask.howManyFramesHeld': 'Jeśli ${v} = {val}$, ile to klatek?',
+  'ask.howManyDosesStowed': 'Jeśli ${v} = {val}$, ile dawek stoi na dziobie?',
+  'ask.howManySeedlingsPlanted': 'Jeśli ${v} = {val}$, ile sadzonek wyjdzie do sadzenia?',
 
   // ---- k identycznych rzeczy, w każdej dokładnie v -----------------------
   'ctx.waterCans': 'Kanister na wodę bierze ${v}$ litrów i ani kropli więcej — szyjkę odlano, a nie wynegocjowano. Na sanie «k|one:idzie|few:idą|many:idzie» {k} «k|one:kanister|few:kanistry|many:kanistrów».',

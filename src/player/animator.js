@@ -19,7 +19,7 @@ const HIP_Y = 0, HIP_X = 1, HIP_YAW = 2, HIP_ROLL = 3,
   CHS_X = 7, CHS_YAW = 8, CHS_ROLL = 9,
   HED_X = 10, HED_YAW = 11,
   LEG = 12,   // per leg: thighX, shinX, footX, thighZ  (L then R)
-  ARM = 20,   // per arm: shoulderX, shoulderZ, shoulderY, elbowX (L then R)
+  ARM = 20,   // per arm: shoulderX, shoulderZ, shoulderY, elbowFLEX (L then R)
   ROOT_X = 28, ROOT_Z = 29;
 
 /** How far a planted foot may travel front-to-back before the leg runs out. */
@@ -145,7 +145,12 @@ export class Animator {
     const bobAmp = lerp(0.018, 0.10, sn);
     p[HIP_Y] = -bobAmp * (0.5 + 0.5 * Math.cos(ph * tau * 2)) - lerp(0, 0.055, run);
     p[HIP_X] = 0;
-    p[HIP_YAW] = Math.sin(ph * tau) * lerp(0.04, 0.20, sn);
+    // Pelvic rotation peaks where the legs are furthest apart, which is phase
+    // 0 (leg 0's heel strike) — not a quarter of a cycle later at mid-stance,
+    // where a real pelvis is square. `sin` put the peak at mid-stance and left
+    // the pelvis dead flat at the two moments the stride is widest; `cos` is
+    // the same amplitude landing on the right beat.
+    p[HIP_YAW] = Math.cos(ph * tau) * lerp(0.04, 0.20, sn);
     p[HIP_ROLL] = Math.cos(ph * tau) * lerp(0.02, 0.075, sn);
 
     // torso leans into speed and into acceleration
@@ -154,7 +159,13 @@ export class Animator {
     p[SPN_YAW] = -p[HIP_YAW] * 0.55 + clamp(-s.turnRate * 0.05, -0.22, 0.22);
     p[SPN_ROLL] = -p[HIP_ROLL] * 0.7 - s.slopeRoll * 0.4;
     p[CHS_X] = Math.sin(ph * tau * 2) * 0.035 * run - lean * 0.18;
-    p[CHS_YAW] = -Math.sin(ph * tau) * lerp(0.05, 0.26, sn);
+    p[CHS_YAW] = -Math.cos(ph * tau) * lerp(0.05, 0.26, sn);   // counter to the pelvis, on the pelvis's beat
+    // Sideways travel gets no lean of its own here, on purpose. `facing` chases
+    // the heading inside a couple of tenths of a second, so a strafe is a
+    // *turn*: three hundred milliseconds after the key goes down localVel.x has
+    // already collapsed to nearly zero and localVel.z carries the whole speed.
+    // The bank into it is the turnRate term below (and `rollTarget` from the
+    // controller). A second lean off localVel.x would be the same beat twice.
     p[CHS_ROLL] = clamp(s.turnRate * 0.045, -0.2, 0.2);
     // the head stays level and looks where the camera looks
     p[HED_X] = -(p[SPN_X] + p[CHS_X]) * 0.82 + this.lookPitch * 0.45;
@@ -202,7 +213,18 @@ export class Animator {
     for (let i = 0; i < 2; i++) {
       const a = ARM + i * 4;
       const sgn = i === 0 ? -1 : 1;   // +z rotation swings a limb toward +x
-      const sw = Math.sin((ph + (i === 0 ? 0.5 : 0)) * tau);   // opposite the same-side leg
+      // `sw` is how far forward this arm is, +1 at the front of its swing.
+      //
+      // The half-cycle offset here was never the problem — it is the *shape*
+      // that was wrong. Leg i is furthest forward at lp = 0, so its reach is a
+      // cosine of the phase, and an arm written as a sine of the same phase is
+      // a quarter of a cycle behind the leg it is supposed to oppose. The two
+      // arms therefore peaked at phase 0.25 and 0.75 while the two legs peaked
+      // at 0.0 and 0.5, which put each arm almost in step with the leg on its
+      // own side: the cadet ran like a toy soldier, same arm and same leg
+      // forward together, and the swing looked like it was going the wrong way
+      // because it was — it was following the near leg instead of opposing it.
+      const sw = Math.cos((ph + (i === 0 ? 0.5 : 0)) * tau);   // opposite the same-side leg
       p[a] = -sw * swing - lean * 0.40 - lerp(0.05, 0.28, sn);
       // Abduction — how far the upper arm is held out from the ribs. This is a
       // silhouette control, not an anatomy one: at eight degrees the arms sat
@@ -213,7 +235,15 @@ export class Animator {
       // a man in armour this bulky could not put his arms down that far anyway.
       p[a + 1] = sgn * (lerp(0.27, 0.35, sn) + Math.max(0, sw) * 0.09);
       p[a + 2] = -sgn * lerp(0.04, 0.26, sn) * (0.5 + sw * 0.5);
-      p[a + 3] = elbow + Math.max(0, -sw) * elbow * 0.42;
+      // A runner's elbow *closes* on the way forward — the hand comes up toward
+      // the chest — and opens again as the arm drives back. This was keyed off
+      // `-sw`, so it tightened on the back swing and let the arm straighten out
+      // in front, which is the opposite of every stride ever run. The extra is
+      // 0.26 rather than the old 0.42 because it now lands on the half of the
+      // cycle where the shoulder is already at eighty-odd degrees of flexion:
+      // 0.42 on top of that folded the forearm flat onto the upper arm and the
+      // whole limb went back to being one slab in front of the chest.
+      p[a + 3] = elbow + Math.max(0, sw) * elbow * 0.26;
     }
 
     // ---- idle ----
@@ -530,7 +560,18 @@ export class Animator {
     for (let i = 0; i < 2; i++) {
       const a = ARM + i * 4, A = arms[i];
       A.upper.rotation.set(c[a], c[a + 2], c[a + 1]);
-      A.fore.rotation.x = c[a + 3];
+      // The elbow channel is FLEXION: positive folds the forearm up toward the
+      // front of the upper arm, the way an arm actually closes. The joint's own
+      // axis runs the other way — the rig's limbs rest pointing down -Y and the
+      // model faces +Z, so a positive rotation.x carries the forearm *backwards*
+      // — and every hand-authored pose in this file (run, idle, air, dash,
+      // mantle, land, skid) wrote a positive number into it. The cadet ran, fell
+      // and stood with both elbows hyperextended up to 130° the wrong way, the
+      // forearms folded behind the upper arms and the hands stuck out behind his
+      // hips. `gripBar()` below is the one place that ever got this right,
+      // because it solves the angle geometrically and writes `-bend`; the sign
+      // now lives here instead of being remembered eight times.
+      A.fore.rotation.x = -c[a + 3];
     }
 
     // squash & stretch — a spring, so the recovery has a little bounce in it
@@ -634,7 +675,14 @@ export class Animator {
     // is what makes it *cloth*: it leans out of a turn, and at speed it sways
     // across the back on its own slow beat.
     const sway = Math.sin(s.time * 2.3) * 0.13 * clamp(s.speedN * 1.4, 0, 1);
-    const wantZ = clamp(-air.x * 0.042 + sway + clamp(s.turnRate * 0.07, -0.3, 0.3), -0.6, 0.6);
+    // `localVel.x` is now the component along body-RIGHT (the controller's
+    // strafe basis was left-handed and has been corrected), and a segment's
+    // +rotation.z tips it toward local +X, which is the cadet's LEFT. Cloth
+    // trails away from the direction of travel, so travelling right has to lay
+    // the mantle out to the left: +air.x. Under the old basis this same line
+    // read `-air.x` and meant the same thing; keeping the minus would now blow
+    // the scarf the way he is going, which is what a strafe looked like.
+    const wantZ = clamp(air.x * 0.042 + sway + clamp(s.turnRate * 0.07, -0.3, 0.3), -0.6, 0.6);
     for (let i = 0; i < n; i++) {
       const seg = this.rig.scarf[i];
       const st = this._scarf[i];

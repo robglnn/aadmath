@@ -96,3 +96,52 @@ real screenshots, play the real learning flow in all three languages, and put yo
 frame side by side with a real Fortnite / Breath of the Wild reference. It will say
 which is better. If ours loses, it names **the single biggest gap** and you go back in.
 Builder summaries are not evidence. Only the running game is.
+
+---
+
+# PRODUCT GOALS (from the client — these outrank everything above)
+
+Ship a **production-ready** experience for **at least one full lesson of Algebra I**, for real
+high-school students. Not a demo. Not a vertical slice. A thing a school could put in front of a
+class on Monday.
+
+### 1. It has to be worth playing on its own terms
+The test is not "is this good for an educational game." The test is: **a student keeps playing
+because they want to, and tolerates the struggle of learning because the game is worth it.**
+If the only reason a kid opens this is that a teacher assigned it, we have failed. Advancement in
+the game must be something they want, and the mathematics must be the price of admission they are
+willing to pay — not a toll booth bolted onto a reward loop.
+
+### 2. Test-out must be fast and real
+Adaptivity means **nobody spends time on what they already know.**
+- A student who already knows a concept **tests out in ~2 minutes**, not an hour.
+- A student who is struggling **stays on that topic until it is mastered** — no time-boxed
+  "move on anyway," no spiral that abandons them.
+- Every minute spent should go to the topic with the **highest leverage toward mastery**.
+Reference model: adaptive platforms like TimeBack. The felt experience is "this thing knows what
+I know and refuses to waste my time."
+
+### 3. Sessions are Pomodoro-shaped: 15–25 minutes
+Design the loop around **one focused 15–25 minute session**, then a genuine break beat.
+This is an attention-span constraint, not a suggestion — hour-long blocks are exactly the failure
+mode we are avoiding. A session must have a shape: an opening, real work, a resolution, and a
+clean stopping point that makes returning attractive. Progress must survive the break.
+
+### 4. Standards alignment: Common Core **and TEKS**
+Every skill node maps to both:
+- **CCSS** (already partly done in `content/graph/algebra1-l1.json`)
+- **TEKS** — Texas Essential Knowledge and Skills, Algebra I. This is currently MISSING and must
+  be added, with correct citations (e.g. §111.39 Algebra I knowledge and skills statements).
+Alignment must be real and checkable, not decorative.
+
+### 5. Progress must be visible and defensible
+A student sees what they have mastered and what is next. A teacher can see whether learning
+happened. Mastery claims must be honest — the engine already tracks hollow-mastery rate; keep it
+near zero and surface it. Progress reporting is part of the product, not an afterthought.
+
+### Definition of done for "one lesson"
+- A student can sit down, play 15–25 minutes, and provably master a coherent slice of Algebra I.
+- Someone who already knows it can demonstrate that in about two minutes and move on.
+- Someone who doesn't gets held, supported, and gets there.
+- It works on a school Chromebook and on a phone, in EN/ES/PL.
+- It is fun enough that they come back tomorrow without being told to.

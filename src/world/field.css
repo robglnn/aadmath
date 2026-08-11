@@ -1,0 +1,40 @@
+/* The drift and the caches: labels that live in the world rather than on the
+   HUD. Owned by src/world, deliberately outside src/ui/style.css. */
+
+#ui .field-tags { pointer-events: none; }
+
+.field-tags { position: absolute; inset: 0; overflow: hidden; }
+
+.field-tag {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: .26rem .55rem; border-radius: 9px; white-space: nowrap;
+  background: rgba(6, 14, 28, .8); border: 1px solid rgba(126, 190, 255, .34);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, .5);
+  color: #eaf6ff; font-size: .96rem; line-height: 1;
+  will-change: left, top, opacity;
+}
+
+/* the statement the balance is holding — bigger, and it names the whole rig */
+.field-tag.lede {
+  font-family: var(--ui); font-size: .56rem; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--ink-dim);
+  background: rgba(6, 14, 28, .66); border-color: rgba(126, 190, 255, .2);
+}
+.field-tag.big { font-size: 1.22rem; padding: .34rem .7rem; }
+
+/* A weight the cadet can still choose. It is set at the same size as the
+   statement it answers: the two are read in one glance or neither is. */
+.field-tag.weight {
+  font-size: 1.18rem; font-weight: 700; padding: .3rem .66rem;
+  border-color: rgba(167, 139, 255, .6);
+  box-shadow: 0 0 22px rgba(167, 139, 255, .3), 0 6px 26px rgba(0, 0, 0, .5);
+}
+/* …and one the beam has already refused */
+.field-tag.spent {
+  opacity: .32; border-color: rgba(150, 170, 200, .25);
+  text-decoration: line-through;
+}
+.field-tag.won {
+  border-color: rgba(142, 240, 168, .7);
+  box-shadow: 0 0 26px rgba(142, 240, 168, .35), 0 6px 26px rgba(0, 0, 0, .5);
+}

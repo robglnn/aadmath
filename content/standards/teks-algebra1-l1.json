@@ -1,0 +1,581 @@
+{
+  "framework": "Texas Essential Knowledge and Skills for Mathematics (TEKS)",
+  "authority": "19 Texas Administrative Code, Part 2 (Texas Education Agency), Chapter 111 (Mathematics)",
+  "sections": {
+    "111.26": "§111.26. Grade 6, Adopted 2012 — knowledge and skills are subsection (b)",
+    "111.27": "§111.27. Grade 7, Adopted 2012 — knowledge and skills are subsection (b)",
+    "111.28": "§111.28. Grade 8, Adopted 2012 — knowledge and skills are subsection (b)",
+    "111.39": "§111.39. Algebra I, Adopted 2012 (One Credit) — knowledge and skills are subsection (c)"
+  },
+  "level": "algebra1-level1",
+  "title": "TEKS alignment — Algebra I, Level 1: The Language of Balance",
+  "verification": {
+    "checkedOn": "2026-08-10",
+    "sources": [
+      "19 Tex. Admin. Code §111.39 (Algebra I, Adopted 2012, One Credit), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-39",
+      "19 Tex. Admin. Code §111.26 (Grade 6, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-26",
+      "19 Tex. Admin. Code §111.27 (Grade 7, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-27",
+      "19 Tex. Admin. Code §111.28 (Grade 8, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-28"
+    ],
+    "note": "Every `text` field below is the student expectation quoted word for word from the sources above, including the trailing punctuation the code itself carries. Every `statement` field is the knowledge-and-skills sentence quoted word for word. `domain` is the short strand label that precedes that sentence in the printed rule; it is reproduced from the published TEKS rather than re-verified against the register, and is marked `domainVerified: false` where that matters.",
+    "caveats": [
+      "This alignment is to the 2012-adopted mathematics TEKS, which is the version STAAR Algebra I is built on and the version the client named. The State Board of Education has since worked on revised mathematics TEKS; nothing here is claimed against a revised chapter.",
+      "Where a Level 1 skill meets only part of a student expectation, the entry carries a `caveat` saying which part, and the depth is `supporting` or `introduced` rather than `core`. Nothing is claimed as `core` that the mastery gate does not actually test.",
+      "TEKS has no discrete student expectation for `a letter stands for a number` or for `evaluate an algebraic expression at a value` in grades 6–8. Both are presupposed by 6.6(C), 6.10(A) and 7.11(A) and are named explicitly only at Algebra I in A.12(B), which wraps them in function notation. Level 1 therefore cites A.12(B) as INTRODUCED and says plainly that the notation half is absent."
+    ]
+  },
+  "mappingNote": [
+    "TEKS and CCSS are not translations of one another, and this document does not pretend they are. The Level 1 arc — from `a letter stands for a number` to `linear equations with the unknown on both sides, including the no-solution and infinitely-many cases` — sits at the seam between the grade 6–8 Expressions, equations, and relationships strand and the Algebra I course. In TEKS terms Level 1 is the whole of the readiness ladder that ends at A.5(A), plus the expression work that ends at A.10(A) and A.10(D).",
+    "A.5(A) is the anchor. It names two hard cases by name — `those for which the application of the distributive property is necessary` and `those for which variables are included on both sides` — and those two cases are exactly the last two nodes of Level 1, multi-step and both-sides. A learner who clears Level 1 has met A.5(A) for linear equations in one variable, and the proving run is what proves it.",
+    "The grade 6–8 citations are not decoration. A Texas Algebra I class is legally entitled to assume 6.9(A), 6.10(A), 7.10(A), 7.11(A) and 8.8(A)/(C) are already in place; Level 1 teaches them anyway, because the learner model treats them as gated prerequisites rather than as assumptions. That is the whole point of the knowledge graph, and it is why a student who arrives without grade-8 fluency is held rather than pushed forward.",
+    "Depth means the same thing here as it does in the CCSS map. CORE — the standard is the thing being taught and the mastery gate tests it. SUPPORTING — the standard is exercised inside items whose primary target is another standard. INTRODUCED — a first, deliberately partial encounter that a later level completes.",
+    "Deliberately NOT claimed at Level 1, so that a curriculum director can see the edges of the claim: A.2 in all its parts (writing linear equations in two variables), A.3 in all its parts including A.3(F) and A.3(G) (graphing linear functions and systems — Level 1 reads a supplied trace, it never produces one), A.4 (statistical fit), A.5(B) (linear inequalities), A.5(C) (systems), A.6 through A.9 (quadratics and exponentials), A.10(C), A.10(E), A.10(F) (division and factoring of trinomials and differences of squares), A.11 (radicals and laws of exponents), A.12(A), A.12(C), A.12(D) and A.12(E) (functions as objects, sequences, and literal equations).",
+    "The mathematical process standards A.1(A)–(G) are mapped separately, and two of them are marked as only partially met. A game that hands the learner the tool cannot honestly claim A.1(C) `select tools`, and a game whose answer surface is a keypad and a set of choices cannot honestly claim the written-communication half of A.1(G). Both are said so rather than quietly counted."
+  ],
+  "standards": [
+    {
+      "code": "6.6(C)",
+      "citation": "19 TAC §111.26(b)(6)(C)",
+      "course": "Grade 6, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use multiple representations to describe algebraic relationships. The student is expected to:",
+      "text": "represent a given situation using verbal descriptions, tables, graphs, and equations in the form y = kx or y = x + b.",
+      "depth": "core",
+      "caveat": "Claimed narrowly and on purpose. 6.6(C) names only the forms y = kx and y = x + b, so it is cited only for the grouping forms, where a situation such as `k stands, each carrying 2 mills, each mill returning x watts` is recorded as exactly y = kx. Any richer rule — anything of the form mx + b — is cited at 7.7 instead, where TEKS actually puts it. Getting this boundary wrong is the commonest way a vendor alignment sheet stops being true.",
+      "nodes": [
+        "var-meaning"
+      ],
+      "evidence": [
+        "vm-context",
+        "vm-choose",
+        "vm-compose"
+      ]
+    },
+    {
+      "code": "6.7(A)",
+      "citation": "19 TAC §111.26(b)(7)(A)",
+      "course": "Grade 6, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to develop concepts of expressions and equations. The student is expected to:",
+      "text": "generate equivalent numerical expressions using order of operations, including whole number exponents and prime factorization;",
+      "depth": "core",
+      "caveat": "The order-of-operations and whole-number-exponent halves are core and are what the mastery gate for order-ops tests. Prime factorization is not taught at Level 1 and is not claimed.",
+      "nodes": [
+        "order-ops"
+      ],
+      "evidence": [
+        "oo-mixed",
+        "oo-power",
+        "oo-negbase",
+        "oo-fracbar",
+        "oo-nested",
+        "oo-dispute",
+        "oo-context",
+        "oo-table"
+      ]
+    },
+    {
+      "code": "6.7(C)",
+      "citation": "19 TAC §111.26(b)(7)(C)",
+      "course": "Grade 6, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to develop concepts of expressions and equations. The student is expected to:",
+      "text": "determine if two expressions are equivalent using concrete models, pictorial models, and algebraic representations; and",
+      "depth": "core",
+      "caveat": "Algebraic representations, and the pictorial model in the split-rectangle area form. Concrete manipulatives are outside what a browser game does, and are not claimed. The equivalence claim is enforced literally: the item verifier proves a distractor is *not* equivalent to the prompt before it is allowed on screen.",
+      "nodes": [
+        "like-terms",
+        "distribute"
+      ],
+      "evidence": [
+        "lt-equivalent",
+        "ds-factor",
+        "ds-area"
+      ],
+      "nodeDepth": {
+        "like-terms": "core",
+        "distribute": "supporting"
+      }
+    },
+    {
+      "code": "6.7(D)",
+      "citation": "19 TAC §111.26(b)(7)(D)",
+      "course": "Grade 6, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to develop concepts of expressions and equations. The student is expected to:",
+      "text": "generate equivalent expressions using the properties of operations: inverse, identity, commutative, associative, and distributive properties.",
+      "depth": "core",
+      "caveat": "The distributive, commutative and associative properties are what collecting like terms and expanding a bracket are made of, and both nodes gate on them. Inverse and identity are exercised inside the equation nodes rather than here.",
+      "nodes": [
+        "like-terms",
+        "distribute"
+      ],
+      "evidence": [
+        "lt-collect",
+        "lt-three",
+        "lt-four",
+        "lt-square",
+        "lt-perimeter",
+        "ds-expand",
+        "ds-negative",
+        "ds-twoterm",
+        "ds-share",
+        "ds-table"
+      ]
+    },
+    {
+      "code": "6.9(A)",
+      "citation": "19 TAC §111.26(b)(9)(A)",
+      "course": "Grade 6, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use equations and inequalities to represent situations. The student is expected to:",
+      "text": "write one-variable, one-step equations and inequalities to represent constraints or conditions within problems;",
+      "depth": "core",
+      "caveat": "Equations only. Level 1 does not treat inequalities anywhere, and the inequality half of this expectation is left to a later level.",
+      "nodes": [
+        "one-step-add"
+      ],
+      "evidence": [
+        "oa-model"
+      ]
+    },
+    {
+      "code": "6.10(A)",
+      "citation": "19 TAC §111.26(b)(10)(A)",
+      "course": "Grade 6, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use equations and inequalities to solve problems. The student is expected to:",
+      "text": "model and solve one-variable, one-step equations and inequalities that represent problems, including geometric concepts; and",
+      "depth": "core",
+      "caveat": "Equations only, and the geometric-concepts strand is out of scope at Level 1. `Model` is met by the beam form, which is a working balance the learner can act on, not a picture of one.",
+      "nodes": [
+        "one-step-add",
+        "one-step-mul"
+      ],
+      "evidence": [
+        "oa-symbolic",
+        "oa-context",
+        "oa-balance",
+        "oa-table",
+        "om-symbolic",
+        "om-context",
+        "om-balance",
+        "om-table",
+        "om-fraction",
+        "om-dispute"
+      ]
+    },
+    {
+      "code": "7.7",
+      "citation": "19 TAC §111.27(b)(7)",
+      "course": "Grade 7, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to represent linear relationships using multiple representations.",
+      "text": "The student is expected to represent linear relationships using verbal descriptions, tables, graphs, and equations that simplify to the form y = mx + b.",
+      "depth": "supporting",
+      "caveat": "This knowledge-and-skills statement has no lettered student expectations; the expectation is the sentence itself. It is the home of every Level 1 rule of the form mx + b that appears as a table, a trace or a verbal description — which is most of them, and which is why 6.6(C) is claimed so narrowly above. Level 1 supplies the table or the trace and asks the learner to read or complete it; the learner is not asked to construct one, so the producing half belongs to a later level.",
+      "nodes": [
+        "var-meaning",
+        "eval-expr",
+        "two-step"
+      ],
+      "evidence": [
+        "vm-table",
+        "ee-graph",
+        "ee-table",
+        "ee-context",
+        "ts-graph"
+      ]
+    },
+    {
+      "code": "7.10(A)",
+      "citation": "19 TAC §111.27(b)(10)(A)",
+      "course": "Grade 7, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use one-variable equations and inequalities to represent situations. The student is expected to:",
+      "text": "write one-variable, two-step equations and inequalities to represent constraints or conditions within problems;",
+      "depth": "core",
+      "caveat": "Equations only. The modelling form asks for the equation and stops there — the learner is scored on the equation, not on the answer it would give.",
+      "nodes": [
+        "two-step"
+      ],
+      "evidence": [
+        "ts-model"
+      ]
+    },
+    {
+      "code": "7.11(A)",
+      "citation": "19 TAC §111.27(b)(11)(A)",
+      "course": "Grade 7, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to solve one-variable equations and inequalities. The student is expected to:",
+      "text": "model and solve one-variable, two-step equations and inequalities;",
+      "depth": "core",
+      "caveat": "Equations only; the inequality half belongs to a later level.",
+      "nodes": [
+        "two-step",
+        "multi-step"
+      ],
+      "evidence": [
+        "ts-symbolic",
+        "ts-context",
+        "ts-fraction",
+        "ts-graph",
+        "ms-context",
+        "ms-table"
+      ],
+      "nodeDepth": {
+        "two-step": "core",
+        "multi-step": "supporting"
+      }
+    },
+    {
+      "code": "8.8(A)",
+      "citation": "19 TAC §111.28(b)(8)(A)",
+      "course": "Grade 8, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use one-variable equations or inequalities in problem situations. The student is expected to:",
+      "text": "write one-variable equations or inequalities with variables on both sides that represent problems using rational number coefficients and constants;",
+      "depth": "core",
+      "caveat": "Equations only. Coefficients and constants are integers and exact rationals; irrational coefficients never appear at Level 1, which is inside what this expectation asks for rather than outside it.",
+      "nodes": [
+        "both-sides"
+      ],
+      "evidence": [
+        "bs-context"
+      ]
+    },
+    {
+      "code": "8.8(C)",
+      "citation": "19 TAC §111.28(b)(8)(C)",
+      "course": "Grade 8, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use one-variable equations or inequalities in problem situations. The student is expected to:",
+      "text": "model and solve one-variable equations with variables on both sides of the equal sign that represent mathematical and real-world problems using rational number coefficients and constants; and",
+      "depth": "core",
+      "caveat": "The no-solution and infinitely-many-solutions cases are taught and gated here even though this expectation does not name them; TEKS leaves solution-set classification implicit, and Level 1 makes it explicit rather than skipping it.",
+      "nodes": [
+        "both-sides",
+        "multi-step"
+      ],
+      "evidence": [
+        "bs-symbolic",
+        "bs-collect",
+        "bs-bracket",
+        "bs-special",
+        "bs-context",
+        "bs-dispute",
+        "ms-collect"
+      ],
+      "nodeDepth": {
+        "both-sides": "core",
+        "multi-step": "supporting"
+      }
+    },
+    {
+      "code": "8.9",
+      "citation": "19 TAC §111.28(b)(9)",
+      "course": "Grade 8, Adopted 2012",
+      "domain": "Expressions, equations, and relationships",
+      "statement": "The student applies mathematical process standards to use multiple representations to develop foundational concepts of simultaneous linear equations.",
+      "text": "The student is expected to identify and verify the values of x and y that simultaneously satisfy two linear equations in the form y = mx + b from the intersections of the graphed equations.",
+      "depth": "introduced",
+      "caveat": "Touched, not met. The two-trace form asks where two lines cross and treats that crossing as the solution of a one-variable both-sides equation. Level 1 never writes a system, never solves one algebraically, and never asks for the y of the crossing. A later level completes this.",
+      "nodes": [
+        "both-sides"
+      ],
+      "evidence": [
+        "bs-graph"
+      ]
+    },
+    {
+      "code": "A.5(A)",
+      "citation": "19 TAC §111.39(c)(5)(A)",
+      "course": "Algebra I, Adopted 2012 (One Credit)",
+      "domain": "Linear functions, equations, and inequalities",
+      "statement": "The student applies the mathematical process standards to solve, with and without technology, linear equations and evaluate the reasonableness of their solutions. The student is expected to:",
+      "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+      "depth": "core",
+      "caveat": "This is the anchor standard for Level 1 and both of the hard cases it names by name are separately gated skills: `application of the distributive property is necessary` is the multi-step node, `variables are included on both sides` is the both-sides node. The proving run for each is three unassisted items at band 4 or above in forms the learner has practised least.",
+      "nodes": [
+        "one-step-add",
+        "one-step-mul",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "evidence": [
+        "oa-symbolic",
+        "om-symbolic",
+        "om-fraction",
+        "om-dispute",
+        "ts-symbolic",
+        "ts-fraction",
+        "ts-context",
+        "ms-bracket",
+        "ms-collect",
+        "ms-context",
+        "ms-fracbar",
+        "ms-dispute",
+        "ms-table",
+        "bs-symbolic",
+        "bs-collect",
+        "bs-bracket",
+        "bs-special",
+        "bs-context",
+        "bs-dispute"
+      ],
+      "nodeDepth": {
+        "one-step-add": "supporting",
+        "one-step-mul": "supporting",
+        "two-step": "supporting",
+        "multi-step": "core",
+        "both-sides": "core"
+      }
+    },
+    {
+      "code": "A.10(A)",
+      "citation": "19 TAC §111.39(c)(10)(A)",
+      "course": "Algebra I, Adopted 2012 (One Credit)",
+      "domain": "Number and algebraic methods",
+      "statement": "The student applies the mathematical process standards and algebraic methods to rewrite in equivalent forms and perform operations on polynomial expressions. The student is expected to:",
+      "text": "add and subtract polynomials of degree one and degree two;",
+      "depth": "core",
+      "caveat": "Degree one throughout. Degree two appears only where a squared term must be held apart from a linear one — Level 1 never adds two full quadratics, so the degree-two half is met partially.",
+      "nodes": [
+        "like-terms"
+      ],
+      "evidence": [
+        "lt-collect",
+        "lt-three",
+        "lt-four",
+        "lt-square",
+        "lt-perimeter",
+        "lt-table"
+      ]
+    },
+    {
+      "code": "A.10(B)",
+      "citation": "19 TAC §111.39(c)(10)(B)",
+      "course": "Algebra I, Adopted 2012 (One Credit)",
+      "domain": "Number and algebraic methods",
+      "statement": "The student applies the mathematical process standards and algebraic methods to rewrite in equivalent forms and perform operations on polynomial expressions. The student is expected to:",
+      "text": "multiply polynomials of degree one and degree two;",
+      "depth": "supporting",
+      "caveat": "A constant multiplied into a degree-one polynomial only. Multiplying two binomials is not taught at Level 1 and is not claimed.",
+      "nodes": [
+        "distribute"
+      ],
+      "evidence": [
+        "ds-expand",
+        "ds-twoterm"
+      ]
+    },
+    {
+      "code": "A.10(D)",
+      "citation": "19 TAC §111.39(c)(10)(D)",
+      "course": "Algebra I, Adopted 2012 (One Credit)",
+      "domain": "Number and algebraic methods",
+      "statement": "The student applies the mathematical process standards and algebraic methods to rewrite in equivalent forms and perform operations on polynomial expressions. The student is expected to:",
+      "text": "rewrite polynomial expressions of degree one and degree two in equivalent forms using the distributive property;",
+      "depth": "core",
+      "caveat": "Both directions. Expanding a bracket and pulling a common factor back out are the same expectation run forwards and backwards, and the factoring form is scored as an expression rather than a number so the learner has to produce the product, not recognise it.",
+      "nodes": [
+        "distribute",
+        "multi-step"
+      ],
+      "evidence": [
+        "ds-expand",
+        "ds-negative",
+        "ds-area",
+        "ds-twoterm",
+        "ds-share",
+        "ds-factor",
+        "ds-table",
+        "ms-bracket",
+        "ms-fracbar"
+      ],
+      "nodeDepth": {
+        "distribute": "core",
+        "multi-step": "supporting"
+      }
+    },
+    {
+      "code": "A.12(B)",
+      "citation": "19 TAC §111.39(c)(12)(B)",
+      "course": "Algebra I, Adopted 2012 (One Credit)",
+      "domain": "Number and algebraic methods",
+      "statement": "The student applies the mathematical process standards and algebraic methods to write, solve, analyze, and evaluate equations, relations, and functions. The student is expected to:",
+      "text": "evaluate functions, expressed in function notation, given one or more elements in their domains;",
+      "depth": "introduced",
+      "caveat": "FUNCTION NOTATION DOES NOT APPEAR AT LEVEL 1. What is met is the substitution half — a rule is evaluated at a given element of its domain, including negative elements and two-variable rules. The f(x) wrapper that this expectation names is a later level's job, and this entry is INTRODUCED for exactly that reason. The 2012 TEKS for grades 6–8 contain no student expectation whose object is evaluating an algebraic expression at a value; it lives inside 7.7's multiple representations and inside this expectation's function notation, and nowhere else. That is a gap in the standard, not a gap in this alignment, and it is why eval-expr carries no TEKS entry at depth `core`.",
+      "nodes": [
+        "var-meaning",
+        "eval-expr"
+      ],
+      "evidence": [
+        "vm-groups",
+        "vm-position",
+        "vm-table",
+        "vm-compose",
+        "ee-linear",
+        "ee-two-var",
+        "ee-fraction",
+        "ee-square",
+        "ee-context"
+      ]
+    }
+  ],
+  "processStandards": [
+    {
+      "code": "A.1(A)",
+      "citation": "19 TAC §111.39(c)(1)(A)",
+      "text": "apply mathematics to problems arising in everyday life, society, and the workplace;",
+      "ccss": [
+        "MP.4"
+      ],
+      "met": "full",
+      "nodes": [
+        "var-meaning",
+        "eval-expr",
+        "order-ops",
+        "like-terms",
+        "distribute",
+        "one-step-add",
+        "one-step-mul",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "Every skill carries a contextual form, and the mastery gate cannot be cleared without passing at least one modelling item that walks between a situation and the algebra."
+    },
+    {
+      "code": "A.1(B)",
+      "citation": "19 TAC §111.39(c)(1)(B)",
+      "text": "use a problem-solving model that incorporates analyzing given information, formulating a plan or strategy, determining a solution, justifying the solution, and evaluating the problem-solving process and the reasonableness of the solution;",
+      "ccss": [
+        "MP.1"
+      ],
+      "met": "partial",
+      "nodes": [
+        "one-step-add",
+        "one-step-mul",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "The worked echo makes the plan visible as a sequence of justified moves, and fades as competence shows. The learner is not asked to write the plan out, so the `justifying` and `evaluating` stages are modelled and recognised rather than composed."
+    },
+    {
+      "code": "A.1(C)",
+      "citation": "19 TAC §111.39(c)(1)(C)",
+      "text": "select tools, including real objects, manipulatives, paper and pencil, and technology as appropriate, and techniques, including mental math, estimation, and number sense as appropriate, to solve problems;",
+      "ccss": [],
+      "met": "partial",
+      "nodes": [
+        "one-step-add",
+        "one-step-mul",
+        "distribute"
+      ],
+      "how": "The balance beam and the split rectangle are working manipulatives, not illustrations. But the rift chooses which one appears — the learner does not select it. The selection half of this process standard is not met by Level 1 and is not claimed. The CCSS map does not claim MP.5 either, for the same reason, so there is nothing to cross-reference."
+    },
+    {
+      "code": "A.1(D)",
+      "citation": "19 TAC §111.39(c)(1)(D)",
+      "text": "communicate mathematical ideas, reasoning, and their implications using multiple representations, including symbols, diagrams, graphs, and language as appropriate;",
+      "ccss": [
+        "MP.2",
+        "MP.6"
+      ],
+      "met": "full",
+      "nodes": [
+        "var-meaning",
+        "eval-expr",
+        "order-ops",
+        "like-terms",
+        "distribute",
+        "one-step-add",
+        "one-step-mul",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "Every node declares the representations its gate demands, and the proving run refuses to close until it has spanned two of them with at least one not symbolic. All notation is strict KaTeX, in the reader's own operator conventions."
+    },
+    {
+      "code": "A.1(E)",
+      "citation": "19 TAC §111.39(c)(1)(E)",
+      "text": "create and use representations to organize, record, and communicate mathematical ideas;",
+      "ccss": [
+        "MP.4"
+      ],
+      "met": "partial",
+      "nodes": [
+        "one-step-add",
+        "two-step"
+      ],
+      "how": "The modelling forms ask the learner to create the symbolic representation of a situation and are scored on the equation itself. Tables and graphs are supplied for reading rather than created, so the `create` half is met in symbols only."
+    },
+    {
+      "code": "A.1(F)",
+      "citation": "19 TAC §111.39(c)(1)(F)",
+      "text": "analyze mathematical relationships to connect and communicate mathematical ideas;",
+      "ccss": [
+        "MP.7",
+        "MP.8"
+      ],
+      "met": "full",
+      "nodes": [
+        "like-terms",
+        "distribute",
+        "two-step",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "Table forms make a rule visible across rows before it is written symbolically; the factoring form asks the learner to see a sum as a product; the special-case form asks what kind of statement is left once the unknown has vanished."
+    },
+    {
+      "code": "A.1(G)",
+      "citation": "19 TAC §111.39(c)(1)(G)",
+      "text": "display, explain, and justify mathematical ideas and arguments using precise mathematical language in written or oral communication.",
+      "ccss": [
+        "MP.3"
+      ],
+      "met": "partial",
+      "nodes": [
+        "order-ops",
+        "one-step-mul",
+        "multi-step",
+        "both-sides"
+      ],
+      "how": "The dispute forms put two contradictory chains of reasoning side by side and ask which is sound; every wrong chain is a named misconception rather than a random slip. The learner decides and is shown why, but does not compose the justification in their own words. The written-and-oral half of this process standard is a teacher's job, not the game's, and is not claimed."
+    }
+  ],
+  "gaps": [
+    {
+      "node": "eval-expr",
+      "finding": "No TEKS student expectation at depth `core`.",
+      "why": "The 2012 TEKS name no student expectation whose object is \"evaluate an algebraic expression at a given value\" anywhere in grades 6–8. The skill is exercised inside 7.7 (a linear relationship shown as a table, a graph and a verbal description) and named only at A.12(B), where it is wrapped in function notation that Level 1 does not use. Level 1 therefore claims 7.7 as SUPPORTING and A.12(B) as INTRODUCED, and claims nothing as core.",
+      "resolution": "Reported rather than papered over. The CCSS side of this node is core (6.EE.A.2.C), so the skill is not unaligned — it is a place where the two frameworks genuinely differ."
+    },
+    {
+      "node": "var-meaning",
+      "finding": "6.6(C) is claimed only for the y = kx forms.",
+      "why": "6.6(C) names the forms y = kx and y = x + b and nothing else. Level 1 items whose rule is mx + b are cited at 7.7 instead. A vendor sheet that cited 6.6(C) for every table in this level would be overclaiming.",
+      "resolution": "Split deliberately; see the caveat on each entry."
+    },
+    {
+      "node": "all",
+      "finding": "Two of the seven Algebra I process standards are marked `partial`.",
+      "why": "A.1(C) asks the student to SELECT tools; Level 1 chooses the balance beam or the area model for them. A.1(G) asks for justification in written or oral communication; Level 1 asks the learner to decide which of two chains of reasoning is sound, and does not collect prose.",
+      "resolution": "Marked `met: \"partial\"` in processStandards with the missing half named. Not counted as full coverage anywhere in this document or in the game."
+    },
+    {
+      "node": "order-ops",
+      "noAlgebraExpectation": true,
+      "finding": "No §111.39 content expectation of any kind.",
+      "why": "The 2012 TEKS place order of operations at 6.7(A) and never restate it in Algebra I. There is no Algebra I student expectation this skill could honestly be cited against — A.11(B) is the laws of exponents, which is a different thing, and citing it here would be an overclaim.",
+      "resolution": "order-ops carries 6.7(A) as CORE and the Algebra I process standards A.1(A), A.1(D) and A.1(G). No §111.39 content citation is made, and this entry is why the build gate lets that pass."
+    }
+  ]
+}

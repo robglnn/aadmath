@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import './build.css';
 import { t } from '../i18n/index.js';
-import { CELL, KINDS, SPEC, originY, surfaceAt, clamp } from './pieces.js';
+import { CELL, KINDS, BASE_KINDS, SHARD_COST, SPEC, originY, surfaceAt, clamp } from './pieces.js';
 import { Solids } from './solids.js';
 import { Lattice } from './lattice.js';
 import { Ghost } from './ghost.js';
@@ -23,8 +23,22 @@ import { Manipulatives } from './manipulative.js';
  * becomes the area model of the product. You are not shown a diagram — you
  * build the diagram, out of the thing you were already building with.
  */
-const MAX_CHARGE = 120;
-const REGEN = 26;
+/**
+ * WHAT THE LATTICE COSTS, AND WHY IT IS NOT FREE.
+ *
+ * The reserve used to hold eleven ramps and refill itself in four seconds, from
+ * the first frame of a new save, for ever. That made the entire build sandbox —
+ * the game's second verb — something a player owned before answering a single
+ * question, which is the exact failure the brief names: the mathematics bought
+ * prose while the capability was handed over anyway.
+ *
+ * So the starting reserve is a working reserve, not a generous one: enough to
+ * rush a stair, not enough to bridge a canyon without thinking. `DEEP RESERVE`
+ * (the third sealed line, src/kit/kit.js) more than doubles both numbers, and a
+ * player feels that the moment they hold the trigger down.
+ */
+const MAX_CHARGE = 78;
+const REGEN = 16;
 const REPEAT = 0.135;
 const EYE = 1.62;
 
@@ -37,9 +51,19 @@ export class Builder {
     this.groundAt = opts.groundAt || (() => null);
 
     this.slot = 0;
+    this.maxCharge = MAX_CHARGE;
+    this.regen = REGEN;
     this.charge = MAX_CHARGE;
     this.active = true;
     this.placedCount = 0;
+
+    // What the cadet is allowed to set. The kit (src/kit/kit.js) opens the rest
+    // of this list as lines are sealed; nothing else in the build system knows
+    // or cares that a kind can be locked.
+    this.allowed = new Set(BASE_KINDS);
+    // The shard ledger, handed over by main.js. A kit piece is paid for out of
+    // the mathematics, not out of thin air.
+    this.wallet = { count: () => 0, spend: () => false };
 
     this.solids = new Solids(this.groundAt);
     this.solids.feet = () => this.player.pos.y;
@@ -148,9 +172,14 @@ export class Builder {
 
   setSlot(i) {
     const n = ((i % KINDS.length) + KINDS.length) % KINDS.length;
+    if (!this.allowed.has(KINDS[n])) return false;
     if (n !== this.slot) this.arm();
     this.slot = n;
+    return true;
   }
+
+  /** Open a kind for good. Called by the kit when a line is sealed. */
+  allow(kind) { if (KINDS.includes(kind)) this.allowed.add(kind); }
 
   get kind() { return KINDS[this.slot]; }
 
@@ -223,8 +252,12 @@ export class Builder {
     tg.y = originY(kind, base);
     tg.cost = cost;
 
+    tg.shards = SHARD_COST[kind] || 0;
     if (!free) { tg.valid = false; tg.reason = 'occupied'; return tg; }
     if (this.charge < cost) { tg.valid = false; tg.reason = 'charge'; return tg; }
+    if (tg.shards && this.wallet.count() < tg.shards) {
+      tg.valid = false; tg.reason = 'shards'; return tg;
+    }
     tg.valid = this._founded(gx, gz, base, ground);
     tg.reason = tg.valid ? '' : 'support';
     return tg;
@@ -284,6 +317,9 @@ export class Builder {
     this.arm();
     const tg = this.target();
     if (!tg.valid) return { ok: false, reason: tg.reason };
+    // A kit piece is bought, not conjured. The charge is spent below; the
+    // shards are spent here, and if the ledger refuses, nothing else happens.
+    if (tg.shards && !this.wallet.spend(tg.shards)) return { ok: false, reason: 'shards' };
     const g = this._groundBase(tg.x, tg.z);
     const piece = {
       kind: tg.kind, x: tg.x, y: tg.y, z: tg.z, yaw: tg.yaw,
@@ -302,11 +338,15 @@ export class Builder {
 
   remove(piece) {
     if (!piece || piece.dead) return false;
+    // Some structure in this world is not the cadet's to unmake: the perches
+    // the caches stand on are registered with the same collider so that they are
+    // real ground, and clearing one out from under yourself is not a verb.
+    if (piece.fixed) { this.hud?.flash(t('build.fixed'), 'bad'); return false; }
     this.arm();
     this.solids.remove(piece);
     this.lattice.kill(piece);
     this.man?.onRemoved(piece);
-    this.charge = Math.min(MAX_CHARGE, this.charge + SPEC[piece.kind].cost * 0.65);
+    this.charge = Math.min(this.maxCharge, this.charge + SPEC[piece.kind].cost * 0.65);
     this._feel(0.035, 0.2, 30);
     return true;
   }
@@ -330,8 +370,8 @@ export class Builder {
 
     // charge regenerates on a short leash so a burst of building costs rhythm
     this._chargeHold = Math.max(0, (this._chargeHold || 0) - dt);
-    if (!this._chargeHold && this.charge < MAX_CHARGE) {
-      this.charge = Math.min(MAX_CHARGE, this.charge + REGEN * dt);
+    if (!this._chargeHold && this.charge < this.maxCharge) {
+      this.charge = Math.min(this.maxCharge, this.charge + this.regen * dt);
     }
 
     this._armT = Math.max(0, (this._armT || 0) - dt);
@@ -368,6 +408,7 @@ export class Builder {
         this._repeat = REPEAT;
         if (!r.ok && pressed) {
           this.hud?.flash(t(r.reason === 'charge' ? 'build.noCharge'
+            : r.reason === 'shards' ? 'build.noShards'
             : r.reason === 'occupied' ? 'build.alreadyThere' : 'build.denied'), 'bad');
         }
       }
@@ -399,13 +440,13 @@ export class Builder {
   }
 
   _paint(on, armed) {
-    const pctv = this.charge / MAX_CHARGE;
+    const pctv = this.charge / this.maxCharge;
     if (Math.abs(pctv - this._chargeShown) > 0.004) {
       this._chargeShown = pctv;
       this.elBar.style.transform = `scaleX(${pctv.toFixed(3)})`;
-      this.elGauge.classList.toggle('low', pctv < SPEC[this.kind].cost / MAX_CHARGE);
+      this.elGauge.classList.toggle('low', pctv < SPEC[this.kind].cost / this.maxCharge);
     }
-    const n = this.solids.count;
+    const n = this.solids.owned;
     if (this._nShown !== n) { this._nShown = n; this.elCount.textContent = String(n); }
     this.elRoot.classList.toggle('show', on);
     this.elRoot.classList.toggle('armed', !!armed);

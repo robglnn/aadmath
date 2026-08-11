@@ -119,7 +119,32 @@
           "id": "sign-slip",
           "text": "Loses a minus sign on the way through."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "6.6(C)",
+          "citation": "19 TAC §111.26(b)(6)(C)",
+          "text": "represent a given situation using verbal descriptions, tables, graphs, and equations in the form y = kx or y = x + b.",
+          "depth": "core"
+        },
+        {
+          "code": "7.7",
+          "citation": "19 TAC §111.27(b)(7)",
+          "text": "The student is expected to represent linear relationships using verbal descriptions, tables, graphs, and equations that simplify to the form y = mx + b.",
+          "depth": "supporting"
+        },
+        {
+          "code": "A.12(B)",
+          "citation": "19 TAC §111.39(c)(12)(B)",
+          "text": "evaluate functions, expressed in function notation, given one or more elements in their domains;",
+          "depth": "introduced"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(D)"
+      ],
+      "teksNote": "TEKS has no grade 6–8 student expectation that says \"a letter stands for a number\" on its own; the idea is presupposed by 6.6(C) and named only at Algebra I inside A.12(B). Level 1 therefore claims 6.6(C) for the forms that record a described situation in algebra, and A.12(B) as INTRODUCED for the forms that evaluate a rule at a given value — with function notation absent, which is why the depth is introduced and not core."
     },
     {
       "id": "eval-expr",
@@ -196,7 +221,26 @@
           "id": "partial-rule",
           "text": "Substitutes and multiplies but never adds the constant on."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "7.7",
+          "citation": "19 TAC §111.27(b)(7)",
+          "text": "The student is expected to represent linear relationships using verbal descriptions, tables, graphs, and equations that simplify to the form y = mx + b.",
+          "depth": "supporting"
+        },
+        {
+          "code": "A.12(B)",
+          "citation": "19 TAC §111.39(c)(12)(B)",
+          "text": "evaluate functions, expressed in function notation, given one or more elements in their domains;",
+          "depth": "introduced"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(D)"
+      ],
+      "teksNote": "The same seam as var-meaning: 6.6(C) and 7.7 cover the table and trace forms, where a linear relationship is presented in more than one representation, and A.12(B) covers substitution at an element of the domain. Function notation is absent at Level 1, so A.12(B) is INTRODUCED."
     },
     {
       "id": "order-ops",
@@ -264,7 +308,21 @@
           "id": "arith-slip",
           "text": "Correct precedence, wrong arithmetic."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "6.7(A)",
+          "citation": "19 TAC §111.26(b)(7)(A)",
+          "text": "generate equivalent numerical expressions using order of operations, including whole number exponents and prime factorization;",
+          "depth": "core"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(D)",
+        "A.1(G)"
+      ],
+      "teksNote": "TEKS places order of operations squarely in grade 6, at 6.7(A), and does not restate it in Algebra I. The whole-number-exponent half is taught here; the prime-factorization half of 6.7(A) is not, and is not claimed."
     },
     {
       "id": "like-terms",
@@ -331,7 +389,33 @@
           "id": "arith-slip",
           "text": "Multiplies the coefficients instead of adding them, or slips a digit."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "6.7(C)",
+          "citation": "19 TAC §111.26(b)(7)(C)",
+          "text": "determine if two expressions are equivalent using concrete models, pictorial models, and algebraic representations; and",
+          "depth": "core"
+        },
+        {
+          "code": "6.7(D)",
+          "citation": "19 TAC §111.26(b)(7)(D)",
+          "text": "generate equivalent expressions using the properties of operations: inverse, identity, commutative, associative, and distributive properties.",
+          "depth": "core"
+        },
+        {
+          "code": "A.10(A)",
+          "citation": "19 TAC §111.39(c)(10)(A)",
+          "text": "add and subtract polynomials of degree one and degree two;",
+          "depth": "core"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(D)",
+        "A.1(F)"
+      ],
+      "teksNote": "Collecting like terms is 6.7(D) as a property-of-operations claim in grade 6, and A.10(A) as a polynomial-arithmetic claim in Algebra I. The equivalence-judgement form is 6.7(C). Degree two appears only as a squared term held apart from a linear one."
     },
     {
       "id": "distribute",
@@ -398,7 +482,40 @@
           "id": "partial-rule",
           "text": "Opens the bracket on the first term and stops."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "6.7(C)",
+          "citation": "19 TAC §111.26(b)(7)(C)",
+          "text": "determine if two expressions are equivalent using concrete models, pictorial models, and algebraic representations; and",
+          "depth": "supporting"
+        },
+        {
+          "code": "6.7(D)",
+          "citation": "19 TAC §111.26(b)(7)(D)",
+          "text": "generate equivalent expressions using the properties of operations: inverse, identity, commutative, associative, and distributive properties.",
+          "depth": "core"
+        },
+        {
+          "code": "A.10(B)",
+          "citation": "19 TAC §111.39(c)(10)(B)",
+          "text": "multiply polynomials of degree one and degree two;",
+          "depth": "supporting"
+        },
+        {
+          "code": "A.10(D)",
+          "citation": "19 TAC §111.39(c)(10)(D)",
+          "text": "rewrite polynomial expressions of degree one and degree two in equivalent forms using the distributive property;",
+          "depth": "core"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(C)",
+        "A.1(D)",
+        "A.1(F)"
+      ],
+      "teksNote": "A.10(D) is the Algebra I home for this node in both directions — expanding a bracket and pulling a common factor back out. 6.7(D) is the grade 6 foundation, 6.7(C) covers the factoring form as an equivalence judgement, and A.10(B) is claimed as SUPPORTING because only a constant is multiplied into a polynomial here."
     },
     {
       "id": "one-step-add",
@@ -462,7 +579,35 @@
           "id": "arith-slip",
           "text": "Right move, wrong arithmetic on the undo step."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "6.9(A)",
+          "citation": "19 TAC §111.26(b)(9)(A)",
+          "text": "write one-variable, one-step equations and inequalities to represent constraints or conditions within problems;",
+          "depth": "core"
+        },
+        {
+          "code": "6.10(A)",
+          "citation": "19 TAC §111.26(b)(10)(A)",
+          "text": "model and solve one-variable, one-step equations and inequalities that represent problems, including geometric concepts; and",
+          "depth": "core"
+        },
+        {
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+          "depth": "supporting"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(B)",
+        "A.1(C)",
+        "A.1(D)",
+        "A.1(E)"
+      ],
+      "teksNote": "The grade 6 pair: 6.9(A) for the form that asks for the equation and stops there, 6.10(A) for the forms that solve one. A.5(A) is claimed as SUPPORTING at this node — the one-step case is the bottom of the ladder that ends at A.5(A), not the standard itself."
     },
     {
       "id": "one-step-mul",
@@ -526,7 +671,29 @@
           "id": "arith-slip",
           "text": "Right move, wrong arithmetic on the division."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "6.10(A)",
+          "citation": "19 TAC §111.26(b)(10)(A)",
+          "text": "model and solve one-variable, one-step equations and inequalities that represent problems, including geometric concepts; and",
+          "depth": "core"
+        },
+        {
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+          "depth": "supporting"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(B)",
+        "A.1(C)",
+        "A.1(D)",
+        "A.1(G)"
+      ],
+      "teksNote": "6.10(A) is core here. A.5(A) is claimed as SUPPORTING: dividing a coefficient off both sides is the move A.5(A) presumes, met at the one-step level."
     },
     {
       "id": "two-step",
@@ -608,7 +775,41 @@
           "id": "collect-wrong-side",
           "text": "Moves a term across the equals sign without flipping its sign."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "7.7",
+          "citation": "19 TAC §111.27(b)(7)",
+          "text": "The student is expected to represent linear relationships using verbal descriptions, tables, graphs, and equations that simplify to the form y = mx + b.",
+          "depth": "supporting"
+        },
+        {
+          "code": "7.10(A)",
+          "citation": "19 TAC §111.27(b)(10)(A)",
+          "text": "write one-variable, two-step equations and inequalities to represent constraints or conditions within problems;",
+          "depth": "core"
+        },
+        {
+          "code": "7.11(A)",
+          "citation": "19 TAC §111.27(b)(11)(A)",
+          "text": "model and solve one-variable, two-step equations and inequalities;",
+          "depth": "core"
+        },
+        {
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+          "depth": "supporting"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(B)",
+        "A.1(D)",
+        "A.1(E)",
+        "A.1(F)"
+      ],
+      "teksNote": "The grade 7 pair, exactly: 7.10(A) for writing the two-step equation and 7.11(A) for solving it. 7.7 covers the trace form. A.5(A) is SUPPORTING — the two-step case is Algebra I readiness rather than the Algebra I standard."
     },
     {
       "id": "multi-step",
@@ -674,7 +875,41 @@
           "id": "arith-slip",
           "text": "Right chain of moves, wrong arithmetic somewhere along it."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "7.11(A)",
+          "citation": "19 TAC §111.27(b)(11)(A)",
+          "text": "model and solve one-variable, two-step equations and inequalities;",
+          "depth": "supporting"
+        },
+        {
+          "code": "8.8(C)",
+          "citation": "19 TAC §111.28(b)(8)(C)",
+          "text": "model and solve one-variable equations with variables on both sides of the equal sign that represent mathematical and real-world problems using rational number coefficients and constants; and",
+          "depth": "supporting"
+        },
+        {
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+          "depth": "core"
+        },
+        {
+          "code": "A.10(D)",
+          "citation": "19 TAC §111.39(c)(10)(D)",
+          "text": "rewrite polynomial expressions of degree one and degree two in equivalent forms using the distributive property;",
+          "depth": "supporting"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(B)",
+        "A.1(D)",
+        "A.1(F)",
+        "A.1(G)"
+      ],
+      "teksNote": "This node is the first half of A.5(A) by name — \"those for which the application of the distributive property is necessary\". 7.11(A) and 8.8(C) are the grade-level foundations, and A.10(D) is exercised inside every bracketed item."
     },
     {
       "id": "both-sides",
@@ -752,7 +987,50 @@
           "id": "coefficient-sign-lost",
           "text": "Collects the unknown onto one side and drops the sign of its coefficient."
         }
-      ]
+      ],
+      "teks": [
+        {
+          "code": "8.8(A)",
+          "citation": "19 TAC §111.28(b)(8)(A)",
+          "text": "write one-variable equations or inequalities with variables on both sides that represent problems using rational number coefficients and constants;",
+          "depth": "core"
+        },
+        {
+          "code": "8.8(C)",
+          "citation": "19 TAC §111.28(b)(8)(C)",
+          "text": "model and solve one-variable equations with variables on both sides of the equal sign that represent mathematical and real-world problems using rational number coefficients and constants; and",
+          "depth": "core"
+        },
+        {
+          "code": "8.9",
+          "citation": "19 TAC §111.28(b)(9)",
+          "text": "The student is expected to identify and verify the values of x and y that simultaneously satisfy two linear equations in the form y = mx + b from the intersections of the graphed equations.",
+          "depth": "introduced"
+        },
+        {
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+          "depth": "core"
+        }
+      ],
+      "teksPractices": [
+        "A.1(A)",
+        "A.1(B)",
+        "A.1(D)",
+        "A.1(F)",
+        "A.1(G)"
+      ],
+      "teksNote": "This node is the second half of A.5(A) by name — \"those for which variables are included on both sides\" — with 8.8(A) and 8.8(C) as the grade 8 foundations. The two-trace form touches 8.9 as INTRODUCED only: the crossing is read as the solution of a one-variable equation, never solved as a system."
     }
-  ]
+  ],
+  "frameworks": [
+    "CCSS-M",
+    "TEKS"
+  ],
+  "standardsMaps": {
+    "ccss": "content/standards/ccss-algebra1-l1.json",
+    "teks": "content/standards/teks-algebra1-l1.json",
+    "readable": "content/STANDARDS.md"
+  }
 }

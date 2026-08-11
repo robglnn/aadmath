@@ -53,6 +53,27 @@ export class Rite {
     this._live = null;
   }
 
+  /** Is the rite holding the frame right now? */
+  get playing() { return this.el.classList.contains('show'); }
+
+  /**
+   * Take the promotion off this surface and hand it to another one.
+   *
+   * A rank is a thing that happened, and the rite is only one way of saying so.
+   * When a run ends on the answer that bought the rank, the close card composes
+   * the promotion into itself — it is the record of what the run achieved, and
+   * a promotion is the largest thing on that list. Two full-screen ceremonies
+   * at once is the one thing that cannot happen, and the résumé is the better
+   * of the two places to put it, so the rite gives it up rather than fights for
+   * the frame. Returns null when there is nothing to give.
+   */
+  claim() {
+    const live = this._live;
+    if (!live) return null;
+    this.hide();
+    return { to: live.to, from: live.from };
+  }
+
   /**
    * @param {number} to rank index gained
    * @param {number} from previous index, or -1 for a standing declaration

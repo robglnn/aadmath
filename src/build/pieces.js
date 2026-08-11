@@ -13,7 +13,15 @@
  */
 
 export const CELL = 4;                 // metres per lattice cell
-export const KINDS = ['wall', 'ramp', 'floor', 'beam'];
+/**
+ * The fifth kind, `vault`, is not in the cadet's hands at the start of the game.
+ * It is the first thing a sealed line buys (src/kit/kit.js), and it is the
+ * reason the hotbar grows: a plate you stand on that throws you twenty metres
+ * straight up. Everything in this file treats it as an ordinary deck — it is
+ * founded, collided and stood on exactly like a floor — because the *capability*
+ * is what the unlock hands over, not a new set of rules to learn.
+ */
+export const KINDS = ['wall', 'ramp', 'floor', 'beam', 'vault'];
 
 /**
  * `lo`/`hi` are the vertical span relative to the piece origin; `hx`/`hz` the
@@ -25,7 +33,26 @@ export const SPEC = {
   floor: { hx: 2.0, hz: 2.0,  lo: -0.18, hi: 0.18, cost: 9,  drop: 0.0 },
   beam:  { hx: 2.0, hz: 0.34, lo: -0.24, hi: 0.24, cost: 7,  drop: 2.2 },
   ramp:  { hx: 2.0, hz: 2.0,  lo: 0.0,   hi: 4.0,  cost: 11, drop: 0.0 },
+  // The vault plate. A deck by every rule the collider knows, plus a launch it
+  // spends shards on — see SHARD_COST and src/kit/kit.js.
+  vault: { hx: 2.0, hz: 2.0,  lo: -0.18, hi: 0.22, cost: 10, drop: 0.0 },
 };
+
+/**
+ * What a piece costs in *shards* on top of lattice charge.
+ *
+ * Charge is the rhythm of building; shards are the mathematics. A kit piece is
+ * paid for out of the same ledger correct answers fill, which is what stops the
+ * best tool in the game from being free.
+ *
+ * The number is a *starting* price and the kit rewrites it: eighteen when the
+ * plate is first held, six once PLATE ARRAY is (src/kit/kit.js). Read it, never
+ * cache it — a price that changes is the point.
+ */
+export const SHARD_COST = { vault: 18 };
+
+/** Pieces the cadet has before he has proved anything. */
+export const BASE_KINDS = ['wall', 'ramp', 'floor', 'beam'];
 
 /** Where a piece origin goes, given the level its base sits on. */
 export function originY(kind, base) {

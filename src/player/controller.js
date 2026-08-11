@@ -114,10 +114,13 @@ export class Player {
 
     // ---------------- wish direction ----------------
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+    // Camera-relative basis. Forward is (fx, 0, fz); screen-right is
+    // cross(forward, up) = (-fz, 0, fx). Using (fz, 0, -fx) here is the LEFT
+    // vector, which silently swapped A and D for the whole project.
     const wish = this._wish.set(
-      fz * inp.move.x + fx * inp.move.y,
+      -fz * inp.move.x + fx * inp.move.y,
       0,
-      -fx * inp.move.x + fz * inp.move.y,
+      fx * inp.move.x + fz * inp.move.y,
     );
     const wishMag = clamp(inp.moveMag || wish.length(), 0, 1);
     if (wish.lengthSq() > 1e-6) wish.normalize();
@@ -195,8 +198,11 @@ export class Player {
     this.dashW = damp(this.dashW, L.dashT > 0 ? 1 : 0, L.dashT > 0 ? 30 : 9, dt);
 
     // ---------------- animation ----------------
+    // Velocity in the body's own frame. X is along body-right (-cf, 0, sf) and
+    // Z along body-forward (sf, 0, cf) — the same handedness the wish vector
+    // uses, so a strafe leans the way the cadet is actually travelling.
     this._localVel.set(
-      this.vel.x * cf - this.vel.z * sf,
+      -this.vel.x * cf + this.vel.z * sf,
       this.vel.y,
       this.vel.x * sf + this.vel.z * cf,
     );

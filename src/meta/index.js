@@ -28,6 +28,24 @@
  * voice, and repaints the rank word on the rig so the chip and the story can
  * never disagree.
  *
+ * WHO OWNS THE FRAME. Two of the beats here take the whole screen — the rite
+ * and the chapter plate — and so do three beats in src/session, which knows
+ * nothing about this file and must not have to. Both of these are type over a
+ * deliberately semi-transparent dim, because the world has to stay in frame, so
+ * two of them at once do not stack: they composite, and the words print through
+ * each other. Stacking order cannot fix that; there is no opaque layer to
+ * raise. So neither beat here fires on its own clock any more. Both queue, and
+ * the queue drains only when the frame is free — `frameGuard()` is the standing
+ * answer to "is somebody else holding it", set by whoever else can hold it
+ * (`setFrameGuard`, used by src/session). A ceremony that arrives while the
+ * frame is held waits for it rather than paints through it.
+ *
+ * One beat does not wait: a promotion earned on the last answer of a run, which
+ * the close card takes off this file with `claimRite()` and composes into
+ * itself. Queueing that one would have played the rank rite *after* the résumé
+ * that already lists the rank — a ceremony for something the learner had just
+ * finished reading about.
+ *
  * Wiring cost in main.js: create it, tick it, expose it.
  */
 import './meta.css';
@@ -43,6 +61,9 @@ import { Rite } from './rite.js';
 import { Turn } from './turn.js';
 import { Dossier } from './dossier.js';
 import { createStandard } from './standard.js';
+import {
+  STAGES, MILESTONES, stageIndex, registerFor, canTutor, bankKey, milestoneCrossed, milestoneKey,
+} from './voice.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 
 const SAVE_KEY = 'ascent.story';
@@ -87,11 +108,27 @@ export function createStory({
   let streak = 0;
   let idle = 0;
   let poll = 0;
+  let watchPoll = 0;
   let started = 0;
   let override = -1;
+  /* The two beats that take the whole screen never fire on their own clock —
+     they queue here, and `update()` drains the queue only when the frame is
+     free. See the header: two full-screen ceremonies composite rather than
+     stack, so "later" is the only correct answer to "may I play now". */
   let pendingRite = null;
+  const pendingTurns = [];
+  /** Set by whoever else can hold the whole frame (src/session). */
+  let frameGuard = () => false;
+  /** Is any full-screen beat, here or elsewhere, holding the frame? */
+  const frameHeld = () => rite.playing || turn.playing || dossier.open || frameGuard();
   let metRift = seen.has('story.voice.firstRift');
   let lastSkill = null;
+  // How far up the voice ladder this cadet has ever been. Persisted, and only
+  // ever raised: a demoted line, a re-derived standing or a critic driving the
+  // state downward must never make Marlow start explaining things again.
+  let peak = Math.max(0, Math.min(STAGES.length - 1, saved.peak | 0));
+  let misses = 0;          // consecutive slips — feeds the slump/recover beats
+  let slumped = false;
 
   recompute(false);
   shownRank = rank;
@@ -140,7 +177,7 @@ export function createStory({
   const rawFall = player.onFall;
   player.onFall = (...a) => {
     rawFall?.(...a);
-    comms.sayKey('story.voice.fall', { cooldown: 40 });
+    comms.push(pick(vk('fall')), { tag: 'fall', cooldown: 40 });
   };
 
   // -------------------------------------------------------------------------
@@ -148,7 +185,8 @@ export function createStory({
   // -------------------------------------------------------------------------
   function begin() {
     if (returning) {
-      setTimeout(() => comms.sayKey('story.voice.returning'), 1400);
+      // What "welcome back" sounds like depends entirely on who is coming back.
+      setTimeout(() => comms.push(pick(vk('returning')), { tag: 'returning', force: true }), 1400);
       cold.end();
       return;
     }
@@ -161,6 +199,47 @@ export function createStory({
   }
 
   function endOpening() { cold.end(); }
+
+  // -------------------------------------------------------------------------
+  // Where the cadet is.
+  //
+  // Every ambient line Marlow says is looked up through `vk()`, so there is
+  // exactly one place in this file that decides which of the four registers is
+  // speaking, and exactly one predicate — `mayTutor()` — that permits an
+  // explanation. See `voice.js` for the ladder and the ratchet.
+  // -------------------------------------------------------------------------
+  function voiceState() {
+    return { tears, lines, chapter, rankIndex: shownRank, integrity: mastery.integrity() };
+  }
+
+  /** Raise the ratchet to whatever the current state has earned. Never lowers. */
+  function liftPeak() {
+    const i = stageIndex(voiceState());
+    if (i > peak) { peak = i; return true; }
+    return false;
+  }
+
+  /** The register Marlow is speaking in right now. */
+  function reg() { return registerFor(voiceState(), peak); }
+
+  /** One ambient bank, in the register this cadet has earned. */
+  function vk(bank) { return bankKey(bank, reg()); }
+
+  /**
+   * May Marlow explain a basic? Only to somebody who has provably done none of
+   * them — nothing sealed, no line held, no rank, no chapter turned, and
+   * nothing in the ratchet. This is the whole guard; there is no second path.
+   */
+  function mayTutor() { return canTutor(voiceState(), peak); }
+
+  /**
+   * The first-seal beat, which names the Standard. Distinct from `mayTutor()`
+   * only because by the time it is asked the seal is already counted, so the
+   * honest test is "is this the first one", not "have you sealed nothing".
+   */
+  function mayFirstSeal() {
+    return !seen.has('story.voice.firstSeal') && tears <= 1 && lines === 0 && peak <= 1;
+  }
 
   // -------------------------------------------------------------------------
   // The two clocks: tears → chapter, standing → rank
@@ -191,11 +270,46 @@ export function createStory({
       const ch = chapterFor(tears);
       if (ch > chapter) turnChapter(ch);
     }
+    liftPeak();
+    // Past the last chapter the arc used to have nothing left to say, and a
+    // cadet at seal one hundred and thirty heard the same six ambient lines as
+    // one at seal four. These are the beats that carry the far end of a save.
+    if (live) {
+      const m = milestoneCrossed(beforeTears, tears);
+      if (m && !seen.has(milestoneKey(m))) {
+        mark(milestoneKey(m));
+        setTimeout(() => comms.sayKey(milestoneKey(m), { force: true }), 1500);
+        save();
+      }
+    }
     return standing - before;
+  }
+
+  /**
+   * THE WATCH — is the proof closed?
+   *
+   * Once every line in the lattice is held there is nothing left for the seal
+   * ledger to count towards and the card used to say so, permanently, in the
+   * present tense: "every chapter open, the proof is closed". A game that
+   * announces its own ending while the player is still holding the controller
+   * has stopped talking to them.
+   *
+   * So the two rows change hands. What the world wants tonight is the lines
+   * whose spaced re-probe has come due — read straight off the mastery engine's
+   * wall clock, so it is a real number about real elapsed time and not a
+   * decoration — and what it is counting is nights held.
+   */
+  function watchNow() {
+    const w = mastery.watch?.();
+    if (!w || w.held < mastery.graph.nodes.length) return null;
+    return w;
   }
 
   /** The seal ledger on the card — the number that moves on every answer. */
   function pushSeals(gained) {
+    const w = watchNow();
+    if (w) { card.setWatch(w); return; }
+    card.setWatch(null);
     card.setSeals({
       tears,
       frac: chapterFrac(tears, chapter),
@@ -209,27 +323,41 @@ export function createStory({
   /**
    * A chapter turns. This is the fast clock's payoff and it is deliberately not
    * the rite: a plate, a flare on the card, and Marlow with the next three
-   * lines. If a promotion is on screen the transmission waits for it — two
-   * voices over each other is how a good beat gets thrown away.
+   * lines.
+   *
+   * The card and the ledger move now, because they are readouts and a readout
+   * that lags the truth is a bug. The *plate* queues, because it is a ceremony:
+   * it waits for the promotion, for the tear the learner is still inside, and
+   * for the close card at the end of a run that turned the chapter on its last
+   * answer — which is where it used to paint straight through the résumé from
+   * z-index 23, four hundred milliseconds after STAND DOWN appeared.
    */
   function turnChapter(n) {
     chapter = Math.max(chapter, n);
     const act = ACTS[Math.min(ACTS.length, chapter) - 1];
     refreshCard(true);
     endOpening();
-    const busyWithRite = !!pendingRite || rite.el.classList.contains('show');
-    setTimeout(() => turn.play(chapter, act.id, act.at), busyWithRite ? 5400 : 260);
-    setTimeout(() => {
-      comms.clear();
-      comms.sayKeys(act.lines);
-      act.lines.forEach(mark);
-      save();
-    }, busyWithRite ? 7000 : 1900);
+    pendingTurns.push({ n: chapter, act, at: 0 });
     fx?.impact?.('good');
     save();
   }
 
+  /** The plate, and then the transmission that belongs to it. */
+  function playTurn(p) {
+    turn.play(p.n, p.act.id, p.act.at);
+    clearTimeout(p._t);
+    p._t = setTimeout(() => {
+      comms.clear();
+      comms.sayKeys(p.act.lines);
+      p.act.lines.forEach(mark);
+      save();
+    }, 1640);
+  }
+
   function pushRung(gained) {
+    // At the top of the ladder with the proof closed, this row is the watch's
+    // second line and `setWatch` owns it.
+    if (watchNow()) return;
     const next = rank < RANKS.length - 1 ? rank + 1 : null;
     card.setRung({
       rankName: t('rank.' + RANKS[shownRank]),
@@ -274,12 +402,16 @@ export function createStory({
 
   function coda() {
     if (seen.has('story.coda.c1')) return;
+    // The seen-marks used to be written inside the timeout, so the 0.4s poll
+    // that calls this re-entered it four times before the first mark landed and
+    // the pay-off line played twice. Claim the beat on the frame it is decided.
+    CODA.forEach(mark);
     chapter = 6;
     refreshCard(true);
     pushSeals(false);
     turn.play(6, 'coda', tears);
     comms.clear();
-    setTimeout(() => { comms.sayKeys(CODA); CODA.forEach(mark); save(); }, 1900);
+    setTimeout(() => { comms.sayKeys(CODA); save(); }, 1900);
     save();
   }
 
@@ -292,35 +424,49 @@ export function createStory({
     const assisted = !!meta.assisted;
     if (correct) {
       streak++;
+      misses = 0;
       if (assisted) ledger.assisted++; else ledger.clean++;
       if (meta.kind === 'check') ledger.checks++;
       if (streak > (ledger.best || 0)) ledger.best = streak;
     } else {
       streak = 0;
+      misses++;
       ledger.slips++;
     }
 
     const gained = recompute();
 
     if (!correct) {
-      comms.push(pick('story.voice.wrong'), { tag: 'wrong', cooldown: 7 });
-    } else if (!seen.has('story.voice.firstSeal')) {
+      // Three consecutive slips is a different event from one slip, and the old
+      // channel had no line for it — it simply said the same wry thing a third
+      // time, which is the moment a companion stops sounding like it is present.
+      if (misses === 3) {
+        slumped = true;
+        comms.push(pick(vk('slump')), { tag: 'slump', cooldown: 100, force: true });
+      } else {
+        comms.push(pick(vk('wrong')), { tag: 'wrong', cooldown: 7 });
+      }
+    } else if (mayFirstSeal()) {
       mark('story.voice.firstSeal');
       comms.sayKey('story.voice.firstSeal', { force: true });
       // the monument is the thing that will move for the rest of the game, so
       // it is named once, on the beat it first moves
       setTimeout(() => comms.sayKey('story.voice.standard', { force: true }), 200);
       mark('story.voice.standard');
+    } else if (slumped) {
+      // the seal that ends a bad run: the beat a learner most needs a voice for
+      slumped = false;
+      comms.push(pick(vk('recover')), { tag: 'recover', force: true });
     } else if (res?.justMastered) {
-      comms.push(pick('story.voice.held', () => ({ skill: t('skills.' + id) })), { tag: 'held', force: true });
+      comms.push(pick(vk('held'), () => ({ skill: t('skills.' + id) })), { tag: 'held', force: true });
     } else if (streak >= 4 && streak % 4 === 0) {
-      comms.sayKey('story.voice.streak', { cooldown: 70 });
+      comms.push(pick(vk('streak')), { tag: 'streak', cooldown: 70 });
     } else if (gained > 0) {
-      comms.push(pick('story.voice.right'), { tag: 'right', cooldown: 9 });
+      comms.push(pick(vk('right')), { tag: 'right', cooldown: 9 });
     } else {
       // the seal term has capped: say so, once, rather than praising a point
       // that was not awarded
-      comms.sayKey('story.voice.capped', { cooldown: 240 });
+      comms.push(pick(vk('capped')), { tag: 'capped', cooldown: 240 });
     }
     save();
   }
@@ -336,7 +482,7 @@ export function createStory({
     if (told.has(key)) return;
     told.add(key);
     const skill = lastSkill;
-    if (comms.push(pick('story.voice.close', () => ({ skill: skill ? t('skills.' + skill) : '' })), { tag: 'close', cooldown: 60 })) save();
+    if (comms.push(pick(vk('close'), () => ({ skill: skill ? t('skills.' + skill) : '' })), { tag: 'close', cooldown: 60 })) save();
   }
 
   // -------------------------------------------------------------------------
@@ -350,9 +496,20 @@ export function createStory({
 
     if (input.moveMag > 0.2 || input.interact) endOpening();
 
-    if (pendingRite && !isBusy() && !dossier.open) {
-      pendingRite.at += dt;
-      if (pendingRite.at > 0.45) { const p = pendingRite; pendingRite = null; fireRite(p); }
+    /* THE CEREMONY QUEUE. One beat may hold the frame, and it holds it alone.
+       A rite goes first — rank is the scarcer event and the plate is happy to
+       wait — and neither starts while a tear, the dossier or a session beat has
+       the screen. The 0.45 s is the breath between the answer landing and the
+       frame being taken; it is not a fix for anything. */
+    if (!isBusy() && !frameHeld()) {
+      if (pendingRite) {
+        pendingRite.at += dt;
+        if (pendingRite.at > 0.45) { const p = pendingRite; pendingRite = null; fireRite(p); }
+      } else if (pendingTurns.length) {
+        const p = pendingTurns[0];
+        p.at += dt;
+        if (p.at > 0.45) { pendingTurns.shift(); playTurn(p); }
+      }
     }
 
     poll -= dt;
@@ -361,13 +518,32 @@ export function createStory({
       const m = countMastered(), o = countOpen();
       if (m !== lines || o !== opened) recompute();
       if (mastery.integrity() >= 0.999) coda();
+      // The watch counts down in real time, so it is repainted on its own slow
+      // tick rather than only when an answer arrives — a card that says "next
+      // watch in four hours" for the whole of those four hours is a clock that
+      // has stopped.
+      watchPoll -= 0.4;
+      if (watchPoll <= 0) { watchPoll = 15; if (watchNow()) refreshCard(false); }
 
-      if (!metRift && rifts?.nearest && started > 6) {
+      // Walking up to a rift. This is where "That tear ahead of you is a rift…"
+      // used to reach a Sovereign with a hundred and thirty seals: the beat was
+      // gated on whether the *save* remembered saying it, so any state the save
+      // had not authored re-ran the tutorial at the top of the ladder. It is
+      // now gated on evidence, and the fallback is a line per register, said
+      // once per register — so the approach still has a voice, and the voice
+      // still knows who it is talking to.
+      if (rifts?.nearest && started > 6 && !seen.has('rift:' + reg())) {
         const near = rifts.nearest(player.pos, 26);
         if (near) {
+          const r = reg();
+          mark('rift:' + r);
           metRift = true;
-          mark('story.voice.firstRift');
-          comms.sayKey('story.voice.firstRift', { force: true });
+          if (mayTutor() && !seen.has('story.voice.firstRift')) {
+            mark('story.voice.firstRift');
+            comms.sayKey('story.voice.firstRift', { force: true });
+          } else {
+            comms.push(pick(bankKey('rift', r)), { tag: 'rift', force: true });
+          }
           save();
         }
       }
@@ -375,7 +551,7 @@ export function createStory({
 
     if (idle > 52 && !comms.busy && !isBusy() && !dossier.open) {
       idle = -70;
-      comms.push(pick('story.voice.idle'), { tag: 'idle', cooldown: 90 });
+      comms.push(pick(vk('idle')), { tag: 'idle', cooldown: 90 });
     }
   }
 
@@ -418,7 +594,8 @@ export function createStory({
   // Helpers
   // -------------------------------------------------------------------------
   function refreshCard(flare) {
-    const id = chapter >= 6 ? 'coda' : ACTS[Math.min(ACTS.length - 1, chapter - 1)].id;
+    const watching = !!watchNow();
+    const id = watching ? 'watch' : chapter >= 6 ? 'coda' : ACTS[Math.min(ACTS.length - 1, chapter - 1)].id;
     card.set({
       n: chapter, rank: shownRank,
       title: t(`story.${id}.title`),
@@ -498,7 +675,7 @@ export function createStory({
   function save() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        seen: [...seen], told: [...told], ledger, rank,
+        seen: [...seen], told: [...told], ledger, rank, peak,
       }));
     } catch { /* private mode — the arc simply does not persist */ }
   }
@@ -526,6 +703,54 @@ export function createStory({
     begin, update, comms, standard, dossier, card, rite, turn,
     say: (text) => comms.say(text),
     openDossier,
+
+    /* ---------------------------------------------------------- the frame --
+       Three of the game's ceremonies live in src/session, which knows nothing
+       about this file. These three calls are the whole contract between them,
+       and they exist so that "only one ceremony at a time" is a rule the code
+       enforces rather than a thing everybody remembers. */
+
+    /**
+     * Register the standing answer to "is another ceremony holding the frame?"
+     * While it is true, nothing here starts: the rite and the chapter plate
+     * queue and drain afterwards. Called once, by whoever else can take the
+     * screen.
+     */
+    setFrameGuard(fn) { frameGuard = typeof fn === 'function' ? fn : () => false; },
+
+    /**
+     * Another ceremony is taking the frame *now*. Stand down: the cold open
+     * retracts (it is a stamp you are meant to be able to walk out of, and a
+     * session beat arriving over it is the same thing as walking), and a plate
+     * that is mid-play goes back on the queue to be played whole afterwards
+     * rather than being talked over.
+     */
+    yieldFrame() {
+      endOpening();
+      if (turn.playing) {
+        const l = turn.live;
+        turn.hide();
+        if (l) pendingTurns.unshift({ n: l.n, act: ACTS[Math.min(ACTS.length, l.n) - 1], at: 0 });
+      }
+    },
+
+    /**
+     * Take the promotion, if there is one waiting or on screen, and with it the
+     * responsibility for saying so. The close card calls this when a run ends
+     * on the answer that bought a rank: the résumé composes the ascension into
+     * its own first beat instead of the rite playing underneath it. Returns
+     * `{ to, from, rank, was }` or null.
+     */
+    claimRite() {
+      const p = pendingRite ? { to: pendingRite.to, from: pendingRite.from } : rite.claim();
+      pendingRite = null;
+      if (!p) return null;
+      return {
+        ...p,
+        rank: RANKS[Math.max(0, Math.min(RANKS.length - 1, p.to))],
+        was: p.from >= 0 && p.from !== p.to ? RANKS[Math.max(0, Math.min(RANKS.length - 1, p.from))] : null,
+      };
+    },
     /** The transcript of this session, newest last. */
     said: () => said.map((s) => ({ ...s })),
     state: () => ({
@@ -534,8 +759,26 @@ export function createStory({
       ledger: { ...ledger }, lines, opened,
       // the fast clock, by the name the card prints
       seals: tears, tears, toChapter: tearsToNext(tears, chapter),
+      // the endgame clock: what is due tonight, and how many nights have been
+      // held. Null until the proof is closed.
+      watch: watchNow(),
       seen: [...seen],
+      // Where Marlow thinks the cadet is, and whether he is still permitted to
+      // explain anything. A critic reads these rather than inferring them from
+      // the transcript.
+      register: reg(), stage: STAGES[Math.min(STAGES.length - 1, Math.max(stageIndex(voiceState()), peak))].id,
+      peak, canTutor: mayTutor(),
+      milestones: MILESTONES.filter((m) => seen.has(milestoneKey(m))),
     }),
+    /**
+     * Critic hook: the key of every ambient bank in the register this state has
+     * earned, so a harness can read the *whole* bank rather than whichever line
+     * the cursor happened to land on.
+     */
+    banks: () => Object.fromEntries(
+      ['wrong', 'right', 'slump', 'recover', 'idle', 'streak', 'fall', 'returning',
+        'close', 'held', 'capped', 'rift'].map((b) => [b, vk(b)]),
+    ),
     /** Critic hook: pin a rank and play its rite + chapter without faking mastery. */
     preview(r) {
       const to = typeof r === 'string' ? RANKS.indexOf(r) : r;

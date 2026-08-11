@@ -630,6 +630,38 @@ function buildGeometry(kind) {
     return { frame: frameOf(parts), panel };
   }
 
+  if (kind === 'vault') {
+    // The vault plate: a deck with a coil in it. It has to read from thirty
+    // metres away as *a thing that throws you*, so the silhouette is a sunken
+    // dish inside a heavy ring, with four lit chevrons pointing up and out.
+    const parts = [
+      bar(3.92, 0.26, 3.92, 0, 0.00, 0, 0, PLATE),
+      bar(3.9, 0.14, 0.30, 0, -0.16, -1.1, 0, DARK),
+      bar(3.9, 0.14, 0.30, 0, -0.16, 1.1, 0, DARK),
+      // the ring: taller than a floor kerb, because this one is a machine
+      bar(4.0, 0.44, 0.36, 0, 0.20, -1.82),
+      bar(4.0, 0.44, 0.36, 0, 0.20, 1.82),
+      bar(0.36, 0.44, 3.3, -1.82, 0.20, 0),
+      bar(0.36, 0.44, 3.3, 1.82, 0.20, 0),
+      // the coil — three concentric lit rails sunk into the dish
+      bar(2.9, 0.05, 2.9, 0, 0.20, 0, 0, GLOW, 1),
+      bar(2.0, 0.06, 2.0, 0, 0.24, 0, 0, TREAD, 0, 1),
+      bar(1.1, 0.07, 1.1, 0, 0.28, 0, 0, GLOW, 1),
+    ];
+    // four chevrons on the ring, pointing up: the direction it sends you
+    for (const [sx, sz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      parts.push(bar(sz ? 1.1 : 0.16, 0.42, sz ? 0.16 : 1.1,
+        sx * 1.66, 0.46, sz * 1.66, 0, GLOW, 1));
+    }
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) parts.push(bar(0.56, 0.62, 0.56, sx * 1.78, 0.16, sz * 1.78, 0, DARK));
+    }
+    const panel = new THREE.PlaneGeometry(3.0, 3.0);
+    panel.rotateX(-Math.PI / 2);
+    panel.translate(0, 0.30, 0);
+    return { frame: frameOf(parts), panel };
+  }
+
   // beam — a truss, and the piece that becomes a balance at a rift. This one is
   // supposed to read as an open member: it is a lever, not a floor.
   const parts = [

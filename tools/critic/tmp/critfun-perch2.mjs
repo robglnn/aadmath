@@ -1,0 +1,32 @@
+import { chromium } from 'playwright';
+import { mkdir } from 'node:fs/promises';
+const OUT = 'shots/critfun-perch';
+await mkdir(OUT, { recursive: true });
+const browser = await chromium.launch({ args: ['--use-gl=angle','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--disable-gpu-vsync','--disable-frame-rate-limit'] });
+const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 });
+const page = await ctx.newPage();
+const errors = [];
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+page.on('pageerror', (e) => errors.push(e.message));
+await page.goto('http://127.0.0.1:4788', { waitUntil: 'domcontentloaded' });
+await page.waitForFunction(() => !!window.__ascent, null, { timeout: 60000 });
+await page.waitForTimeout(2600);
+const aim = (dist, up) => page.evaluate(({ dist, up }) => {
+  const A = window.__ascent;
+  const c = A.caches.list.find((x) => !x.opened);
+  const f = new A.THREE.Vector3(0, 0, 1).applyQuaternion(c.group.quaternion);
+  A.player.pos.set(c.x + f.x * dist, c.y + up, c.z + f.z * dist);
+  A.player.vel.set(0, 0, 0);
+  const yaw = Math.atan2(-f.x, -f.z);
+  A.player.yaw = yaw;
+  if (A.player.cam) { A.player.cam.yaw = yaw; A.player.cam.pitch = 0.06; }
+  return { latex: c.q.latex, y: c.y };
+}, { dist, up });
+const info = await aim(7, 1.4); await page.waitForTimeout(1200);
+await page.screenshot({ path: `${OUT}/on-perch.png` });
+await aim(30, 3); await page.waitForTimeout(1200);
+await page.screenshot({ path: `${OUT}/back-30m.png` });
+await aim(70, 10); await page.waitForTimeout(1200);
+await page.screenshot({ path: `${OUT}/back-70m.png` });
+console.log(JSON.stringify({ errors, info }));
+await browser.close();

@@ -11,13 +11,18 @@ import { Builder } from './build/builder.js';
 import { createFX } from './fx/index.js';
 import { HUD } from './ui/hud.js';
 import { RiftPanel } from './ui/rift.js';
-import { MasteryEngine } from './learn/mastery.js';
+import { MasteryEngine, itemSeconds } from './learn/mastery.js';
 import { safeGenerate, SKILLS, FORMS_BY_SKILL } from './learn/generators.js';
 import { analogueFor } from './learn/scaffold.js';
 import { diagnose } from './learn/diagnose.js';
 import { initI18n, t, applyStatic, onLocaleChange, getLocale, setLocale } from './i18n/index.js';
 import { createStory } from './meta/index.js';
+import { createReport } from './report/index.js';
+import { createSession } from './session/index.js';
 import { createAudio } from './audio/index.js';
+import { createDrift } from './world/drift.js';
+import { createCaches } from './world/caches.js';
+import { createKit } from './kit/kit.js';
 import graph from '../content/graph/algebra1-l1.json';
 
 initI18n();
@@ -86,12 +91,69 @@ hud.bindInput(input, engine);
 hud.onPlace = () => input._press('fire');
 player.onFall = () => hud.flash(t('build.denied'), 'bad');
 builder.onAnchor = (n, total) => {
-  shards += 20;
+  // Three of these exist and each is secured once. It is the second-largest
+  // single payment in the game, behind a hanging cache, and it is meant to be:
+  // reaching one is a construction problem, not a walk. (reward economy)
+  shards += 60;
   hud.flash(t('build.anchorGot', { n, total }), 'good');
   if (n >= total) hud.say(t('build.anchorAll'));
   hud.render(hudState());
   save();
 };
+
+// ---------------------------------------------------------------------------
+// The world between rifts, and what mastery buys (src/world/drift.js,
+// src/world/caches.js, src/kit).
+//
+// One shared ledger. Shards used to be a number that only ever went up; they
+// are now earned in three places — a correct answer, a drift mote, a cracked
+// cache — and spent in two: the vault plate you set, and the flare you light.
+// Everything downstream reads the ledger through this object rather than
+// touching `shards`, so there is exactly one place where the number moves.
+// ---------------------------------------------------------------------------
+const wallet = {
+  count: () => shards,
+  earn(n) { shards += n; hud.render(hudState()); save(); },
+  spend(n) {
+    if (shards < n) return false;
+    shards -= n;
+    hud.render(hudState());
+    save();
+    return true;
+  },
+  /** A surge knocks shards loose. Returns what it actually cost. */
+  take(n) {
+    const got = Math.min(shards, n);
+    if (!got) return 0;
+    shards -= got;
+    hud.render(hudState());
+    save();
+    return got;
+  },
+};
+builder.wallet = wallet;
+
+const drift = createDrift({
+  scene: engine.scene, player, rifts, hud, wallet, fx, isBusy: () => panel.open,
+});
+// Five standing updrafts are simply in the world; the rest are earned. The
+// first is deliberately within sight of the landing, because a mechanic nobody
+// stumbles into is a mechanic nobody has.
+drift.addColumn(-40, -14, 58, 8);
+drift.addColumn(58, -92, 74, 8);
+drift.addColumn(-88, -62, 66, 7.5);
+drift.addColumn(30, 100, 58, 7);
+drift.addColumn(-104, -6, 62, 7.5);
+
+const caches = createCaches({
+  scene: engine.scene, uiRoot, player, builder, hud, wallet, drift, audio, fx,
+  isBusy: () => panel.open,
+});
+
+const kit = createKit({
+  root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, fx,
+  wallet, isBusy: () => panel.open,
+});
 
 bootBar.style.width = '100%';
 
@@ -100,6 +162,11 @@ bootBar.style.width = '100%';
 // ---------------------------------------------------------------------------
 let activeRift = null;
 let chainNext = false;
+// The one thing this file has in flight after a seal. It is held rather than
+// fired-and-forgotten so that a session beat can cancel it: the close card
+// opens on the frame after the panel shuts, and an uncancelled chain painted a
+// live keypad underneath it 460 ms later. (src/session)
+let chainTimer = 0;
 
 /**
  * One turn of the learning loop.
@@ -160,6 +227,9 @@ function openRift(rift) {
     tier: rift.tier,
     kind: task.kind,
     check: task.check,
+    // endgame (src/kit, src/learn): how deep the sounding in progress is, so
+    // the surface can say "sounding · 4 down" instead of naming no kind at all.
+    sounding: task.sounding || null,
     scaffold: task.scaffold,
     example,
     streak,
@@ -182,7 +252,11 @@ function openRift(rift) {
       if (correct) {
         streak++;
         chainNext = true;
-        gained = meta.assisted ? 1 : (task.kind === 'check' ? 5 : 3);
+        // The rift pays, but it is not where the money is: an answer is 2, a
+        // proving-run item 4, an assisted one 1. A full session of answering
+        // buys about one beacon. Everything else has to be gone and got.
+        // (reward economy — see src/kit/kit.js for the sinks)
+        gained = meta.assisted ? 1 : (task.kind === 'check' ? 4 : 2);
         shards += gained;
         hud.flash(t('learn.correct'), 'good');
         if (res.justMastered) {
@@ -221,7 +295,13 @@ function openRift(rift) {
       // A solved rift hands you the next thing straight away: the session keeps
       // its rhythm, and the scheduler gets to interleave.
       if (again) {
-        setTimeout(() => {
+        clearTimeout(chainTimer);
+        chainTimer = setTimeout(() => {
+          chainTimer = 0;
+          // …unless the run has ended in the meantime and the session owns
+          // the frame. A chained rift behind a resolution card is the reason
+          // this timer is a variable.
+          if (session.blocking()) return;
           if (!panel.open && nearRift && nearRift.id === rift.id) openRift(rift);
         }, 460);
       }
@@ -261,6 +341,15 @@ engine.add((dt, t2) => {
   input.endFrame();
 });
 
+// After the player has moved, because the drift's updrafts and the vault plate
+// both work on where he *is* — a thermal that pushed before locomotion ran
+// would be overwritten by the wing on the same frame.
+engine.add((dt, t2) => {
+  drift.update(dt, t2);
+  caches.update(dt, t2, engine.camera);
+  kit.update(dt, t2);
+});
+
 // ---------------------------------------------------------------------------
 // Narrative (src/meta). It reads the game rather than being driven by it: rank
 // is earned off standing, which is counted by wrapping `mastery.observe` inside
@@ -272,6 +361,40 @@ const story = createStory({
   isBusy: () => panel.open,
 });
 engine.add((dt, t2) => story.update(dt, t2));
+
+// ---------------------------------------------------------------------------
+// Progress report (src/report). It wraps `mastery.observe` itself to keep its
+// own clock and its own ledger of granted-and-later-withdrawn mastery claims,
+// so main.js owes it nothing but a root and a "are we busy" predicate. Built
+// after createStory so that it wraps the story's wrapper rather than being
+// bypassed by it, and every answer is counted exactly once.
+// ---------------------------------------------------------------------------
+const report = createReport({
+  root: uiRoot, mastery, graph,
+  isBusy: () => panel.open,
+  onToggle: (on) => { input.uiOpen = on || panel.open; },
+});
+
+// ---------------------------------------------------------------------------
+// The session (src/session). The 15–25 minute Pomodoro shape: a goal set before
+// the first item and sized by playing this mastery engine forward at the
+// learner's own measured pace, a visible pace that is never a clock, a close
+// that names what was won, and a break that actually rests. It reads the game
+// the same way src/meta does — by wrapping `mastery.observe` — so nothing in
+// src/learn, src/ui or src/meta knows it exists. Wiring cost: create, tick,
+// begin, expose.
+// ---------------------------------------------------------------------------
+const session = createSession({
+  root: uiRoot, mastery, story, input, fx, audio, panel, hud,
+  // reward economy: the orders card names the capability the next held line
+  // buys, instead of printing a rep count at a fourteen-year-old.
+  kit,
+  isBusy: () => panel.open,
+  // A session beat is taking the frame: drop the queued chain rift.
+  onFloor: () => { clearTimeout(chainTimer); chainTimer = 0; chainNext = false; },
+});
+engine.add((dt) => session.update(dt));
+
 // last in the frame, so it hears the state the player just moved into
 engine.add((dt) => audio.update(dt));
 
@@ -283,10 +406,12 @@ rifts.sync(mastery);
 // Boot-out + the cold open
 // ---------------------------------------------------------------------------
 requestAnimationFrame(() => requestAnimationFrame(() => {
-  setTimeout(() => { boot.classList.add('gone'); story.begin(); }, 700);
+  setTimeout(() => { boot.classList.add('gone'); story.begin(); session.begin(); }, 700);
 }));
 
-onLocaleChange(() => { applyStatic(); hud.render(hudState()); builder.relocalise(); });
+onLocaleChange(() => {
+  applyStatic(); hud.render(hudState()); builder.relocalise(); caches.relocalise();
+});
 
 // The anchors are the reason to build; said once, late enough that the opening
 // beat has finished and early enough that it is still the first session.
@@ -302,8 +427,24 @@ function pickQuality() {
 
 // Expose a small surface for the automated critics: they drive the real game,
 // not a mock, and read the same state the player sees.
+/**
+ * How far ahead of the real clock the harness has pushed us. Zero in a real
+ * session and never touched by anything a player can do; `advanceDays` below is
+ * the only writer. The spacing schedule in src/learn/mastery.js runs on real
+ * elapsed time, so a critic who cannot move that clock cannot see anything the
+ * schedule does after the first ten minutes.
+ */
+let clockOffset = 0;
+
 window.__ascent = {
   engine, mastery, rifts, player, hud, panel, fx, world, builder, input, story, audio,
+  // The reward loop: what the world produces between rifts (drift), what is
+  // hung out of reach and locked behind a balance (caches), and what a sealed
+  // line buys (kit). Critics read the same objects the game runs on.
+  drift, caches, kit,
+  // pedagogy/reporting: critics open the real report and read the same numbers
+  // a teacher would, rather than a summary written for them.
+  report, session,
   // world: critics traverse the real scene graph and project real world points
   THREE, scene: engine.scene, camera: engine.camera,
   // content: every skill and every item form the banks can draw, so a critic can
@@ -316,7 +457,25 @@ window.__ascent = {
   state: () => ({
     ...hudState(), fps: engine.fps, fxTier: fx.tier, perf: engine.stats(),
     skills: mastery.save().skills,
+    // the run in progress: goal, pace, phase (src/session)
+    session: session.state(),
+    // what the world has produced, and what mastery has bought
+    drift: { ...drift.stats }, caches: caches.state(), kit: kit.state(),
   }),
+  /**
+   * Critic hook: it is tomorrow. Moves the wall clock the retention schedule
+   * reads — nothing else in the game has one — so a harness can play a second
+   * and third sitting, and check that the lines a player held yesterday come
+   * back round and that holding them is what buys the endgame.
+   */
+  advanceDays(days = 1) {
+    clockOffset += Math.round(Number(days) * 86400000);
+    mastery.setClock(() => Date.now() + clockOffset);
+    save();
+    return { offsetDays: clockOffset / 86400000, watch: mastery.watch() };
+  },
+  /** What is due, when the next thing falls due, and how many nights are held. */
+  watch: () => mastery.watch(),
   teleportTo(id) {
     const r = rifts.list.find((x) => x.id === id);
     if (!r) return false;
@@ -332,6 +491,23 @@ window.__ascent = {
   // --- pedagogy hooks: critics drive the real scheduler and the real bank ---
   nextObjective: () => mastery.next(),
   task: (id) => mastery.taskFor(id),
+  /**
+   * The real item a task asks for, drawn from the real bank, without opening a
+   * panel — so tools/critic/testout.mjs can play a whole session's *scheduling*
+   * through the shipping engine at speed and report items and minutes per skill.
+   */
+  itemFor(task) {
+    const pool = task.formCandidates || [];
+    const form = pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined;
+    try {
+      return safeGenerate(task.skill, task.difficulty, (Math.random() * 1e9) | 0, {
+        locale: getLocale(), form, reps: task.reps || undefined,
+        avoidScenes: task.avoidScenes || undefined,
+      });
+    } catch { return null; }
+  },
+  /** The engine's own cost model, so a critic reports the clock it plans with. */
+  itemSeconds,
   /**
    * Type a value into the open rift exactly as a hand would, and report what
    * the rig concluded about the learner from it. `misconception: null` means
@@ -385,7 +561,7 @@ window.__ascent = {
       ...tg,
       ghostVisible: builder.ghostView.visible,
       ghostPos: [tg.x, tg.y, tg.z],
-      placed: builder.solids.count,
+      placed: builder.solids.owned,
       charge: Math.round(builder.charge),
     };
   },
@@ -403,5 +579,10 @@ window.__ascent = {
     at: (builder.anchors?.list || []).map((a) => a.pos.toArray()),
   }),
 
-  reset() { localStorage.removeItem('ascent.save'); story.reset(); location.reload(); },
+  reset() {
+    localStorage.removeItem('ascent.save');
+    report.tracker.reset(); story.reset(); session.reset();
+    caches.reset(); kit.reset();
+    location.reload();
+  },
 };

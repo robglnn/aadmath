@@ -1,0 +1,337 @@
+/**
+ * The resolution beat — the reason there is a tomorrow.
+ *
+ * This is not a results card. A results card is a scoreboard with a star rating
+ * and a "next" button, and it tells a learner that what just happened was a
+ * performance that has now been graded. What happened was a piece of a proof
+ * being finished, and the surface has to say so in the world's own words.
+ *
+ * Three blocks, in the order a person actually wants them:
+ *
+ *   HELD    — what is now yours. Named skills, not points. If nothing closed,
+ *             this block does not go blank and it does not lie: it says how far
+ *             the seam moved and how far it still is, in tears, which is the
+ *             unit on the band the learner has been watching for twenty minutes.
+ *   OPENED  — what the world did about it. Rift lines that unlocked, a chapter
+ *             that turned, a rank that was taken. Consequence, not confetti.
+ *   NEXT    — the first move of the next run, named and costed. This is the
+ *             hook, and it is the one block that must never be vague: "Two-step
+ *             equations, about eleven minutes" is a thing a fifteen-year-old can
+ *             decide to come back for.
+ *
+ * THE BIG NUMBER. It used to be the tear count, always — and on a run that
+ * sealed nothing that meant a screen-height **0**, under the words ENOUGH FOR
+ * TODAY, on the one card a struggling learner most needs to be able to look at.
+ * A wrong answer costing nothing on the band also meant it showed nothing, all
+ * session, and then the close totalled it up as zero. So the tally leads with
+ * whatever actually happened: tears when there were tears, and work done when
+ * there were not. Work done is not dressed up as mastery anywhere on this card —
+ * it is labelled as what it is, sits next to an honest distance-to-hold, and the
+ * gate it is measured against has not moved a millimetre.
+ *
+ * Nothing here is generated from a template of praise. Where the run fell short
+ * of its goal the headline is "enough for today", not "you failed to reach the
+ * target" and not "amazing job!" — Marlow does not flatter and does not scold.
+ *
+ * THE SHELF. This card is the last screen of the loop and on most of the
+ * screens it has to run on it is taller than the frame, so the controls ride a
+ * sticky opaque shelf at the foot of the scroller. Whether it does is a fact
+ * about the content and not about the viewport — see `fit()` — because the
+ * three blocks plus the sign-off overflow a 1280x720 Chromebook exactly as
+ * readily as a 390x844 phone, and deciding it with a width media query left
+ * STAND DOWN below the fold on the Chromebook with nothing on screen to say
+ * the card scrolled.
+ */
+import { t, num } from '../i18n/index.js';
+import { RANK_INK, RANK_GLOW, sigilSVG } from '../meta/arc.js';
+
+export class Resolution {
+  constructor(root, { onRest, onMore }) {
+    this.el = document.createElement('div');
+    this.el.className = 'ses-close';
+    this.el.innerHTML = `
+      <div class="sx-dim"></div>
+      <div class="sx-in" role="dialog" aria-modal="true">
+        <div class="sx-crest" hidden>
+          <div class="sx-sig"></div>
+          <div class="sx-crest-kick"></div>
+          <div class="sx-crest-name"><span></span></div>
+          <div class="sx-crest-arrow"></div>
+          <p class="sx-crest-cite"></p>
+        </div>
+        <div class="sx-kick"></div>
+        <h2 class="sx-title"><span></span></h2>
+        <div class="sx-rule"></div>
+        <div class="sx-tally">
+          <span class="sx-t-n"></span>
+          <span class="sx-t-lab"></span>
+          <span class="sx-t-sub"></span>
+        </div>
+        <div class="sx-blocks">
+          <section class="sx-b sx-held"><h3></h3><ul></ul></section>
+          <section class="sx-b sx-open"><h3></h3><ul></ul></section>
+          <section class="sx-b sx-next"><h3></h3><ul></ul></section>
+        </div>
+        <p class="sx-sign"></p>
+        <p class="sx-cap"></p>
+        <div class="sx-acts">
+          <button type="button" class="sx-rest"></button>
+          <button type="button" class="sx-more"></button>
+        </div>
+      </div>`;
+    this.crest = this.el.querySelector('.sx-crest');
+    this.crestSig = this.el.querySelector('.sx-sig');
+    this.crestKick = this.el.querySelector('.sx-crest-kick');
+    this.crestName = this.el.querySelector('.sx-crest-name span');
+    this.crestArrow = this.el.querySelector('.sx-crest-arrow');
+    this.crestCite = this.el.querySelector('.sx-crest-cite');
+    this.kick = this.el.querySelector('.sx-kick');
+    this.title = this.el.querySelector('.sx-title span');
+    this.tallyN = this.el.querySelector('.sx-t-n');
+    this.tallyLab = this.el.querySelector('.sx-t-lab');
+    this.tallySub = this.el.querySelector('.sx-t-sub');
+    this.sign = this.el.querySelector('.sx-sign');
+    this.cap = this.el.querySelector('.sx-cap');
+    this.rest = this.el.querySelector('.sx-rest');
+    this.more = this.el.querySelector('.sx-more');
+    this.inn = this.el.querySelector('.sx-in');
+    this.rest.addEventListener('click', () => { this.hide(); onRest?.(); });
+    this.more.addEventListener('click', () => { this.hide(); onMore?.(); });
+    root.appendChild(this.el);
+    this._live = null;
+    // A rotation, a Chromebook window being dragged taller, a phone keyboard
+    // opening: all of them change whether this card overflows, and the answer
+    // has to change with them while the card is on screen.
+    addEventListener('resize', () => this.fit());
+    visualViewport?.addEventListener?.('resize', () => this.fit());
+  }
+
+  /**
+   * Does the card overflow the frame it is drawn in?
+   *
+   * If it does, the controls have to ride the foot of the scroller — otherwise
+   * STAND DOWN is simply below the fold with nothing on screen to say the card
+   * scrolls, which is what a 1280x720 Chromebook got for a while because this
+   * was decided by a `max-width: 720px` media query instead of by the content.
+   * Three blocks plus a sign-off is taller than 720 px of viewport whatever the
+   * width, and on a 1600x900 desktop it is not, so the question is asked of the
+   * real scroller.
+   *
+   * The measurement is taken with the shelf *off*, because turning it on makes
+   * the content taller (it adds its own foot padding and a gap above itself) —
+   * asking in the on-state would let a card that only just overflows latch on
+   * and never let go, and asking it on every resize would then flicker.
+   */
+  fit() {
+    if (!this.inn || !this.open) return;
+    const on = this.el.classList.contains('scrolls');
+    if (on) this.el.classList.remove('scrolls');
+    const over = this.inn.scrollHeight > this.inn.clientHeight + 2;
+    this.el.classList.toggle('scrolls', over);
+  }
+
+  get open() { return this.el.classList.contains('show'); }
+
+  /**
+   * @param {{index:number, tears:number, target:number, met:boolean,
+   *          held:string[], stalled:object|null, opened:string[],
+   *          chapter:number|null, rank:string|null,
+   *          next:{id:string, minutes:number|null}|null, lines:number,
+   *          items:number, misses:number, echoes:number,
+   *          extensions:number, canMore:boolean}} report
+   */
+  show(report) {
+    this._live = report;
+    this.retext();
+    /* A card opens at its own beginning. The scroller keeps its offset across a
+       hide, so the second close of a sitting — an extension, or a second run —
+       used to open exactly where the last one was left, which on a screen short
+       enough to scroll meant the headline was already off the top before the
+       learner had looked at it. */
+    if (this.inn) this.inn.scrollTop = 0;
+    this.el.classList.remove('show');
+    void this.el.offsetWidth;
+    this.el.classList.add('show');
+    this.fit();
+    // …and again once the web fonts have settled, since a fallback face can be
+    // a line shorter than the real one and that is the whole margin at 1280x720.
+    document.fonts?.ready?.then?.(() => this.fit());
+    requestAnimationFrame(() => { this.fit(); this.rest.focus({ preventScroll: true }); });
+  }
+
+  /**
+   * THE ASCENSION, WHEN THE RUN ENDED ON IT.
+   *
+   * A promotion earned on the last answer of a session used to be a second
+   * full-screen ceremony playing under this one. It is not a second thing that
+   * happened — it is the largest single line of what this run achieved — so it
+   * is composed into the head of the card: the sigil draws, the rank lands
+   * oversized and settles, the old rank is named beside the new one, and the
+   * citation carries the weight the rite's lower third used to carry. The
+   * résumé then rises underneath it, on a beat, as one movement.
+   *
+   * It reuses the rite's own words (`story.rite.*`, `story.cite.*`) and the
+   * rite's own ink, because it is the same event; nothing new is written into
+   * the bundles for a beat that is played this rarely.
+   */
+  _crest(p) {
+    this.crest.hidden = !p;
+    this.el.classList.toggle('ascended', !!p);
+    if (!p) {
+      this.el.style.removeProperty('--sx-crest-size');
+      this.el.style.removeProperty('--rank-ink');
+      this.el.style.removeProperty('--rank-glow');
+      return;
+    }
+    this.el.style.setProperty('--rank-ink', RANK_INK[p.rank]);
+    this.el.style.setProperty('--rank-glow', RANK_GLOW[p.rank]);
+    this.crestSig.innerHTML = sigilSVG(p.to);
+    this.crestKick.textContent = t('story.rite.ascended');
+    this.crestName.textContent = t('rank.' + p.rank);
+    this.crestArrow.textContent = p.was
+      ? t('story.rite.arrow', { from: t('rank.' + p.was), to: t('rank.' + p.rank) })
+      : t('story.rite.standing');
+    this.crestCite.textContent = t('story.cite.' + p.rank);
+    // A long rank word in ES or PL cannot be allowed to letterspace itself off
+    // the edge of a 390 px frame, so the display size is a function of the word
+    // — the same rule the rite uses, one step smaller because this one shares
+    // the card with a résumé.
+    const n = this.crestName.textContent.length;
+    this.el.style.setProperty('--sx-crest-size', n > 10 ? '2.2rem' : n > 7 ? '2.6rem' : '3rem');
+  }
+
+  retext() {
+    const r = this._live;
+    if (!r) return;
+    this._crest(r.promoted || null);
+    const held = r.held.length > 0;
+    const items = r.items || 0;
+    // A run that sealed nothing leads with the work, because a screen-height
+    // zero is not a summary of twenty minutes, it is a verdict on them.
+    const leadWork = r.tears === 0 && items > 0;
+    this.kick.textContent = t('session.close.kick', { n: r.index });
+    this.title.textContent = t(
+      held ? 'session.close.titleHeld'
+        : (r.met ? 'session.close.titleMet' : 'session.close.titleEnough'),
+    );
+    this.tallyN.textContent = num(leadWork ? items : r.tears);
+    this.tallyLab.textContent = leadWork
+      ? t('session.close.workedLab', { n: items })
+      : t('session.close.tears', { n: r.tears });
+    this.tallySub.textContent = leadWork
+      ? t('session.close.workedSub')
+      : (items > r.tears ? t('session.close.ofWorked', { n: items }) : '');
+    this.el.classList.toggle('lead-work', leadWork);
+    this.el.classList.toggle('ground', !held);
+
+    // The block changes its name rather than lying about its contents: a run
+    // that closed nothing has not "held" anything, and labelling the honest row
+    // HELD is the one move that would make this whole surface untrustworthy.
+    this._block('held', t(held ? 'session.close.heldLab' : 'session.close.groundLab'), held
+      ? r.held.map((id) => ({ strong: t('skills.' + id), note: t('session.close.heldNote') }))
+      : groundRows(r));
+
+    const opened = [];
+    for (const id of r.opened) opened.push({ strong: t('skills.' + id), note: t('session.close.openedNote') });
+    if (r.chapter) opened.push({ strong: t('story.hud.act', { n: r.chapter }), note: t('session.close.chapterNote') });
+    if (r.rank) opened.push({ strong: r.rank, note: t('session.close.rankNote') });
+    if (!opened.length) opened.push({ strong: t('session.close.openedNoneStrong'), note: t('session.close.openedNone') });
+    this._block('open', t('session.close.openedLab'), opened);
+
+    this._block('next', t('session.close.nextLab'), [r.next
+      ? {
+        strong: t('skills.' + r.next.id),
+        note: r.next.minutes != null
+          ? t('session.close.nextNote', { n: r.next.minutes })
+          : t('session.close.nextNoteUnknown'),
+      }
+      : { strong: t('session.close.nextDoneStrong'), note: t('session.close.nextDone') }]);
+
+    this.sign.textContent = t(
+      held ? 'session.close.signHeld'
+        : (leadWork ? 'session.close.signWorked' : 'session.close.sign'),
+    );
+    this.rest.textContent = t('session.close.rest');
+    this.more.textContent = t('session.close.more');
+    // ONE MORE LINE is an offer the window can run out of, and when it has, the
+    // card says so instead of quietly serving a fifth eight-minute run.
+    const more = r.canMore !== false;
+    this.more.hidden = !more;
+    this.cap.textContent = more
+      ? (r.extensions > 0 ? t('session.close.moreLast') : '')
+      : t('session.close.capped');
+    this.inn.setAttribute('aria-label', t('session.close.aria', { n: r.tears }));
+    // Polish is a good deal longer than English on this card, so the answer to
+    // "does it overflow" is re-asked every time the language changes.
+    this.fit();
+  }
+
+  _block(cls, label, rows) {
+    const sec = this.el.querySelector('.sx-' + cls);
+    sec.querySelector('h3').textContent = label;
+    sec.querySelector('ul').innerHTML = rows.map((row, i) => `
+      <li style="--i:${i}"><i aria-hidden="true"></i><b>${esc(row.strong)}</b><span>${esc(row.note)}</span></li>
+    `).join('');
+  }
+
+  /* `scrolls` deliberately survives the close: dropping it here would snap the
+     shelf back to the foot of the content in the middle of the card's own
+     fade-out. `show()` re-measures from scratch anyway. */
+  hide() { this.el.classList.remove('show'); }
+}
+
+/**
+ * The honest rows for a run that did not close a seam. They are what decides
+ * whether this whole surface is trustworthy, so between them they say exactly
+ * what the engine believes and no more:
+ *
+ *   1. where the seam stands, in tears — and since estimate.js now answers that
+ *      off the shortest road rather than off a sample of coin flips, the
+ *      reading taken at the close is comparable with the one taken before the
+ *      first item, which is the only thing that makes a delta mean anything;
+ *   2. the teaching the run actually delivered, which a miss buys and a seal
+ *      does not, and which was previously counted nowhere;
+ *   3. the band the bank is now serving, when the run moved it — the engine
+ *      adapting to the learner is a real event and the learner is entitled to
+ *      see it happen rather than to notice the questions got easier.
+ */
+function groundRows(r) {
+  const rows = [distanceRow(r)];
+  const g = r.stalled;
+  if (r.echoes > 0) {
+    rows.push({
+      strong: t('session.close.echoStrong', { n: r.echoes }),
+      note: t('session.close.echoNote'),
+    });
+  }
+  if (g && g.band != null && g.bandWas != null && g.band !== g.bandWas) {
+    rows.push({
+      strong: t('session.close.bandStrong'),
+      note: t(g.band < g.bandWas ? 'session.close.bandDown' : 'session.close.bandUp', { n: g.band }),
+    });
+  }
+  return rows;
+}
+
+function distanceRow(r) {
+  const g = r.stalled;
+  if (!g) return { strong: t('session.close.groundNoneStrong'), note: t('session.close.groundNone') };
+  if (g.tears == null) return { strong: t('skills.' + g.id), note: t('session.close.groundNoteFar') };
+  // "Closer than when you started" is a claim, so it is only made when the
+  // engine's own projection was actually taken before the first item and has
+  // actually come down. A run that ground its wheels says so, and a run that
+  // went backwards — a missed gate item does genuinely reset a proving run —
+  // says that too, and says why, because the alternative is a number that looks
+  // like it was made up.
+  const was = g.was;
+  let note;
+  if (was != null && was > g.tears) note = t('session.close.groundNote', { n: g.tears, d: was - g.tears });
+  else if (was != null && was < g.tears) note = t('session.close.groundNoteBack', { n: g.tears });
+  else note = t('session.close.groundNoteFlat', { n: g.tears });
+  return { strong: t('skills.' + g.id), note };
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}

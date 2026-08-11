@@ -361,6 +361,20 @@ export default {
   'ask.howManyReadings': 'Si ${v} = {val}$, ¿cuántas lecturas son?',
   'ask.howManyLumens': 'Si ${v} = {val}$, ¿cuántos lúmenes son?',
   'ask.howManyDegrees': 'Si ${v} = {val}$, ¿cuántos grados son?',
+  // Cada pregunta nombra el sustantivo que ha contado la situación de arriba,
+  // y ningún otro. Existen porque las preguntas anteriores las compartían
+  // situaciones que cuentan otra cosa: un parche de casco se mide en planchas
+  // y no en cristales, una vagoneta saca del corte y no va a la quilla, una
+  // boya de sondeo hace ruido y no luz. La tabla de unidades está en
+  // tools/check-context-ask.mjs y tumba la compilación si algo no concuerda.
+  'ask.howManyPlates': 'Si ${v} = {val}$, ¿cuántas planchas son?',
+  'ask.howManyTonnesRaised': 'Si ${v} = {val}$, ¿cuántas toneladas salen del corte?',
+  'ask.howManyTonnesBarged': 'Si ${v} = {val}$, ¿cuántas toneladas van a la barcaza?',
+  'ask.howManySecondsPing': 'Si ${v} = {val}$, ¿cuántos segundos de emisión son?',
+  'ask.howManyDaysAir': 'Si ${v} = {val}$, ¿para cuántos días alcanza el aire?',
+  'ask.howManyFramesHeld': 'Si ${v} = {val}$, ¿cuántos fotogramas son?',
+  'ask.howManyDosesStowed': 'Si ${v} = {val}$, ¿cuántas dosis quedan estibadas a proa?',
+  'ask.howManySeedlingsPlanted': 'Si ${v} = {val}$, ¿cuántas plántulas salen para la siembra?',
 
   // ---- k cosas idénticas, cada una con exactamente v ---------------------
   'ctx.waterCans': 'Un bidón de agua admite ${v}$ litros y ni una gota más: el cuello viene fundido, no negociado. Al trineo suben {k} bidones.',
@@ -658,7 +672,7 @@ export default {
   'ask.oneTinMass': '¿Cuánto vale una lata?',
 
   // ---- y más ancho todavía, para quien no se detiene en cuarenta y cinco -
-  'ctx.hullPatches': 'Un parche de casco cubre ${v}$ paños de plancha, que es a lo que se ajustó la prensa y como sigue ajustada. Del almacén han salido {k} parches.',
+  'ctx.hullPatches': 'Un parche cubre ${v}$ planchas de casco, que es a lo que se ajustó la prensa y como sigue ajustada. Del almacén han salido {k} parches.',
   'ctx.gasBladders': 'Una vejiga de sustentación admite ${v}$ litros antes de que la válvula de alivio decida por ti. En la envolvente van {k} vejigas acordonadas.',
   'ctx.snowMelters': 'Una fundidora saca ${v}$ litros por tanda, eches lo que eches dentro, porque ese es el tamaño del depósito. En la cresta hay {k} fundidoras en marcha.',
   'ctx.tallySticks': 'Una tarja lleva ${v}$ lecturas y entonces está llena, y una tarja llena va al escribiente. De la línea han vuelto {k} tarjas.',
@@ -668,7 +682,7 @@ export default {
   'ctx.beeFrames': 'Un cuadro trae ${v}$ gramos de panal cuando sale operculado. Esta mañana se sacaron {k} cuadros del anillo.',
   'ctx.soundBuoys': 'Una boya de sondeo emite ${v}$ segundos por ciclo y luego escucha, que es la mitad difícil. Cruzando el canal hay {k} boyas fondeadas.',
   'ctx.spareBolts': 'Una lata de tornillería guarda ${v}$ remaches, contados por peso y nunca a mano. En el pañol hay {k} latas.',
-  'ctx.nestedPatches': 'Un parche de casco cubre ${v}$ paños de plancha. Un rollo lleva {a} parches. Del almacén salieron {b} rollos y ninguno se ha abierto.',
+  'ctx.nestedPatches': 'Un parche cubre ${v}$ planchas de casco. Un rollo lleva {a} parches. Del almacén salieron {b} rollos y ninguno se ha abierto.',
   'ctx.nestedMills': 'Un molino de anillo devuelve ${v}$ vatios. Un pie lleva {a} molinos. En la escarpa hay {b} pies, y todos giran.',
   'ctx.nestedBuoys': 'Una boya de sondeo emite ${v}$ segundos por ciclo. Una línea lleva {a} boyas. Cruzando el canal hay {b} líneas fondeadas.',
   'ctx.claimStencil': 'La caja de plantillas del pañol de pintura tiene las letras numeradas para que no se pierda ninguna, y Cadete {who} ha leído {pos} directamente de ahí. El manifiesto marca ${v} = {val}$.',

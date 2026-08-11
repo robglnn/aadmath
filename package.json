@@ -12,8 +12,10 @@
     "progress": "node tools/progress.mjs",
     "check:i18n": "node tools/check-i18n.mjs --self-test && node tools/check-i18n.mjs",
     "check:items": "node tools/validate-items.mjs",
+    "check:prose": "node tools/check-context-ask.mjs --self-test && node tools/check-context-ask.mjs",
     "check:scenes": "node tools/scene-audit.mjs",
-    "check": "npm run check:i18n && npm run check:items && npm run check:scenes"
+    "check:marlow": "node tools/narrative/marlow-audit.mjs",
+    "check": "npm run check:i18n && npm run check:prose && npm run check:items && npm run check:scenes && npm run check:marlow"
   },
   "dependencies": {
     "katex": "^0.16.11",

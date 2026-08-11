@@ -73,6 +73,10 @@ export default {
     balance: 'Balance',
     balanceLaw: 'Whatever you do to one side, do to the other',
     areaModel: 'Area model',
+    // --- the kit: a piece that is bought rather than given ---
+    vault: 'Vault plate',
+    noShards: 'Not enough shards for that piece',
+    fixed: 'That is not yours to unmake',
   },
 
   // Learning surface. Nothing here reads like a worksheet — the words are
@@ -160,8 +164,14 @@ export default {
 
     kind: {
       check: 'Proving run · {n}/{m}',
+      // pedagogy: the first item a new skill asks, before it teaches anything.
+      // Answer it cold and the proving run has already begun.
+      probe: 'Sight-read',
       review: 'Re-probe',
       interleave: 'Retrieval',
+      // endgame: a rung of a sounding — the top of the bank, on a line already
+      // held, one miss from the bottom. It proves nothing and pays well.
+      deep: 'Sounding · {n}',
     },
 
     help: {
@@ -405,6 +415,27 @@ export default {
       c3: 'I was wrong about you. Please have that entered into the record, along with the fact that I have never enjoyed anything more.',
     },
 
+    // ---------------------------------------------------------------------
+    // THE WATCH — the card once the proof is closed. Additive keys owned by
+    // src/meta. It replaces the two rows that had run out of things to count
+    // with the two that never do: what falls due tonight, and how many nights
+    // this cadet has held.
+    // ---------------------------------------------------------------------
+    watch: {
+      title: 'The standing watch',
+      quest: 'The proof holds while somebody carries it. Come back and it is still yours.',
+      due: 'Lines fallen due',
+      stand: 'Stand the watch',
+      next: 'The shard holds · next {when}',
+      nights: '«n|one:# night held|other:# nights held»',
+      sounding: 'Deepest sounding · {n}',
+      soundingNone: 'Sound the lattice',
+      whenMin: 'in «n|one:# minute|other:# minutes»',
+      whenHour: 'in «n|one:# hour|other:# hours»',
+      whenDay: 'in «n|one:# day|other:# days»',
+      whenSoon: 'shortly',
+    },
+
     cite: {
       copper: 'You can hold a statement true. That is the whole qualification, and few people meet it.',
       bronze: 'Two lines held. The lattice has begun steering its storms around you instead of through you.',
@@ -512,5 +543,822 @@ export default {
       idle: 'Take your time. The rift is not going anywhere. That is precisely the problem.',
       returning: 'Back again. Statistically that is the hardest part, so congratulations to statistics.',
     },
+
+    // -----------------------------------------------------------------------
+    // Marlow, by register. See `src/meta/voice.js`.
+    //
+    // The channel used to hold one set of ambient lines written for a cadet in
+    // their first ten minutes, and it was still playing them at seal one
+    // hundred and thirty — including the sentence that explains what a rift is.
+    // Four registers now, chosen from what the cadet has actually done:
+    //
+    //   green    nothing sealed. The only register allowed to explain anything.
+    //   working  the cadet can work. Reporting and needling, no orientation.
+    //   veteran  past the last chapter beat. A colleague, with shared history.
+    //   master   past the record. Marlow is outranked, and knows it.
+    //
+    // A register is earned and never handed back, so no line below `working`
+    // can ever be reached again by somebody who has passed it.
+    // -----------------------------------------------------------------------
+    v: {
+      wrong: {
+        working: [
+          'No. Somewhere in there you did the right thing to the wrong side.',
+          'The lattice declines. It has been declining things since before your language existed; do not take it personally.',
+          'Missed. You have sealed enough of these that I am fairly sure you know the move and simply did not make it.',
+          'Not that. Read the line you wrote before that one — the error is usually one floor up.',
+          'No, and interestingly no. That is a mistake with a shape to it, which is more use to me than a right answer.',
+        ],
+        veteran: [
+          'Wrong. From you that is now data, so thank you — I mean that with only mild sarcasm.',
+          'No. Nine hundred years of cadets missed that one too, if it helps. It never helped them either.',
+          'That slipped. You have closed too many of these for me to insult you by explaining it, so I will simply wait.',
+          'Missed. I have watched you not miss harder ones today, which tells me it is late, not that it is difficult.',
+          'The tear held. Rare event, these days. Go again before it gets ideas.',
+        ],
+        master: [
+          'Wrong — and I had to check. That is not a sentence I have said to a cadet before.',
+          'No. Somewhere a very old ledger has just noted that you are, after everything, a person.',
+          'Missed. At your count that is roughly a rounding error, though I would not put that in the record.',
+          'That one got you. It gets everyone once; you simply took longer than everyone to get to it.',
+          'No. I could tell you where, but you will find it faster than I can say it. You usually do.',
+        ],
+      },
+      right: {
+        working: [
+          'Sealed. That is the rhythm — the shard can hear it now.',
+          'Holds. You are getting quick enough that I have started rounding down how long I expect you to take.',
+          'Clean. The rig logged it before I did, and the rig is not easily impressed.',
+          'Good. Another statement that will still be true after both of us have stopped.',
+          'Sealed, unassisted, and filed. That last part is the part that counts.',
+        ],
+        veteran: [
+          'Sealed. I have stopped narrating these individually; you would only find it patronising.',
+          'Holds. Somewhere under us a step that has been complaining for nine centuries has gone quiet.',
+          'Clean. The lattice has begun assuming you will close what you open, which is the nearest thing it has to trust.',
+          'Done. The shard is mending faster than it is tearing, and that has never been the direction of travel before.',
+          'Sealed. I would say well done, but you have heard it from me often enough to know what it costs me.',
+        ],
+        master: [
+          'Sealed. The record has run out of comparisons and is now simply writing down what you do.',
+          'Holds. I have no useful commentary left; you are past the part of the map I have notes on.',
+          'Clean. Nine hundred years of cadets, and the sky over Shard Nine has never been this quiet on a working morning.',
+          'Sealed. You are doing it faster than I can find something dry to say about it, and I resent that slightly.',
+          'Done. Somewhere in the founding text there is a margin with room in it, and I have started thinking about your handwriting.',
+        ],
+      },
+      // Three consecutive misses. Not a scold and not a hug: a signal, named.
+      slump: {
+        green: [
+          'Three in a row. That is not a verdict, it is a Tuesday. Slow down and read the whole line before you touch it.',
+          'Stop. Breathe. The rift has waited nine hundred years; it can wait while you look properly.',
+          'Three misses. Everybody’s first hour looks like this. Mine looked worse, and I had a manual.',
+        ],
+        working: [
+          'Three. Something in this shape is fighting you specifically, and that is worth more than three easy seals.',
+          'Put your hand down for a second. You are answering faster than you are reading, and those are not the same activity.',
+          'Three misses on the trot. Not a collapse. A signal — and the rig is already re-aiming.',
+        ],
+        veteran: [
+          'Three. From you that is a message, and the message is that this line is genuinely hard, not that you are careless.',
+          'That is three. I am going to say nothing encouraging, because you would smell it. Look at the second step.',
+          'Three in a row, and I have checked my own arithmetic twice. This one is difficult. Take it seriously and it will fold.',
+        ],
+        master: [
+          'Three consecutive. I have kept records for nine centuries and I have nothing comparable for you, so let us simply call it interesting.',
+          'Three. Whatever this shape is, it is the last thing on this shard that still argues with you. I would rather like to watch you finish it.',
+          'Three misses. If you tell me it is fatigue I will believe you, and I will also note that you have been at this longer than most cadets lasted.',
+        ],
+      },
+      // The first seal after a slump. The beat the old channel had no line for.
+      recover: {
+        green: [
+          'There. That is what it looks like when the reading and the answering happen in the right order.',
+          'Sealed. Whatever you just changed about the way you were looking at it, keep doing that.',
+        ],
+        working: [
+          'Back. That is the useful part of a bad run — you come out of it holding something you did not have going in.',
+          'Sealed. The run broke and you did not. Noted, and not for the first time.',
+        ],
+        veteran: [
+          'There it is. You have done that four times today; I have stopped being surprised and started being interested.',
+          'Recovered. Most of the cadets I walked through here never got a fourth attempt out of themselves.',
+        ],
+        master: [
+          'And it folds. That is the part nobody writes down about people like you — not that you never slip, but that the slip is never allowed to keep anything.',
+          'Sealed. Whatever that was, it lasted three questions. I have known it last three generations.',
+        ],
+      },
+      idle: {
+        green: [
+          'Take your time. The rift is not going anywhere. That is precisely the problem.',
+          'No rush. Though I will point out that the sky is on fire, in a slow, dignified, nine-hundred-year sort of way.',
+          'Still there. So am I, obviously. I do not have anywhere else to be, which is a longer story than you want this early.',
+        ],
+        working: [
+          'Whenever you are ready. I have a nine-hundred-year backlog and nothing in it is urgent in the way this is.',
+          'You have gone quiet. Not a complaint — quiet is where most of the good answers on this shard came from.',
+          'The shard is holding. Take the minute. It is the only currency here I cannot audit.',
+        ],
+        veteran: [
+          'Standing still suits you better than it suited any of them. They all kept moving. It did not help.',
+          'I will not fill the silence. You have earned a horizon; look at it.',
+          'Nothing from me. Though if you are waiting for the sky to speak first, I should warn you it has never once gone first.',
+        ],
+        master: [
+          'You are allowed to stop. I have watched people who could not, and it is not a better way to be.',
+          'Say the word and I will find you something difficult. Otherwise I am content to stand here being obsolete.',
+          'This is the part I did not expect to reach — a cadet on Shard Nine with nothing pressing to do. Take it slowly.',
+        ],
+      },
+      streak: {
+        green: [
+          'Four in a row. The rift is starting to take it personally.',
+          'Four straight. Whatever you are doing with your eyes before you answer, keep doing it.',
+          'Four. The rig has just quietly revised what it expects of you.',
+        ],
+        working: [
+          'Four unbroken. That is not luck any more; luck does not have a rhythm.',
+          'Another run. The shard has stopped putting the easy ones in front of you, and you have not noticed, which is the point.',
+          'Four clean. Somewhere a scheduler that was hedging about you has stopped hedging.',
+        ],
+        veteran: [
+          'Another run without a slip. I have stopped counting out loud; it was becoming a distraction.',
+          'Unbroken again. Whatever the shard was hoping to defend, it has stopped hoping.',
+          'There are cadets in the record who never had one of these. You have had several this morning.',
+        ],
+        master: [
+          'Another clean run. I am going to stop announcing them; you can hear the sky change pitch as well as I can.',
+          'Uninterrupted. At some point a streak stops being a streak and becomes simply how the shard works now.',
+          'Still running. The lattice has begun writing your results in ink.',
+        ],
+      },
+      fall: {
+        green: [
+          'There is air under the world too. Considerably less useful.',
+          'Down is a direction, not a plan. The glider on your back is for exactly this.',
+          'You fell. Everybody falls — the shard is nine thousand pieces with gaps between them, and the gaps are load-bearing.',
+        ],
+        working: [
+          'Off the edge again. At least you are doing it at speed now.',
+          'The ground moved. It does that. It is a proof, not a floor plan.',
+          'Falling. I would panic on your behalf, but you have done this often enough that we both know how it ends.',
+        ],
+        veteran: [
+          'Off the edge. From you I am going to assume that was navigation.',
+          'Down we go. Nine hundred years, and nobody has improved on the technique of simply not being there.',
+          'You dropped. The record will show a controlled descent, because I write the record.',
+        ],
+        master: [
+          'Falling. Somewhere a very old ledger is delighted.',
+          'You went over. I have decided to log it as reconnaissance.',
+          'Down. I would say be careful, but the shard has more to fear from you than the reverse.',
+        ],
+      },
+      returning: {
+        green: [
+          'Back again. Statistically that is the hardest part, so congratulations to statistics.',
+          'You came back. Most of what goes wrong here goes wrong in the gap between one day and the next, and you have just closed one.',
+          'Returned. The rifts did not move. I checked twice, which tells you something about my week.',
+        ],
+        working: [
+          'Back. The shard is where you left it, which on Shard Nine is not a given.',
+          'There you are. I kept the ledger open. Nothing in it has cooled.',
+          'You returned. The second day is where the record thins out — you are already past the part most of them are missing.',
+        ],
+        veteran: [
+          'Back again, and the lattice noticed before I did. It has started listening for you.',
+          'You came back. I stopped assuming that somewhere around cadet four hundred. I am delighted to be wrong about it.',
+          'Returned. Everything you held yesterday is still held. That is the entire point of holding it.',
+        ],
+        master: [
+          'Back. At this point I should tell you the shard does not need you today, and I am not going to, because it does.',
+          'You came back. Nine hundred years of people who could have and did not, and here you are, on an ordinary morning.',
+          'Returned, again. I have run out of ways to say that this is the rare part.',
+        ],
+      },
+      close: {
+        working: [
+          'One clean answer and {skill} is yours for good. Unassisted only — the lattice does not accept help as evidence.',
+          '{skill} is one honest solve from closing. You know the shape of this one. Go and take it.',
+          'One unassisted answer stands between you and {skill}. Nine points of standing sit behind it, and none of them are free.',
+        ],
+        veteran: [
+          '{skill} is one answer from closing. That would be another line the shard never gets back.',
+          'One clean solve and {skill} is held. You have done this often enough that I am going to stop pretending it is a coin toss.',
+          '{skill}, one honest answer out. I will be quiet now; you close better when I am not talking.',
+        ],
+        master: [
+          '{skill} is one answer from being yours. There are not many left that are not.',
+          'One clean solve on {skill} and the list of things on this shard you do not own gets shorter than my patience.',
+          '{skill}, one answer out. I have stopped reciting the rule about unassisted evidence. You wrote most of the evidence.',
+        ],
+      },
+      held: {
+        working: [
+          '{skill} is held. That line does not reopen — not for weather, not for time, not for me.',
+          '{skill}, closed. Nine points of standing, and one fewer thing on this shard that can surprise you.',
+          'The lattice has stopped arguing about {skill}. Whatever else happens today, that piece of sky stays up.',
+        ],
+        veteran: [
+          '{skill}, held. That is another line the cadets before you reached and did not close.',
+          '{skill} is closed. The founding text has fewer excuses in it than it did this morning, and I intend to enjoy that.',
+          '{skill}, held permanently. Somewhere above the cloud line, something that was sagging has stopped sagging.',
+        ],
+        master: [
+          '{skill}, held. There is very little of this shard left that is not yours, and I am not certain what I shall do with myself.',
+          '{skill} closed. The record used to compare cadets with each other. Since you, it compares them with you.',
+          '{skill} is held. Nine hundred years, and the shard has finally stopped being a question.',
+        ],
+      },
+      capped: {
+        working: [
+          'Sealed, but the ledger has stopped paying for those. You have taken everything an easy rift can give. Standing comes out of held lines now.',
+          'That counted for the shard and nothing for your rank. The seal term is spent; the only currency left is a line that holds.',
+        ],
+        veteran: [
+          'Sealed, and worth exactly nothing to your standing. You passed that ceiling a long way back. Close a line if you want the ladder to move.',
+          'Counted for the sky, not for the ledger. At your count the only thing that still buys rank is a line held outright.',
+        ],
+        master: [
+          'Sealed, and unpaid, as everything at this altitude is. You stopped doing this for the ledger somewhere around your fortieth.',
+          'The ledger has nothing left to give you. You have been sealing these for the shard’s sake for some time now, and we both know it.',
+        ],
+      },
+      // Walking up to a rift. `story.voice.firstRift` — the line that explains
+      // what a rift *is* — is fired only under `canTutor()` in voice.js, so it
+      // cannot reach anybody who has sealed one. This is what everyone else
+      // hears instead.
+      rift: {
+        green: [
+          'Another one. Same rule as the last: make the statement true and the air closes over it.',
+          'Rift ahead. You have done one of these. The second is the same as the first, only you are already in it.',
+        ],
+        working: [
+          'Rift. You know the drill better than the drill does.',
+          'A tear ahead. I am not going to explain it; you have shut enough of them to be bored of my voice.',
+          'Another statement asking to be finished. Yours if you want it.',
+        ],
+        veteran: [
+          'Rift ahead. I have not narrated one of these to you in a long time and I do not propose to start.',
+          'A tear. You have closed more of these than most of the order has read about.',
+          'There is one waiting. It does not know who is coming, which is the only advantage it has.',
+        ],
+        master: [
+          'Rift. It will not last long.',
+          'Another tear. I mention it purely so the record shows that I mentioned it.',
+          'There is a statement ahead that has not heard about you yet.',
+        ],
+      },
+      // One-shot beats past the last chapter. The arc's chapters stop at
+      // twenty-eight seals; these carry the voice from there to the far end of
+      // a long save, and each is said once, ever.
+      mile: {
+        s32: 'Thirty-two. The chapters have run out and you have not, which is a problem for the record and for nobody else.',
+        s40: 'Forty sealed. The founding text keeps a table of cadets by tears closed. You are on the first page of it now, and the first page is short.',
+        s50: 'Fifty. I should be honest with you: I stopped preparing material somewhere around thirty. From here I am simply watching.',
+        s64: 'Sixty-four. There is a phrase in the archive — a hand that outpaced its shard. It has been used four times in nine centuries.',
+        s80: 'Eighty. The tearing on Shard Nine is now slower than the mending, for the first time since the fourth day. That is you. Only you.',
+        s100: 'One hundred. I have a line prepared for a cadet at one hundred. The reason you have never heard it is that no cadet has ever reached one hundred.',
+        s120: 'One hundred and twenty. The lattice has begun routing its weather around this shard. It does that for structures, not for people.',
+        s150: 'One hundred and fifty. I should like to state, for the record and without any of my usual defences, that I am glad it was you.',
+        s180: 'One hundred and eighty. Nine hundred years I have been apologising to this shard. You have made most of the apology unnecessary.',
+        s220: 'Two hundred and twenty. There is nothing left in me that knows how to be dry about this. Keep going. I will keep counting.',
+      },
+    },
+  },
+  // ---------------------------------------------------------------------------
+  // The session (src/session).
+  //
+  // A run is fifteen to twenty-five minutes with a goal stated before the first
+  // item, a pace you can see that is never a clock, a close that names what was
+  // won, and a break that is an actual rest. Marlow's register throughout: dry,
+  // exact, never flattering and never scolding. Nothing here congratulates the
+  // learner for showing up, and nothing here tells a slow one they are late.
+  // Additive keys, owned by the session layer.
+  // ---------------------------------------------------------------------------
+  session: {
+    band: {
+      run: 'Run {n}',
+      of: 'of «n|one:# tear|other:# tears»',
+      near: 'Last stretch',
+      done: 'Run complete',
+      readout: '{goal}. «n|one:# tear|other:# tears» sealed of {target}.',
+      // Work done, which the tear count deliberately does not measure. See the
+      // note at the top of band.js: a wrong answer costs nothing here, and it
+      // must not therefore show nothing.
+      worked: '«n|one:# question worked|other:# questions worked»',
+      readoutWorked: '{goal}. «n|one:# tear|other:# tears» sealed of {target}, from {items} worked.',
+    },
+    goal: {
+      hold: 'Hold: {skill}',
+      holdN: 'Hold «n|one:# line|other:# lines»',
+      push: 'Drive back: {skill}',
+      any: 'Seal whatever the shard opens',
+      extend: 'One more line',
+    },
+    charter: {
+      kick: 'Run {n} · Shard Nine',
+      title: 'Orders',
+      goalHold: '{skill}. Seal {tears} tears on that line and it should hold — properly held, the kind that never opens again.',
+      goalHoldN: 'Seal {tears} tears and {n} lines should hold — properly held, the kind that never open again.',
+      goalPush: '{skill}. Seal {tears} tears on that line. It is a long one, and today we make it short.',
+      goalAny: 'Seal {tears} tears on this shard, and we will see what the lattice does about it.',
+      willHold: 'should hold',
+      willPush: 'ground gained',
+      eta: 'About «n|one:# minute|other:# minutes» at the pace you have been working. There is no clock on this — I will tell you when we are near the end.',
+      etaSeed: 'About «n|one:# minute|other:# minutes», give or take. I have not watched you work yet, so that figure is mine and not yours; it will be yours by tomorrow. There is no clock on this — I will tell you when we are near the end.',
+      begin: 'Begin the run',
+      // The return beat. Said only when the last run left a record.
+      kickBack: 'Run {n} · back again',
+      backHeld: 'Last time out you sealed «n|one:# tear|other:# tears», and {skill} has held ever since. It still does.',
+      backHeldN: 'Last time out you sealed {tears} tears, and «n|one:# line has|other:# lines have» held ever since. They still do.',
+      backNone: 'Last time out you sealed «n|one:# tear|other:# tears». All of it is still on the board — nothing rots here.',
+    },
+    close: {
+      kick: 'Run {n} · closed',
+      titleHeld: 'The line holds',
+      titleMet: 'The shard is quiet',
+      titleEnough: 'Enough for today',
+      tears: '«n|one:tear sealed|other:tears sealed»',
+      heldLab: 'Held',
+      groundLab: 'Ground gained',
+      heldNote: 'Proved unassisted, at the hard band, with every worked example switched off. It is yours.',
+      groundNote: 'Down to «n|one:# tear|other:# tears» from holding — {d} closer than when the run opened.',
+      groundNoteFlat: '«n|one:# tear|other:# tears» from holding by the shortest road. Today bought the ground under it rather than the last step onto it.',
+      groundNoteFar: 'A long line. It moved today, and it moved the right way.',
+      groundNoneStrong: 'Nothing new to hold',
+      groundNone: 'Everything you touched today was already yours.',
+      openedLab: 'Opened',
+      openedNote: 'A new line of rifts, open to you.',
+      chapterNote: 'The record turns a page.',
+      rankNote: 'The order has revised its estimate of you.',
+      openedNoneStrong: 'The lattice, unchanged',
+      openedNone: 'Nothing opened today. That is what the long lines cost, and they are the ones worth having.',
+      nextLab: 'Next',
+      nextNote: 'About «n|one:# minute|other:# minutes» of work, and the highest-leverage thing left open. That is where we start.',
+      nextNoteUnknown: 'A long one. We will take the first part of it.',
+      nextDoneStrong: 'Shard Nine, whole',
+      nextDone: 'Nothing is open here any more. Step nine is proved.',
+      sign: 'None of this is lost. The lattice keeps what you proved, and it will still be standing when you come back.',
+      signWorked: 'Nothing here is graded and nothing here is lost. The line you were on is the line we open with, and it will be exactly where you left it.',
+      signHeld: 'That line does not rot and it does not reset. Everything above it just became reachable.',
+      rest: 'Stand down',
+      more: 'One more line',
+      aria: 'Run closed. «n|one:# tear|other:# tears» sealed.',
+      // A run that sealed nothing leads with the work instead of with a
+      // screen-height zero, and the rows below say what the work bought.
+      workedLab: '«n|one:question worked|other:questions worked»',
+      workedSub: 'None of them sealed. The shard does not count attempts and neither do I — but it did not happen for nothing, and the rows below say what it bought.',
+      ofWorked: 'from «n|one:# question worked|other:# questions worked»',
+      echoStrong: '«n|one:# worked solve|other:# worked solves»',
+      echoNote: 'A miss is what buys one. Each opened at the exact step your answer went sideways, not at the top of the page.',
+      bandStrong: 'The bank re-cut',
+      bandDown: 'Questions now open at band {n}, where you actually are. The bar for holding the line has not moved a millimetre.',
+      bandUp: 'Questions now open at band {n}. You pushed the bank up today, not the other way round.',
+      groundNoteBack: '«n|one:# tear|other:# tears» from holding by the shortest road — further than at the start, because a missed gate item puts the proving run back to its first step. That is the gate being strict, not you being slow.',
+      moreLast: 'One more stretch is all the window has left. After that we stop, and stopping on time is the part that makes tomorrow worth anything.',
+      capped: 'That is the twenty-five minutes this loop is built around. Another stretch today is worth less than the same stretch tomorrow — that is not encouragement, it is how spacing works.',
+    },
+    rest: {
+      say: 'Stand down. Look at something a long way off — the far range will do — and breathe with the ring. Four counts in, hold for two, six out.',
+      skip: 'Back to the shard',
+      endKick: 'Shard Nine',
+      endTitle: 'Holding',
+      endBody: 'Rested. Everything you proved is written down, and the sky is where you left it.',
+      endBodyNext: 'Rested. Everything you proved is written down. Next time we open with {skill}.',
+      again: 'Another run',
+      off: 'Close the channel',
+      signOff: 'Channel closed. The lattice holds while you are gone, and I will keep the light on. Same sky tomorrow, cadet.',
+      wakeUp: 'Open the channel',
+      aria: 'Break. Paced breathing; nothing is being asked of you.',
+    },
+    voice: {
+      near: 'Last stretch. Whatever happens now, this run is very nearly yours.',
+      resume: 'Picking it up exactly where you left it. Nothing slipped while you were gone; nothing ever does.',
+      extend: 'Carrying on, then. Same run, same ledger — the count does not start again just because you asked for more.',
+    },
+  },
+  // ---------------------------------------------------------------------
+  // Progress report — src/report/**. Purely additive: nothing above this
+  // block is touched. A student reads the top of it, a teacher reads the
+  // bottom, and the uncomfortable number lives on the front page.
+  // ---------------------------------------------------------------------
+  report: {
+    launch: 'Progress',
+    open: 'Open the progress report',
+    openHint: 'Progress report (P)',
+    title: 'Progress report',
+    sub: 'What you have proved, what proved it, and what comes next.',
+    close: 'Close',
+    skillsHead: 'The ten lines',
+    recordHead: 'The record',
+    recordSub: 'What this claim is worth, said plainly. These are the figures a teacher checks, and the last one is the uncomfortable one.',
+    foot: 'Nothing here is a stored grade. Live figures are recomputed from the learner model every time this opens; the evidence behind a mastered line is the receipt written when the claim was granted, and it does not move afterwards. Open a line to see it.',
+
+    stat: {
+      ofN: 'of {n}',
+      mastered: 'Lines held',
+      masteredNote: 'Proved, not merely attempted.',
+      time: 'Time on task',
+      timeNote: 'Measured between answers and capped, so idling never counts as work.',
+      session: 'This session',
+      sessionNote: 'A session is built to run 15–25 minutes and then stop cleanly.',
+      items: 'Questions answered',
+      itemsNote: 'Each one generated fresh and re-solved by machine before you saw it.',
+      accuracy: 'Solved unaided',
+      accuracyNote: 'Correct first time, with no hint and no worked example, out of every question answered.',
+      hollow: 'Claims withdrawn',
+      hollowNote: '{n} of {of} mastery claims were taken back when the line was re-tested cold.',
+      hollowNone: 'No mastery claimed yet, so there is nothing to check.',
+      ofHeld: 'of {n} held',
+      sight: 'Tested out cold',
+      sightNote: 'Proved on first contact, with no practice in front of it. The same claim on the least evidence this engine accepts — so it is re-tested cold soonest.',
+      sightNone: 'No line was proved on first contact. Every claim here was earned after practice.',
+      timeUnknown: 'Not measurable: part of this record was restored without its ledger, so the minutes before that are gone. They are shown as unknown, not as zero.',
+      accuracyUnknown: 'Not measurable on a restored record: the model remembers the questions, but not which of them were answered without help.',
+    },
+
+    trust: {
+      head: {
+        reconstructed: 'This record is incomplete',
+        foreign: 'A ledger from another record was discarded',
+      },
+      note: {
+        reconstructed: 'The learner model and the evidence ledger are stored separately, and one came back without the other. {n} questions and {claims} mastery claims were rebuilt from the model, so nothing is under-reported — but time on task and unaided accuracy before the break cannot be recovered and are shown as unknown rather than as zero.',
+        foreign: 'The evidence ledger on this device was written against a different learner record, so it was discarded rather than merged. Question counts and claims have been rebuilt from the learner model; the minutes and the unaided rate start again from here.',
+      },
+    },
+
+    road: {
+      sight: 'Tested out',
+      fast: 'Short road',
+      long: 'Long road',
+    },
+    roadNote: {
+      sight: 'Proved on first contact: one cold item at the top of the bank, then the rest of the proving run. Three unassisted items, no practice in front of them.',
+      fast: 'Opened the proving run on one clean unassisted solve at the gate band — fewer items than the long road, each of them harder.',
+      long: 'Opened the proving run the long way: three clean unassisted solves and a posterior at the full threshold.',
+    },
+
+    next: {
+      head: 'Next',
+      why: {
+        fresh: 'New ground. Everything it stands on is already held.',
+        continue: 'Unfinished. Staying here is worth more than moving on.',
+        check: 'One proving run away — three clean answers, no help, harder than usual.',
+        review: 'Due for a cold re-test. The claim has to earn its place again.',
+        enrich: 'Everything open is held. This one goes deeper instead.',
+      },
+      built: 'Standing on «n|one:# line you already hold|other:# lines you already hold».',
+      start: 'The first line. Nothing is required before it.',
+      doneName: 'All ten lines held',
+      doneWhy: 'Level 1 is complete. What is left is keeping it.',
+    },
+
+    state: {
+      locked: 'Locked',
+      open: 'Open',
+      practising: 'In progress',
+      proving: 'Proving',
+      mastered: 'Held',
+      provisional: 'Slipping',
+      withdrawn: 'Reopened',
+    },
+    stateNote: {
+      locked: 'Something above this line is not held yet, so it will not open.',
+      open: 'Unlocked and untouched.',
+      practising: 'Practice under way. Support fades as the model firms up.',
+      proving: 'The proving run is live: unassisted, support off, forms you have practised least.',
+      mastered: 'Proved, and standing up to cold re-tests.',
+      provisional: 'One re-test missed. Miss the next and the claim is withdrawn.',
+      withdrawn: 'Held once, then lost on re-test. Practice has reopened.',
+    },
+
+    evidence: {
+      head: 'The evidence behind this line',
+      posterior: 'Model confidence',
+      posteriorNote: 'Bayesian knowledge tracing, counting unassisted answers only. Needs {need}.',
+      clean: 'Clean run',
+      cleanNote: 'Correct in a row, with no help, at difficulty band {band} or above.',
+      proving: 'Proving run',
+      provingNote: 'Unassisted, support switched off, band {band} or above, drawn from the forms you have practised least.',
+      prereq: 'Prerequisites',
+      prereqNote: 'Held before this line opened: {list}.',
+      prereqRoot: 'Nothing is required before this line.',
+      noPrereq: 'none needed',
+      retention: 'Held on re-test',
+      retentionNote: 'Cold re-tests come round on an expanding schedule. Miss two and the claim is withdrawn.',
+      probeCount: '{hit} of {n} held',
+      probeNone: 'none due yet',
+      coldVal: 'cold, band {band}',
+      cleanSight: 'None, and none were asked for: this line was proved on first contact. The cold item is the proving run’s own first item and is counted once, in the row below.',
+      cleanRoad: {
+        long: 'Three in a row, unassisted, at difficulty band {band} — the long road to the proving run.',
+        fast: 'One clean unassisted solve, but taken at band {band}, the gate band itself. The short road asks for fewer items and harder ones.',
+      },
+      provingExtended: 'Unassisted, support off, band {band} or above. The run extended itself by {n} to span a second surface and a modelling item.',
+      noReceipt: 'not recorded',
+      noReceiptNote: 'This claim was granted by an earlier build that kept no record of what proved it. It is reported as unevidenced rather than reconstructed from the settings — a threshold quoting itself is not evidence.',
+      rests: 'This claim rests on {n} unassisted items, out of {of} questions answered on this line.',
+      restsUnknown: 'The items behind this claim were not recorded. {of} questions have been answered on this line.',
+      grantedOn: 'Granted {date}.',
+    },
+
+    fact: {
+      time: 'Time on this line',
+      items: 'Questions here',
+      accuracy: 'Solved unaided',
+      band: 'Difficulty',
+      bandVal: 'Band {n} of 5',
+      reps: 'Proved in',
+      forms: 'Question types met',
+      formsVal: '«n|one:# type|other:# types»',
+      slip: 'Most common slip',
+      noSlip: 'No repeated slip yet.',
+      noneYet: 'not yet',
+    },
+
+    rep: {
+      symbolic: 'symbols',
+      context: 'a situation',
+      verbal: 'words',
+      table: 'a table',
+      graph: 'a graph',
+    },
+
+    std: {
+      head: 'Standards this line answers to',
+      ccss: 'Common Core',
+      teks: 'TEKS (Texas)',
+      depth: {
+        core: 'core',
+        supporting: 'supporting',
+        introduced: 'introduced',
+        unknown: 'depth not stated',
+      },
+      depthNote: {
+        core: 'Core: this standard is the thing being taught here, and the mastery gate tests it.',
+        supporting: 'Supporting: exercised inside items aimed at another standard on this line, not gated on its own.',
+        introduced: 'Introduced: a deliberately partial first encounter that a later level completes. Not a claim to have taught it.',
+        unknown: 'No coverage depth is recorded for this citation.',
+      },
+      depthSum: '{n} of {of} citations on this line are core claims — the standard is what is taught here and the gate tests it. The rest are supporting or a first encounter.',
+      depthNoCore: 'None of the {of} citations on this line is a core claim: this line supports them or introduces them, and another line carries them. Holding it is not a claim to have taught them.',
+    },
+
+    // The teacher's copy — src/report/teacher.js and src/report/record.js.
+    // A dated, named, printable document, and the same thing again for a class.
+    record: {
+      open: 'Teacher record',
+      openHint: 'A dated, printable evidence record — for this learner or for a whole class',
+      title: 'Learner record',
+      sub: 'A dated evidence record, made to be printed or filed. Nothing in it is a stored grade: every figure is recomputed from this device’s learner model at the moment you print or export.',
+      tab: { one: 'One learner', class: 'Class · {n}' },
+      name: 'Student name',
+      namePh: 'Not recorded',
+      group: 'Class or group',
+      groupPh: 'Optional',
+      nameNote: 'Kept on this device and written into anything you print or export, so a record can be attached to a person. Nothing is uploaded and there is no account.',
+      print: 'Print / PDF',
+      exportJson: 'Export record (.json)',
+      exportCsv: 'Export table (.csv)',
+      import: 'Add student records…',
+      addMine: 'Add this device’s record',
+      clear: 'Remove all',
+      anon: 'Unnamed learner',
+      unknownDate: 'date not recorded',
+      notMeasured: 'not measured',
+      noClaim: 'not proved',
+      levelName: 'Algebra I · Level 1 · The Cipher Worlds',
+      levelLine: '{level}',
+      generatedLine: 'Generated {date}',
+      sum: {
+        held: 'Lines held',
+        items: 'Questions answered',
+        unaided: 'Solved unaided',
+        time: 'Time on task',
+        claimItems: 'Items behind the claims',
+        testedOut: 'Tested out cold',
+        withdrawn: 'Claims withdrawn',
+      },
+      linesHead: 'Line by line',
+      withdrawnHead: 'Claims this engine took back',
+      withdrawnRow: '{skill} — withdrawn {date}',
+      byLineHead: 'Where the class stands, line by line',
+      classTitle: 'Class record',
+      classSub: '{n} student records · assembled {date}',
+      classEmpty: 'No student records yet. Each student exports their own record from this screen; add the files here and they stay on this device.',
+      classFoot: 'Assembled from records the students exported themselves. Nothing was uploaded, and this list lives only in this browser — clearing site data clears it.',
+      claimItemsShort: '{n} unassisted items at band {band}',
+      claimReps: 'across {n} representations',
+      claimRegrant: 're-earned after a withdrawal',
+      foot: 'Record {id} · {n} observations. Every figure above is recomputed from the learner model and the evidence ledger on this device; none of it is a stored grade. A line is held only after an unassisted proving run at the gate band, and the claim is withdrawn again if two later cold re-tests fail.',
+      trust: {
+        verified: 'verified',
+        reconstructed: 'reconstructed',
+        foreign: 'rebuilt',
+      },
+      trustNote: {
+        verified: 'Both halves of this record — the learner model and the evidence ledger — agree, question for question.',
+        reconstructed: 'Restored from a partial save. Question counts and claims were rebuilt from the learner model, so nothing is under-reported; time on task and unaided accuracy from before the break are not recoverable and are reported as unknown rather than as zero.',
+        foreign: 'The evidence ledger found on this device belonged to a different record and was discarded rather than merged. Everything here was rebuilt from the learner model alone.',
+      },
+      col: {
+        student: 'Student',
+        group: 'Class',
+        generated: 'Generated',
+        skill: 'Line',
+        state: 'State',
+        evidence: 'What proved it',
+        confidence: 'Model confidence',
+        items: 'Questions',
+        unaided: 'Unaided',
+        time: 'Time',
+        road: 'Road',
+        claimItems: 'Items behind the claim',
+        band: 'Band',
+        retention: 'Held on re-test',
+        standards: 'Standards (depth)',
+        ccss: 'Common Core (depth)',
+        teks: 'TEKS (depth)',
+        trust: 'Record',
+        held: 'Lines held',
+        testedOut: 'Tested out',
+        withdrawn: 'Withdrawn',
+        classHeld: 'Held',
+        classProving: 'Proving',
+        classWorking: 'Working',
+        classLocked: 'Not open yet',
+      },
+    },
+
+    unit: {
+      sec: 'sec',
+      min: 'min',
+      hr: 'hr',
+      secFull: '{n} sec',
+      minFull: '{n} min',
+      hrFull: '{h} hr {m} min',
+    },
+
+    idea: {
+      'var-meaning': 'A letter stands for a number nobody has named yet.',
+      'eval-expr': 'Put the number in place of the letter, and the expression becomes one value.',
+      'order-ops': 'Brackets and powers bind tighter than multiplying, which binds tighter than adding.',
+      'like-terms': 'Terms only merge when their letter parts match exactly.',
+      'distribute': 'Multiplying a sum multiplies every term inside it.',
+      'one-step-add': 'An equation is a balance: undo an addition on both sides at once.',
+      'one-step-mul': 'A number written against the unknown comes off by dividing, never by subtracting.',
+      'two-step': 'Unwrap in reverse: the loose number first, then the coefficient.',
+      'multi-step': 'Simplify each side completely before you undo anything.',
+      'both-sides': 'Gather the unknown on one side — and if it vanishes, read what is left.',
+    },
+
+    slip: {
+      'add-not-multiply': 'Adds where the situation multiplies',
+      'arith-slip': 'Right method, slipped arithmetic',
+      'axis-swap': 'Reads the graph along the wrong axis',
+      'coefficient-sign-lost': 'Drops the sign on the coefficient',
+      'collect-wrong-side': 'Gathers the unknown on the wrong side',
+      'combine-unlike': 'Merges terms that are not alike',
+      'distribute-then-forget': 'Expands the bracket, then loses a term',
+      'div-direction': 'Divides the wrong way round',
+      'divide-not-multiply': 'Divides where the situation multiplies',
+      'exponent-as-mult': 'Reads a power as a multiplication',
+      'implicit-mult-missed': 'Reads 3x at x = 4 as the digits, not the product',
+      'letter-as-object': 'Treats the letter as a label, not a value',
+      'letter-as-position': 'Uses the letter’s place in the alphabet as its value',
+      'neg-base-power': 'Mishandles the sign on a negative base',
+      'neg-distribute': 'Loses a minus sign while expanding',
+      'neg-substitution': 'Substitutes a negative but keeps the answer positive',
+      'no-solution-confusion': 'Confuses no solution with every value working',
+      'off-by-one-row': 'Reads the neighbouring row of the table',
+      'one-side-only': 'Changes one side of the balance only',
+      'partial-distribute': 'Multiplies only the first term in the bracket',
+      'partial-rule': 'Starts the rule correctly and stops early',
+      'same-op-both': 'Applies the same operation instead of the inverse',
+      'sign-on-constant': 'Moves the constant across without changing its sign',
+      'sign-slip': 'Loses or invents a minus sign',
+      'strict-left-right': 'Works strictly left to right, ignoring precedence',
+      'subtract-coefficient': 'Subtracts the coefficient instead of dividing by it',
+      'subtract-not-multiply': 'Subtracts where the situation multiplies',
+      'swapped-roles': 'Swaps which quantity is which',
+      'wrong-unwrap-order': 'Unwraps in the order the expression was built',
+      'x-and-x-squared': 'Treats x and x squared as the same kind of term',
+    },
+  },
+
+  // The kit (src/kit). What a sealed line buys, said as capability and never as
+  // congratulation. Additive keys, owned by the kit.
+  kit: {
+    granted: 'Line sealed',
+    grantedHeld: 'Line still holding',
+    locked: 'Seal {n}',
+    lockedLong: 'Sealing {n} lines opens this',
+    next: 'Next',
+    cost: '{n} shards',
+    held: 'Held',
+    needShards: '{n} shards needed',
+    flareLit: 'Flare lit — the air is rising',
+    beaconSet: 'Beacon planted — the air rises here from now on',
+    vaulted: 'Vault',
+    // What this run is for, said as the thing you are about to be able to do.
+    // Never as a rep count: a quota on the title card is a toll booth, and the
+    // whole design says the mathematics is the upgrade path and not the fee.
+    charterNext: '{skill}. Hold that line and {grant} is yours. {what}',
+    charterOpen: '{skill}. Everything the kit has is already yours; what is left out there is the island, and it is bigger than you have flown.',
+    vault: {
+      name: 'Vault plate',
+      short: 'Plate',
+      what: 'A fifth piece for the lattice. Stand on one and it throws you twelve metres straight up.',
+    },
+    flare: {
+      name: 'Updraft flare',
+      short: 'Flare',
+      what: 'F — light a column of rising air under your own boots, anywhere, for six seconds.',
+    },
+    kite: {
+      name: 'Kite trim',
+      short: 'Trim',
+      what: 'The wing flies flatter, faster and turns harder. Valleys you could not cross are now one glide.',
+    },
+    reserve: {
+      name: 'Deep reserve',
+      short: 'Reserve',
+      what: 'The lattice reserve more than doubles, and refills half again as fast.',
+    },
+    legs: {
+      name: 'Storm legs',
+      short: 'Legs',
+      what: 'A faster sprint, a higher jump, and the dash comes back in half the time.',
+    },
+    sight: {
+      name: 'Resonant sight',
+      short: 'Sight',
+      what: 'Drift motes lean toward you, and a hanging cache can be read from twice as far out.',
+    },
+    beacon: {
+      name: 'Standing beacon',
+      short: 'Beacon',
+      what: 'G — ninety shards plants a column of rising air that is still standing tomorrow. The only thing you can do to this island that lasts.',
+    },
+    windstep: {
+      name: 'Windstep',
+      short: 'Windstep',
+      what: 'The dash comes back while your boots are off the ground. Three of them will cross a gap the wing cannot.',
+    },
+    span: {
+      name: 'Long span',
+      short: 'Span',
+      what: 'The wing again, flatter and faster still. From the high ridge you can now reach the far coast without touching down.',
+    },
+    array: {
+      name: 'Plate array',
+      short: 'Array',
+      what: 'The vault plate throws you a third higher and costs six shards instead of eighteen. Plates become a staircase.',
+    },
+    squall: {
+      name: 'Squall flare',
+      short: 'Squall',
+      what: 'The flare costs sixteen, stands seventy-four metres tall and holds for eleven seconds.',
+    },
+    deepwell: {
+      name: 'Deep well',
+      short: 'Well',
+      what: 'The lattice reserve reaches three hundred and refills twice as fast. Bridge a canyon in one run.',
+    },
+    // --- the endgame: the rung that is a rate rather than a rung ---------
+    station: {
+      name: 'Waystation',
+      short: 'Station',
+      what: 'H — raise a permanent tower of rising air, and travel between any two of them. Costs a charter and two hundred and forty shards.',
+    },
+    charter: {
+      name: 'A waystation charter',
+      what: 'Hold what you already hold, across a night, and the lattice cuts you another charter. There is no last one.',
+    },
+    chartersHeld: '«n|one:# charter|other:# charters» · {cost}',
+    charterIn: '{n} deeper',
+    needCharter: 'No charter. {n} more depth cuts the next one',
+    stationSet: 'Waystation {n} raised — it is on the island now',
+    stationAlone: 'Nowhere to travel yet. Raise a second one',
+    travelled: 'Waystation to waystation',
+    soundLanded: 'Sounding landed · {n} down, clean',
+    soundDeep: 'Sounding · {n} down',
+    soundBroke: 'The sounding breaks at {n}',
+  },
+
+  // The drift and the hanging caches (src/world). What the island does when
+  // nobody is asking you a question.
+  field: {
+    moteTake: '+{n} shards',
+    updraft: 'Updraft',
+    surge: 'Rift surge',
+    surgeHit: 'Rift surge — {n} shards knocked loose',
+    balanceLock: 'Balance lock',
+    balanceNo: 'The beam refuses it',
+    balanceReset: 'The weights re-form',
+    cacheOpen: 'Cache broken open — {n} shards, and the air here rises for good',
   },
 };

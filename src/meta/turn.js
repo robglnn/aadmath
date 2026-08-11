@@ -36,6 +36,12 @@ export class Turn {
     this._live = null;
   }
 
+  /** Is the plate holding the frame right now? */
+  get playing() { return this.el.classList.contains('show'); }
+
+  /** What it is showing, for a beat that has to take the frame off it. */
+  get live() { return this._live ? { ...this._live } : null; }
+
   /** @param {number} n chapter @param {string} id act id @param {number} tears */
   play(n, id, tears) {
     this._live = { n, id, tears };

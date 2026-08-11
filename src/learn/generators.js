@@ -134,9 +134,9 @@ const DECKS = {
     { ctx: 'ctx.bunks', ask: 'ask.howManyCadets' },
     { ctx: 'ctx.medPacks', ask: 'ask.howManyDoses' },
     { ctx: 'ctx.cableDrums', ask: 'ask.howManyMetres' },
-    { ctx: 'ctx.oreSkips', ask: 'ask.howManyTonnes' },
-    { ctx: 'ctx.seedVaults', ask: 'ask.howManySeedlings' },
-    { ctx: 'ctx.filters', ask: 'ask.howManyDays' },
+    { ctx: 'ctx.oreSkips', ask: 'ask.howManyTonnesRaised' },
+    { ctx: 'ctx.seedVaults', ask: 'ask.howManySeedlingsPlanted' },
+    { ctx: 'ctx.filters', ask: 'ask.howManyDaysAir' },
     { ctx: 'ctx.pulses', ask: 'ask.howManySeconds' },
     { ctx: 'ctx.resinSpools', ask: 'ask.howManyRivets' },
     { ctx: 'ctx.ladderSections', ask: 'ask.howManyMetres' },
@@ -151,10 +151,10 @@ const DECKS = {
     { ctx: 'ctx.airBottles', ask: 'ask.howManyLitres' },
     { ctx: 'ctx.markerStakes', ask: 'ask.howManyKilometres' },
     { ctx: 'ctx.dryRations', ask: 'ask.howManyDays' },
-    { ctx: 'ctx.printPlates', ask: 'ask.howManyFrames' },
-    { ctx: 'ctx.saltBlocks', ask: 'ask.howManyTonnes' },
+    { ctx: 'ctx.printPlates', ask: 'ask.howManyFramesHeld' },
+    { ctx: 'ctx.saltBlocks', ask: 'ask.howManyTonnesBarged' },
     { ctx: 'ctx.chargeCoils', ask: 'ask.howManyWatts' },
-    { ctx: 'ctx.hullPatches', ask: 'ask.howManyPanes' },
+    { ctx: 'ctx.hullPatches', ask: 'ask.howManyPlates' },
     { ctx: 'ctx.gasBladders', ask: 'ask.howManyLitres' },
     { ctx: 'ctx.snowMelters', ask: 'ask.howManyLitres' },
     { ctx: 'ctx.tallySticks', ask: 'ask.howManyReadings' },
@@ -162,7 +162,7 @@ const DECKS = {
     { ctx: 'ctx.pickAxes', ask: 'ask.howManyHours' },
     { ctx: 'ctx.chartRolls', ask: 'ask.howManyMetres' },
     { ctx: 'ctx.beeFrames', ask: 'ask.howManyGrams' },
-    { ctx: 'ctx.soundBuoys', ask: 'ask.howManySeconds' },
+    { ctx: 'ctx.soundBuoys', ask: 'ask.howManySecondsPing' },
     { ctx: 'ctx.spareBolts', ask: 'ask.howManyRivets' },
   ],
   // b groups of a groups of v.
@@ -175,13 +175,13 @@ const DECKS = {
     { ctx: 'ctx.nestedCores', ask: 'ask.howManySamples' },
     { ctx: 'ctx.nestedBricks', ask: 'ask.howManyBricks' },
     { ctx: 'ctx.nestedCans', ask: 'ask.howManyLitres' },
-    { ctx: 'ctx.nestedPacks', ask: 'ask.howManyDoses' },
+    { ctx: 'ctx.nestedPacks', ask: 'ask.howManyDosesStowed' },
     { ctx: 'ctx.nestedCable', ask: 'ask.howManyMetres' },
     { ctx: 'ctx.nestedBunks', ask: 'ask.howManyCadets' },
     { ctx: 'ctx.nestedPanes', ask: 'ask.howManyPanes' },
-    { ctx: 'ctx.nestedPatches', ask: 'ask.howManyPanes' },
+    { ctx: 'ctx.nestedPatches', ask: 'ask.howManyPlates' },
     { ctx: 'ctx.nestedMills', ask: 'ask.howManyWatts' },
-    { ctx: 'ctx.nestedBuoys', ask: 'ask.howManySeconds' },
+    { ctx: 'ctx.nestedBuoys', ask: 'ask.howManySecondsPing' },
   ],
   // Somebody has decided a letter is worth its place in the alphabet.
   claim: ['ctx.alphabetClaim', 'ctx.claimRoster', 'ctx.claimOldRig', 'ctx.claimBet',
@@ -3084,6 +3084,31 @@ export const DECK_SCENES = Object.fromEntries(
     k, v.map((e) => (typeof e === 'string' ? e : e.ctx)).filter((x) => x && x.startsWith('ctx.')),
   ])
 );
+
+/**
+ * Every (situation, question) pairing a deck can deal.
+ *
+ * A deck entry is an object precisely when the question has to agree with the
+ * noun the situation counts, and for a long time nothing checked that it did.
+ * `ctx.hullPatches` counted plates of hull skin and `ask.howManyPanes` asked
+ * for window panes; English happened to call both a "pane" and so read as
+ * consistent, while the Spanish item counted *paños de plancha* and asked for
+ * *cristales* and the Polish counted *płatów blachy* and asked *ile to szyb*.
+ * Every gate passed: the mathematics was right, the KaTeX was strict, the key
+ * sets matched. The learner was simply asked for a different object than the
+ * story had counted, in two languages out of three.
+ *
+ * So the pairings are exported, and tools/check-context-ask.mjs walks them
+ * against a per-locale table of unit nouns and fails the build on a
+ * disagreement. `strip` and `bill` are alternative framings of the same
+ * situation and are checked against the same question as `ctx`.
+ */
+export const DECK_PAIRS = Object.entries(DECKS).flatMap(([deckName, entries]) => entries.flatMap((e) => {
+  if (typeof e === 'string') return [];
+  const asks = Object.entries(e).filter(([, key]) => typeof key === 'string' && key.startsWith('ask.'));
+  const scenes = ['ctx', 'strip', 'bill'].map((slot) => e[slot]).filter(Boolean);
+  return asks.flatMap(([slot, ask]) => scenes.map((ctx) => ({ deck: deckName, ctx, slot, ask })));
+}));
 
 export const FORMS_BY_SKILL = Object.fromEntries(
   Object.entries(FORMS).map(([k, v]) => [k, v.map((f) => ({

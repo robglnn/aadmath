@@ -1,0 +1,715 @@
+/**
+ * The session.
+ *
+ * ASCENT had no session. It had a world with rifts in it, which is a sandbox —
+ * and a sandbox is exactly the shape that produces the hour-long block this
+ * whole product is built to avoid. A learner could not tell when they had done
+ * enough, so they either stopped at random or did not stop at all, and neither
+ * ending makes anybody want to come back tomorrow.
+ *
+ * A run is the unit now, and it has four beats:
+ *
+ *   1. ORDERS   (`charter.js`)     the goal, stated before the first item, and
+ *      sized by playing the real mastery engine forward at this learner's own
+ *      measured pace until twenty minutes of work have gone by (`estimate.js`).
+ *      On a return it opens by saying what the last run left standing.
+ *   2. THE RUN  (`band.js`)        one cell per tear closed, a ladder mark
+ *      where a seam is expected to shut, a `near` state at three quarters, and
+ *      a second quiet read for work done that answers to every item worked,
+ *      not only to the ones that came out right. No clock, anywhere, ever.
+ *   3. THE CLOSE (`resolution.js`) what is now held, what that opened, and what
+ *      the next run opens with — named and costed.
+ *   4. THE REST  (`rest.js`)       distance and paced breathing, then a real
+ *      ending you are allowed to take.
+ *
+ * The one thing it borrows from the rest of the game is the answer stream, and
+ * it borrows it the same way `src/meta` does: by wrapping `mastery.observe`,
+ * the single call every answer already goes through. Nothing in `src/learn`,
+ * `src/ui` or `src/meta` knows this file exists.
+ *
+ * Everything is written to `localStorage` on every answer, so a run survives
+ * the break, a reload, a dead battery and the end of the school day.
+ *
+ * THE FLOOR. When a session beat takes the frame it takes it whole. That is not
+ * a preference: `src/main.js` chains the next rift 460 ms after a sealed one,
+ * and a resolution card is opened on the frame *after* the rift panel closes —
+ * so for four hundred milliseconds the close beat looks correct, and then a
+ * live keypad paints itself underneath it and the break beat, whose entire
+ * premise is looking at something a long way off, is a picture of a keypad.
+ * `takeFloor()` is called before any beat is shown; main.js hands it the one
+ * timer it owns, and `blocking()` is the standing answer to "may I open a rift
+ * right now" for anything that fires later.
+ */
+import './session.css';
+import { planRun, tearsToHold, minutesToHold, SESSION_MAX, SESSION_TARGET } from './estimate.js';
+import { createPace } from './pace.js';
+import { RunBand } from './band.js';
+import { Charter } from './charter.js';
+import { Resolution } from './resolution.js';
+import { Rest } from './rest.js';
+import { t, onLocaleChange } from '../i18n/index.js';
+
+const KEY = 'ascent.run';
+/** What the last closed run left behind, so a return can be acknowledged. */
+const LAST_KEY = 'ascent.run.last';
+/** A short extension when a learner asks for one more seam. Minutes. */
+const EXTEND_MINUTES = 8;
+/** Never let one frame's dt (a tab that was asleep) count as session time. */
+const MAX_DT = 0.5;
+/**
+ * How much out-of-rift time is charged to the session, per gap. Seconds.
+ *
+ * `run.focus` used to be wall clock, and wall clock is the wrong clock: twenty
+ * five minutes spent building a tower closed the session at zero tears and told
+ * the learner they had done twenty five minutes of work, while `pace` — which
+ * sizes the goal — deliberately refuses to charge the walk between two rifts to
+ * anybody's thinking time. Two clocks is the same as none. So the session now
+ * counts the same seconds the planner does: time with an item on the surface,
+ * plus the walk to the next rift up to this much. Building, gliding and looking
+ * at the sea are the game; they are not the Pomodoro.
+ */
+const GAP_GRACE = 45;
+/** How many times one sitting may be extended before the ceiling is the answer. */
+const MAX_EXTENSIONS = 2;
+/** An extension shorter than this is not worth the card that offers it. */
+const MIN_EXTENSION = 3;
+
+export function createSession({
+  root, mastery, story, input, fx, audio, panel, hud,
+  // reward economy (src/kit): optional, and only ever read for the one line
+  // the orders card leads with. Absent, the card falls back to its own copy.
+  kit = null,
+  isBusy = () => false, onFloor = () => {},
+}) {
+  const pace = createPace();
+  const band = new RunBand(root);
+  const charter = new Charter(root, { onBegin: startWork });
+  const resolution = new Resolution(root, { onRest: toRest, onMore: extend });
+  const rest = new Rest(root, {
+    onDone: () => {},
+    onAnother: () => { leaveRest(); plan(); },
+    onClose: closeChannel,
+  });
+
+  /* ONE CEREMONY AT A TIME. The three session beats take the whole frame, and
+     so do the rank rite and the chapter plate in src/meta. All five are type
+     over a semi-transparent dim — the world stays in the frame on purpose — so
+     two of them at once composite rather than stack: the word GOLD printed
+     straight through the résumé at 1280x720, with "from 16 questions worked"
+     sitting on its O and L, and no stacking order could have fixed it because
+     neither card paints an opaque pixel. So src/meta is told, once, how to ask
+     whether the frame is free, and it queues its beats behind this answer. */
+  story?.setFrameGuard?.(() => blocking());
+
+  let run = load();
+  let last = loadLast();
+  let phase = 'idle';          // idle · charter · work · close · rest · off
+  let pending = 0;             // seconds waited before the orders arrive
+  let saidNear = false;
+  let ending = false;
+  // work-time accounting (see GAP_GRACE)
+  let panelWasOpen = false;
+  let gapSpent = 0;
+
+  // ---------------------------------------------------------------------------
+  // The answer stream. One wrap, and the run can hear the whole game.
+  // ---------------------------------------------------------------------------
+  const rawObserve = mastery.observe.bind(mastery);
+  mastery.observe = (id, correct, meta = {}) => {
+    const res = rawObserve(id, correct, meta);
+    try { onAnswer(id, !!correct, meta, res); } catch { /* never break the loop */ }
+    return res;
+  };
+
+  // The pace clock starts when an item actually reaches the surface, not when
+  // the last one was answered — otherwise the walk between two rifts is charged
+  // to the learner's thinking time and tomorrow's goal shrinks for it.
+  const rawShow = panel.show.bind(panel);
+  panel.show = (item, opts) => {
+    pace.presented(item, opts);
+    noteFirstSight(opts?.skillId);
+    return rawShow(item, opts);
+  };
+
+  /**
+   * The first time a line reaches the surface inside this run, its distance is
+   * read *before* the learner touches it.
+   *
+   * The plan takes that reading for the lines it named, but a run routinely
+   * works a line the plan did not name — one that unlocked halfway through, or
+   * an interleaved re-probe — and those were the lines with no `was` to compare
+   * against, so the close beat's ledger fell back to "today bought the ground
+   * under it" for exactly the case where it had something specific to say.
+   */
+  function noteFirstSight(id) {
+    if (!id || !run || phase !== 'work') return;
+    run.startLeft = run.startLeft || {};
+    run.startBand = run.startBand || {};
+    if (id in run.startLeft) return;
+    const left = tearsToHold(mastery, id, pace);
+    run.startLeft[id] = left ? left.tears : null;
+    run.startBand[id] = mastery.get(id)?.difficulty ?? null;
+  }
+
+  function onAnswer(id, correct, meta, res) {
+    pace.answered(correct);
+    if (!run || phase !== 'work') return;
+    run.worked[id] = (run.worked[id] || 0) + 1;
+    // Work done, which is not the same thing as work that came out right. This
+    // is the only counter in the run that a wrong answer moves, and it is the
+    // reason a learner who missed ten in a row is not shown a frozen band and
+    // an unmoved zero for twenty minutes.
+    run.items = (run.items || 0) + 1;
+    if (!correct) {
+      run.misses = (run.misses || 0) + 1;
+      // Every miss puts a worked solve in front of the learner, jumped to the
+      // step their answer revealed. That is teaching received, and the close
+      // beat is allowed to count it.
+      run.echoes = (run.echoes || 0) + 1;
+    }
+    if (correct) {
+      run.tears++;
+      band.tick(run.tears, true);
+      if (!saidNear && run.tears / run.target >= 0.75 && run.tears < run.target) {
+        saidNear = true;
+        story?.comms?.sayKey('session.voice.near', { tag: 'session-near', force: true });
+      }
+    }
+    band.work(run.items, run.plannedItems || 0);
+    if (res?.justMastered) {
+      if (!run.held.includes(id)) run.held.push(id);
+      band.seamHeld();
+    }
+    for (const u of res?.newlyUnlocked || []) if (!run.opened.includes(u)) run.opened.push(u);
+    save();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Planning
+  // ---------------------------------------------------------------------------
+  function plan(opts = {}) {
+    const minutes = opts.minutes ?? SESSION_TARGET;
+    const index = opts.keepIndex && run ? run.index : ((run?.index || 0) + 1);
+    const p = planRun(mastery, pace, { minutes, seed: 0x5eed + index * 131 });
+    const s = story?.state?.() || {};
+    run = {
+      index,
+      startedAt: Date.now(),
+      focus: 0,
+      target: p.tears,
+      tears: 0,
+      // How many items the projection expected to spend on that goal. It is
+      // what the band's work read is drawn against, and it is never shown as a
+      // number: a learner is being told "you are working", not "you are late".
+      plannedItems: Math.max(p.tears, Math.round(p.items || p.tears)),
+      items: 0,
+      misses: 0,
+      echoes: 0,
+      seams: p.seams,
+      promised: p.promised,
+      minutes: p.minutes,
+      seeded: pace.seeded,
+      complete: p.complete,
+      worked: {},
+      held: [],
+      opened: [],
+      extensions: 0,
+      // Where every line the orders name actually stood before the first item,
+      // in tears. The close compares against this rather than asserting that
+      // twenty minutes must have moved something.
+      startLeft: Object.fromEntries(p.seams.map((sm) => {
+        const left = tearsToHold(mastery, sm.id, pace);
+        return [sm.id, left ? left.tears : null];
+      })),
+      // …and the band each of them was being served at, which is the other
+      // thing a hard run really does move.
+      startBand: Object.fromEntries(p.seams.map((sm) => [sm.id, mastery.get(sm.id)?.difficulty ?? null])),
+      chapterAt: s.chapter ?? null,
+      rankAt: s.rank ?? null,
+      extension: false,
+      done: false,
+    };
+    saidNear = false;
+    resetWorkClock();
+    save();
+    paintBand();
+    phase = 'charter';
+    takeFloor();
+    charter.show({
+      index: run.index,
+      target: run.target,
+      seams: run.seams,
+      minutes: run.minutes,
+      seeded: run.seeded && !last,
+      // A thunk, not a sentence. The orders card lives for sixteen seconds and
+      // the language switcher is on screen for all of them; a string rendered
+      // here is a string frozen in whatever locale was loaded at the time.
+      goalText: () => goalLong(run),
+      back: backCard(),
+    });
+    return run;
+  }
+
+  /**
+   * What the last closed run left standing, for the top of the orders. A game
+   * that greets a learner on day two with the same cold checklist it opened
+   * with on day one — down to "I have not watched you work yet", said to
+   * somebody it watched work for twenty minutes yesterday — has not noticed
+   * they came back, and noticing is most of what makes them come back again.
+   */
+  function backCard() {
+    if (!last || !Number.isFinite(last.tears)) return null;
+    return {
+      tears: last.tears,
+      held: (last.held || []).slice(),
+      index: last.index,
+      days: last.endedAt ? Math.floor((Date.now() - last.endedAt) / 86400000) : 0,
+    };
+  }
+
+  function startWork() {
+    phase = 'work';
+    setModal(false);
+    band.show(true);
+    resetWorkClock();
+    save();
+  }
+
+  /** The band's label, its ladder marks and its work read, in this language. */
+  function paintBand() {
+    if (!run) return;
+    band.set({
+      index: run.index,
+      tears: run.tears,
+      target: run.target,
+      items: run.items || 0,
+      plannedItems: run.plannedItems || 0,
+      goalText: goalShort(run),
+      marks: run.seams.filter((s) => s.hold && s.at != null).map((s) => s.at),
+    });
+  }
+
+  function goalShort(r) {
+    const hold = r.seams.filter((s) => s.hold);
+    if (r.extension) return t('session.goal.extend');
+    if (hold.length >= 2) return t('session.goal.holdN', { n: hold.length });
+    if (hold.length === 1) return t('session.goal.hold', { skill: t('skills.' + hold[0].id) });
+    const first = r.seams[0];
+    return first
+      ? t('session.goal.push', { skill: t('skills.' + first.id) })
+      : t('session.goal.any');
+  }
+
+  function goalLong(r) {
+    const hold = r.seams.filter((s) => s.hold);
+    // reward economy: what this run is *for* is the capability the next held
+    // line hands over, not a rep count. "Seal 16 tears on that line" is a toll
+    // booth on the title card; Fortnite never says "eliminate 16 opponents to
+    // unlock the glider." The skill named is the one the run is aimed at, and
+    // the promise comes from the kit (src/kit/kit.js).
+    const aim = hold[0] || r.seams[0];
+    if (aim && kit) {
+      const g = kit.nextGrant?.();
+      const skill = t('skills.' + aim.id);
+      return g
+        ? t('kit.charterNext', { skill, grant: g.name, what: g.what })
+        : t('kit.charterOpen', { skill });
+    }
+    if (hold.length >= 2) return t('session.charter.goalHoldN', { n: hold.length, tears: r.target });
+    if (hold.length === 1) {
+      return t('session.charter.goalHold', {
+        skill: t('skills.' + hold[0].id), tears: r.target,
+      });
+    }
+    const first = r.seams[0];
+    return first
+      ? t('session.charter.goalPush', { skill: t('skills.' + first.id), tears: r.target })
+      : t('session.charter.goalAny', { tears: r.target });
+  }
+
+  // ---------------------------------------------------------------------------
+  // The close
+  // ---------------------------------------------------------------------------
+  /**
+   * The run is over when the goal is met, or when it has taken as long as this
+   * loop is designed to take — and in either case not until the learner is out
+   * of a rift. A resolution that lands on top of a half-typed answer is a
+   * resolution that reads as an interruption.
+   */
+  function shouldClose() {
+    if (!run || phase !== 'work' || run.done) return false;
+    if (isBusy() || charter.open) return false;
+    return run.tears >= run.target || run.focus >= SESSION_MAX * 60;
+  }
+
+  function close() {
+    if (!run || run.done) return;
+    run.done = true;
+    run.endedAt = Date.now();
+    phase = 'close';
+    takeFloor();
+    band.show(false);
+    fx?.impact?.('good');
+    audio?.unlocked?.();
+    const report = buildReport();
+    run.report = report;
+    /* THE PROMOTION IS PART OF WHAT THE RUN ACHIEVED, so if the run ended on
+       the answer that bought it, this card is where it gets said — once. The
+       rite is taken off src/meta rather than queued behind this card, because
+       a rank ceremony that plays *after* the résumé listing the rank is a
+       ceremony for something the learner has already read. `claimRite()`
+       returns null whenever the rite has already had its own moment earlier in
+       the run, and then the rank is an ordinary line under OPENED, which is
+       what it is: a thing that happened, twenty minutes ago. */
+    report.promoted = story?.claimRite?.() || null;
+    if (report.promoted) report.rank = null;
+    last = {
+      index: run.index, tears: run.tears, held: report.held.slice(),
+      endedAt: run.endedAt, next: report.next?.id || null,
+    };
+    save();
+    saveLast();
+    resolution.show(report);
+  }
+
+  /**
+   * Everything the close beat says, computed off the live engine at the moment
+   * the run ends — never off a running tally, so the two can never disagree.
+   */
+  function buildReport() {
+    const s = story?.state?.() || {};
+    // The seam this run leaned on hardest and did not close. Its distance is
+    // asked of the engine, in tears, exactly as the goal was — and since
+    // estimate.js answers that question off the shortest road rather than off a
+    // sample of coin flips, the two readings twenty minutes apart are the same
+    // measurement taken twice.
+    let stalled = null;
+    const worked = Object.entries(run.worked)
+      .filter(([id]) => !mastery.get(id)?.mastered)
+      .sort((a, b) => b[1] - a[1]);
+    if (worked.length) {
+      const id = worked[0][0];
+      const left = tearsToHold(mastery, id, pace);
+      stalled = {
+        id,
+        tears: left ? left.tears : null,
+        was: run.startLeft?.[id] ?? null,
+        items: run.worked[id],
+        band: mastery.get(id)?.difficulty ?? null,
+        bandWas: run.startBand?.[id] ?? null,
+      };
+    }
+    const next = mastery.next();
+    return {
+      index: run.index,
+      tears: run.tears,
+      target: run.target,
+      met: run.tears >= run.target,
+      // A line that closed and then lapsed on its own re-probe inside the same
+      // run is not a line held, and the close does not get to say it was. The
+      // ledger is re-read off the engine rather than trusted from the tally.
+      held: run.held.filter((id) => mastery.get(id)?.mastered),
+      stalled,
+      opened: run.opened.slice(),
+      chapter: run.chapterAt != null && s.chapter > run.chapterAt ? s.chapter : null,
+      rank: run.rankAt && s.rank && s.rank !== run.rankAt ? t('rank.' + s.rank) : null,
+      next: next ? { id: next.id, minutes: minutesToHold(mastery, next.id, pace) } : null,
+      lines: [...mastery.state.values()].filter((x) => x.mastered).length,
+      minutes: Math.round(run.focus / 60),
+      // Work done. A run that sealed nothing still has these, and they are the
+      // difference between an honest close and a screen-height zero.
+      items: run.items || 0,
+      misses: run.misses || 0,
+      echoes: run.echoes || 0,
+      extensions: run.extensions || 0,
+      canMore: canExtend(),
+      moreMinutes: extendMinutes(),
+    };
+  }
+
+  function toRest() {
+    phase = 'rest';
+    takeFloor();
+    root.classList.add('ses-resting');
+    rest.show(run?.report || null);
+  }
+
+  function leaveRest() {
+    root.classList.remove('ses-resting');
+    phase = 'idle';
+  }
+
+  function closeChannel() {
+    ending = true;
+    save();
+  }
+
+  // ---------------------------------------------------------------------------
+  // One more line
+  // ---------------------------------------------------------------------------
+  /**
+   * ONE MORE LINE used to plan a whole new run. Four presses took the run index
+   * to five in a single sitting, every one of those runs was eight minutes long
+   * and started from zero, and every close after the first read THE SHARD IS
+   * QUIET · NOTHING NEW TO HOLD — so the button the game offers was the button
+   * that punished you for taking it, and the fifteen-to-twenty-five minute
+   * constraint was enforced by nothing at all.
+   *
+   * An extension is now what the word means: the same run, carried on. The band
+   * keeps its count, the ledger keeps its held lines, and the close at the end
+   * is the close for the whole sitting. What it cannot do is run past the
+   * ceiling — the extension is only ever as long as the twenty-five minute
+   * window has left, and when there is nothing left the offer is withdrawn and
+   * the card says why.
+   */
+  function extendMinutes() {
+    if (!run) return 0;
+    return Math.max(0, Math.min(EXTEND_MINUTES, Math.floor(SESSION_MAX - run.focus / 60)));
+  }
+
+  function canExtend() {
+    return !!run && (run.extensions || 0) < MAX_EXTENSIONS && extendMinutes() >= MIN_EXTENSION;
+  }
+
+  function extend() {
+    if (!canExtend()) { toRest(); return; }
+    const minutes = extendMinutes();
+    const p = planRun(mastery, pace, {
+      minutes, seed: 0x5eed + run.index * 131 + 7717 * (run.extensions + 1),
+    });
+    run.extensions = (run.extensions || 0) + 1;
+    run.extension = true;
+    run.done = false;
+    run.report = null;
+    run.endedAt = null;
+    run.target += Math.max(1, p.tears);
+    run.plannedItems = (run.plannedItems || 0) + Math.max(1, Math.round(p.items || p.tears));
+    run.minutes += minutes;
+    for (const sm of p.seams) {
+      const known = run.seams.find((x) => x.id === sm.id);
+      if (known) { known.hold = known.hold || sm.hold; continue; }
+      run.seams.push({ ...sm, at: sm.at != null ? run.tears + sm.at : null });
+      const left = tearsToHold(mastery, sm.id, pace);
+      run.startLeft[sm.id] = left ? left.tears : null;
+      run.startBand[sm.id] = mastery.get(sm.id)?.difficulty ?? null;
+    }
+    saidNear = run.tears / run.target >= 0.75;
+    phase = 'work';
+    setModal(false);
+    paintBand();
+    band.show(true);
+    resetWorkClock();
+    save();
+    story?.comms?.sayKey('session.voice.extend', { tag: 'session-extend', force: true });
+  }
+
+  // ---------------------------------------------------------------------------
+  // The work clock
+  // ---------------------------------------------------------------------------
+  function resetWorkClock() {
+    panelWasOpen = !!panel?.open;
+    gapSpent = 0;
+  }
+
+  /** See GAP_GRACE: the session's clock is the planner's clock, not the wall's. */
+  function chargeWork(d) {
+    const open = !!panel?.open;
+    if (open) {
+      run.focus += d;
+    } else {
+      if (panelWasOpen) gapSpent = 0;
+      if (gapSpent < GAP_GRACE) {
+        const c = Math.min(d, GAP_GRACE - gapSpent);
+        gapSpent += c;
+        run.focus += c;
+      }
+    }
+    panelWasOpen = open;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Frame
+  // ---------------------------------------------------------------------------
+  function update(dt) {
+    const d = Math.min(MAX_DT, dt);
+    if (phase === 'rest') {
+      rest.update(d);
+      if (!rest.open) { root.classList.remove('ses-resting'); setModal(false); phase = 'idle'; }
+      return;
+    }
+    if (phase === 'idle' && pending > 0) {
+      pending -= d;
+      if (pending <= 0) { pending = 0; resume(); }
+      return;
+    }
+    if (phase !== 'work') return;
+    chargeWork(d);
+    if (shouldClose()) close();
+    // Written once a second rather than once a frame: the goal is that a run
+    // survives a closed lid, not that it survives a power cut mid-frame.
+    saveThrottled();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Coming in and going out
+  // ---------------------------------------------------------------------------
+  /**
+   * Called once, after boot. The very first session waits for the cold open to
+   * finish talking; a learner who has been here before waits only long enough
+   * for the world to have drawn itself — but it does wait for that, because a
+   * six-row checklist over a black screen four seconds after load is not an
+   * opening beat, it is a loading error with type on it.
+   */
+  function begin() {
+    pending = (run && !run.done) || last ? 4.2 : 25;
+    phase = 'idle';
+  }
+
+  /** Has the world actually appeared yet? */
+  function worldUp() {
+    const boot = document.getElementById('boot');
+    return !boot || boot.classList.contains('gone');
+  }
+
+  /**
+   * Is another beat already holding the frame? The narrative replays an
+   * ascension rite or opens the dossier on its own clock, and orders that
+   * arrive underneath a letterboxed rank card are orders nobody reads. Read
+   * defensively: src/meta owns these and the session must survive them moving.
+   */
+  function storyBusy() {
+    try {
+      return !!(story?.rite?.el?.classList?.contains('show') || story?.dossier?.open);
+    } catch { return false; }
+  }
+
+  function resume() {
+    // Never on top of a live rift: a set of orders that lands over a half-typed
+    // answer reads as an interruption, and the whole point of this beat is that
+    // it is the thing that happens *before* any mathematics is asked for.
+    if (isBusy()) { pending = 2; return; }
+    if (!worldUp()) { pending = 1.2; return; }
+    if (storyBusy()) { pending = 1.5; return; }
+    if (run && !run.done) {
+      // A run that survived the break, the bell or a flat battery picks up
+      // exactly where it stood.
+      phase = 'work';
+      saidNear = run.tears / run.target >= 0.75;
+      paintBand();
+      band.show(true);
+      resetWorkClock();
+      story?.comms?.sayKey('session.voice.resume', { tag: 'session-resume', force: true });
+    } else {
+      plan();
+    }
+  }
+
+  /**
+   * A session beat is about to own the frame. Everything else stands down —
+   * including the one thing main.js has in flight, which is the rift it queued
+   * to chain 460 ms after the last seal.
+   */
+  /**
+   * "May anything else open right now?" — asked by main.js before the chained
+   * rift it queued half a second ago actually opens, and by src/meta before it
+   * starts a rite or a chapter plate.
+   */
+  function blocking() {
+    return phase === 'charter' || phase === 'close' || phase === 'rest'
+      || charter.open || resolution.open || rest.open;
+  }
+
+  function takeFloor() {
+    try { onFloor(); } catch { /* a beat must never be stopped by its host */ }
+    // Everything else that can hold the whole screen stands down: the cold
+    // open's stamp retracts, and a chapter plate mid-draw goes back on its
+    // queue to be played whole once this beat is over.
+    try { story?.yieldFrame?.(); } catch { /* src/meta owns this; never fatal */ }
+    // Torn down before the modal flag is set, because closing the panel hands
+    // main.js back the input surface on its way out.
+    if (panel?.open) panel.close?.();
+    setModal(true);
+  }
+
+  function setModal(on) {
+    if (input) input.uiOpen = !!on;
+    if (on) document.exitPointerLock?.();
+    root.classList.toggle('ses-cine', !!on);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
+  let lastSave = 0;
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(run)); } catch { /* private mode */ }
+    lastSave = performance.now();
+  }
+  function saveThrottled() {
+    if (performance.now() - lastSave > 1000) save();
+  }
+  function saveLast() {
+    try { localStorage.setItem(LAST_KEY, JSON.stringify(last)); } catch { /* private mode */ }
+  }
+  function load() {
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY) || 'null');
+      return v && typeof v.target === 'number' ? v : null;
+    } catch { return null; }
+  }
+  function loadLast() {
+    try {
+      const v = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+      return v && Number.isFinite(v.tears) ? v : null;
+    } catch { return null; }
+  }
+
+  onLocaleChange(() => {
+    if (run) paintBand();
+    charter.retext();
+    resolution.retext();
+    rest.retext();
+  });
+
+  addEventListener('beforeunload', () => { if (run) save(); });
+
+  return {
+    begin,
+    update,
+    band,
+    charter,
+    resolution,
+    rest,
+    pace,
+    blocking,
+    /** Everything a critic — or a teacher's report — needs off one call. */
+    state: () => ({
+      phase,
+      run: run ? { ...run, seams: run.seams.map((s) => ({ ...s })) } : null,
+      last,
+      pace: pace.state(),
+      ending,
+      resting: rest.resting,
+      canExtend: canExtend(),
+    }),
+    /** Critic hooks: drive the real beats without faking a single answer. */
+    plan,
+    close,
+    skipToClose: () => { if (run && phase === 'work') { run.focus = SESSION_MAX * 60; close(); } },
+    /**
+     * Wind the work clock forward. It is the one thing a critic cannot do by
+     * playing — twenty-five minutes is twenty-five minutes — and everything
+     * downstream of it (whether the run closes, whether one more line is still
+     * on offer, what the close beat says) is then the real thing reacting to a
+     * real clock rather than a beat being posed.
+     */
+    chargeTo: (minutes) => { if (run) run.focus = Math.max(run.focus, minutes * 60); },
+    toRest,
+    reset() {
+      try { localStorage.removeItem(KEY); localStorage.removeItem(LAST_KEY); } catch { /* private mode */ }
+      pace.reset();
+      run = null;
+      last = null;
+    },
+  };
+}

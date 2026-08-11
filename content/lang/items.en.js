@@ -360,6 +360,20 @@ export default {
   'ask.howManyReadings': 'If ${v} = {val}$, how many readings is that?',
   'ask.howManyLumens': 'If ${v} = {val}$, how many lumens is that?',
   'ask.howManyDegrees': 'If ${v} = {val}$, how many degrees is that?',
+  // A question names the noun the situation above it counted, and no other.
+  // These exist because the questions above them were being shared by
+  // situations that count something else: a hull patch is measured in plates
+  // of skin and not in window panes, an ore skip lifts out of the cut and not
+  // into a keel, a sounding buoy makes noise and not light. See the unit table
+  // in tools/check-context-ask.mjs, which fails the build on a disagreement.
+  'ask.howManyPlates': 'If ${v} = {val}$, how many plates is that?',
+  'ask.howManyTonnesRaised': 'If ${v} = {val}$, how many tonnes comes out of the cut?',
+  'ask.howManyTonnesBarged': 'If ${v} = {val}$, how many tonnes goes onto the barge?',
+  'ask.howManySecondsPing': 'If ${v} = {val}$, how many seconds of pinging is that?',
+  'ask.howManyDaysAir': 'If ${v} = {val}$, how many days of air is that?',
+  'ask.howManyFramesHeld': 'If ${v} = {val}$, how many frames is that?',
+  'ask.howManyDosesStowed': 'If ${v} = {val}$, how many doses are stowed forward?',
+  'ask.howManySeedlingsPlanted': 'If ${v} = {val}$, how many seedlings come out for planting?',
 
   // ---- k identical things, each holding exactly v ------------------------
   'ctx.waterCans': 'A water can takes ${v}$ litres and not a drop past it — the neck is cast, not negotiated. {k} cans go onto the sled.',
@@ -657,7 +671,7 @@ export default {
   'ask.oneTinMass': 'What is one tin worth?',
 
   // ---- and wider still, for the cadet who does not stop at forty-five ----
-  'ctx.hullPatches': 'A hull patch covers ${v}$ panes of skin, which is what the press was set to and what it stays set to. {k} patches came out of stores.',
+  'ctx.hullPatches': 'A hull patch covers ${v}$ plates of skin, which is what the press was set to and what it stays set to. {k} patches came out of stores.',
   'ctx.gasBladders': 'A lift bladder takes ${v}$ litres before the relief valve makes the decision for you. {k} bladders are laced into the envelope.',
   'ctx.snowMelters': 'A melter turns out ${v}$ litres a run, whatever you shovel into it, because that is the size of the tank. {k} melters are running on the ridge.',
   'ctx.tallySticks': 'A tally stick carries ${v}$ readings and then it is full, and a full stick goes to the clerk. {k} sticks came back from the line.',
@@ -667,7 +681,7 @@ export default {
   'ctx.beeFrames': 'A frame carries ${v}$ grams of comb when it comes out capped. {k} frames were lifted from the ring this morning.',
   'ctx.soundBuoys': 'A sounding buoy pings for ${v}$ seconds a cycle and then listens, which is the harder half. {k} buoys are moored across the channel.',
   'ctx.spareBolts': 'A bolt tin holds ${v}$ rivets, counted by weight and never by hand. {k} tins are in the locker.',
-  'ctx.nestedPatches': 'A hull patch covers ${v}$ panes of skin. A roll carries {a} patches. {b} rolls came out of stores and none of them has been broken open.',
+  'ctx.nestedPatches': 'A hull patch covers ${v}$ plates of skin. A roll carries {a} patches. {b} rolls came out of stores and none of them has been broken open.',
   'ctx.nestedMills': 'A ring mill returns ${v}$ watts. A stand carries {a} mills. There are {b} stands along the scarp, all of them turning.',
   'ctx.nestedBuoys': 'A sounding buoy pings for ${v}$ seconds a cycle. A string carries {a} buoys. {b} strings are moored across the channel.',
   'ctx.claimStencil': 'The stencil kit in the paint locker has its letters numbered so nobody loses one, and Cadet {who} has read {pos} straight off it. The manifest reads ${v} = {val}$.',

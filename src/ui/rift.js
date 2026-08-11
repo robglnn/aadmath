@@ -1,7 +1,7 @@
 import './rift.css';
 import '../learn/echo.css';   // the echo's own rows, owned with the echo's content
 import { tex, texOk, texFirst, texProse } from './tex.js';
-import { t, getLocale, mathOp } from '../i18n/index.js';
+import { t, getLocale, mathOp, pct as pctOf } from '../i18n/index.js';
 import { equivalent } from '../learn/parser.js';
 import { diagnose } from '../learn/diagnose.js';
 import { analogueFor } from '../learn/scaffold.js';
@@ -239,6 +239,9 @@ function panLoad(side) {
 const loadCount = (L) => L.xs + L.tens + L.ones + (L.xLab ? 1 : 0) + (L.uLab ? 1 : 0);
 
 // ---------------------------------------------------------------------------
+// The eight of them are meant to sound like eight different places, and they
+// read the same in en, es and pl on purpose.
+// i18n-allow: surnames of the cadets who came before; a person's name is not translated
 const CADETS = ['Varen', 'Okonkwo', 'Sable', 'Ito', 'Nyx', 'Halloran', 'Reyes', 'Marek'];
 
 /**
@@ -697,25 +700,58 @@ export class RiftPanel {
     return false;
   }
 
+  /**
+   * The ladder the rig climbs down when the room runs out, in order of cost.
+   *
+   *   1  as the room allows      — side by side on a wide surface, stacked on a
+   *                                narrow one, at the largest unit that fits.
+   *   2  stacked                 — the trace stops being a column beside the
+   *                                tear and becomes a band above it, across the
+   *                                full width. It reflows; it does not clip.
+   *   3  the instrument stands down — the last resort, one labelled press from
+   *                                coming back.
+   *
+   * Stage 2 used to be reachable only under a width test, which meant a short
+   * WIDE window — 1280x720 with the trace dug to depth four is the everyday
+   * case — had exactly one thing left to give when the column ran out of room,
+   * and that was the plate's `overflow: hidden`. The plate cannot be allowed to
+   * be the answer to anything: it is the one clipper in the rig and what it
+   * clips off the bottom of the stage is the key that ends the turn. So the
+   * reflow is now available at every width, on the evidence of a measurement.
+   */
   _fit() {
     if (!this.open || this._settled) return;
     const plate = this.$('#rf-plate');
     if (!plate) return;
     this._fitting = true;
-    this._stood = false;
-    this._syncLayout();
-    // A narrow rig tries to hold the trace and the instrument together first.
-    // Standing the instrument down is a real cost — the answer stops being one
-    // press away — so it is only ever paid on the evidence of a measurement
-    // that says the two cannot share the glass at a size worth reading.
-    if (!this._search() && this._isNarrow() && this.echoOpen) {
-      this._stood = true;
+    const rungs = [[false, false], [true, false], [true, true]];
+    for (const [stack, stood] of rungs) {
+      this._forceStack = stack;
+      this._stood = stood;
       this._syncLayout();
-      this._search();
+      if (this._search()) break;
+      // Neither reflow means anything with no trace on the surface, and neither
+      // is worth a second full bisect to prove it.
+      if (!this.echoOpen) break;
     }
     this._fitWide();
+    this._dressTail();
     this._fitting = false;
     this._drawAperture();
+  }
+
+  /**
+   * The substrate under the trace carries a line of legend, and it is the only
+   * thing in the panel that is allowed to simply not be printed: it is dressing
+   * on the room the trace did not need. Whether there is room for it is decided
+   * here, off the box's real measured height, because the alternative — a
+   * container query — would have meant declaring the box size-contained, and a
+   * size-contained box is a fixed-height box with a licence to hide things.
+   */
+  _dressTail() {
+    const tail = this.$('#rf-echo-tail');
+    if (!tail) return;
+    tail.classList.toggle('roomy', tail.clientHeight >= 74 && !!tail.textContent.trim());
   }
 
   /**
@@ -743,11 +779,13 @@ export class RiftPanel {
 
   _syncLayout() {
     const narrow = this._isNarrow();
-    const both = narrow && this.echoOpen;
+    const both = (narrow || !!this._forceStack) && this.echoOpen;
     this.el.classList.toggle('stack', both && !this._stood);
     this.el.classList.toggle('solo', both && !!this._stood);
     const back = this.$('#rf-back');
-    back.style.display = narrow && this.echoTier > 0 ? 'inline-block' : 'none';
+    // The way back to the instrument has to be on screen in every layout that
+    // can stand it down, not merely in the narrow ones.
+    back.style.display = (narrow || both) && this.echoTier > 0 ? 'inline-block' : 'none';
     back.textContent = this.echoOpen ? t('rift.echo.backToTear') : t('rift.echo.backToTrace');
   }
 
@@ -786,7 +824,9 @@ export class RiftPanel {
     this.echoMis = null;
     this.lastEntry = null;
     this._an = undefined;
-    this.el.classList.remove('sealing', 'stable', 'echo-on', 'narrowed', 'solo', 'thin', 'thinner');
+    this._stood = false;
+    this._forceStack = false;
+    this.el.classList.remove('sealing', 'stable', 'echo-on', 'narrowed', 'solo', 'stack', 'thin', 'thinner');
 
     const seed = (item.seed || 1) >>> 0;
     this.seed = seed;
@@ -805,7 +845,13 @@ export class RiftPanel {
     kindEl.className = `rf-kind is-${kind || 'learn'}`;
     if (kind === 'check') {
       kindEl.textContent = t('rift.kind.check', { n: (opts.check?.done ?? 0) + 1, m: opts.check?.need ?? 3 });
-    } else if (kind === 'review' || kind === 'interleave') {
+    } else if (kind === 'deep') {
+      // endgame (one branch, additive): a rung of a sounding. Carries its own
+      // number because the depth of the descent is the whole point of it.
+      kindEl.textContent = t('rift.kind.deep', { n: opts.sounding?.rung ?? 1 });
+    } else if (kind === 'review' || kind === 'interleave' || kind === 'probe') {
+      // pedagogy (one line, additive): 'probe' is the sight-read — the item a
+      // new skill opens with, before it teaches anything.
       kindEl.textContent = t('rift.kind.' + kind);
     } else {
       kindEl.textContent = '';
@@ -1019,7 +1065,12 @@ export class RiftPanel {
     const pct = this.$('#rf-seal-pct');
     bar.style.transition = 'none';
     bar.style.width = `${from}%`;
-    pct.textContent = `${from}%`;
+    // `${n}%` is an English percentage. Spanish sets a space before the sign
+    // (RAE: "60 %"), Polish does not, and the HUD's own readout already went
+    // through `pct()` — so the seal meter printed "60%" two inches under a
+    // rig printing "0 %" in the same language. The CSS width above stays a
+    // raw percentage: that one is a length, not a number anybody reads.
+    pct.textContent = pctOf(from / 100);
     requestAnimationFrame(() => {
       bar.style.transition = '';
       bar.style.width = `${to}%`;
@@ -1027,7 +1078,7 @@ export class RiftPanel {
       const tick = () => {
         if (this._token !== token) return;
         const k = Math.min(1, (performance.now() - t0) / 900);
-        pct.textContent = `${Math.round(from + (to - from) * (1 - (1 - k) ** 3))}%`;
+        pct.textContent = pctOf(Math.round(from + (to - from) * (1 - (1 - k) ** 3)) / 100);
         if (k < 1) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);

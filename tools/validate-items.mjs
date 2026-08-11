@@ -33,13 +33,20 @@ import { equivalent, solveLinear } from '../src/learn/parser.js';
 import { diagnose } from '../src/learn/diagnose.js';
 import { analogueFor } from '../src/learn/scaffold.js';
 import { echoScript, ladderOf, ladderNotation } from '../src/learn/echo.js';
+import { auditContextAsk } from './check-context-ask.mjs';
 import enUI from '../src/i18n/en.js';
 import esUI from '../src/i18n/es.js';
 import plUI from '../src/i18n/pl.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/** [10, 480, ...] minutes -> "10 min, 8 h, 21 h, 2.2 d, 5.4 d". */
+function humanGaps(mins) {
+  return mins.map((m) => (m < 90 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${(m / 1440).toFixed(1)} d`)).join(', ');
+}
+
 const graph = JSON.parse(await readFile(path.join(ROOT, 'content/graph/algebra1-l1.json'), 'utf8'));
 const ccss = JSON.parse(await readFile(path.join(ROOT, 'content/standards/ccss-algebra1-l1.json'), 'utf8'));
+const teks = JSON.parse(await readFile(path.join(ROOT, 'content/standards/teks-algebra1-l1.json'), 'utf8'));
 
 const N = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) || 24);
 const problems = [];
@@ -134,6 +141,137 @@ for (const n of graph.nodes) for (const p of n.practices || []) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b. TEKS alignment — the same gate, applied to the second framework.
+//
+// A node aligned to one framework and not the other is a node that cannot be
+// shipped to Texas, so "missing TEKS" is a build failure and not a warning.
+// Everything the CCSS block proves is proved again here, plus three things the
+// TEKS side needs that the CCSS side does not:
+//
+//   · a legal citation, in the register's own form, for every code — a
+//     curriculum director checks 19 TAC §111.39(c)(5)(A), not "A.5(A)";
+//   · verbatim statement text alongside the student expectation, because TEKS
+//     student expectations are meaningless detached from the knowledge-and-
+//     skills sentence that scopes them;
+//   · the node's copy of the citation must be byte-identical to the map's, so
+//     the graph cannot drift into paraphrase.
+// ---------------------------------------------------------------------------
+const ALL_FORMS = new Set(Object.values(FORMS_BY_SKILL).flat().map((f) => f.id));
+const formOwner = (id) => SKILLS.find((sk) => FORMS_BY_SKILL[sk].some((f) => f.id === id));
+const DEPTHS = ['core', 'supporting', 'introduced'];
+
+if (!Array.isArray(teks.standards) || !teks.standards.length) fail('teks: the TEKS mapping note has no standards');
+if (!Array.isArray(teks.mappingNote) || teks.mappingNote.length < 3) fail('teks: TEKS mapping note is too thin');
+if (!teks.verification?.sources?.length) fail('teks: no sources recorded for the citation text');
+
+const teksCodes = new Set(teks.standards.map((s) => s.code));
+const teksByCode = new Map(teks.standards.map((s) => [s.code, s]));
+if (teksCodes.size !== teks.standards.length) fail('teks: duplicate standard code in the mapping note');
+
+for (const s of teks.standards) {
+  if (!/^(A\.\d{1,2}(\([A-I]\))?|[678]\.\d{1,2}(\([A-I]\))?)$/.test(s.code)) {
+    fail(`teks: "${s.code}" is not a TEKS code — expected e.g. A.5(A), 6.10(A), 7.7, 8.8(C)`);
+  }
+  // The legal citation has to name a real section and agree with the code.
+  const m = /^19 TAC §111\.(26|27|28|39)\(([bc])\)\((\d{1,2})\)(?:\(([A-I])\))?$/.exec(s.citation || '');
+  if (!m) { fail(`teks: ${s.code} has no well-formed 19 TAC citation (got "${s.citation}")`); continue; }
+  const [, section, sub, stmt, letter] = m;
+  const wantSub = section === '39' ? 'c' : 'b';
+  if (sub !== wantSub) fail(`teks: ${s.code} cites §111.${section} subsection (${sub}); knowledge and skills is (${wantSub})`);
+  const wantSection = { A: '39', 6: '26', 7: '27', 8: '28' }[s.code[0]];
+  if (section !== wantSection) fail(`teks: ${s.code} should live in §111.${wantSection}, but is cited to §111.${section}`);
+  const codeStmt = /^[A-Z0-9]+\.(\d{1,2})/.exec(s.code)?.[1];
+  if (codeStmt !== stmt) fail(`teks: ${s.code} and ${s.citation} disagree about the knowledge-and-skills statement number`);
+  const codeLetter = /\(([A-I])\)$/.exec(s.code)?.[1];
+  if ((codeLetter || null) !== (letter || null)) fail(`teks: ${s.code} and ${s.citation} disagree about the student expectation letter`);
+
+  if (!s.statement || s.statement.length < 40) fail(`teks: ${s.code} has no knowledge-and-skills statement text`);
+  if (!s.text || s.text.length < 30) fail(`teks: ${s.code} has no usable student expectation text`);
+  if (!s.course) fail(`teks: ${s.code} does not say which course or grade it belongs to`);
+  if (!DEPTHS.includes(s.depth)) fail(`teks: ${s.code} has no coverage depth`);
+  if (s.depth !== 'core' && !s.caveat) fail(`teks: ${s.code} is claimed below core with no caveat saying which half is met`);
+  if (!(s.nodes || []).length) fail(`teks: ${s.code} is claimed by no skill`);
+  for (const id of s.nodes || []) if (!nodeIds.includes(id)) fail(`teks: ${s.code} names unknown node ${id}`);
+  for (const [id, d] of Object.entries(s.nodeDepth || {})) {
+    if (!(s.nodes || []).includes(id)) fail(`teks: ${s.code} sets a depth for ${id}, which it does not claim`);
+    if (!DEPTHS.includes(d)) fail(`teks: ${s.code} sets an unknown depth "${d}" for ${id}`);
+  }
+  if (!(s.evidence || []).length) fail(`teks: ${s.code} cites no item forms as evidence`);
+  for (const e of s.evidence || []) {
+    if (!ALL_FORMS.has(e)) { fail(`teks: ${s.code} cites unknown item form ${e}`); continue; }
+    const owner = formOwner(e);
+    if (!(s.nodes || []).includes(owner)) {
+      fail(`teks: ${s.code} cites ${e}, which belongs to "${owner}" — a skill this standard does not claim`);
+    }
+  }
+}
+
+// Every node carries TEKS, and its copy of every citation matches the map.
+for (const n of graph.nodes) {
+  if (!Array.isArray(n.teks) || !n.teks.length) {
+    fail(`teks: ${n.id} has no TEKS alignment — every skill must map to both CCSS and TEKS`);
+    continue;
+  }
+  if (!n.teksNote) fail(`teks: ${n.id} has no TEKS mapping note`);
+  if (!Array.isArray(n.teksPractices) || !n.teksPractices.length) fail(`teks: ${n.id} cites no TEKS process standards`);
+  for (const row of n.teks) {
+    const s = teksByCode.get(row.code);
+    if (!s) { fail(`teks: ${n.id} cites ${row.code}, which the TEKS mapping note does not define`); continue; }
+    if (!(s.nodes || []).includes(n.id)) fail(`teks: ${row.code} does not claim ${n.id}, but ${n.id} claims it`);
+    if (row.citation !== s.citation) fail(`teks: ${n.id}/${row.code} citation has drifted from the mapping note`);
+    if (row.text !== s.text) fail(`teks: ${n.id}/${row.code} expectation text has drifted from the mapping note`);
+    const want = s.nodeDepth?.[n.id] || s.depth;
+    if (row.depth !== want) fail(`teks: ${n.id}/${row.code} claims depth "${row.depth}" where the map says "${want}"`);
+  }
+  // At least one Algebra I citation per node: a Level 1 skill that touches no
+  // §111.39 expectation at all is not an Algebra I skill — unless the gap
+  // register says why not, in writing, and names the standard that would have
+  // been the overclaim.
+  if (!n.teks.some((r) => r.code.startsWith('A.'))
+      && !(teks.gaps || []).some((g) => g.node === n.id && g.noAlgebraExpectation)) {
+    fail(`teks: ${n.id} cites no Algebra I (§111.39) expectation, and no gap entry explains why`);
+  }
+}
+for (const s of teks.standards) {
+  for (const id of s.nodes) {
+    if (!(graph.nodes.find((n) => n.id === id)?.teks || []).some((r) => r.code === s.code)) {
+      fail(`teks: ${s.code} claims ${id}, but that node does not cite it back`);
+    }
+  }
+}
+// Downwards, exactly as for CCSS: an item form no TEKS expectation claims is a
+// form that cannot be reported to a Texas teacher as evidence of anything.
+{
+  const cited = new Set(teks.standards.flatMap((s) => s.evidence || []));
+  for (const skill of SKILLS) {
+    for (const f of FORMS_BY_SKILL[skill]) {
+      if (!cited.has(f.id)) fail(`teks: item form ${skill}/${f.id} is evidence for no TEKS expectation`);
+    }
+  }
+}
+// Process standards.
+if (!Array.isArray(teks.processStandards) || teks.processStandards.length < 5) fail('teks: process standards are not mapped');
+const teksProcess = new Set((teks.processStandards || []).map((p) => p.code));
+for (const p of teks.processStandards || []) {
+  if (!/^A\.1\([A-G]\)$/.test(p.code)) fail(`teks: "${p.code}" is not an Algebra I process standard`);
+  if (!/^19 TAC §111\.39\(c\)\(1\)\([A-G]\)$/.test(p.citation || '')) fail(`teks: ${p.code} has no well-formed citation`);
+  if (!p.text || p.text.length < 30) fail(`teks: ${p.code} has no expectation text`);
+  if (!['full', 'partial'].includes(p.met)) fail(`teks: ${p.code} does not say how fully it is met`);
+  if (!p.how) fail(`teks: ${p.code} does not say what in the game meets it`);
+  for (const id of p.nodes || []) if (!nodeIds.includes(id)) fail(`teks: ${p.code} names unknown node ${id}`);
+  for (const c of p.ccss || []) if (!practiceCodes.has(c)) fail(`teks: ${p.code} maps to unknown practice ${c}`);
+}
+for (const n of graph.nodes) for (const p of n.teksPractices || []) {
+  if (!teksProcess.has(p)) fail(`teks: ${n.id} cites process standard ${p} that the mapping note does not define`);
+}
+// Anything the alignment could not establish must be stated, not omitted.
+if (!Array.isArray(teks.gaps) || !teks.gaps.length) fail('teks: no gap declaration — an alignment with no stated limits is not credible');
+for (const g of teks.gaps || []) {
+  if (!g.node || !g.finding || !g.why || !g.resolution) fail('teks: a gap entry is missing node / finding / why / resolution');
+  if (g.node !== 'all' && !nodeIds.includes(g.node)) fail(`teks: gap names unknown node ${g.node}`);
+}
+
+// ---------------------------------------------------------------------------
 // 3. locale bundles
 // ---------------------------------------------------------------------------
 const enKeys = Object.keys(ITEM_BUNDLES.en).sort();
@@ -151,6 +289,16 @@ for (const loc of ITEM_LOCALES) {
     if (slots(v) !== slots(ITEM_BUNDLES.en[k] || '')) fail(`i18n: ${loc}/${k} placeholders differ from English`);
   }
 }
+
+// Identical key sets are not the same thing as agreeing prose. A situation and
+// the question dealt with it are two keys, and for a long time nothing read
+// them together: `ctx.hullPatches` counted plates of hull skin in every
+// language while `ask.howManyPanes` asked for window panes, which English
+// hid and Spanish and Polish did not. tools/check-context-ask.mjs walks every
+// pairing against a per-locale table of nouns; it is a gate in its own right
+// (`npm run check:prose`) and also fails this one, so neither entry point can
+// pass an item that asks for something its story never counted.
+for (const p of auditContextAsk().problems) fail(`context/ask: ${p.replace(/\n\s+/g, ' | ')}`);
 
 // ---------------------------------------------------------------------------
 // 4. the items themselves
@@ -768,6 +916,212 @@ p();
     try { have = await readFile(MAP_PATH, 'utf8'); } catch { have = null; }
     if (have == null) fail('standards: the standards map document is missing (run with --write-map)');
     else if (have !== want) fail('standards: the standards map document is out of step with the data it is generated from (run with --write-map)');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 11. content/STANDARDS.md — the one document a curriculum director reads.
+//
+// The map above is the CCSS working paper. This is the crosswalk: one row per
+// skill, both frameworks side by side, and — the column that actually decides
+// whether an alignment is believable — what the game *collected* as evidence
+// that the student met it. Generated from the same JSON, byte-compared like
+// the map, so it cannot become a marketing document.
+// ---------------------------------------------------------------------------
+const CROSSWALK_PATH = path.join(ROOT, 'content/STANDARDS.md');
+function crosswalk() {
+  const short = (c) => c.replace('CCSS.MATH.CONTENT.', '');
+  const REPNAME = {
+    symbolic: 'symbolic', table: 'table', graph: 'graph', verbal: 'verbal', context: 'contextual', figure: 'figure',
+  };
+  const cfg = graph.mastery || {};
+  const out = [];
+  const p = (s = '') => out.push(s);
+  const formsOf = (id) => FORMS_BY_SKILL[id] || [];
+  const evidenceFor = (id) => {
+    const ccssE = new Set(ccss.standards.filter((s) => (s.nodes || []).includes(id)).flatMap((s) => s.evidence || []));
+    const teksE = new Set(teks.standards.filter((s) => (s.nodes || []).includes(id)).flatMap((s) => s.evidence || []));
+    return formsOf(id).filter((f) => ccssE.has(f.id) || teksE.has(f.id));
+  };
+
+p('# Standards alignment — ASCENT, Algebra I Level 1');
+p();
+p('*The Cipher Worlds · level `algebra1-level1` · ' + graph.nodes.length + ' skills, '
+  + Object.values(FORMS_BY_SKILL).flat().length + ' item forms*');
+p();
+p('| | |');
+p('|---|---|');
+p(`| **Common Core** | ${ccss.standards.length} content standards, ${ccss.practices.length} practice standards. Working paper: [\`content/standards/algebra1-l1-standards-map.md\`](standards/algebra1-l1-standards-map.md) |`);
+p(`| **TEKS** | ${teks.standards.length} student expectations, ${teks.processStandards.length} process standards, ${teks.gaps.length} declared gaps. Source data: [\`content/standards/teks-algebra1-l1.json\`](standards/teks-algebra1-l1.json) |`);
+p(`| **TEKS authority** | ${teks.authority} |`);
+p(`| **TEKS adoption** | Mathematics TEKS **adopted 2012** — the version STAAR Algebra I is written against |`);
+p(`| **Citations checked** | ${teks.verification.checkedOn} |`);
+p('| **Generated by** | `node tools/validate-items.mjs --write-map`. This file is compared byte for byte on every build; if it drifts from the data, the build fails. |');
+p();
+p('> **How to read this document.** Nothing below is a claim about intent. Every row names the '
+  + 'generated item forms that carry the standard, and every one of those forms is re-derived by an '
+  + 'independent parser and solver, rendered in strict KaTeX, and produced in English, Spanish and '
+  + 'Polish before the build will accept it. Where a standard is only partly met, the row says which '
+  + 'part and the depth drops below `core`. Section 5 lists the places the alignment could not be made '
+  + 'cleanly, in writing.');
+p();
+
+p('## 1. The crosswalk');
+p();
+p('One row per skill, in prerequisite order. Nothing unlocks before everything above it is mastered.');
+p();
+p('**Depth**: `core` — the standard is the thing being taught and the mastery gate tests it. '
+  + '`supporting` — exercised inside items aimed at another standard. '
+  + '`introduced` — a deliberately partial first encounter that a later level completes.');
+p();
+p('| # | Skill | Requires | CCSS | TEKS (§111.26–28 / §111.39) | Evidence the game collects |');
+p('|---|---|---|---|---|---|');
+graph.nodes.forEach((n, i) => {
+  const ccssCol = n.standards.map((s) => short(s.code)).join('<br>');
+  const teksCol = n.teks.map((r) => `${r.code} *(${r.depth})*`).join('<br>');
+  const ev = evidenceFor(n.id);
+  const reps = [...new Set(ev.map((f) => REPNAME[f.rep] || f.rep))];
+  const evCol = `${ev.length} item forms across ${reps.length} representations (${reps.join(', ')}); `
+    + `gate: ${cfg.cleanRun} unassisted correct at band ${cfg.minDifficulty}+, then a proving run of `
+    + `${cfg.checkItems} unassisted items at band ${cfg.checkMinDifficulty}+`;
+  p(`| ${i + 1} | \`${n.id}\` | ${(n.prereqs || []).map((x) => `\`${x}\``).join(', ') || '—'} | ${ccssCol} | ${teksCol} | ${evCol} |`);
+});
+p();
+
+p('## 2. Skill by skill, with the TEKS text in full');
+p();
+p('A code is not a citation. Each block below gives the knowledge-and-skills statement that scopes the '
+  + 'expectation, the expectation word for word, the legal cite into 19 Texas Administrative Code, and the '
+  + 'named item forms that carry it.');
+p();
+graph.nodes.forEach((n, i) => {
+  p(`### ${i + 1}. \`${n.id}\``);
+  p();
+  p(`> ${n.bigIdea}`);
+  p();
+  p(`**Requires:** ${(n.prereqs || []).map((x) => `\`${x}\``).join(', ') || 'nothing — this is an entry point'}  `);
+  p(`**Representations the gate demands:** ${(n.requiredReps || []).map((r) => REPNAME[r] || r).join(', ')}  `);
+  p(`**CCSS:** ${n.standards.map((s) => short(s.code)).join(', ')} · practices ${(n.practices || []).join(' ')}  `);
+  p(`**TEKS process standards:** ${(n.teksPractices || []).join(', ')}`);
+  p();
+  p('| TEKS | Depth | 19 TAC citation | Knowledge and skills statement | Student expectation | Evidence in this skill |');
+  p('|---|---|---|---|---|---|');
+  for (const row of n.teks) {
+    const s = teks.standards.find((x) => x.code === row.code);
+    const ev = (s.evidence || []).filter((e) => formsOf(n.id).some((f) => f.id === e));
+    p(`| **${row.code}** | ${row.depth} | \`${row.citation}\` | ${s.statement} | ${row.text} | ${ev.map((e) => `\`${e}\``).join(', ') || '—'} |`);
+  }
+  p();
+  for (const row of n.teks) {
+    const s = teks.standards.find((x) => x.code === row.code);
+    if (s.caveat) { p(`**${row.code} — what is and is not claimed.** ${s.caveat}`); p(); }
+  }
+  p(`**Why these codes.** ${n.teksNote}`);
+  p();
+  p(`**CCSS mapping note.** ${n.standardsNote}`);
+  p();
+});
+
+p('## 3. TEKS process standards');
+p();
+p('The seven Algebra I mathematical process standards, §111.39(c)(1)(A)–(G). Two of them are marked '
+  + '**partial**: a game that hands the learner the tool has not met "select tools", and a game whose '
+  + 'answer surface is a keypad has not met the written-communication half of "justify". Both are said '
+  + 'rather than counted.');
+p();
+p('| Code | 19 TAC | Met | Student expectation | CCSS practice | How the game asks for it |');
+p('|---|---|---|---|---|---|');
+for (const ps of teks.processStandards) {
+  p(`| **${ps.code}** | \`${ps.citation}\` | ${ps.met === 'full' ? 'full' : '**partial**'} | ${ps.text} | ${(ps.ccss || []).join(', ') || '—'} | ${ps.how} |`);
+}
+p();
+
+p('## 4. Every item form, against both frameworks');
+p();
+p('An item form that no standard claims is content nobody has justified shipping, and the build gate '
+  + 'rejects it — in both frameworks independently. This is the full inventory.');
+p();
+p('| Skill | Form | Representation | Bands | CCSS | TEKS |');
+p('|---|---|---|---|---|---|');
+for (const skill of SKILLS) {
+  for (const f of FORMS_BY_SKILL[skill]) {
+    const c = ccss.standards.filter((s) => (s.evidence || []).includes(f.id)).map((s) => short(s.code));
+    const tk = teks.standards.filter((s) => (s.evidence || []).includes(f.id)).map((s) => s.code);
+    p(`| \`${skill}\` | \`${f.id}\` | ${REPNAME[f.rep] || f.rep} | ${f.dMin}–${f.dMax} | ${c.join(', ') || '—'} | ${tk.join(', ') || '—'} |`);
+  }
+}
+p();
+
+p('## 5. Where the alignment is imperfect, and why');
+p();
+p('An alignment sheet with no stated limits is a sales document. These are the places where TEKS and this '
+  + 'level do not sit flush, written down so a reviewer does not have to find them.');
+p();
+for (const g of teks.gaps) {
+  p(`### ${g.node === 'all' ? 'Across the level' : '`' + g.node + '`'} — ${g.finding}`);
+  p();
+  p(g.why);
+  p();
+  p(`*Resolution:* ${g.resolution}`);
+  p();
+}
+p('### Not claimed at all');
+p();
+p(teks.mappingNote[4]);
+p();
+
+p('## 6. What the game records as proof');
+p();
+p('The column called *evidence* in section 1 is not a count of questions answered. A mastery claim in '
+  + 'ASCENT is made only when all of the following are true of one skill, and the progress report shows '
+  + 'each of them separately for every claim:');
+p();
+p(`1. **Posterior.** Bayesian Knowledge Tracing over unassisted responses puts the probability of knowing at **${cfg.pL ?? graph.masteryThreshold}** or above. Hinted and scaffolded successes move it fractionally and never satisfy the gate on their own.`);
+p(`2. **A clean run.** ${cfg.cleanRun} unassisted correct responses in a row at difficulty band ${cfg.minDifficulty} or above.`);
+p(`3. **A proving run.** ${cfg.checkItems} consecutive unassisted items at band ${cfg.checkMinDifficulty} or above, drawn from the item forms this learner has practised least, with worked-example support switched off. The run does not close until it has spanned two representations with at least one of them not symbolic, and has included one item that walks between a situation and the algebra.`);
+p('4. **Prerequisites.** Every parent skill in the graph was already mastered before this one opened, so no claim rests on a foundation that was never checked.');
+// pedagogy/endgame (one line, additive): the spacing schedule is measured in
+// real elapsed time now, not in attempts of separation, so this sentence has to
+// say minutes rather than items or it is describing a build that no longer ships.
+p(`5. **Retention.** The claim is re-probed on an expanding schedule of real elapsed time (${humanGaps(cfg.reviewMinutes || [])}), floored by ${(cfg.reviewFloor || []).join(', ')} items of separation so a probe is never served twice inside one handful of questions. A miss makes the claim provisional; a second miss withdraws it and reopens practice. A mastery claim in this system can be taken back.`);
+p();
+p('The difficulty bands those rules lean on are measured rather than asserted: `generators.demandOf()` '
+  + 'scores every generated item and this build gate fails unless mean demand rises strictly from band 1 '
+  + 'to band 5 within every skill.');
+p();
+p('The progress report surfaces all five, per skill, in English, Spanish and Polish, together with the '
+  + 'count of claims that were later withdrawn on a retention probe — the **hollow-mastery rate**. It is '
+  + 'shown rather than hidden, because a mastery system that cannot report its own false positives is not '
+  + 'reporting anything.');
+p();
+
+p('## 7. How to check any of this yourself');
+p();
+p('```bash');
+p('node tools/validate-items.mjs   # both alignments, both directions, plus every item re-derived');
+p('node tools/simulate.mjs         # does the sequence actually get synthetic learners there');
+p('```');
+p();
+p('The build fails if a skill cites a CCSS standard or a TEKS expectation that its mapping file does not '
+  + 'list, if a listed standard is claimed by no skill, if an item form is evidence for nothing in either '
+  + 'framework, if a TEKS citation does not parse as a real 19 TAC section and agree with its own code, if '
+  + 'a node\'s copy of an expectation has drifted by a single character from the mapping file, if a '
+  + 'sub-`core` claim carries no caveat naming the half that is met, or if this document falls out of step '
+  + 'with the JSON it is generated from.');
+p();
+
+  return out.join('\n');
+}
+{
+  const want = crosswalk();
+  if (process.argv.includes('--write-map')) {
+    await writeFile(CROSSWALK_PATH, want);
+    console.log(`standards crosswalk rewritten -> ${path.relative(ROOT, CROSSWALK_PATH)}`);
+  } else {
+    let have = null;
+    try { have = await readFile(CROSSWALK_PATH, 'utf8'); } catch { have = null; }
+    if (have == null) fail('teks: content/STANDARDS.md is missing (run with --write-map)');
+    else if (have !== want) fail('teks: content/STANDARDS.md is out of step with the data it is generated from (run with --write-map)');
   }
 }
 

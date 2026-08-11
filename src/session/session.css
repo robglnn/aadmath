@@ -1,0 +1,816 @@
+/* ---------------------------------------------------------------------------
+   The session: the run band, the orders, the close and the break.
+
+   Everything here mounts inside #ui, whose `#ui > *` rule turns pointer events
+   back on — so every full-bleed surface below has to take them away again
+   through a selector that outranks it, or an invisible dialog eats every click
+   in the game. That has happened in this codebase before; see the note at the
+   top of src/ui/style.css.
+
+   Colour comes from the two variables src/meta/index.js sets on #ui,
+   --rank-ink / --rank-glow, so the run band is the same metal as the chapter
+   card under it and the Standard out in the plaza. Nothing here knows what a
+   rank is.
+--------------------------------------------------------------------------- */
+
+#ui {
+  --ses-cell: rgba(4, 9, 18, .55);
+  --ses-plate: linear-gradient(180deg, rgba(10, 18, 33, .82), rgba(5, 10, 20, .68));
+  /* THE TWO SOLIDS. A control is an object, not a tint.
+     Every button on these surfaces used to be a 5–17% wash over whatever
+     happened to be behind it, which is fine over a plate and a disaster over a
+     paragraph or over sunlit grass: measured at 390x844, STAND DOWN sat on the
+     closing line of the card with 128x27 px of the sentence printing straight
+     through the glyphs. So the fills below are opaque, and they are built by
+     mixing the rank's metal into a solid floor rather than into `transparent` —
+     the composite over a dark card is within a hair of what the wash used to
+     produce, and it is now the same colour wherever the button lands.
+     --ses-floor is the same solid the sticky control strip is painted with, so
+     a button riding that strip and a button on open sky are one material. */
+  --ses-floor: #04080f;
+  --ses-solid: #0b1526;
+  --ses-solid-ghost: #111c2f;
+}
+
+/* --------------------------------------------------------------- the band --
+   Visible pacing, and not one pixel of clock. One cell per tear, exactly as
+   many cells as this learner's own goal, ladder marks where a seam is expected
+   to shut, and a `near` state at three quarters that is a change in the
+   instrument rather than a sentence telling anybody to hurry. */
+#ui .ses-band {
+  position: absolute;
+  top: 0; left: 50%;
+  width: min(392px, 36vw); min-width: 292px;
+  padding: calc(var(--pad-t) * .55 + .34rem) .8rem .5rem;
+  background: var(--ses-plate);
+  border: 1px solid rgba(140, 195, 255, .14);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .06);
+  opacity: 0; translate: -50% -100%; visibility: hidden;
+  transition: opacity .45s ease, translate .55s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .55s;
+  pointer-events: none;
+  z-index: 23;
+}
+#ui .ses-band::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--rank-ink) 18%, var(--rank-ink) 82%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--rank-glow) 55%, transparent);
+}
+#ui .ses-band.show { opacity: 1; translate: -50% 0; visibility: visible; transition-delay: 0s; }
+.ses-band > span { display: block; }
+
+.ses-band .sb-head { display: flex; align-items: baseline; gap: .5rem; }
+.ses-band .sb-kick {
+  font-family: var(--meta-mono); font-size: .55rem; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--rank-ink); flex: 0 0 auto;
+}
+.ses-band .sb-goal {
+  font-size: .72rem; letter-spacing: .01em; color: var(--ink-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+
+/* The track. Same alloy as the rig's integrity meter in src/ui/style.css: a
+   raked trough, one soft dark rule per cell so it reads as a smooth channel
+   when empty and as a countable row when it is not. */
+.ses-band .sb-track {
+  position: relative; display: block; height: 13px; margin: .34rem 0 .3rem;
+  transform: skewX(-16deg); border-radius: 2px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(126, 170, 220, .1), rgba(90, 130, 180, .05));
+  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .12), inset 0 2px 7px rgba(0, 0, 0, .5);
+}
+.ses-band .sb-track > i { position: absolute; top: 0; bottom: 0; left: 0; display: block; }
+.ses-band .sb-fill {
+  width: 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--rank-ink) 92%, white),
+    var(--rank-ink) 46%,
+    color-mix(in srgb, var(--rank-glow) 88%, black));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--rank-glow) 62%, transparent);
+  transition: width .55s cubic-bezier(.2, .8, .2, 1);
+}
+.ses-band .sb-head-mark {
+  width: 2px; margin-left: -2px; background: #fff; opacity: 0;
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--rank-glow) 85%, transparent);
+  transition: left .55s cubic-bezier(.2, .8, .2, 1), opacity .3s;
+}
+.ses-band .sb-cells {
+  right: 0; width: auto;
+  background: repeating-linear-gradient(90deg,
+    transparent 0 calc(100% / var(--cells, 24) - 1.4px),
+    var(--ses-cell) calc(100% / var(--cells, 24) - 1.4px) calc(100% / var(--cells, 24)));
+}
+/* Where a seam is expected to close — the milestone you can see coming. */
+.ses-band .sb-marks { right: 0; width: auto; }
+.ses-band .sb-marks u {
+  position: absolute; top: 0; bottom: 0; width: 5px; margin-left: -2.5px;
+  background: rgba(2, 6, 13, .94); text-decoration: none;
+}
+.ses-band .sb-marks u::after {
+  content: ''; position: absolute; left: 2px; top: 0; bottom: 0; width: 1px;
+  background: rgba(200, 222, 250, .5);
+}
+
+/* The work read. A hairline under the cells that creeps on every item worked
+   and a word for it in the foot — the one thing on this instrument a wrong
+   answer moves. It is deliberately quieter than the tear fill (no glow, half
+   the height, the ink of a caption) because it is not the goal; it is proof
+   that the last twenty minutes happened. */
+.ses-band .sb-ground {
+  top: auto; bottom: 0; height: 2px; width: 0;
+  background: linear-gradient(90deg, rgba(150, 180, 214, .34), rgba(178, 205, 236, .62));
+  transition: width .5s cubic-bezier(.2, .8, .2, 1);
+  border-radius: 0 1px 1px 0;
+}
+.ses-band .sb-work {
+  margin-left: auto; font-size: .58rem; letter-spacing: .05em;
+  color: rgba(159, 179, 208, .72); white-space: nowrap;
+}
+.ses-band .sb-foot { display: flex; align-items: baseline; gap: .34rem; flex-wrap: wrap; }
+.ses-band .sb-n {
+  font-size: 1.32rem; line-height: 1; font-weight: 700; color: #f2f8ff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--rank-glow) 40%, transparent);
+}
+.ses-band .sb-of {
+  font-size: .62rem; letter-spacing: .11em; text-transform: uppercase;
+  color: rgba(159, 179, 208, .72);
+}
+.ses-band .sb-work + .sb-state:not(:empty) { margin-left: .34rem; }
+.ses-band .sb-state {
+  margin-left: auto; font-family: var(--meta-mono); font-size: .55rem;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--rank-ink);
+  opacity: 0; transition: opacity .4s ease;
+}
+.ses-band.near .sb-state, .ses-band.full .sb-state { opacity: .95; }
+
+/* one tear closed */
+.ses-band.pop .sb-n { animation: sesPop .5s cubic-bezier(.2, .8, .2, 1); }
+@keyframes sesPop {
+  0% { scale: 1 } 34% { scale: 1.22; color: #fff } 100% { scale: 1 }
+}
+/* "you are near the end of this run", said by the instrument */
+.ses-band.near { animation: sesNear 3.4s ease-in-out infinite; }
+@keyframes sesNear {
+  0%, 100% { box-shadow: 0 18px 40px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .06); }
+  50% {
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .06),
+      0 0 34px -6px color-mix(in srgb, var(--rank-glow) 70%, transparent);
+  }
+}
+.ses-band.near .sb-track { animation: sesTrack 3.4s ease-in-out infinite; }
+@keyframes sesTrack {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .12), inset 0 2px 7px rgba(0, 0, 0, .5); }
+  50% {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rank-ink) 55%, transparent),
+      inset 0 2px 7px rgba(0, 0, 0, .5);
+  }
+}
+/* a seam actually closed */
+.ses-band.seam .sb-track::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .6), transparent);
+  animation: sesSweep 1s cubic-bezier(.3, .7, .3, 1);
+}
+@keyframes sesSweep {
+  0% { opacity: 0; transform: translateX(-100%) } 14% { opacity: 1 }
+  100% { opacity: 0; transform: translateX(100%) }
+}
+
+/* Anything modal takes the frame; the band steps back rather than being read
+   through a dim. That includes the tear: the rift's own scrim is a hole in the
+   air rather than a floor, so at 1280x720 the band's goal line — "Drive back:
+   Reading a variable" — was legible straight through the top edge of the
+   panel's plate, half-cut by it. The run is the frame the tear happens inside;
+   it is not a second readout to be read over the top of the mathematics. */
+#ui.ses-cine .ses-band,
+#ui:has(.rift.show) .ses-band { opacity: 0; translate: -50% -30%; }
+
+/* ------------------------------------------------------------- the orders --
+   One screen, one control, about six seconds of reading. The only place in the
+   whole system where a number of minutes is printed. */
+#ui .ses-charter, #ui .ses-close {
+  position: absolute; inset: 0; z-index: 44;
+  display: grid; place-items: center;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .4s ease, visibility 0s linear .4s;
+}
+#ui .ses-charter.show, #ui .ses-close.show {
+  opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s;
+}
+.ses-charter .sc-dim, .ses-close .sx-dim {
+  position: absolute; inset: 0;
+  /* The world has to stay in the frame — it is the thing the run was about, and
+     a close that composites over a blurred keypad is a close about a keypad.
+     So: no flat floor and no six-pixel blur. A pool of shade under the type
+     where the type actually is, the rank's own light beneath it, and open sky
+     at the top and the corners, where the eye goes for the horizon. */
+  background:
+    radial-gradient(64% 44% at 50% 100%, color-mix(in srgb, var(--rank-glow) 22%, transparent) 0%, transparent 70%),
+    radial-gradient(86% 62% at 50% 50%, rgba(2, 5, 12, .88) 0%, rgba(2, 5, 12, .7) 52%, rgba(2, 5, 12, .34) 100%);
+  backdrop-filter: blur(2px) saturate(.92);
+  -webkit-backdrop-filter: blur(2px) saturate(.92);
+}
+
+.ses-charter .sc-card {
+  position: relative; width: min(560px, 88vw);
+  padding: 1.5rem 1.7rem 1.35rem;
+  background: var(--ses-plate);
+  border: 1px solid var(--meta-edge);
+  border-left: 2px solid var(--rank-ink);
+  border-radius: 12px; backdrop-filter: blur(18px);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, .6);
+  translate: 0 14px; opacity: 0;
+}
+.ses-charter.show .sc-card { animation: sesRise .6s cubic-bezier(.2, .8, .2, 1) forwards; }
+@keyframes sesRise { to { translate: 0 0; opacity: 1 } }
+
+/* The return line. It sits above the run number because on day two it is the
+   first thing worth saying and the run number is the second. */
+.sc-back {
+  margin: 0 0 .7rem; padding: .5rem .7rem .55rem;
+  border-left: 2px solid color-mix(in srgb, var(--rank-ink) 55%, transparent);
+  border-radius: 0 7px 7px 0;
+  background: rgba(126, 170, 220, .08);
+  font-size: .8rem; line-height: 1.45; color: rgba(214, 228, 246, .92);
+  text-wrap: pretty;
+}
+.sc-back:empty { display: none; }
+.sc-kick {
+  font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .28em;
+  text-transform: uppercase; color: var(--rank-ink);
+}
+.sc-title {
+  margin: .38rem 0 0; font-size: clamp(1.5rem, 3.4vw, 2.1rem); font-weight: 800;
+  letter-spacing: .17em; text-transform: uppercase; color: #f2f8ff; line-height: 1;
+  text-shadow: 0 0 28px color-mix(in srgb, var(--rank-glow) 42%, transparent);
+}
+.sc-rule { height: 1px; margin: .9rem 0 1rem; background: rgba(140, 195, 255, .16); overflow: hidden; }
+.sc-rule i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--rank-ink), transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rank-glow) 60%, transparent);
+}
+.ses-charter.show .sc-rule i { animation: sesRule 1.1s cubic-bezier(.16, .84, .28, 1) forwards .3s; }
+@keyframes sesRule { to { width: 100% } }
+
+.sc-goal {
+  margin: 0; font-size: clamp(1rem, 2.1vw, 1.18rem); line-height: 1.44; color: #eaf3ff;
+  text-wrap: pretty;
+}
+.sc-seams { list-style: none; margin: 1rem 0 .1rem; padding: 0; display: grid; gap: .42rem; }
+.sc-seams li {
+  display: flex; align-items: baseline; gap: .55rem;
+  padding: .42rem .6rem; border-radius: 7px;
+  background: rgba(126, 170, 220, .09);
+  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .13);
+}
+.sc-seams li i {
+  flex: 0 0 auto; width: 7px; height: 7px; rotate: 45deg;
+  background: rgba(159, 179, 208, .45); align-self: center;
+}
+.sc-seams li.hold i { background: var(--rank-ink); box-shadow: 0 0 10px var(--rank-glow); }
+.sc-seams li b { font-size: .88rem; font-weight: 600; color: #eaf3ff; }
+.sc-seams li span {
+  margin-left: auto; font-family: var(--meta-mono); font-size: .58rem;
+  letter-spacing: .14em; text-transform: uppercase; color: rgba(159, 179, 208, .7);
+}
+.sc-seams li.hold span { color: var(--rank-ink); }
+.sc-eta {
+  margin: .95rem 0 0; font-size: .78rem; line-height: 1.5; color: rgba(159, 179, 208, .82);
+  text-wrap: pretty;
+}
+
+.sc-go, .sx-rest, .sx-more, .sr-again, .sr-off, .sr-skip, .sr-off-frame button {
+  appearance: none; font: inherit; cursor: pointer;
+  font-size: .68rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  padding: .7rem 1.5rem; border-radius: 8px;
+  transition: background .16s, color .16s, box-shadow .16s, border-color .16s;
+}
+/* The lift off the paragraph above belongs to the row of controls, not to each
+   control: with it on the buttons, a locale whose two labels do not fit on one
+   line — ES and PL both, at 390 px — got the flex row gap *plus* a top margin
+   between the wrapped rows, and the pair read as two unrelated controls. */
+.sc-go, .sx-acts, .sr-e-acts { margin-top: 1.15rem; }
+.sc-go, .sx-rest, .sr-again {
+  border: 1px solid color-mix(in srgb, var(--rank-ink) 62%, transparent);
+  background: color-mix(in srgb, var(--rank-ink) 17%, var(--ses-solid));
+  color: #fff;
+  box-shadow: 0 0 24px -8px var(--rank-glow), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.sc-go:hover, .sx-rest:hover, .sr-again:hover {
+  background: color-mix(in srgb, var(--rank-ink) 30%, var(--ses-solid));
+  box-shadow: 0 0 34px -6px var(--rank-glow), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.sx-more, .sr-off, .sr-skip, .sr-off-frame button {
+  border: 1px solid rgba(140, 195, 255, .2);
+  background: var(--ses-solid-ghost); color: var(--ink-dim);
+}
+.sx-more:hover, .sr-off:hover, .sr-skip:hover, .sr-off-frame button:hover {
+  border-color: rgba(140, 195, 255, .38); color: var(--ink);
+  background: color-mix(in srgb, rgb(126, 170, 220) 12%, var(--ses-solid-ghost));
+}
+
+/* -------------------------------------------------------------- the close --
+   Not a results card. Three blocks in the order a person actually wants them:
+   what is now yours, what that opened, and what tomorrow opens with. */
+.ses-close .sx-in {
+  position: relative; width: min(760px, 92vw);
+  max-height: 92vh; overflow: auto;
+  /* The side and foot padding are held in variables because the control shelf
+     below has to bleed to exactly these edges and re-supply exactly this foot,
+     at every viewport, without repeating the numbers three times. */
+  --sx-px: 1.6rem; --sx-pb: 1.5rem;
+  padding: 1.4rem var(--sx-px) var(--sx-pb); text-align: center;
+}
+/* ------------------------------------------------------- the ascension --
+   A promotion earned on the last answer of a run is not a second ceremony to
+   queue behind this one — it is the largest line of what the run achieved, and
+   this card is the record of that. It used to be a second full-screen layer
+   (`.meta-rite`) playing UNDER this one, and since both surfaces are type over
+   a semi-transparent dim on purpose — the world stays in the frame — neither
+   hid the other: GOLD printed straight through the résumé with "from 16
+   questions worked" sitting on its O and L. There is no opaque pixel in either
+   card to raise, so no z-index could have fixed it.
+
+   So the rite is claimed by src/session/index.js at the moment the run closes
+   and composed here, at the head of the card: the sigil draws itself, the rank
+   lands oversized and settles, and the résumé rises underneath it a beat later
+   — `--sx-t0` pushes the whole rest of the card's stagger back so this reads as
+   one movement rather than as two cards fighting. */
+.sx-crest[hidden] { display: none; }
+.sx-crest {
+  display: grid; justify-items: center; gap: 0;
+  margin: .2rem 0 1.15rem;
+  padding-bottom: 1.15rem;
+  position: relative;
+}
+/* The crest's own rule: the ceremony ends here and the record begins. */
+.sx-crest::after {
+  content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0;
+  width: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--rank-ink), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--rank-glow) 60%, transparent);
+}
+.ses-close.show .sx-crest::after { animation: sesCrestRule 1s cubic-bezier(.16, .84, .28, 1) forwards .55s; }
+@keyframes sesCrestRule { to { width: min(420px, 76%) } }
+
+.sx-sig { width: min(74px, 15vw); height: min(74px, 15vw); }
+.sx-sig .sigil {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 0 22px var(--rank-glow));
+}
+.ses-close.show .sx-sig .sig-hex {
+  stroke-dasharray: 128; stroke-dashoffset: 128;
+  animation: sesDraw .68s cubic-bezier(.3, .8, .3, 1) forwards .12s;
+}
+.ses-close.show .sx-sig .sig-chev {
+  stroke-dasharray: 26; stroke-dashoffset: 26;
+  animation: sesDraw .32s cubic-bezier(.3, .8, .3, 1) forwards;
+  animation-delay: calc(.36s + var(--k) * .08s);
+}
+.ses-close.show .sx-sig .sig-core { opacity: 0; animation: sesFade .5s ease forwards .8s; }
+@keyframes sesDraw { to { stroke-dashoffset: 0 } }
+@keyframes sesFade { to { opacity: 1 } }
+
+.sx-crest-kick {
+  margin-top: .7rem;
+  font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .5em; text-indent: .5em;
+  text-transform: uppercase; color: rgba(235, 244, 255, .9); opacity: 0;
+}
+.ses-close.show .sx-crest-kick { animation: sesUp .5s ease forwards .3s; }
+.sx-crest-name {
+  margin-top: .3rem; line-height: 1.02;
+  font-size: min(var(--sx-crest-size, 3rem), 11.5vw);
+  font-weight: 800; letter-spacing: .16em; text-indent: .16em; text-transform: uppercase;
+  color: var(--rank-ink);
+}
+.sx-crest-name span {
+  display: inline-block; opacity: 0;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--rank-ink) 70%, transparent),
+    0 0 60px color-mix(in srgb, var(--rank-glow) 75%, transparent);
+}
+.ses-close.show .sx-crest-name span { animation: sesLand .7s cubic-bezier(.14, .9, .26, 1) forwards .42s; }
+.sx-crest-arrow {
+  margin-top: .45rem;
+  font-family: var(--meta-mono); font-size: .62rem; letter-spacing: .2em;
+  text-transform: uppercase; color: rgba(186, 203, 226, .8); opacity: 0;
+}
+.ses-close.show .sx-crest-arrow { animation: sesUp .5s ease forwards .74s; }
+.sx-crest-cite {
+  margin: .8rem auto 0; max-width: 44ch;
+  font-size: .84rem; line-height: 1.5; color: rgba(214, 228, 246, .9);
+  text-wrap: pretty; opacity: 0;
+}
+.ses-close.show .sx-crest-cite { animation: sesUp .6s ease forwards .92s; }
+
+/* The record waits for the ceremony. One variable, so the two beats can never
+   drift apart and no delay below is written twice. */
+.ses-close { --sx-t0: 0s; }
+.ses-close.ascended { --sx-t0: 1.35s; }
+/* With an ascension above it, the run's own verdict is the second line of the
+   card, not the first, and it is set that way. */
+.ses-close.ascended .sx-title { font-size: clamp(1.15rem, 2.8vw, 1.8rem); letter-spacing: .26em; }
+.ses-close.ascended .sx-rule { margin-top: .8rem; }
+
+.sx-kick {
+  font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .3em;
+  text-transform: uppercase; color: var(--rank-ink); opacity: 0;
+}
+.ses-close.show .sx-kick { animation: sesUp .5s ease forwards calc(var(--sx-t0) + .1s); }
+.sx-title {
+  margin: .5rem 0 0; font-size: clamp(1.7rem, 4.6vw, 3rem); font-weight: 800;
+  letter-spacing: .2em; text-indent: .2em; text-transform: uppercase; line-height: 1.02;
+  color: #fff;
+}
+.sx-title span {
+  display: inline-block; opacity: 0;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--rank-ink) 80%, transparent),
+    0 0 52px color-mix(in srgb, var(--rank-glow) 70%, transparent);
+}
+.ses-close.show .sx-title span { animation: sesLand .7s cubic-bezier(.14, .9, .26, 1) forwards calc(var(--sx-t0) + .22s); }
+@keyframes sesLand {
+  0% { opacity: 0; scale: 1.24; filter: blur(7px) }
+  55% { opacity: 1; filter: blur(0) }
+  76% { scale: .984 }
+  100% { opacity: 1; scale: 1 }
+}
+.sx-rule {
+  height: 1px; width: 0; margin: 1rem auto 1.1rem;
+  background: linear-gradient(90deg, transparent, var(--rank-ink), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--rank-glow) 60%, transparent);
+}
+.ses-close.show .sx-rule { animation: sesRuleC 1.2s cubic-bezier(.16, .84, .28, 1) forwards calc(var(--sx-t0) + .45s); }
+@keyframes sesRuleC { to { width: min(520px, 80%) } }
+
+.sx-tally { display: flex; align-items: baseline; justify-content: center; gap: .6rem; opacity: 0; }
+.ses-close.show .sx-tally { animation: sesUp .6s ease forwards calc(var(--sx-t0) + .5s); }
+.sx-t-n {
+  font-size: clamp(2.4rem, 6vw, 3.6rem); font-weight: 800; line-height: 1;
+  color: #fff; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 30px color-mix(in srgb, var(--rank-glow) 55%, transparent);
+}
+.sx-t-lab {
+  font-size: .64rem; letter-spacing: .24em; text-transform: uppercase;
+  color: rgba(159, 179, 208, .8);
+}
+/* The tally wraps rather than stretching, because on a run that sealed nothing
+   the big number is the work done and the line under it is the sentence that
+   stops that number from reading as a score. */
+.sx-tally { flex-wrap: wrap; }
+.sx-t-sub {
+  /* `flex-basis: 100%` alone does not force a new row: flexbox breaks lines on
+     the item's hypothetical size *after* min/max clamping, so a `max-width` of
+     52ch let this sit beside a two-digit tally and shove it off centre. The
+     measure is held with padding instead, and the basis is left unclamped. */
+  flex: 0 0 100%; width: 100%; margin-top: .4rem;
+  padding-inline: max(0px, calc((100% - 52ch) / 2));
+  font-size: .78rem; line-height: 1.45; color: rgba(186, 203, 226, .82);
+  text-wrap: pretty;
+}
+.sx-t-sub:empty { display: none; }
+/* A run that sealed nothing is not a run that scored zero, and the tally must
+   not use the colour the game keeps for a seal. */
+.ses-close.lead-work .sx-t-n {
+  color: #dfe9f8; text-shadow: 0 0 22px rgba(140, 175, 214, .35);
+}
+
+.sx-blocks {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem;
+  margin: 1.4rem 0 0; text-align: left;
+}
+.sx-b {
+  padding: .78rem .85rem .85rem; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(11, 21, 38, .82), rgba(5, 11, 21, .74));
+  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .14);
+  opacity: 0;
+}
+.ses-close.show .sx-held { animation: sesUp .55s ease forwards calc(var(--sx-t0) + .72s); }
+.ses-close.show .sx-open { animation: sesUp .55s ease forwards calc(var(--sx-t0) + .86s); }
+.ses-close.show .sx-next { animation: sesUp .55s ease forwards calc(var(--sx-t0) + 1s); }
+.sx-b h3 {
+  margin: 0 0 .5rem; font-family: var(--meta-mono); font-size: .54rem;
+  letter-spacing: .24em; text-transform: uppercase; color: rgba(159, 179, 208, .62);
+  font-weight: 600;
+}
+.sx-b ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.sx-b li { display: grid; grid-template-columns: 9px 1fr; gap: .5rem; align-items: baseline; }
+.sx-b li i {
+  width: 7px; height: 7px; rotate: 45deg; align-self: center;
+  background: rgba(159, 179, 208, .4);
+}
+.sx-held li i { background: var(--rank-ink); box-shadow: 0 0 10px var(--rank-glow); }
+/* The ground block borrows the held block's slot but must not borrow its
+   colour: the rank's own metal is what this game uses to mean "yours", and a
+   run that closed nothing has not earned it. */
+.ses-close.ground .sx-held li i { background: rgba(159, 179, 208, .42); box-shadow: none; }
+.sx-next li i { background: var(--cyan); box-shadow: 0 0 10px rgba(95, 230, 255, .7); }
+.sx-b li b { grid-column: 2; font-size: .86rem; font-weight: 600; color: #eaf3ff; line-height: 1.25; }
+.sx-b li span { grid-column: 2; font-size: .72rem; line-height: 1.4; color: rgba(186, 203, 226, .88); }
+
+.sx-sign {
+  margin: 1.2rem auto 0; max-width: 46ch; font-size: .84rem; line-height: 1.5;
+  color: rgba(206, 222, 242, .86); text-wrap: pretty; opacity: 0;
+}
+.ses-close.show .sx-sign { animation: sesUp .6s ease forwards calc(var(--sx-t0) + 1.15s); }
+.sx-acts { display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap; opacity: 0; }
+.ses-close.show .sx-acts { animation: sesUp .6s ease forwards calc(var(--sx-t0) + 1.3s); }
+.sx-more[hidden] { display: none; }
+/* Why the offer is not there — read *before* the eye goes looking for a second
+   button, not as a footnote to its absence. */
+.sx-cap {
+  margin: 1rem auto -.2rem; max-width: 48ch; font-size: .74rem; line-height: 1.5;
+  color: rgba(159, 179, 208, .74); text-wrap: pretty; opacity: 0;
+}
+.sx-cap:empty { display: none; }
+.ses-close.show .sx-cap { animation: sesUp .6s ease forwards calc(var(--sx-t0) + 1.45s); }
+
+/* ------------------------------------------------------------ the shelf --
+   WHEN THE CARD IS TALLER THAN THE FRAME, THE CONTROLS RIDE ITS FOOT.
+   This is a fact about the content, not about the viewport, and it was written
+   as a `max-width: 720px` media query for a while — which meant a 1280x720
+   Chromebook, the machine the brief names, opened this card with STAND DOWN
+   entirely below the fold and the closing paragraph sliced off at the frame
+   edge with nothing on screen to say the card scrolled at all. HELD / OPENED /
+   NEXT plus the sign-off is simply taller than 720 px of viewport, in every
+   locale. src/session/resolution.js measures the real scroller and sets
+   `.scrolls`, so the shelf now appears exactly when there is something to
+   scroll, whatever the screen.
+
+   THE SHELF IS OPAQUE FROM ITS FIRST PIXEL. It used to open on a gradient that
+   was fully transparent at 0% and only reached .95 at 34% of its own height,
+   which put the whole of the button riding in it over live text: the closing
+   paragraph printed straight through STAND DOWN / RETIRARSE / ODMELDOWAĆ SIĘ
+   at 390x844 and 414x896 in all three locales, 128x27 to 160x35 px of it. A
+   gradient cannot be the thing that hides text; it is the thing that hides the
+   *edge*. So the shelf is a flat solid, and the fade lives above it in
+   ::before, outside the shelf's own box, where its job is to dissolve the line
+   the shelf would otherwise guillotine — and to say "there is more up there",
+   which is the affordance the fold was missing. */
+.ses-close.scrolls .sx-in {
+  /* The shelf re-supplies this, and a sticky box is clamped inside its
+     containing block's *content* box rather than the scrollport — so every
+     pixel of foot padding left here is a pixel of the last paragraph showing
+     in the clear underneath the controls. */
+  padding-bottom: 0;
+}
+.ses-close.scrolls .sx-acts {
+  position: sticky; bottom: 0; z-index: 3;
+  /* Bled to the card's own edges so the strip is opaque all the way across.
+     The top margin is exactly the height of the fade below it, so that once
+     the card is scrolled to its foot the fade is lying on empty gap and the
+     last line of the caption is at full strength instead of half dissolved. */
+  margin: 2.8rem calc(var(--sx-px) * -1) 0;
+  padding: .9rem var(--sx-px) var(--sx-pb);
+  background: var(--ses-floor);
+  box-shadow: 0 -1px 0 rgba(140, 195, 255, .13);
+}
+/* THE SHELF IS OPAQUE FROM ITS FIRST FRAME, TOO. The strip inherited the card's
+   entry stagger, which fades `opacity` 0 → 1 over 600 ms — and a *sticky* strip
+   fading in on top of live text is a strip you can read the text through: the
+   closing paragraph printed through STAND DOWN for half a second on every
+   screen short enough to scroll. So when the card scrolls, the shelf is simply
+   there, and its controls rise inside it. */
+.ses-close.scrolls .sx-acts { opacity: 1; }
+.ses-close.scrolls.show .sx-acts { animation: none; }
+.ses-close.scrolls.show .sx-acts button {
+  opacity: 0; animation: sesUp .6s ease forwards calc(var(--sx-t0) + 1.3s);
+}
+/* Deep enough to swallow a whole line of body copy rather than half of one: a
+   2 rem fade dies out inside a 22 px line box and leaves the ascenders of a
+   sentence standing on the shelf edge like a cut. */
+.ses-close.scrolls .sx-acts::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 2.8rem;
+  background: linear-gradient(180deg,
+    rgba(4, 8, 15, 0) 0%, rgba(4, 8, 15, .62) 46%, rgba(4, 8, 15, .95) 82%, var(--ses-floor) 100%);
+  pointer-events: none;
+}
+
+@keyframes sesUp { from { opacity: 0; translate: 0 10px } to { opacity: 1; translate: 0 0 } }
+
+/* -------------------------------------------------------------- the break --
+   The world stays on screen and keeps moving. Nothing is asked of the learner
+   except to look at something a long way off and breathe with the ring:
+   four seconds in, two held, six out — five breaths a minute. */
+#ui .ses-rest {
+  position: absolute; inset: 0; z-index: 46;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 1.1s ease, visibility 0s linear 1.1s;
+}
+#ui .ses-rest.show { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.ses-rest .sr-scrim {
+  position: absolute; inset: 0; pointer-events: none;
+  /* A vignette, and nothing else. The 20-20-20 rule is the whole reason this
+     beat exists, so whatever is a long way off has to actually be visible:
+     half a stop of shade at the edges to seat the ring, and clear air through
+     the middle where the range and the cloud deck are. */
+  background:
+    radial-gradient(78% 68% at 50% 44%, transparent 0%, rgba(2, 5, 12, .22) 70%, rgba(2, 5, 12, .52) 100%);
+}
+.ses-rest .sr-stage {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  grid-auto-rows: min-content; align-content: center; gap: 1.4rem;
+  pointer-events: none;
+}
+.ses-rest.ended .sr-stage, .ses-rest.closed .sr-stage { opacity: 0; transition: opacity .7s ease; pointer-events: none; }
+
+/* the pacer */
+.sr-ring { position: relative; width: min(34vmin, 260px); aspect-ratio: 1; display: grid; place-items: center; }
+.sr-ring i {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--cyan) 78%, transparent);
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--cyan) 12%, transparent) 0%, transparent 68%);
+  box-shadow: 0 0 60px -12px color-mix(in srgb, var(--cyan) 85%, transparent),
+    inset 0 0 70px -22px color-mix(in srgb, var(--cyan) 80%, transparent);
+  scale: .34; opacity: .5;
+  animation: sesBreath 12s cubic-bezier(.42, 0, .58, 1) infinite;
+}
+.sr-ring .r2 { animation-delay: -.5s; opacity: .3; }
+.sr-ring .r3 { animation-delay: -1s; opacity: .18; }
+/* 4 s in · 2 s held · 6 s out */
+@keyframes sesBreath {
+  0% { scale: .34; opacity: .3 }
+  33.3% { scale: 1; opacity: .92 }
+  50% { scale: 1; opacity: .92 }
+  100% { scale: .34; opacity: .3 }
+}
+.sr-say {
+  margin: 0; max-width: 34ch; text-align: center; text-wrap: balance;
+  font-size: clamp(.92rem, 2vw, 1.06rem); line-height: 1.55; color: #dfeaf9;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, .8);
+  transition: opacity 1.6s ease;
+}
+.ses-rest.quiet .sr-say { opacity: 0; }
+.sr-skip { pointer-events: auto; opacity: 0; transition: opacity .8s ease; }
+.ses-rest.lettergo .sr-skip { opacity: .75; }
+.ses-rest.lettergo .sr-skip:hover { opacity: 1; }
+.ses-rest.ended .sr-skip, .ses-rest.closed .sr-skip { pointer-events: none; }
+
+/* how far through the rest is — a line that fills, never a number counting down */
+.ses-rest .sr-arc {
+  position: absolute; left: 18%; right: 18%; bottom: calc(var(--pad-b) + 14px);
+  height: 1px; background: rgba(140, 195, 255, .12); overflow: hidden;
+}
+.ses-rest .sr-arc i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cyan) 80%, transparent));
+}
+.ses-rest.ended .sr-arc, .ses-rest.closed .sr-arc { opacity: 0; transition: opacity .6s ease; }
+
+/* …and then it stops properly */
+.ses-rest .sr-end, .ses-rest .sr-off-frame {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
+  text-align: center; padding: 0 6vw; gap: .1rem;
+  background: radial-gradient(58% 40% at 50% 50%, rgba(2, 5, 12, .88) 0%, rgba(2, 5, 12, .55) 58%, transparent 78%);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .8s ease, visibility 0s linear .8s;
+}
+.ses-rest.ended .sr-end { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.ses-rest.closed .sr-end { opacity: 0; visibility: hidden; pointer-events: none; }
+.ses-rest.closed .sr-off-frame { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.sr-e-kick {
+  font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .3em;
+  text-transform: uppercase; color: var(--rank-ink);
+}
+.sr-e-title {
+  margin: .5rem 0 0; font-size: clamp(1.4rem, 3.6vw, 2.2rem); font-weight: 800;
+  letter-spacing: .2em; text-indent: .2em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 0 40px color-mix(in srgb, var(--rank-glow) 50%, transparent);
+}
+.sr-e-body {
+  margin: .9rem 0 0; max-width: 44ch; font-size: .92rem; line-height: 1.55;
+  color: rgba(214, 228, 246, .9); text-wrap: pretty;
+}
+.sr-e-acts { display: flex; gap: .7rem; flex-wrap: wrap; justify-content: center; }
+.sr-off-frame p {
+  margin: 0 0 1.4rem; max-width: 34ch; font-size: clamp(1rem, 2.4vw, 1.2rem); line-height: 1.6;
+  color: #e6effc; text-wrap: balance; text-shadow: 0 2px 18px rgba(0, 0, 0, .9);
+}
+
+/* Every other surface in the game steps back while a session beat owns the
+   frame. `.ses-cine` is set on #ui by src/session/index.js. */
+#ui.ses-cine .rift,
+#ui.ses-cine .hud-top,
+#ui.ses-cine .buildbar,
+#ui.ses-cine .crosshair,
+#ui.ses-cine .langs,
+#ui.ses-cine .sound,
+#ui.ses-cine .marlow,
+#ui.ses-cine .toast,
+#ui.ses-cine .meta-quest,
+#ui.ses-cine .rp-launch,
+#ui.ses-cine .kit,
+#ui.ses-cine .kit-toast,
+#ui.ses-cine .field-tags,
+#ui.ses-cine .meta-comms {
+  opacity: 0 !important; pointer-events: none !important;
+  transition: opacity .5s ease;
+}
+/* The break also hides the on-screen thumbsticks, which are outside #ui. */
+:root:has(#ui.ses-resting) #touchpad { opacity: 0; pointer-events: none; transition: opacity .6s ease; }
+/* …and the break hides everything else that is still lit, so the frame the
+   learner is resting their eyes on is the world and nothing else. */
+#ui.ses-resting .rp-launch, #ui.ses-resting .langs, #ui.ses-resting .sound,
+#ui.ses-resting .hud-top, #ui.ses-resting .buildbar, #ui.ses-resting .meta-quest,
+#ui.ses-resting .rift, #ui.ses-resting .marlow, #ui.ses-resting .meta-comms,
+#ui.ses-resting .kit, #ui.ses-resting .kit-toast, #ui.ses-resting .field-tags {
+  opacity: 0 !important; pointer-events: none !important; transition: opacity .7s ease;
+}
+
+/* ------------------------------------------------------------------ phone --
+   The top edge is 390 px wide and the rig and the language pill already own
+   both ends of it, so the band takes the full width one line lower and the
+   chapter card moves down to sit under it. The run is the frame the chapter
+   now happens inside, so it takes the higher line. */
+@media (max-width: 760px) {
+  /* On a touch phone the build hotbar runs down the right flank from
+     `--pad-t + 84px`, and its slots are 46px wide inside a padded plate — call
+     it 54, and measured at 414x896 a 58px reserve left three pixels of air, so
+     the band's right-hand shoulder was being cropped by a build slot. The
+     reserve is now the plate plus a gutter. On a pointer device there is
+     nothing on that flank and the band takes the whole width. */
+  :root[data-touch] #ui .ses-band { right: calc(var(--pad-r) + 72px); }
+  #ui .ses-band {
+    top: calc(var(--pad-t) + 66px); left: var(--pad-l); right: var(--pad-r);
+    width: auto; min-width: 0; padding: .42rem .6rem .48rem;
+    border-top: 0; border-radius: 9px;
+    translate: 0 -10px;
+  }
+  #ui .ses-band::before { border-radius: 9px 9px 0 0; }
+  #ui .ses-band.show { translate: 0 0; }
+  #ui.ses-cine .ses-band, #ui:has(.rift.show) .ses-band { translate: 0 -10px; }
+  /* THE TOP-LEFT COLUMN, IN ORDER. Three surfaces owned by three different
+     modules all wanted `--pad-t + 66px` on a phone: the rig ends there, the
+     progress launcher's own phone rule puts it there, and the band lands there
+     too. Measured at 414x896 the launcher — which is opaque and one z-index
+     above — sat across the band's first 150px, so the run label read as
+     ": Reading a variable" with the verb underneath a pill. The band is the
+     frame the session happens inside, so it takes the line; the launcher and
+     the chapter card each move down by the height of what is now above them,
+     and only while the band is actually on screen. */
+  #ui:has(.ses-band.show) .meta-quest { top: calc(var(--pad-t) + 196px); }
+  .ses-band .sb-n { font-size: 1.12rem; }
+  .ses-band .sb-goal { font-size: .66rem; }
+  .ses-band .sb-work { font-size: .55rem; }
+  .ses-charter .sc-card { padding: 1.1rem 1.1rem 1rem; }
+  .ses-close .sx-in { --sx-px: 1rem; --sx-pb: 1.2rem; padding: 1rem var(--sx-px) var(--sx-pb); }
+  .sx-blocks { grid-template-columns: 1fr; gap: .55rem; }
+  .sx-b { padding: .6rem .7rem .68rem; }
+  .sx-sign { font-size: .78rem; }
+  .sx-cap { margin: .7rem auto .1rem; }
+  .sc-go, .sx-rest, .sx-more, .sr-again, .sr-off { padding: .66rem 1.1rem; font-size: .62rem; }
+  .ses-rest .sr-arc { left: 10%; right: 10%; }
+}
+@media (max-width: 720px) {
+  #ui:has(.ses-band.show) .rp-launch { top: calc(var(--pad-t) + 142px); }
+}
+
+/* A phone on its side: 390 px of height, and the hotbar is across the top
+   middle on a touch device — so the band goes down the left flank instead. */
+@media (max-height: 520px) and (orientation: landscape) {
+  #ui .ses-band {
+    top: calc(var(--pad-t) + 52px); left: var(--pad-l); right: auto;
+    width: min(248px, 30vw); min-width: 0; padding: .34rem .5rem .4rem;
+    border-radius: 8px; translate: -8px 0;
+  }
+  #ui .ses-band::before { border-radius: 8px 8px 0 0; }
+  #ui .ses-band.show { translate: 0 0; }
+  #ui.ses-cine .ses-band, #ui:has(.rift.show) .ses-band { translate: -8px 0; }
+  #ui:has(.ses-band.show) .meta-quest { top: calc(var(--pad-t) + 132px); }
+  .ses-band .sb-track { height: 10px; }
+  .ses-band .sb-n { font-size: 1rem; }
+  .sc-title { font-size: 1.35rem; }
+  .ses-close .sx-in { --sx-px: 1rem; --sx-pb: .8rem; padding: .6rem var(--sx-px) var(--sx-pb); }
+  .sx-blocks { grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  .sr-ring { width: min(26vmin, 150px); }
+}
+
+/* A learner who asked the OS for less movement keeps every word and every
+   number and loses the physics. The breathing ring is the one exception worth
+   naming: it is not decoration, it is the pacer, so it is redrawn as a still
+   ring and the line that explains it stops being hidden. */
+@media (prefers-reduced-motion: reduce) {
+  .sr-ring i { animation: none !important; scale: .82; opacity: .4; }
+  .ses-rest.quiet .sr-say { opacity: 1; }
+  .ses-band.near, .ses-band.near .sb-track, .ses-band.pop .sb-n,
+  .ses-band.seam .sb-track::after { animation: none !important; }
+  .ses-charter.show .sc-card, .ses-close.show .sx-kick, .ses-close.show .sx-title span,
+  .ses-close.show .sx-tally, .ses-close.show .sx-held, .ses-close.show .sx-open,
+  .ses-close.show .sx-next, .ses-close.show .sx-sign, .ses-close.show .sx-acts,
+  .ses-close.scrolls.show .sx-acts button,
+  .ses-close.show .sx-crest-kick, .ses-close.show .sx-crest-name span,
+  .ses-close.show .sx-crest-arrow, .ses-close.show .sx-crest-cite {
+    animation: none !important; opacity: 1; translate: 0 0; scale: 1; filter: none;
+  }
+  /* The sigil is a drawn mark, not a motion effect: it keeps every stroke and
+     loses the drawing of them. */
+  .ses-close.show .sx-sig .sig-hex, .ses-close.show .sx-sig .sig-chev {
+    animation: none !important; stroke-dashoffset: 0;
+  }
+  .ses-close.show .sx-sig .sig-core { animation: none !important; opacity: 1; }
+  .ses-charter.show .sc-rule i { animation: none !important; width: 100%; }
+  .ses-close.show .sx-rule { animation: none !important; width: min(520px, 80%); }
+  .ses-close.show .sx-crest::after { animation: none !important; width: min(420px, 76%); }
+}

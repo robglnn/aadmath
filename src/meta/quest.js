@@ -22,6 +22,20 @@
 import { sigilSVG } from './arc.js';
 import { t } from '../i18n/index.js';
 
+/**
+ * "in four hours", "tomorrow", "in three days" — the one place in this game
+ * where a duration is printed at a learner, and it is printed about the world
+ * rather than about them: it is when the lattice next needs looking at, not a
+ * countdown on their attention. Rounded hard, because the difference between
+ * nineteen and twenty-one hours is not a thing anybody needs.
+ */
+function whenText(minutes) {
+  if (minutes == null) return t('story.watch.whenSoon');
+  if (minutes < 90) return t('story.watch.whenMin', { n: Math.max(1, Math.round(minutes)) });
+  if (minutes < 20 * 60) return t('story.watch.whenHour', { n: Math.round(minutes / 60) });
+  return t('story.watch.whenDay', { n: Math.max(1, Math.round(minutes / 1440)) });
+}
+
 export class QuestCard {
   constructor(root, onOpen) {
     this.el = document.createElement('button');
@@ -124,6 +138,44 @@ export class QuestCard {
       void this.rung.offsetWidth;
       this.rung.classList.add('tick');
     }
+  }
+
+  /**
+   * THE WATCH — what the card becomes once the proof is closed.
+   *
+   * The chapter card used to end its life reading "EVERY CHAPTER OPEN / The
+   * proof is closed" and then say that for ever, which is a card announcing
+   * that the game is over while the player is still in it. Once every line is
+   * held there is exactly one thing the game still wants from you and one thing
+   * it is still counting, so the same two rows say those instead:
+   *
+   *   the numeral   how many held lines have fallen due — the watch to stand
+   *                 tonight. Zero is not nothing: it is the shard holding, and
+   *                 the line underneath says when the next one falls.
+   *   the rung      nights held. Not a rank, not a total of answers: the number
+   *                 of times something you knew was still there after a real
+   *                 walk away from the machine. It is the only number in the
+   *                 game that a long sitting cannot move.
+   *
+   * @param {{due:number, held:number, durable:number, nextInMinutes:number|null,
+   *          sounding:{best:number,rung:number}}|null} w
+   */
+  setWatch(w) {
+    this.el.classList.toggle('watch', !!w);
+    if (!w) return;
+    this.sn.textContent = String(w.due);
+    this.slab.textContent = t('story.watch.due');
+    this.snext.textContent = w.due > 0
+      ? t('story.watch.stand')
+      : t('story.watch.next', { when: whenText(w.nextInMinutes) });
+    this.sfill.style.width = `${Math.round(100 * (w.held ? Math.min(1, w.due / w.held) : 0))}%`;
+    this.seal.classList.toggle('full', w.due === 0);
+    this.rnow.textContent = t('story.watch.nights', { n: w.durable });
+    this.rnext.textContent = w.sounding?.best
+      ? t('story.watch.sounding', { n: w.sounding.best })
+      : t('story.watch.soundingNone');
+    this.rfill.style.width = `${Math.round(100 * Math.min(1, (w.sounding?.rung || 0) / 8))}%`;
+    this.rung.classList.remove('full');
   }
 
   show(v = true) { this.el.classList.toggle('show', v); }

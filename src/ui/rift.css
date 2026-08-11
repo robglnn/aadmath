@@ -254,6 +254,8 @@
 }
 .rf-kind.is-check { color: var(--rf-gold); box-shadow: 0 0 18px rgba(255, 209, 102, .26); background: rgba(255, 209, 102, .1); }
 .rf-kind.is-review { color: var(--rf-teal); background: rgba(53, 217, 255, .1); }
+/* pedagogy (additive): the sight-read — the cold item a new skill opens with. */
+.rf-kind.is-probe { color: var(--rf-gold); background: rgba(255, 209, 102, .08); }
 .rf-streak {
   font-family: var(--rf-mono); font-size: calc(.58rem * var(--rf-u)); letter-spacing: .16em;
   text-transform: uppercase; color: var(--rf-jade); white-space: nowrap;
@@ -374,11 +376,14 @@
 .rf-prompt {
   position: relative; text-align: center; color: #fff;
   font-size: calc(clamp(1.3rem, 2.7vw, 1.95rem) * var(--rf-u)); line-height: 1.3;
-  /* Clipped across, never down. A long statement is cut to size by _fitWide();
-     a tall one — a fraction, a radical, a bracket that grew — must be allowed
-     to make its own line taller, or the rig quietly shaves the top off a
-     numerator and calls the surface fitted. */
-  padding: .1rem; overflow: clip visible;
+  /* Clipped across, never down — and `overflow: clip visible` is NOT how you
+     say that. When one axis is `clip` the spec computes the other's `visible`
+     to `clip` as well, so this box was quietly slicing the top off a numerator
+     while its own comment claimed it could not. The clip is kept, because a
+     line that runs off the rail is worse; it is the vertical bite that is
+     removed, twice over: a clip margin the height of half a line, and the
+     padding to keep the ink inside the box in the first place. */
+  padding: .18em .1rem; overflow: clip; overflow-clip-margin: .5em;
   text-shadow: 0 0 26px rgba(180, 220, 255, .35);
 }
 .rf-prompt .katex-display { margin: .2em 0; }
@@ -538,7 +543,9 @@
 .rf-echo-math {
   font-size: calc(1.02rem * var(--rf-u)); color: #edf1ff;
   text-shadow: 0 0 15px rgba(179, 155, 255, .55);
-  overflow: clip visible; padding-bottom: 2px;
+  /* And again on the trace. The `padding-bottom: 2px` was somebody meeting the
+     same slice halfway; this meets it all the way. */
+  overflow: clip; overflow-clip-margin: .5em; padding-block: .1em .18em;
 }
 .rf-echo-math .katex { color: #edf1ff; }
 .rf-echo-why { margin-top: .25rem; font-size: calc(.74rem * var(--rf-u)); line-height: 1.45; color: #b6c6e2; }
@@ -582,19 +589,24 @@
    room the trace did not need, dressed. It used to insist on forty-six pixels
    and refuse to shrink, which meant a decoration was bidding against the keypad
    for the bottom of a phone — and winning. It takes leftover now, or nothing.
-   Size containment is what makes that safe: the legend inside cannot push the
-   box open, so the box can only ever be as tall as the layout hands it. */
+   It used to buy that with `container-type: size` and `overflow: clip` — which
+   is the exact shape of the disease this panel exists not to have: a box with a
+   height imposed on it from outside and a licence to swallow whatever does not
+   fit. Both are gone. The box cannot be pushed open from inside either, because
+   the only thing in it is a legend the rig does not print at all until it has
+   measured room for it (see _fit), so there is never anything here to clip. */
 .rf-echo-tail {
   flex: 1 1 0; min-height: 0; margin: 0 1rem; position: relative;
-  container-type: size;
   display: flex; align-items: flex-start; justify-content: center;
   padding: calc(.85rem * var(--rf-u)) 0 calc(.4rem * var(--rf-u));
-  overflow: clip;
 }
 /* and the legend only appears once there is genuinely a column of substrate to
-   write it on — never as two cut words in a nine-pixel band */
+   write it on — never as two cut words in a nine-pixel band. `.roomy` is set by
+   the fit pass off the box's real measured height: a container query would have
+   meant size containment, and size containment is a fixed-height box wearing a
+   different hat. */
 .rf-echo-tail > span { display: none; }
-@container (min-height: 74px) { .rf-echo-tail > span { display: block; } }
+.rf-echo-tail.roomy > span { display: block; }
 /* the burn line itself: where the trace gives out */
 .rf-echo-tail::after {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
@@ -782,10 +794,14 @@
 @keyframes rf-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .05; } }
 .rf-socket .val {
   min-width: 0; max-width: 100%; display: grid; place-items: center;
-  padding-block: 3px; line-height: 1.2;
+  /* Same fault as .rf-prompt, and this one was measurable: 57px of charged
+     value in a 55px box at 1280x720, which is the bottom of every digit the
+     cadet has just typed. Line box tall enough to hold KaTeX's own struts,
+     and a clip that cannot reach the ink. */
+  padding-block: .18em; line-height: 1.35;
   font-size: calc(clamp(1.6rem, 3.4vw, 2.2rem) * var(--rf-u)); color: #fff;
   text-shadow: 0 0 26px rgba(53, 217, 255, .8);
-  overflow: clip visible; white-space: nowrap;
+  overflow: clip; overflow-clip-margin: .5em; white-space: nowrap;
 }
 .rf-socket .val.empty {
   color: rgba(53, 217, 255, .62); text-shadow: 0 0 20px rgba(53, 217, 255, .5);
@@ -1308,7 +1324,14 @@
    scale: the part that carries more area is visibly wider.
    ========================================================================= */
 .rf-field {
-  display: grid; grid-template-columns: 58px minmax(0, 1fr); grid-template-rows: calc(29px * var(--rf-u)) minmax(0, 1fr);
+  display: grid; grid-template-columns: 58px minmax(0, 1fr);
+  /* The width labels used to stand in a row 29 units tall whatever they were.
+     They are KaTeX, so at most units they were 24px of label in a 22px row and
+     the survey along the top of the field was reading with its feet cut off.
+     A floor, never a height — and a min-content floor under the cells, because
+     a `0` floor is a licence to squeeze the one thing on this surface the cadet
+     drops chips into. */
+  grid-template-rows: minmax(calc(29px * var(--rf-u)), auto) minmax(min-content, 1fr);
   gap: .4rem;
 }
 .fld-corner {
@@ -1340,10 +1363,13 @@
 .fld-depth i:nth-of-type(2) { top: 50%; width: 7px; }
 .fld-depth i:nth-of-type(3) { bottom: 0; }
 .fld-widths .wlab {
-  display: grid; place-items: center; font-size: 1rem; color: #d9ecff; min-width: 0;
+  display: grid; place-items: center; min-width: 0;
+  /* Rides the unit like every other measurement in the rig, and clips across
+     without being able to reach the ink underneath. */
+  font-size: calc(1rem * var(--rf-u)); color: #d9ecff;
   background: linear-gradient(180deg, rgba(53, 217, 255, .18), rgba(53, 217, 255, .02));
   border-bottom: 2px solid rgba(53, 217, 255, .7);
-  white-space: nowrap; overflow: hidden;
+  white-space: nowrap; overflow: clip; overflow-clip-margin: .4em;
 }
 .fld-widths .wlab.b { background: linear-gradient(180deg, rgba(255, 179, 71, .2), rgba(255, 179, 71, .02)); border-bottom-color: rgba(255, 179, 71, .8); }
 .fld-widths .wlab .katex { color: inherit; }

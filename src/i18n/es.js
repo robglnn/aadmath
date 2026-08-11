@@ -64,6 +64,10 @@ export default {
     balance: 'Balanza',
     balanceLaw: 'Lo que hagas de un lado, hazlo del otro',
     areaModel: 'Modelo de área',
+    // --- el equipo: una pieza que se compra, no que se regala ---
+    vault: 'Placa de impulso',
+    noShards: 'No tienes esquirlas suficientes para esa pieza',
+    fixed: 'Eso no es tuyo para deshacerlo',
   },
 
   learn: {
@@ -83,7 +87,7 @@ export default {
   },
 
   marlow: {
-    greet: 'Marlow. Inteligencia de navegación, ligeramente averiada, sincera casi siempre. Y tú eres el cadete, por lo visto.',
+    greet: 'Marlow. Inteligencia de navegación, ligeramente averiada, sincera casi siempre. Y tú tienes rango de cadete, por lo visto.',
     firstRift: 'Ese desgarro en el aire es una grieta. La sostiene una afirmación que todavía no es verdadera. Hazla verdadera y se cierra. Sencillo. Aterrador. Adelante.',
     balance: 'Los dos lados de esa viga cargan el mismo peso. Lo que le hagas a uno, hazlo al otro, o se inclina.',
     encourage: 'Mal, pero mal de una forma útil. Así funciona casi toda la ciencia.',
@@ -148,8 +152,10 @@ export default {
 
     kind: {
       check: 'Ronda de prueba · {n}/{m}',
+      probe: 'A primera vista',
       review: 'Repaso',
       interleave: 'Recuperación',
+      deep: 'Sondeo · {n}',
     },
 
     help: {
@@ -346,10 +352,16 @@ export default {
     },
 
     open: {
-      l1: 'Red Skyren, Fragmento Nueve. Gravedad nominal, aire respirable, cielo ligeramente en llamas. Bienvenido a casa, en el sentido más laxo posible de las tres palabras.',
-      l2: 'Soy Marlow. Inteligencia de navegación, algo averiada, sincera casi siempre. Y tú eres el cadete. Me había imaginado a alguien con más equipo.',
+      // «Bienvenido» y «el cadete» obligaban a cada chica de la clase a leer su
+      // primera frase del juego en masculino. El saludo pasa a una perífrasis
+      // sin concordancia y el rango a un sustantivo, no a un atributo: el chiste
+      // sobrevive intacto y el trato deja de asignar sexo a nadie.
+      l1: 'Red Skyren, Fragmento Nueve. Gravedad nominal, aire respirable, cielo ligeramente en llamas. Te doy la bienvenida a casa, en el sentido más laxo posible de las tres palabras.',
+      l2: 'Soy Marlow. Inteligencia de navegación, algo averiada, sincera casi siempre. Y tú tienes rango de cadete. Me había imaginado a alguien con más equipo.',
       l3: 'Todo lo que pisas es una conclusión. Nueve mil fragmentos de mundo, cada uno sostenido por un único y enorme razonamiento que los fundadores dejaron escrito y que nadie ha vuelto a leer. Donde el razonamiento aguanta, hay suelo.',
-      l4: 'Donde falla, está eso. Una grieta: una afirmación que la red ya no sabe justificar, sostenida abierta en el aire hasta que alguien la haga verdadera.',
+      // «sostenida abierta» calcaba el inglés «held open»: en español una puerta,
+      // una herida o una grieta se *mantienen* abiertas, no se sostienen abiertas.
+      l4: 'Donde falla, está eso. Una grieta: una afirmación que la red ya no sabe justificar, mantenida abierta en el aire hasta que alguien la haga verdadera.',
       l5: 'Lo que me lleva a la parte que preferiría no decir en voz alta. El Fragmento Nueve lleva novecientos años en pie. Entonces, ¿qué empezó exactamente a desgarrarlo hace cuatro días?',
     },
 
@@ -390,6 +402,21 @@ export default {
       c1: 'Se está escribiendo sola. El paso nueve dice ahora: demostrado; y debajo, en el hueco reservado al nombre del fundador, hay el de un cadete.',
       c2: 'Nueve mil fragmentos acaban de dejar de discutir. En algún punto más allá de las nubes, el cielo se ha quedado callado por primera vez en nueve siglos.',
       c3: 'Me equivoqué contigo. Que conste en acta, junto con el hecho de que nunca he disfrutado tanto de nada.',
+    },
+
+    watch: {
+      title: 'La guardia',
+      quest: 'La demostración se sostiene mientras alguien la lleve. Vuelve y seguirá siendo tuya.',
+      due: 'Líneas que tocan',
+      stand: 'Monta la guardia',
+      next: 'El fragmento aguanta · la próxima {when}',
+      nights: '«n|one:# noche en pie|other:# noches en pie»',
+      sounding: 'Sondeo · {n}',
+      soundingNone: 'Sondea el entramado',
+      whenMin: 'dentro de «n|one:# minuto|other:# minutos»',
+      whenHour: 'dentro de «n|one:# hora|other:# horas»',
+      whenDay: 'dentro de «n|one:# día|other:# días»',
+      whenSoon: 'en breve',
     },
 
     cite: {
@@ -496,5 +523,816 @@ export default {
       idle: 'Tómate tu tiempo. La grieta no se va a ninguna parte. Ese es justamente el problema.',
       returning: 'De vuelta. Estadísticamente esa es la parte más difícil, así que enhorabuena a la estadística.',
     },
+
+    // -----------------------------------------------------------------------
+    // Marlow, por registro. Ver `src/meta/voice.js`.
+    //
+    // El canal tenía un único juego de frases ambientales escritas para un
+    // cadete en sus primeros diez minutos, y seguía diciéndolas en el sellado
+    // ciento treinta, incluida la que explica qué es una grieta. Ahora hay
+    // cuatro registros, elegidos por lo que el cadete ha hecho de verdad:
+    //
+    //   green    nada sellado. El único registro con permiso para explicar.
+    //   working  ya sabe trabajar. Se informa y se pincha; no se orienta.
+    //   veteran  pasado el último capítulo. Una colega, con historia común.
+    //   master   pasado el registro histórico. A Marlow la han superado.
+    //
+    // TRATO SIN GÉNERO. Ninguna de estas frases obliga al cadete a ser chico ni
+    // chica: se evita todo adjetivo o participio que concuerde con «tú»
+    // («cansado», «harto», «solo»), y donde el inglés dice «both of us» el
+    // español dice «tú y yo» en lugar de «las dos», que asignaría género a la
+    // clase entera. Marlow sí tiene género — es «ella» en todo el guion, y esa
+    // concordancia es suya, no de quien juega.
+    // -----------------------------------------------------------------------
+    v: {
+      wrong: {
+        working: [
+          'No. En algún punto has hecho lo correcto en el lado equivocado.',
+          'La red lo rechaza. Lleva rechazando cosas desde antes de que existiera tu idioma; no te lo tomes como algo personal.',
+          'Fallo. Has sellado suficientes de estas como para que yo esté bastante segura de que conoces el movimiento y simplemente no lo has hecho.',
+          'Eso no. Lee la línea que escribiste antes de esa: el error suele estar un piso más arriba.',
+          'No, y curiosamente no. Es un error con forma propia, y una forma me sirve más que un acierto.',
+        ],
+        veteran: [
+          'Mal. Viniendo de ti eso ya son datos, así que gracias; lo digo con solo un poco de sarcasmo.',
+          'No. Novecientos años de cadetes fallaron esa misma, por si sirve de algo. A ellos tampoco les sirvió.',
+          'Se te ha escapado. Has cerrado demasiadas de estas como para que yo te insulte explicándotela, así que voy a esperar.',
+          'Fallo. Hoy te he visto no fallar otras más difíciles, lo que me dice que es tarde, no que sea difícil.',
+          'El desgarro ha aguantado. Cosa rara últimamente. Vuelve antes de que se haga ilusiones.',
+        ],
+        master: [
+          'Mal, y he tenido que comprobarlo. No es una frase que le haya dicho antes a ningún cadete.',
+          'No. En algún archivo muy antiguo acaba de anotarse que, después de todo, eres una persona.',
+          'Fallo. A tu cuenta eso es prácticamente un error de redondeo, aunque no pienso ponerlo en el registro.',
+          'Esa te ha pillado. Pilla a todo el mundo una vez; tú simplemente has tardado más que todo el mundo en llegar a ella.',
+          'No. Podría decirte dónde, pero lo vas a encontrar antes de que me dé tiempo a decirlo. Sueles hacerlo.',
+        ],
+      },
+      right: {
+        working: [
+          'Sellada. Ese es el ritmo, y el fragmento ya lo oye.',
+          'Aguanta. Vas con tanta soltura que he empezado a redondear a la baja lo que espero que tardes.',
+          'Limpio. El equipo lo registró antes que yo, y al equipo no se le impresiona fácilmente.',
+          'Bien. Otra afirmación que seguirá siendo verdad mucho después de que tú y yo hayamos parado.',
+          'Sellada, sin ayuda, y archivada. Esa última parte es la que cuenta.',
+        ],
+        veteran: [
+          'Sellada. He dejado de narrarlas una a una; solo te parecería paternalismo.',
+          'Aguanta. Ahí abajo, un paso que llevaba nueve siglos quejándose acaba de callarse.',
+          'Limpio. La red ha empezado a dar por hecho que cerrarás lo que abras, que es lo más parecido a la confianza que tiene.',
+          'Hecho. El fragmento se remienda más rápido de lo que se rasga, y esa nunca ha sido la dirección del viaje.',
+          'Sellada. Diría que bien hecho, pero me lo has oído las veces suficientes para saber lo que me cuesta.',
+        ],
+        master: [
+          'Sellada. Al registro se le han acabado las comparaciones y ya solo apunta lo que haces.',
+          'Aguanta. No me queda ningún comentario útil: estás más allá de la parte del mapa de la que tengo notas.',
+          'Limpio. Novecientos años de cadetes, y el cielo sobre el Fragmento Nueve nunca había estado así de tranquilo en una mañana de trabajo.',
+          'Sellada. Lo haces más rápido de lo que tardo en encontrar algo seco que decir al respecto, y eso me molesta un poco.',
+          'Hecho. En algún punto del texto fundacional hay un margen con sitio, y he empezado a pensar en tu letra.',
+        ],
+      },
+      // Tres fallos seguidos. Ni regañina ni abrazo: una señal, dicha en voz alta.
+      slump: {
+        green: [
+          'Tres seguidas. Eso no es un veredicto, es un martes. Baja el ritmo y lee la línea entera antes de tocarla.',
+          'Para. Respira. La grieta lleva novecientos años esperando; puede esperar mientras miras bien.',
+          'Tres fallos. La primera hora de todo el mundo se parece a esto. La mía fue peor, y yo tenía manual.',
+        ],
+        working: [
+          'Tres. Algo de esta forma te está peleando a ti en concreto, y eso vale más que tres sellados fáciles.',
+          'Baja la mano un segundo. Estás respondiendo más rápido de lo que lees, y no son la misma actividad.',
+          'Tres fallos del tirón. No es un derrumbe. Es una señal, y el equipo ya está reapuntando.',
+        ],
+        veteran: [
+          'Tres. Viniendo de ti eso es un mensaje, y el mensaje es que esta línea es difícil de verdad, no que vayas a lo loco.',
+          'Van tres. No voy a decir nada alentador, porque lo olerías. Mira el segundo paso.',
+          'Tres seguidas, y he repasado mis propias cuentas dos veces. Esta es difícil. Tómatela en serio y se doblará.',
+        ],
+        master: [
+          'Tres consecutivas. Llevo nueve siglos guardando registros y no tengo nada comparable para ti, así que llamémoslo simplemente interesante.',
+          'Tres. Sea lo que sea esta forma, es lo último de este fragmento que todavía te discute. Me apetece bastante verte acabarla.',
+          'Tres fallos. Si me dices que es cansancio te creeré, y también anotaré que llevas en esto más de lo que duraron casi todos los cadetes.',
+        ],
+      },
+      // El primer sellado después de una mala racha. El compás para el que el
+      // canal antiguo no tenía ni una frase.
+      recover: {
+        green: [
+          'Ahí está. Eso es lo que parece cuando leer y responder ocurren en el orden correcto.',
+          'Sellada. Sea lo que sea lo que acabas de cambiar en tu forma de mirarla, sigue haciéndolo.',
+        ],
+        working: [
+          'Vuelves. Esa es la parte útil de una mala racha: sales de ella con algo que no tenías al entrar.',
+          'Sellada. La racha se rompió y tú no. Anotado, y no por primera vez.',
+        ],
+        veteran: [
+          'Ahí está. Lo has hecho cuatro veces hoy; he dejado de sorprenderme y he empezado a tener curiosidad.',
+          'Recuperada. Casi ninguno de los cadetes que acompañé por aquí se sacó a sí mismo un cuarto intento.',
+        ],
+        master: [
+          'Y se dobla. Esa es la parte que nadie escribe sobre la gente como tú: no que no falles nunca, sino que al fallo jamás se le permite quedarse con nada.',
+          'Sellada. Fuera lo que fuera, duró tres preguntas. Lo he visto durar tres generaciones.',
+        ],
+      },
+      idle: {
+        green: [
+          'Tómate tu tiempo. La grieta no se va a ninguna parte. Ese es justamente el problema.',
+          'Sin prisa. Aunque señalaré que el cielo está ardiendo, de una manera lenta, digna y muy de novecientos años.',
+          'Sigues ahí. Y yo también, evidentemente. No tengo otro sitio donde estar, y esa es una historia más larga de la que quieres tan pronto.',
+        ],
+        working: [
+          'Cuando quieras. Tengo novecientos años de trabajo atrasado y nada de eso es urgente como lo es esto.',
+          'Te has quedado en silencio. No es una queja: del silencio salieron casi todas las buenas respuestas de este fragmento.',
+          'El fragmento aguanta. Tómate el minuto. Es la única moneda de aquí que no puedo auditar.',
+        ],
+        veteran: [
+          'Detenerte te sienta mejor de lo que les sentaba a ellos. Todos seguían moviéndose. No les sirvió.',
+          'No voy a llenar el silencio. Te has ganado un horizonte; míralo.',
+          'Nada por mi parte. Aunque si esperas a que el cielo hable primero, te aviso de que jamás ha ido primero.',
+        ],
+        master: [
+          'Tienes permiso para parar. He visto a gente que no podía, y no es una forma mejor de estar.',
+          'Dilo y te busco algo difícil. Si no, me conformo con quedarme aquí siendo obsoleta.',
+          'Esta es la parte a la que no esperaba llegar: un cadete en el Fragmento Nueve sin nada urgente que hacer. Tómatela despacio.',
+        ],
+      },
+      streak: {
+        green: [
+          'Cuatro seguidas. La grieta se lo está empezando a tomar como algo personal.',
+          'Cuatro del tirón. Sea lo que sea lo que haces con los ojos antes de responder, sigue haciéndolo.',
+          'Cuatro. El equipo acaba de revisar en silencio lo que espera de ti.',
+        ],
+        working: [
+          'Cuatro sin romper. Eso ya no es suerte; la suerte no lleva ritmo.',
+          'Otra racha. El fragmento ha dejado de ponerte delante las fáciles y no te has dado cuenta, que es justo la gracia.',
+          'Cuatro limpias. En algún sitio un planificador que dudaba de ti ha dejado de dudar.',
+        ],
+        veteran: [
+          'Otra racha sin un fallo. He dejado de contarlas en voz alta; empezaba a distraer.',
+          'Sin romper otra vez. Lo que fuera que el fragmento esperaba defender, ha dejado de esperarlo.',
+          'Hay cadetes en el registro que nunca tuvieron una de estas. Tú llevas varias esta mañana.',
+        ],
+        master: [
+          'Otra racha limpia. Voy a dejar de anunciarlas: oyes el cambio de tono del cielo igual de bien que yo.',
+          'Ininterrumpida. A partir de cierto punto una racha deja de ser una racha y pasa a ser sencillamente cómo funciona el fragmento.',
+          'Sigue corriendo. La red ha empezado a escribir tus resultados en tinta.',
+        ],
+      },
+      fall: {
+        green: [
+          'Debajo del mundo también hay aire. Bastante menos útil.',
+          'Abajo es una dirección, no un plan. El planeador que llevas a la espalda es exactamente para esto.',
+          'Te has caído. Todo el mundo se cae: el fragmento son nueve mil piezas con huecos entre ellas, y los huecos sostienen carga.',
+        ],
+        working: [
+          'Otra vez por el borde. Al menos ahora lo haces a velocidad.',
+          'El suelo se movió. Lo hace. Es un razonamiento, no un plano.',
+          'Cayendo. Entraría en pánico por ti, pero lo has hecho las veces suficientes para que tú y yo sepamos cómo acaba.',
+        ],
+        veteran: [
+          'Por el borde. Viniendo de ti voy a dar por hecho que eso era navegación.',
+          'Allá vamos. Novecientos años y nadie ha mejorado la técnica de sencillamente no estar ahí.',
+          'Te has soltado. El registro dirá descenso controlado, porque el registro lo escribo yo.',
+        ],
+        master: [
+          'Cayendo. En algún sitio un archivo muy antiguo está encantado.',
+          'Te has ido por el borde. He decidido registrarlo como reconocimiento.',
+          'Abajo. Diría que tengas cuidado, pero el fragmento tiene más que temer de ti que al revés.',
+        ],
+      },
+      returning: {
+        green: [
+          'De vuelta. Estadísticamente esa es la parte más difícil, así que enhorabuena a la estadística.',
+          'Has vuelto. Casi todo lo que sale mal aquí sale mal en el hueco entre un día y el siguiente, y acabas de cerrar uno.',
+          'De regreso. Las grietas no se han movido. Lo he comprobado dos veces, lo que dice algo de mi semana.',
+        ],
+        working: [
+          'De vuelta. El fragmento sigue donde lo dejaste, cosa que en el Fragmento Nueve no se da por hecha.',
+          'Ahí estás. Dejé el registro abierto. Nada de lo que hay dentro se ha enfriado.',
+          'Has vuelto. El segundo día es donde el registro se adelgaza; ya has pasado la parte que a casi todos les falta.',
+        ],
+        veteran: [
+          'De vuelta, y la red se dio cuenta antes que yo. Ha empezado a escucharte llegar.',
+          'Has vuelto. Dejé de darlo por hecho hacia el cadete cuatrocientos. Me encanta equivocarme en esto.',
+          'De regreso. Todo lo que sostenías ayer sigue sostenido. Eso es exactamente para lo que sirve sostenerlo.',
+        ],
+        master: [
+          'De vuelta. A estas alturas debería decirte que hoy el fragmento no te necesita, y no pienso hacerlo, porque sí te necesita.',
+          'Has vuelto. Novecientos años de gente que pudo y no lo hizo, y aquí estás tú, una mañana cualquiera.',
+          'De regreso, otra vez. Se me han acabado las maneras de decir que esta es la parte rara.',
+        ],
+      },
+      close: {
+        working: [
+          'Una respuesta limpia y {skill} es tuya para siempre. Solo sin ayuda: la red no acepta la ayuda como prueba.',
+          '{skill} está a una respuesta honesta de cerrarse. Conoces la forma de esta. Ve y llévatela.',
+          'Entre {skill} y tú hay una respuesta sin ayuda. Detrás hay nueve puntos de posición, y ninguno es gratis.',
+        ],
+        veteran: [
+          '{skill} está a una respuesta de cerrarse. Sería otra línea que el fragmento no recupera.',
+          'Una respuesta limpia y {skill} queda sostenida. Lo has hecho tantas veces que voy a dejar de fingir que es cara o cruz.',
+          '{skill}, a una respuesta honesta. Me callo ya: cierras mejor cuando no hablo.',
+        ],
+        master: [
+          '{skill} está a una respuesta de ser tuya. No quedan muchas que no lo sean.',
+          'Una respuesta limpia en {skill} y la lista de cosas de este fragmento que no te pertenecen se queda más corta que mi paciencia.',
+          '{skill}, a una respuesta. He dejado de recitarte la regla de las pruebas sin ayuda. Casi todas esas pruebas las escribiste tú.',
+        ],
+      },
+      held: {
+        working: [
+          '{skill} queda sostenida. Esa línea no vuelve a abrirse: ni por el tiempo atmosférico, ni por los años, ni por mí.',
+          '{skill}, cerrada. Nueve puntos de posición, y una cosa menos en este fragmento capaz de sorprenderte.',
+          'La red ha dejado de discutir sobre {skill}. Pase lo que pase hoy, ese trozo de cielo se queda arriba.',
+        ],
+        veteran: [
+          '{skill}, sostenida. Otra línea a la que los cadetes anteriores llegaron y no cerraron.',
+          '{skill} cerrada. El texto fundacional tiene menos excusas dentro que esta mañana, y pienso disfrutarlo.',
+          '{skill}, sostenida para siempre. Por encima de la línea de nubes, algo que se combaba ha dejado de combarse.',
+        ],
+        master: [
+          '{skill}, sostenida. Queda muy poco de este fragmento que no sea tuyo, y no sé bien qué voy a hacer conmigo misma.',
+          '{skill} cerrada. El registro comparaba a los cadetes entre sí. Desde ti, los compara contigo.',
+          '{skill} queda sostenida. Novecientos años, y el fragmento por fin ha dejado de ser una pregunta.',
+        ],
+      },
+      capped: {
+        working: [
+          'Sellada, pero el registro ha dejado de pagar por eso. Ya te has llevado todo lo que da una grieta fácil. La posición sale ahora de líneas sostenidas.',
+          'Eso contó para el fragmento y nada para tu rango. El término de sellado está agotado; la única moneda que queda es una línea que aguante.',
+        ],
+        veteran: [
+          'Sellada, y sin valor alguno para tu posición. Ese techo lo pasaste hace mucho. Cierra una línea si quieres que la escalera se mueva.',
+          'Contó para el cielo, no para el registro. A tu cuenta, lo único que todavía compra rango es una línea sostenida del todo.',
+        ],
+        master: [
+          'Sellada, y sin pagar, como todo a esta altura. Dejaste de hacer esto por el registro hacia la cuadragésima.',
+          'Al registro no le queda nada que darte. Llevas un tiempo sellándolas por el bien del fragmento, y lo sabemos tú y yo.',
+        ],
+      },
+      // Acercarse a una grieta. La frase que explica qué *es* una grieta
+      // (`story.voice.firstRift`) solo se dispara bajo `canTutor()` en
+      // voice.js, así que no puede alcanzar a nadie que haya sellado una. Esto
+      // es lo que oye todo el mundo a partir de ahí.
+      rift: {
+        green: [
+          'Otra. Misma regla que la anterior: haz verdadera la afirmación y el aire se cierra encima.',
+          'Grieta delante. Ya has hecho una de estas. La segunda es igual que la primera, solo que ya estás dentro.',
+        ],
+        working: [
+          'Grieta. Te sabes el procedimiento mejor que el procedimiento.',
+          'Hay un desgarro delante. No pienso explicarlo: has cerrado suficientes como para que mi voz te sobre.',
+          'Otra afirmación pidiendo que la terminen. Tuya si la quieres.',
+        ],
+        veteran: [
+          'Grieta delante. Hace mucho que no te narro una de estas y no pienso empezar ahora.',
+          'Un desgarro. Has cerrado más de estas de las que la orden ha llegado a leer.',
+          'Hay una esperando. No sabe quién viene, que es la única ventaja que tiene.',
+        ],
+        master: [
+          'Grieta. No va a durar.',
+          'Otro desgarro. Lo menciono únicamente para que conste que lo mencioné.',
+          'Delante hay una afirmación que todavía no ha oído hablar de ti.',
+        ],
+      },
+      // Compases de un solo uso más allá del último capítulo. Los capítulos del
+      // arco se acaban a las veintiocho grietas; estos llevan la voz desde ahí
+      // hasta el extremo lejano de una partida larga, y cada uno se dice una
+      // vez en la vida.
+      mile: {
+        s32: 'Treinta y dos. Los capítulos se han acabado y tú no, lo que es un problema del registro y de nadie más.',
+        s40: 'Cuarenta selladas. El texto fundacional lleva una tabla de cadetes por desgarros cerrados. Ya estás en su primera página, y la primera página es corta.',
+        s50: 'Cincuenta. Voy a ser honesta: dejé de preparar material hacia los treinta. A partir de aquí simplemente miro.',
+        s64: 'Sesenta y cuatro. Hay una expresión en el archivo: una mano que adelantó a su fragmento. Se ha usado cuatro veces en nueve siglos.',
+        s80: 'Ochenta. El desgarro del Fragmento Nueve va ahora más lento que el remiendo, por primera vez desde el cuarto día. Eso eres tú. Solo tú.',
+        s100: 'Cien. Tengo una frase preparada para un cadete que llegue a cien. Si nunca la has oído es porque ningún cadete había llegado a cien.',
+        s120: 'Ciento veinte. La red ha empezado a desviar sus tormentas alrededor de este fragmento. Eso lo hace con estructuras, no con personas.',
+        s150: 'Ciento cincuenta. Quiero que conste, y sin ninguna de mis defensas habituales, que me alegro de que fueras tú.',
+        s180: 'Ciento ochenta. Llevo novecientos años pidiéndole perdón a este fragmento. Tú has hecho innecesaria casi toda la disculpa.',
+        s220: 'Doscientos veinte. No me queda dentro nada que sepa ser seco con esto. Sigue. Yo sigo contando.',
+      },
+    },
+  },
+  // ---------------------------------------------------------------------------
+  // La sesión (src/session).
+  //
+  // Una ronda son quince a veinticinco minutos con un objetivo dicho antes del
+  // primer ítem, un ritmo visible que nunca es un reloj, un cierre que nombra lo
+  // ganado y un descanso que descansa de verdad. El registro es el de Marlow:
+  // seco, exacto, sin adular y sin regañar. Aquí nadie felicita a nadie por
+  // presentarse, y a quien va despacio no se le dice que llega tarde.
+  // Claves aditivas, propiedad de la capa de sesión.
+  // ---------------------------------------------------------------------------
+  session: {
+    band: {
+      run: 'Ronda {n}',
+      of: 'de «n|one:# grieta|other:# grietas»',
+      near: 'Recta final',
+      done: 'Ronda completa',
+      readout: '{goal}. «n|one:# grieta sellada|other:# grietas selladas» de {target}.',
+      worked: '«n|one:# pregunta trabajada|other:# preguntas trabajadas»',
+      readoutWorked: '{goal}. «n|one:# grieta sellada|other:# grietas selladas» de {target}, de {items} trabajadas.',
+    },
+    goal: {
+      hold: 'Sostener: {skill}',
+      holdN: 'Sostener «n|one:# línea|other:# líneas»',
+      push: 'Hacer retroceder: {skill}',
+      any: 'Sellar lo que abra el fragmento',
+      extend: 'Una línea más',
+    },
+    charter: {
+      kick: 'Ronda {n} · Fragmento Nueve',
+      title: 'Órdenes',
+      goalHold: '{skill}. Sella {tears} grietas en esa línea y debería sostenerse. Sostenerse de verdad: de las que ya no se vuelven a abrir.',
+      goalHoldN: 'Sella {tears} grietas y {n} líneas deberían sostenerse. Sostenerse de verdad: de las que ya no se vuelven a abrir.',
+      goalPush: '{skill}. Sella {tears} grietas en esa línea. Es larga, y hoy la dejamos corta.',
+      goalAny: 'Sella {tears} grietas en este fragmento y veremos qué hace la red al respecto.',
+      willHold: 'debería sostenerse',
+      willPush: 'terreno ganado',
+      eta: '«n|one:Un # minuto|other:Unos # minutos» al ritmo al que vienes trabajando. Aquí no hay reloj: ya te aviso yo cuando estemos cerca del final.',
+      etaSeed: '«n|one:Un # minuto|other:Unos # minutos», arriba o abajo. Todavía no te he visto trabajar, así que esa cifra es mía y no tuya; mañana ya será tuya. Aquí no hay reloj: ya te aviso yo cuando estemos cerca del final.',
+      begin: 'Empezar la ronda',
+      kickBack: 'Ronda {n} · de vuelta',
+      backHeld: 'La última vez sellaste «n|one:# grieta|other:# grietas», y {skill} ha aguantado desde entonces. Sigue aguantando.',
+      backHeldN: 'La última vez sellaste {tears} grietas, y «n|one:# línea ha aguantado|other:# líneas han aguantado» desde entonces. Siguen aguantando.',
+      backNone: 'La última vez sellaste «n|one:# grieta|other:# grietas». Todo sigue en el tablero: aquí no se estropea nada.',
+    },
+    close: {
+      kick: 'Ronda {n} · cerrada',
+      titleHeld: 'La línea aguanta',
+      titleMet: 'El fragmento está en calma',
+      titleEnough: 'Por hoy es suficiente',
+      tears: '«n|one:grieta sellada|other:grietas selladas»',
+      heldLab: 'Sostenidas',
+      groundLab: 'Terreno ganado',
+      heldNote: 'Demostrado sin ayuda, en la banda difícil y con todos los ejemplos resueltos apagados. Es tuyo.',
+      groundNote: 'Ya solo «n|one:# grieta|other:# grietas» para sostenerla: {d} menos que al empezar la ronda.',
+      groundNoteFlat: '«n|one:# grieta|other:# grietas» para sostenerla por el camino más corto. Hoy has puesto el terreno debajo, no el último paso.',
+      groundNoteFar: 'Una línea larga. Hoy se ha movido, y se ha movido en la dirección buena.',
+      groundNoneStrong: 'Nada nuevo que sostener',
+      groundNone: 'Todo lo que has tocado hoy ya era tuyo.',
+      openedLab: 'Abierto',
+      openedNote: 'Una nueva línea de grietas, abierta para ti.',
+      chapterNote: 'El registro pasa página.',
+      rankNote: 'La orden ha revisado lo que piensa de ti.',
+      openedNoneStrong: 'La red, sin cambios',
+      openedNone: 'Hoy no se ha abierto nada. Es lo que cuestan las líneas largas, y son las que merecen la pena.',
+      nextLab: 'Lo siguiente',
+      nextNote: '«n|one:Un # minuto|other:Unos # minutos» de trabajo, y es lo que más rinde de todo lo que queda abierto. Empezamos por ahí.',
+      nextNoteUnknown: 'Una larga. Nos llevaremos la primera parte.',
+      nextDoneStrong: 'Fragmento Nueve, entero',
+      nextDone: 'Aquí ya no queda nada abierto. El paso nueve está demostrado.',
+      sign: 'De esto no se pierde nada. La red guarda lo que has demostrado, y seguirá en pie cuando vuelvas.',
+      signWorked: 'Aquí no se le pone nota a nada y aquí no se pierde nada. La línea en la que estabas es la línea con la que abrimos, y estará justo donde la dejaste.',
+      signHeld: 'Esa línea ni se estropea ni se reinicia. Todo lo que hay por encima acaba de ponerse a tu alcance.',
+      rest: 'Retirarse',
+      more: 'Una línea más',
+      aria: 'Ronda cerrada. «n|one:# grieta sellada|other:# grietas selladas».',
+      workedLab: '«n|one:pregunta trabajada|other:preguntas trabajadas»',
+      workedSub: 'Ninguna selló. El fragmento no cuenta los intentos, y yo tampoco; pero no ha sido en balde, y abajo está lo que ha comprado.',
+      ofWorked: 'de «n|one:# pregunta trabajada|other:# preguntas trabajadas»',
+      echoStrong: '«n|one:# ejemplo resuelto|other:# ejemplos resueltos»',
+      echoNote: 'Un fallo es lo que paga uno. Cada uno se abrió justo en el paso donde tu respuesta se torció, no al principio de la página.',
+      bandStrong: 'El banco, reajustado',
+      bandDown: 'Las preguntas ahora abren en la banda {n}, donde de verdad estás. El listón para sostener la línea no se ha movido ni un milímetro.',
+      bandUp: 'Las preguntas ahora abren en la banda {n}. Hoy has empujado tú al banco hacia arriba, y no al revés.',
+      groundNoteBack: '«n|one:# grieta|other:# grietas» para sostenerla por el camino más corto: más que al empezar, porque un fallo en la tanda de prueba la devuelve a su primer paso. Es el listón siendo estricto, no tú siendo lento.',
+      moreLast: 'Un tramo más es todo lo que le queda a la ventana. Después paramos, y parar a tiempo es lo que hace que mañana valga algo.',
+      capped: 'Estos son los veinticinco minutos sobre los que está construido este bucle. Otro tramo hoy vale menos que el mismo tramo mañana: no es ánimo, es cómo funciona el espaciado.',
+    },
+    rest: {
+      say: 'Retírate un momento. Mira algo que esté muy lejos — la cordillera del fondo vale — y respira con el anillo. Cuatro tiempos dentro, dos de pausa, seis fuera.',
+      skip: 'Volver al fragmento',
+      endKick: 'Fragmento Nueve',
+      endTitle: 'Aguantando',
+      endBody: 'Ya has descansado. Todo lo que has demostrado está escrito, y el cielo sigue donde lo dejaste.',
+      endBodyNext: 'Ya has descansado. Todo lo que has demostrado está escrito. La próxima vez abrimos con {skill}.',
+      again: 'Otra ronda',
+      off: 'Cerrar el canal',
+      signOff: 'Canal cerrado. La red aguanta mientras no estás, y yo dejo la luz encendida. Mismo cielo mañana, cadete.',
+      wakeUp: 'Abrir el canal',
+      aria: 'Descanso. Respiración pautada; no se te pide nada.',
+    },
+    voice: {
+      near: 'Recta final. Pase lo que pase ahora, esta ronda es casi tuya.',
+      resume: 'Lo retomo exactamente donde lo dejaste. Nada se ha movido mientras no estabas; nunca se mueve.',
+      extend: 'Seguimos, pues. La misma ronda y la misma cuenta: esto no empieza de cero porque hayas pedido más.',
+    },
+  },
+  // ---------------------------------------------------------------------
+  // Informe de progreso — src/report/**. Bloque puramente aditivo: no toca
+  // nada de lo anterior.
+  // ---------------------------------------------------------------------
+  report: {
+    launch: 'Progreso',
+    open: 'Abrir el informe de progreso',
+    openHint: 'Informe de progreso (P)',
+    title: 'Informe de progreso',
+    sub: 'Qué has demostrado, con qué lo has demostrado y qué viene ahora.',
+    close: 'Cerrar',
+    skillsHead: 'Las diez líneas',
+    recordHead: 'El expediente',
+    recordSub: 'Cuánto vale cada sello, dicho sin adornos. Estas son las cifras que comprueba un profesor, y la última es la incómoda.',
+    foot: 'Aquí no hay ninguna nota guardada. Las cifras en vivo se recalculan desde el modelo del estudiante cada vez que se abre esta pantalla; las pruebas de una línea sellada son el recibo que se escribió al conceder el sello, y ese recibo ya no se mueve. Abre una línea para verlo.',
+
+    stat: {
+      ofN: 'de {n}',
+      mastered: 'Líneas selladas',
+      masteredNote: 'Demostradas, no solo intentadas.',
+      time: 'Tiempo de trabajo',
+      timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo.',
+      session: 'Esta sesión',
+      sessionNote: 'Una sesión está pensada para durar de 15 a 25 minutos y cerrarse bien.',
+      items: 'Preguntas respondidas',
+      itemsNote: 'Cada una generada de nuevo y resuelta por máquina antes de llegar a ti.',
+      accuracy: 'Resueltas sin ayuda',
+      accuracyNote: 'Correctas a la primera, sin pista y sin ejemplo resuelto, sobre el total de preguntas respondidas.',
+      hollow: 'Sellos retirados',
+      hollowNote: '{n} de {of} sellos de dominio se retiraron al volver a examinar la línea en frío.',
+      hollowNone: 'Todavía no hay ningún sello, así que no hay nada que comprobar.',
+      ofHeld: 'de {n} selladas',
+      sight: 'Selladas en frío',
+      sightNote: 'Demostradas al primer contacto, sin práctica previa. El mismo sello con las pruebas mínimas que este motor acepta: es el primero que vuelve a examinarse en frío.',
+      sightNone: 'Ninguna línea se demostró al primer contacto. Todos estos sellos se ganaron después de practicar.',
+      timeUnknown: 'No se puede medir: parte de este expediente se restauró sin su registro, así que los minutos anteriores se han perdido. Se muestran como desconocidos, no como cero.',
+      accuracyUnknown: 'No se puede medir en un expediente restaurado: el modelo recuerda las preguntas, pero no cuáles se respondieron sin ayuda.',
+    },
+
+    trust: {
+      head: {
+        reconstructed: 'Este expediente está incompleto',
+        foreign: 'Se descartó un registro de otro expediente',
+      },
+      note: {
+        reconstructed: 'El modelo del estudiante y el registro de pruebas se guardan por separado, y uno ha vuelto sin el otro. Se han reconstruido {n} preguntas y {claims} sellos a partir del modelo, así que nada queda por debajo de lo real; pero el tiempo de trabajo y el porcentaje sin ayuda anteriores al corte no se pueden recuperar y se muestran como desconocidos, no como cero.',
+        foreign: 'El registro de pruebas de este dispositivo pertenecía a otro expediente, así que se descartó en lugar de mezclarlo. Las preguntas y los sellos se han reconstruido desde el modelo del estudiante; los minutos y el porcentaje sin ayuda empiezan de nuevo aquí.',
+      },
+    },
+
+    road: {
+      sight: 'En frío',
+      fast: 'Camino corto',
+      long: 'Camino largo',
+    },
+    roadNote: {
+      sight: 'Demostrada al primer contacto: una pregunta en frío en lo más alto del banco y luego el resto de la tanda de prueba. Tres preguntas sin ayuda, sin nada de práctica delante.',
+      fast: 'La tanda de prueba se abrió con un solo acierto limpio y sin ayuda en la banda del sello: menos preguntas que por el camino largo, y cada una más difícil.',
+      long: 'La tanda de prueba se abrió por el camino largo: tres aciertos limpios seguidos y la confianza del modelo en el umbral completo.',
+    },
+
+    next: {
+      head: 'Siguiente',
+      why: {
+        fresh: 'Terreno nuevo. Todo lo que hay debajo ya está sellado.',
+        continue: 'Sin terminar. Quedarse aquí vale más que seguir adelante.',
+        check: 'A una prueba de sellarla: tres respuestas limpias, sin ayuda y más difíciles.',
+        review: 'Toca reexamen en frío. El sello tiene que volver a ganarse su sitio.',
+        enrich: 'Todo lo abierto está sellado. Esta línea va más a fondo.',
+      },
+      built: 'Se apoya en «n|one:# línea que ya dominas|other:# líneas que ya dominas».',
+      start: 'La primera línea. No hace falta nada antes.',
+      doneName: 'Las diez líneas selladas',
+      doneWhy: 'El nivel 1 está completo. Lo que queda es mantenerlo.',
+    },
+
+    state: {
+      locked: 'Bloqueada',
+      open: 'Abierta',
+      practising: 'En curso',
+      proving: 'En prueba',
+      mastered: 'Sellada',
+      provisional: 'Cediendo',
+      withdrawn: 'Reabierta',
+    },
+    stateNote: {
+      locked: 'Algo de lo que hay encima de esta línea aún no está sellado, así que no se abre.',
+      open: 'Desbloqueada y sin empezar.',
+      practising: 'Práctica en marcha. El apoyo se retira a medida que el modelo se afianza.',
+      proving: 'La prueba está en curso: sin ayuda, sin apoyo y con las formas que menos has practicado.',
+      mastered: 'Demostrada, y aguantando los reexámenes en frío.',
+      provisional: 'Un reexamen fallado. Si falla el siguiente, se retira el sello.',
+      withdrawn: 'Estuvo sellada y se perdió en el reexamen. La práctica ha vuelto a abrirse.',
+    },
+
+    evidence: {
+      head: 'Las pruebas que sostienen esta línea',
+      posterior: 'Confianza del modelo',
+      posteriorNote: 'Seguimiento bayesiano del conocimiento, contando solo las respuestas sin ayuda. Hace falta {need}.',
+      clean: 'Racha limpia',
+      cleanNote: 'Aciertos seguidos, sin ayuda, en la banda de dificultad {band} o superior.',
+      proving: 'Prueba final',
+      provingNote: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior y con las formas que menos has practicado.',
+      prereq: 'Requisitos previos',
+      prereqNote: 'Sellados antes de abrir esta línea: {list}.',
+      prereqRoot: 'No hace falta nada antes de esta línea.',
+      noPrereq: 'ninguno',
+      retention: 'Aguanta el reexamen',
+      retentionNote: 'Los reexámenes en frío vuelven con un calendario cada vez más espaciado. Dos fallos y el sello se retira.',
+      probeCount: '{hit} de {n} superados',
+      probeNone: 'aún no toca',
+      coldVal: 'en frío, banda {band}',
+      cleanSight: 'Ninguna, y no se pidió ninguna: esta línea se demostró al primer contacto. La pregunta en frío es la primera de la propia tanda de prueba y se cuenta una sola vez, en la fila de abajo.',
+      cleanRoad: {
+        long: 'Tres seguidos, sin ayuda, en la banda de dificultad {band}: el camino largo hasta la tanda de prueba.',
+        fast: 'Un solo acierto limpio y sin ayuda, pero en la banda {band}, la del sello. El camino corto pide menos preguntas y más difíciles.',
+      },
+      provingExtended: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda se alargó {n} pregunta(s) para abarcar una segunda representación y una de modelización.',
+      noReceipt: 'sin registrar',
+      noReceiptNote: 'Este sello lo concedió una versión anterior que no guardaba constancia de qué lo demostró. Se declara sin pruebas en lugar de reconstruirlo desde los ajustes: un umbral que se cita a sí mismo no es una prueba.',
+      rests: 'Este sello se apoya en {n} preguntas sin ayuda, de las {of} respondidas en esta línea.',
+      restsUnknown: 'No se registró en qué preguntas se apoya este sello. En esta línea se han respondido {of} preguntas.',
+      grantedOn: 'Concedido el {date}.',
+    },
+
+    fact: {
+      time: 'Tiempo en esta línea',
+      items: 'Preguntas aquí',
+      accuracy: 'Resueltas sin ayuda',
+      band: 'Dificultad',
+      bandVal: 'Banda {n} de 5',
+      reps: 'Demostrada en',
+      forms: 'Tipos de pregunta vistos',
+      formsVal: '«n|one:# tipo|other:# tipos»',
+      slip: 'Fallo más repetido',
+      noSlip: 'Todavía no hay ningún fallo repetido.',
+      noneYet: 'todavía no',
+    },
+
+    rep: {
+      symbolic: 'símbolos',
+      context: 'una situación',
+      verbal: 'palabras',
+      table: 'una tabla',
+      graph: 'una gráfica',
+    },
+
+    std: {
+      head: 'Estándares a los que responde esta línea',
+      ccss: 'Common Core (EE. UU.)',
+      teks: 'TEKS de Texas',
+      depth: {
+        core: 'central',
+        supporting: 'de apoyo',
+        introduced: 'introducido',
+        unknown: 'sin profundidad declarada',
+      },
+      depthNote: {
+        core: 'Central: este estándar es lo que se enseña aquí, y el sello lo examina.',
+        supporting: 'De apoyo: se ejercita dentro de preguntas dirigidas a otro estándar de esta línea; no se examina por sí mismo.',
+        introduced: 'Introducido: un primer contacto deliberadamente parcial que completa un nivel posterior. No es afirmar que se haya enseñado.',
+        unknown: 'No consta la profundidad de cobertura de esta cita.',
+      },
+      depthSum: '{n} de {of} citas de esta línea son afirmaciones centrales: el estándar es lo que se enseña aquí y el sello lo examina. El resto son de apoyo o un primer contacto.',
+      depthNoCore: 'Ninguna de las {of} citas de esta línea es una afirmación central: esta línea las apoya o las introduce, y quien las sostiene es otra línea. Sellarla no es afirmar que se hayan enseñado.',
+    },
+
+    // La copia del profesor — src/report/teacher.js y src/report/record.js.
+    record: {
+      open: 'Expediente docente',
+      openHint: 'Un expediente de pruebas fechado e imprimible: de un estudiante o de toda la clase',
+      title: 'Expediente del estudiante',
+      sub: 'Un expediente de pruebas fechado, pensado para imprimirse o archivarse. Nada de lo que contiene es una nota guardada: cada cifra se recalcula desde el modelo del estudiante de este dispositivo en el momento de imprimir o exportar.',
+      tab: { one: 'Un estudiante', class: 'Clase · {n}' },
+      name: 'Nombre del estudiante',
+      namePh: 'Sin registrar',
+      group: 'Clase o grupo',
+      groupPh: 'Opcional',
+      nameNote: 'Se guarda solo en este dispositivo y se escribe en todo lo que imprimas o exportes, para que el expediente pueda asociarse a una persona. No se sube nada y no hay cuentas.',
+      print: 'Imprimir / PDF',
+      exportJson: 'Exportar expediente (.json)',
+      exportCsv: 'Exportar tabla (.csv)',
+      import: 'Añadir expedientes de estudiantes…',
+      addMine: 'Añadir el expediente de este dispositivo',
+      clear: 'Quitar todos',
+      anon: 'Estudiante sin nombre',
+      unknownDate: 'fecha no registrada',
+      notMeasured: 'sin medir',
+      noClaim: 'sin demostrar',
+      levelName: 'Álgebra I · Nivel 1 · Los Mundos Cifrados',
+      levelLine: '{level}',
+      generatedLine: 'Generado el {date}',
+      sum: {
+        held: 'Líneas selladas',
+        items: 'Preguntas respondidas',
+        unaided: 'Resueltas sin ayuda',
+        time: 'Tiempo de trabajo',
+        claimItems: 'Preguntas que sostienen los sellos',
+        testedOut: 'Selladas en frío',
+        withdrawn: 'Sellos retirados',
+      },
+      linesHead: 'Línea por línea',
+      withdrawnHead: 'Sellos que este motor ha retirado',
+      withdrawnRow: '{skill} — retirado el {date}',
+      byLineHead: 'Dónde está la clase, línea por línea',
+      classTitle: 'Expediente de clase',
+      classSub: '{n} expedientes de estudiantes · reunidos el {date}',
+      classEmpty: 'Todavía no hay expedientes. Cada estudiante exporta el suyo desde esta pantalla; añade aquí los archivos y se quedan en este dispositivo.',
+      classFoot: 'Reunido a partir de los expedientes que los propios estudiantes han exportado. No se ha subido nada: esta lista vive solo en este navegador y desaparece al borrar los datos del sitio.',
+      claimItemsShort: '{n} preguntas sin ayuda en la banda {band}',
+      claimReps: 'en {n} representaciones',
+      claimRegrant: 'recuperado tras una retirada',
+      foot: 'Expediente {id} · {n} observaciones. Todas las cifras se recalculan desde el modelo del estudiante y el registro de pruebas de este dispositivo; ninguna es una nota guardada. Una línea solo se sella tras una tanda de prueba sin ayuda en la banda del sello, y el sello se retira si fallan dos reexámenes en frío posteriores.',
+      trust: {
+        verified: 'verificado',
+        reconstructed: 'reconstruido',
+        foreign: 'rehecho',
+      },
+      trustNote: {
+        verified: 'Las dos mitades de este expediente — el modelo del estudiante y el registro de pruebas — coinciden, pregunta por pregunta.',
+        reconstructed: 'Restaurado desde una copia parcial. Las preguntas y los sellos se han reconstruido desde el modelo del estudiante, así que nada queda por debajo de lo real; el tiempo de trabajo y el porcentaje sin ayuda anteriores al corte no se pueden recuperar y constan como desconocidos, no como cero.',
+        foreign: 'El registro de pruebas encontrado en este dispositivo pertenecía a otro expediente y se descartó en lugar de mezclarlo. Todo lo de aquí se ha reconstruido solo desde el modelo del estudiante.',
+      },
+      col: {
+        student: 'Estudiante',
+        group: 'Clase',
+        generated: 'Generado',
+        skill: 'Línea',
+        state: 'Estado',
+        evidence: 'Qué lo demostró',
+        confidence: 'Confianza del modelo',
+        items: 'Preguntas',
+        unaided: 'Sin ayuda',
+        time: 'Tiempo',
+        road: 'Camino',
+        claimItems: 'Preguntas que lo sostienen',
+        band: 'Banda',
+        retention: 'Aguanta el reexamen',
+        standards: 'Estándares (profundidad)',
+        ccss: 'Common Core (profundidad)',
+        teks: 'TEKS (profundidad)',
+        trust: 'Expediente',
+        held: 'Líneas selladas',
+        testedOut: 'En frío',
+        withdrawn: 'Retirados',
+        classHeld: 'Selladas',
+        classProving: 'En prueba',
+        classWorking: 'En curso',
+        classLocked: 'Sin abrir',
+      },
+    },
+
+    unit: {
+      sec: 's',
+      min: 'min',
+      hr: 'h',
+      secFull: '{n} s',
+      minFull: '{n} min',
+      hrFull: '{h} h {m} min',
+    },
+
+    idea: {
+      'var-meaning': 'Una letra representa un número al que todavía nadie ha puesto nombre.',
+      'eval-expr': 'Pon el número en el lugar de la letra y la expresión se convierte en un solo valor.',
+      'order-ops': 'Los paréntesis y las potencias mandan más que multiplicar, y multiplicar manda más que sumar.',
+      'like-terms': 'Dos términos solo se juntan si su parte literal es exactamente la misma.',
+      'distribute': 'Multiplicar una suma multiplica todos los términos que hay dentro.',
+      'one-step-add': 'Una ecuación es una balanza: deshaz la suma en los dos lados a la vez.',
+      'one-step-mul': 'El número pegado a la incógnita se quita dividiendo, nunca restando.',
+      'two-step': 'Desenvuelve al revés: primero el número suelto y después el coeficiente.',
+      'multi-step': 'Simplifica cada lado del todo antes de deshacer nada.',
+      'both-sides': 'Reúne la incógnita en un lado y, si desaparece, lee lo que queda.',
+    },
+
+    slip: {
+      'add-not-multiply': 'Suma donde la situación multiplica',
+      'arith-slip': 'Método correcto, fallo de cálculo',
+      'axis-swap': 'Lee la gráfica por el eje equivocado',
+      'coefficient-sign-lost': 'Pierde el signo del coeficiente',
+      'collect-wrong-side': 'Reúne la incógnita en el lado equivocado',
+      'combine-unlike': 'Junta términos que no son semejantes',
+      'distribute-then-forget': 'Abre el paréntesis y luego pierde un término',
+      'div-direction': 'Divide en el orden contrario',
+      'divide-not-multiply': 'Divide donde la situación multiplica',
+      'exponent-as-mult': 'Lee una potencia como una multiplicación',
+      'implicit-mult-missed': 'Lee 3x con x = 4 como cifras seguidas, no como producto',
+      'letter-as-object': 'Trata la letra como una etiqueta y no como un valor',
+      'letter-as-position': 'Usa el lugar de la letra en el alfabeto como su valor',
+      'neg-base-power': 'Se equivoca con el signo de una base negativa',
+      'neg-distribute': 'Pierde un signo menos al abrir el paréntesis',
+      'neg-substitution': 'Sustituye un valor negativo pero deja el resultado positivo',
+      'no-solution-confusion': 'Confunde «sin solución» con «cualquier valor sirve»',
+      'off-by-one-row': 'Lee la fila de al lado en la tabla',
+      'one-side-only': 'Cambia un solo lado de la balanza',
+      'partial-distribute': 'Multiplica solo el primer término del paréntesis',
+      'partial-rule': 'Empieza bien la regla y se detiene antes de acabarla',
+      'same-op-both': 'Aplica la misma operación en vez de la inversa',
+      'sign-on-constant': 'Pasa el término independiente sin cambiarle el signo',
+      'sign-slip': 'Pierde o se inventa un signo menos',
+      'strict-left-right': 'Va de izquierda a derecha sin respetar la prioridad',
+      'subtract-coefficient': 'Resta el coeficiente en vez de dividir entre él',
+      'subtract-not-multiply': 'Resta donde la situación multiplica',
+      'swapped-roles': 'Intercambia qué cantidad es cuál',
+      'wrong-unwrap-order': 'Deshace en el mismo orden en que se construyó',
+      'x-and-x-squared': 'Trata x y x al cuadrado como el mismo tipo de término',
+    },
+  },
+
+  // El equipo (src/kit). Lo que compra una línea sellada, dicho como capacidad
+  // y nunca como felicitación. Claves aditivas, propiedad del equipo.
+  kit: {
+    granted: 'Línea sellada',
+    grantedHeld: 'La línea sigue firme',
+    locked: 'Sella {n}',
+    lockedLong: 'Se abre al sellar {n} líneas',
+    next: 'Lo siguiente',
+    cost: '{n} esquirlas',
+    held: 'En tu poder',
+    needShards: 'Faltan esquirlas: hacen falta {n}',
+    flareLit: 'Bengala encendida: el aire sube',
+    beaconSet: 'Baliza plantada: aquí el aire ya sube para siempre',
+    vaulted: 'Impulso',
+    charterNext: '{skill}. Aguanta esa línea y el equipo suma esto: {grant}. {what}',
+    charterOpen: '{skill}. Ya tienes todo el equipo; lo que queda ahí fuera es la isla, y es más grande de lo que has volado.',
+    vault: {
+      name: 'Placa de impulso',
+      short: 'Placa',
+      what: 'Una quinta pieza para la retícula. Písala y te lanza doce metros hacia arriba.',
+    },
+    flare: {
+      name: 'Bengala de ascendencia',
+      short: 'Bengala',
+      what: 'F: enciende una columna de aire ascendente bajo tus botas, donde quieras, durante seis segundos.',
+    },
+    kite: {
+      name: 'Ajuste del ala',
+      short: 'Ala',
+      what: 'El ala planea más plana, más rápida y gira mejor. Los valles que no podías cruzar caben en un solo vuelo.',
+    },
+    reserve: {
+      name: 'Reserva profunda',
+      short: 'Reserva',
+      what: 'La reserva de la retícula más que se duplica, y se recarga la mitad de rápido otra vez.',
+    },
+    legs: {
+      name: 'Piernas de tormenta',
+      short: 'Piernas',
+      what: 'Más velocidad al esprintar, más salto y un impulso que vuelve en la mitad de tiempo.',
+    },
+    sight: {
+      name: 'Vista resonante',
+      short: 'Vista',
+      what: 'Las motas de la deriva se inclinan hacia ti y una caja colgante se lee desde el doble de lejos.',
+    },
+    beacon: {
+      name: 'Baliza permanente',
+      short: 'Baliza',
+      what: 'G: por noventa esquirlas plantas una columna de aire ascendente que mañana seguirá ahí. Es lo único que le puedes hacer a esta isla que dure.',
+    },
+    windstep: {
+      name: 'Paso de viento',
+      short: 'Paso',
+      what: 'El impulso vuelve mientras sigues en el aire. Tres seguidos cruzan un vacío que el ala no cruza.',
+    },
+    span: {
+      name: 'Vuelo largo',
+      short: 'Vuelo',
+      what: 'El ala otra vez: aún más plana y más rápida. Desde la cresta alta ya alcanzas la costa lejana sin tocar el suelo.',
+    },
+    array: {
+      name: 'Serie de placas',
+      short: 'Serie',
+      what: 'La placa te lanza un tercio más alto y cuesta seis esquirlas en vez de dieciocho. Las placas se vuelven una escalera.',
+    },
+    squall: {
+      name: 'Bengala de turbonada',
+      short: 'Turbonada',
+      what: 'La bengala cuesta dieciséis, se alza setenta y cuatro metros y aguanta once segundos.',
+    },
+    deepwell: {
+      name: 'Pozo profundo',
+      short: 'Pozo',
+      what: 'La reserva de la retícula llega a trescientos y se recarga el doble de rápido. Puentea un cañón de una sola vez.',
+    },
+    station: {
+      name: 'Estación de paso',
+      short: 'Estación',
+      what: 'H — levanta una torre permanente de aire ascendente y viaja entre dos cualesquiera. Cuesta una cédula y doscientos cuarenta fragmentos.',
+    },
+    charter: {
+      name: 'Una cédula de estación',
+      what: 'Conserva lo que ya tienes, de una noche para otra, y la retícula te extiende otra cédula. No hay una última.',
+    },
+    chartersHeld: '«n|one:# cédula|other:# cédulas» · {cost}',
+    charterIn: '{n} más de hondura',
+    needCharter: 'Sin cédula. {n} de hondura más y sale la siguiente',
+    stationSet: 'Estación de paso {n} levantada — ya forma parte de la isla',
+    stationAlone: 'Todavía no hay adónde viajar. Levanta una segunda',
+    travelled: 'De estación a estación',
+    soundLanded: 'Sondeo completado · {n} de hondura, limpio',
+    soundDeep: 'Sondeo · {n} de hondura',
+    soundBroke: 'El sondeo se rompe en {n}',
+  },
+
+  // La deriva y las cajas colgantes (src/world). Lo que hace la isla cuando
+  // nadie te está preguntando nada.
+  field: {
+    moteTake: '+{n} esquirlas',
+    updraft: 'Ascendencia',
+    surge: 'Sacudida de la grieta',
+    surgeHit: 'Sacudida de la grieta: pierdes {n} esquirlas',
+    balanceLock: 'Cierre de balanza',
+    balanceNo: 'La barra lo rechaza',
+    balanceReset: 'Las pesas se rehacen',
+    cacheOpen: 'Caja abierta: {n} esquirlas, y aquí el aire ya sube para siempre',
   },
 };

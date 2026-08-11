@@ -24,6 +24,10 @@ export class Solids {
     this.groundAt = groundAt;
     this.cells = new Map();       // cellKey -> piece[]
     this.count = 0;
+    // Pieces the cadet actually set. The world registers structure of its own
+    // here — the cache perches (src/world/caches.js) are real ground because
+    // they are real solids — and that structure must not be counted as his.
+    this.owned = 0;
     this.feet = () => 0;          // live reference height: the cadet's boots
     this._g = new THREE.Vector2();
     this._box = new THREE.Box3();
@@ -36,6 +40,7 @@ export class Solids {
     if (!list) this.cells.set(k, (list = []));
     list.push(p);
     this.count++;
+    if (!p.fixed) this.owned++;
   }
 
   remove(p) {
@@ -46,10 +51,11 @@ export class Solids {
     if (i < 0) return;
     list.splice(i, 1);
     this.count--;
+    if (!p.fixed) this.owned--;
     if (!list.length) this.cells.delete(k);
   }
 
-  clear() { this.cells.clear(); this.count = 0; }
+  clear() { this.cells.clear(); this.count = 0; this.owned = 0; }
 
   /** Every piece whose cell contains this column. */
   at(x, z) {
