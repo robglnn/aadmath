@@ -1049,8 +1049,14 @@ export function createSkyIslands(scene, quality) {
 }
 
 // ---------------------------------------------------------------------------
-// Near floating rocks — parallax you can almost touch, and a couple you can
-// land on with the glider.
+// Near floating rocks — parallax you can almost touch.
+//
+// NOT landable: they are an InstancedMesh that nothing registers with the
+// player's solid registry, so a cadet who aims a glide at one falls through it.
+// The comment here used to promise the opposite, which is the same defect as an
+// invisible wall pointed the other way. They are now kept inside the verge
+// (below) so that at least nothing beyond the boundary looks like a target, and
+// giving them real collision is a separate, larger job in src/player.
 // ---------------------------------------------------------------------------
 export function createFloatingRocks(scene, quality) {
   const geo = new THREE.IcosahedronGeometry(1, 1);
@@ -1071,7 +1077,13 @@ export function createFloatingRocks(scene, quality) {
   const col = new THREE.Color();
   for (let i = 0; i < N; i++) {
     const a = rand() * 6.28;
-    const rr = ISLAND_R * (1.06 + rand() * 1.5);
+    // Inside the verge, all of them. These are the rocks a cadet reads as
+    // "somewhere I could glide to", and they used to drift out to 2.56 × the
+    // island radius — a hundred and sixty metres past the leash in
+    // src/player/locomotion.js. Aiming a whole flight at one and hitting an
+    // invisible wall is the world advertising a destination it will not
+    // honour. Nothing near enough to look landable is out of reach any more.
+    const rr = ISLAND_R * (1.06 + rand() * 0.44);
     const y = 6 + rand() * 120 - rr * 0.12;
     const s = 3 + Math.pow(rand(), 1.8) * 22;
     data.push({ a, rr, y, s, spin: (rand() - 0.5) * 0.09, phase: rand() * 6.28, tilt: (rand() - 0.5) * 0.6 });

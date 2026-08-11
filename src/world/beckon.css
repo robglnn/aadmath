@@ -1,0 +1,58 @@
+/* THE WORLD ANSWERS — labels and prompts that belong to the things themselves.
+   Owned by src/world; deliberately outside src/ui/style.css. */
+
+#ui .beckon-tags { pointer-events: none; }
+/* Above the world, below everything that can hold the frame (src/meta is 12+,
+   the boot curtain is 50). A label must never sit on top of a ceremony. */
+.beckon-tags { position: absolute; inset: 0; overflow: hidden; z-index: 6; }
+
+.bk-tag {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: .3rem .62rem; border-radius: 10px; white-space: nowrap;
+  background: rgba(6, 14, 28, .78);
+  border: 1px solid rgba(126, 190, 255, .34);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, .5);
+  color: #eaf6ff;
+  font-family: var(--ui); font-size: .62rem; letter-spacing: .16em;
+  text-transform: uppercase; line-height: 1;
+  will-change: left, top, opacity;
+}
+
+/* a door that is open, and the only thing in the world that pulses */
+.bk-tag.open {
+  color: #d8f4ff;
+  border-color: rgba(120, 220, 255, .72);
+  box-shadow: 0 0 24px rgba(96, 208, 255, .34), 0 6px 26px rgba(0, 0, 0, .5);
+  animation: bk-breathe 2.6s ease-in-out infinite;
+}
+@keyframes bk-breathe {
+  0%, 100% { box-shadow: 0 0 16px rgba(96, 208, 255, .22), 0 6px 26px rgba(0, 0, 0, .5); }
+  50%      { box-shadow: 0 0 34px rgba(96, 208, 255, .52), 0 6px 26px rgba(0, 0, 0, .5); }
+}
+@media (prefers-reduced-motion: reduce) { .bk-tag.open { animation: none; } }
+
+/* a door that is shut, and says what shuts it */
+.bk-tag.shut {
+  color: #ffcdb4;
+  border-color: rgba(255, 150, 106, .5);
+  background: rgba(24, 12, 8, .78);
+}
+/* a line already held */
+.bk-tag.held {
+  color: #c8ffdd;
+  border-color: rgba(142, 240, 168, .5);
+}
+/* the ground's own produce */
+.bk-tag.vein { color: #dff4ff; }
+.bk-tag.rich { color: #ffd8a2; border-color: rgba(255, 191, 106, .6); }
+.bk-tag.dead { color: #96a9bd; border-color: rgba(120, 150, 180, .26); opacity: .8; }
+.bk-tag.edge { color: #ffd0b8; border-color: rgba(255, 160, 120, .48); }
+
+/* the key the prompt is asking for */
+.bk-tag b {
+  display: inline-block; margin: 0 .1rem;
+  padding: .12rem .3rem; border-radius: 5px;
+  background: rgba(140, 220, 255, .18);
+  border: 1px solid rgba(140, 220, 255, .45);
+  font-weight: 700; letter-spacing: .1em;
+}

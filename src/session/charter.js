@@ -46,6 +46,7 @@ export class Charter {
         <div class="sc-rule"><i></i></div>
         <p class="sc-goal"></p>
         <ul class="sc-seams"></ul>
+        <p class="sc-mark"></p>
         <p class="sc-eta"></p>
         <button type="button" class="sc-go"></button>
       </div>`;
@@ -55,6 +56,7 @@ export class Charter {
     this.title = this.el.querySelector('.sc-title');
     this.goal = this.el.querySelector('.sc-goal');
     this.seams = this.el.querySelector('.sc-seams');
+    this.mark = this.el.querySelector('.sc-mark');
     this.eta = this.el.querySelector('.sc-eta');
     this.go = this.el.querySelector('.sc-go');
     this.go.addEventListener('click', () => this.begin());
@@ -107,6 +109,17 @@ export class Charter {
         <b>${escape(t('skills.' + s.id))}</b>
         <span>${escape(t(s.hold ? 'session.charter.willHold' : 'session.charter.willPush'))}</span>
       </li>`).join('');
+    /* …and where it is. A goal a learner cannot walk to is a goal they will
+       wander looking for, which is exactly the session the client reported.
+       Five whole sentences rather than a bearing word dropped into a slot,
+       because "51 m ahead" and "51 m to your left" put the distance in
+       different places in Spanish and Polish, and word order belongs to the
+       language. */
+    const m = typeof p.mark === 'function' ? p.mark() : p.mark;
+    const where = m && Number.isFinite(m.metres) ? m.where : null;
+    this.mark.textContent = where ? t('session.charter.mark.' + where, { n: m.metres }) : '';
+    this.mark.hidden = !where;
+
     // The estimate is honest about being an estimate, and about whose pace it
     // was measured on — the first session has not measured anything yet.
     this.eta.textContent = t(p.seeded ? 'session.charter.etaSeed' : 'session.charter.eta', {

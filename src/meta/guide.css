@@ -1,0 +1,227 @@
+/* ===========================================================================
+   DIRECTION — the objective, the waypoint, the prompt, and the nouns.
+
+   Everything here answers one question the game was not answering: *what do I
+   do next.* It is deliberately the loudest quiet thing on screen — a rank
+   colour hairline, one verb, one place, one distance — and it lives directly
+   under the rig, above the chapter card, because that column reads top to
+   bottom as who you are, what you are doing, and why.
+   =========================================================================== */
+
+#ui .gd-card {
+  position: absolute;
+  left: var(--pad-l);
+  top: calc(var(--pad-t) + 78px);
+  width: 268px;
+  padding: .58rem .78rem .62rem;
+  background: linear-gradient(180deg, rgba(10, 18, 33, .82), rgba(5, 10, 20, .70));
+  border: 1px solid rgba(140, 195, 255, .16);
+  border-left: 2px solid var(--gd-ink, #7fd6ff);
+  border-radius: 9px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .18), 0 10px 30px rgba(0, 0, 0, .3);
+  opacity: 0; translate: -8px 0;
+  transition: opacity .45s ease, translate .45s ease;
+  pointer-events: none; z-index: 23;
+}
+#ui .gd-card.show { opacity: 1; translate: 0 0; }
+
+.gd-head {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .5rem; letter-spacing: .26em; text-transform: uppercase;
+  color: var(--gd-ink, #7fd6ff);
+}
+.gd-head .gd-pip {
+  width: 7px; height: 7px; flex: 0 0 auto; rotate: 45deg; border-radius: 1px;
+  background: var(--gd-ink, #7fd6ff);
+  box-shadow: 0 0 10px var(--gd-ink, #7fd6ff);
+  animation: gdPip 2.4s ease-in-out infinite;
+}
+@keyframes gdPip { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+
+.gd-verb {
+  display: block; margin-top: .3rem;
+  font-size: .95rem; line-height: 1.15; font-weight: 650; color: #f0f6ff;
+  letter-spacing: .004em;
+}
+.gd-what {
+  display: block; margin-top: .1rem;
+  font-size: .78rem; line-height: 1.3; color: var(--ink-dim, #9fb3d0);
+}
+.gd-where {
+  display: flex; align-items: baseline; gap: .34rem; margin-top: .42rem;
+  font-family: var(--meta-mono, ui-monospace, monospace);
+  font-size: .68rem; letter-spacing: .04em; color: #cfe4ff;
+}
+.gd-where b { font-weight: 700; font-variant-numeric: tabular-nums; color: #fff; }
+.gd-where i { font-style: normal; color: rgba(159, 179, 208, .8); letter-spacing: .12em;
+  text-transform: uppercase; font-size: .56rem; }
+
+.gd-why {
+  display: block; margin-top: .34rem; font-size: .66rem; line-height: 1.4;
+  color: rgba(190, 210, 236, .78);
+}
+
+/* ---- the arc, in ten pips. Held / open / sealed off. --------------------- */
+.gd-lines { display: block; margin-top: .5rem; padding-top: .46rem;
+  border-top: 1px solid rgba(140, 195, 255, .13); }
+.gd-pips { display: flex; gap: 3px; }
+.gd-pips u {
+  flex: 1 1 0; height: 5px; border-radius: 1.5px;
+  background: rgba(255, 255, 255, .07);
+  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .12);
+  transition: background .5s ease, box-shadow .5s ease;
+}
+.gd-pips u.open { background: rgba(127, 214, 255, .30); box-shadow: inset 0 0 0 1px rgba(127, 214, 255, .55); }
+.gd-pips u.held {
+  background: linear-gradient(180deg, #baf3d3, #6fe0a8);
+  box-shadow: 0 0 9px rgba(120, 235, 175, .6);
+}
+/* Three counts and two separators. Polish spells all three words out and needs
+   two lines for them, so it is balanced rather than left to orphan a numeral. */
+.gd-tally {
+  display: block; margin-top: .3rem; font-size: .55rem; letter-spacing: .1em;
+  line-height: 1.55; text-wrap: balance;
+  text-transform: uppercase; color: rgba(159, 179, 208, .62);
+}
+
+/* ===========================================================================
+   THE WAYPOINT — "it is that way, 140 m".
+   =========================================================================== */
+#ui .gd-layer {
+  position: absolute; inset: 0; overflow: hidden;
+  pointer-events: none; z-index: 18;
+}
+
+.gd-mark {
+  position: absolute; left: 0; top: 0;
+  display: flex; flex-direction: column; align-items: center;
+  translate: -50% -50%;
+  opacity: 0; transition: opacity .3s ease;
+  will-change: transform;
+}
+.gd-mark.show { opacity: 1; }
+.gd-mark .gd-dia {
+  position: relative; width: 26px; height: 26px; rotate: 45deg;
+  border: 1.5px solid var(--gd-ink, #7fd6ff); border-radius: 3px;
+  background: color-mix(in srgb, var(--gd-ink, #7fd6ff) 16%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--gd-ink, #7fd6ff) 65%, transparent),
+              inset 0 0 8px color-mix(in srgb, var(--gd-ink, #7fd6ff) 40%, transparent);
+}
+.gd-mark .gd-dia::after {
+  content: ''; position: absolute; inset: 5px; border-radius: 1px;
+  background: var(--gd-ink, #7fd6ff);
+  box-shadow: 0 0 10px var(--gd-ink, #7fd6ff);
+  animation: gdBeat 2.2s ease-in-out infinite;
+}
+@keyframes gdBeat { 0%, 100% { opacity: .55; scale: .8; } 50% { opacity: 1; scale: 1; } }
+
+.gd-mark .gd-lab {
+  margin-top: .34rem; display: flex; flex-direction: column; align-items: center;
+  padding: .22rem .5rem .26rem; border-radius: 6px;
+  background: rgba(6, 12, 22, .62);
+  border: 1px solid rgba(140, 195, 255, .16);
+  backdrop-filter: blur(7px);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+  white-space: nowrap;
+}
+.gd-mark .gd-nm {
+  font-size: .58rem; letter-spacing: .18em; text-transform: uppercase;
+  color: #e6f2ff; font-weight: 600;
+}
+.gd-mark:not(.edge) .gd-nm { display: none; }
+/* On screen it is a pip and a number, not a plaque — but the number still has
+   to survive being read against a sunlit cliff, so it keeps a thin ground. */
+.gd-mark:not(.edge) .gd-lab {
+  background: rgba(6, 12, 22, .5); border-color: transparent;
+  padding: .1rem .38rem .12rem; margin-top: .3rem;
+}
+.gd-mark .gd-m {
+  font-family: var(--meta-mono, ui-monospace, monospace);
+  font-size: .72rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: #fff; letter-spacing: .05em;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--gd-ink, #7fd6ff) 85%, transparent), 0 1px 4px #000;
+}
+/* off screen: the diamond becomes an arrow that points off the edge */
+.gd-mark .gd-arrow {
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0; display: none;
+  margin: -13px 0 0 -8px;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-bottom: 15px solid var(--gd-ink, #7fd6ff);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gd-ink, #7fd6ff) 80%, transparent));
+  transform-origin: 8px 13px;
+}
+.gd-mark.edge .gd-arrow { display: block; }
+.gd-mark.edge .gd-dia { opacity: .0; }
+.gd-mark.edge .gd-lab { margin-top: 1.1rem; }
+/* standing on top of it: the marker gets out of the way of the prompt */
+.gd-mark.here { opacity: .0; }
+
+/* ===========================================================================
+   THE PROMPT — the answer to "I walked into it and nothing happened".
+   =========================================================================== */
+#ui .gd-prompt {
+  position: absolute; left: 50%; top: calc(50% + 62px); translate: -50% 0;
+  display: flex; align-items: center; gap: .5rem;
+  padding: .4rem .72rem .42rem .46rem;
+  border-radius: 999px;
+  background: rgba(6, 13, 24, .78);
+  border: 1px solid color-mix(in srgb, var(--gd-ink, #7fd6ff) 42%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--gd-ink, #7fd6ff) 26%, transparent);
+  backdrop-filter: blur(8px);
+  opacity: 0; scale: .94;
+  transition: opacity .18s ease, scale .18s cubic-bezier(.2, 1.4, .4, 1);
+  pointer-events: none; z-index: 24;
+}
+#ui .gd-prompt.show { opacity: 1; scale: 1; }
+.gd-prompt kbd {
+  display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 .3rem;
+  border-radius: 6px; font: inherit; font-size: .74rem; font-weight: 700;
+  font-family: var(--meta-mono, ui-monospace, monospace);
+  color: #071018; background: var(--gd-ink, #7fd6ff);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--gd-ink, #7fd6ff) 75%, transparent);
+  animation: gdKey 1.9s ease-in-out infinite;
+}
+@keyframes gdKey { 0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--gd-ink, #7fd6ff) 45%, transparent); }
+                   50% { box-shadow: 0 0 22px color-mix(in srgb, var(--gd-ink, #7fd6ff) 95%, transparent); } }
+.gd-prompt span { font-size: .84rem; color: #eef5ff; letter-spacing: .01em; }
+
+/* A ceremony owns the frame: everything here stands down without argument. */
+#ui.meta-cine .gd-card,
+#ui.meta-cine .gd-layer,
+#ui.meta-cine .gd-prompt { opacity: 0 !important; }
+#ui:has(.meta-rite.show) .gd-card,
+#ui:has(.meta-rite.show) .gd-layer,
+#ui:has(.meta-rite.show) .gd-prompt,
+#ui:has(.meta-turn.show) .gd-card,
+#ui:has(.meta-turn.show) .gd-layer,
+#ui:has(.meta-turn.show) .gd-prompt { opacity: 0 !important; transition: opacity .3s ease; }
+
+/* ---------------------------------------------------------------- small --
+   The left rail is a queue on a small screen: rig, then the progress launcher
+   (src/report, which moves to this corner under 720 px), then this, then the
+   chapter card. So the objective drops below the launcher rather than under
+   it, and sheds the two rows a phone can read elsewhere — the reason it is
+   worth doing is one tap away in the panel the launcher opens, and the ten
+   pips are the first thing that panel draws. What never goes is the sentence:
+   the verb, the line, and how far. */
+@media (max-width: 900px) {
+  #ui .gd-card { width: min(220px, 58vw); padding: .48rem .6rem .52rem; }
+  .gd-verb { font-size: .85rem; }
+  .gd-what { font-size: .7rem; }
+  .gd-why { display: none; }
+  .gd-mark .gd-nm { font-size: .5rem; }
+  #ui .gd-prompt { top: calc(50% + 48px); }
+}
+@media (max-width: 720px) {
+  #ui .gd-card { top: calc(var(--pad-t) + 112px); }
+  .gd-lines { display: none; }
+}
+/* A phone on its side: 390 px of height carries the whole rail, so the card is
+   the sentence and nothing else. */
+@media (max-height: 520px) and (orientation: landscape) {
+  #ui .gd-card { width: min(196px, 26vw); padding: .4rem .52rem .44rem; }
+  .gd-verb { font-size: .76rem; }
+  .gd-lines { display: none; }
+}
+:root[data-touch] .gd-prompt kbd { min-width: 34px; }

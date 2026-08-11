@@ -1,0 +1,214 @@
+/* THE FOUNDRY — the hail in the world, and the shelves behind it.
+   Owned by src/kit. Same alloy as the rig and the hotbar: `.plate` does the
+   glass, the cut corner and the hairline, and nothing here re-invents it. */
+
+/* ---------- the hail ----------
+   Under the crosshair, where a prompt is looked for, and out of the way of the
+   companion line at the foot and the toast at the head. It is a button, so a
+   thumb and a mouse can both answer it — a prompt only a keyboard can act on is
+   the exact bug this whole feature exists to close.
+
+   It is deliberately cut from the same cloth as `.bk-tag` in src/world: the
+   world already answers when you walk up to a tear or a vein, and the counter
+   answering in a different typeface would read as a different game. Same
+   radius, same 0.62rem tracked caps, same dark glass — one system. */
+.hail {
+  position: absolute; left: 50%; top: 57%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: .5rem;
+  padding: .34rem .68rem .34rem .4rem; border-radius: 10px;
+  background: rgba(6, 14, 28, .82);
+  border: 1px solid rgba(126, 190, 255, .34);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, .5);
+  font: inherit; color: #eaf6ff; text-align: left;
+  opacity: 0; translate: 0 8px; pointer-events: none;
+  transition: opacity .28s, translate .28s, border-color .3s, box-shadow .3s;
+}
+.hail.show { opacity: 1; translate: 0 0; pointer-events: auto; cursor: pointer; }
+.hail u {
+  display: grid; place-items: center; min-width: 20px; height: 20px;
+  border-radius: 5px; text-decoration: none;
+  font-size: .62rem; font-weight: 700; letter-spacing: .1em; color: #eaf6ff;
+  border: 1px solid rgba(140, 220, 255, .45); background: rgba(140, 220, 255, .18);
+}
+.hail span { display: grid; gap: .1rem; }
+.hail b {
+  font-size: .62rem; letter-spacing: .16em; text-transform: uppercase;
+  line-height: 1; color: #eaf6ff; font-weight: 600;
+}
+.hail em {
+  font-style: normal; font-size: .56rem; letter-spacing: .12em;
+  text-transform: uppercase; line-height: 1; color: #96a9bd;
+}
+/* the wallet can pay for something in there, and the plate says so before you
+   have opened it */
+.hail.warm {
+  border-color: rgba(255, 191, 106, .6);
+  box-shadow: 0 0 24px rgba(255, 170, 60, .26), 0 6px 26px rgba(0, 0, 0, .5);
+}
+.hail.warm u { border-color: rgba(255, 191, 106, .6); background: rgba(255, 191, 106, .2); }
+.hail.warm em { color: #ffd8a2; }
+.hail:hover { border-color: rgba(120, 220, 255, .8); }
+
+/* ---------- the panel ---------- */
+.fdy {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(3, 7, 15, .5); backdrop-filter: blur(6px);
+  opacity: 0; pointer-events: none; transition: opacity .3s;
+  /* Above the world's labels and the companion's line, below the tear panel
+     (30) and the session's own cards — the counter never coexists with either,
+     because `open()` refuses while anything else owns the frame. */
+  z-index: 28;
+}
+.fdy.show { opacity: 1; pointer-events: auto; }
+
+.fdy-card {
+  width: min(640px, 93vw); max-height: 88vh; overflow: auto;
+  padding: 1.15rem 1.3rem 1rem; --cut: 16px;
+  scale: .97; transition: scale .3s cubic-bezier(.2, .9, .25, 1);
+}
+.fdy.show .fdy-card { scale: 1; }
+
+.fdy-head { display: flex; align-items: center; gap: .7rem; }
+.fdy-mark { display: grid; place-items: center; width: 30px; height: 30px; }
+.fdy-mark svg { width: 100%; height: 100%; fill: none; stroke: var(--amber); stroke-width: 1.4; }
+.fdy-titles { display: grid; gap: .1rem; margin-right: auto; }
+.fdy-kick {
+  text-decoration: none; font-size: .5rem; letter-spacing: .34em;
+  text-transform: uppercase; color: var(--amber);
+}
+.fdy-name {
+  font-size: 1.02rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink); font-weight: 700;
+}
+.fdy-purse { display: flex; align-items: baseline; gap: .3rem; }
+.fdy-purse svg { width: 12px; height: 12px; fill: var(--cyan); align-self: center; }
+.fdy-purse i {
+  font-style: normal; font-size: 1.06rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.fdy-purse em {
+  font-style: normal; font-size: .5rem; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-mute);
+}
+
+.fdy-lede {
+  margin: .55rem 0 .8rem; font-size: .82rem; line-height: 1.45;
+  color: var(--ink-dim); max-width: 54ch;
+}
+
+.fdy-stock { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.fdy-row {
+  display: grid; align-items: center; gap: .3rem .7rem;
+  grid-template-columns: 26px 1fr auto auto;
+  padding: .5rem .6rem .5rem .5rem; border-radius: 9px;
+  border: 1px solid rgba(126, 190, 255, .12);
+  background: linear-gradient(120deg, rgba(120, 170, 230, .06), rgba(120, 170, 230, .02));
+  transition: border-color .25s, background .25s;
+}
+.fdy-row[data-state="sealed"] { opacity: .62; }
+.fdy-row.afford {
+  border-color: rgba(255, 194, 95, .4);
+  background: linear-gradient(120deg, rgba(255, 194, 95, .12), rgba(255, 194, 95, .02));
+}
+.fdy-ic { display: grid; place-items: center; }
+.fdy-ic svg { width: 20px; height: 20px; fill: none; stroke: var(--ink-dim); stroke-width: 1.5; stroke-linecap: round; }
+.fdy-row.afford .fdy-ic svg { stroke: var(--amber); }
+.fdy-body { display: grid; gap: .12rem; min-width: 0; }
+.fdy-body b {
+  font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink);
+}
+.fdy-body em {
+  font-style: normal; font-size: .76rem; line-height: 1.35; color: var(--ink-dim);
+}
+.fdy-price { display: flex; align-items: baseline; gap: .22rem; justify-self: end; }
+.fdy-price i {
+  font-style: normal; font-size: .96rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.fdy-price .fdy-unit2 {
+  font-size: .46rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute);
+}
+.fdy-act { display: grid; gap: .18rem; justify-items: end; min-width: 92px; }
+
+.fdy-buy {
+  font: inherit; font-size: .58rem; letter-spacing: .18em; text-transform: uppercase;
+  padding: .38rem .7rem; border-radius: 7px; cursor: pointer;
+  color: #08131f; background: linear-gradient(180deg, #ffd894, var(--amber));
+  border: 1px solid rgba(255, 210, 140, .7);
+  box-shadow: 0 6px 18px rgba(255, 170, 60, .22);
+  transition: filter .2s, transform .12s;
+}
+.fdy-buy:hover { filter: brightness(1.1); }
+.fdy-buy:active { transform: translateY(1px); }
+.fdy-buy:disabled {
+  cursor: default; color: var(--ink-mute); background: none;
+  border-color: rgba(126, 190, 255, .18); box-shadow: none;
+}
+.fdy-buy:focus-visible, .fdy-close:focus-visible {
+  outline: 2px solid var(--cyan); outline-offset: 2px;
+}
+.fdy-state {
+  font-size: .52rem; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-mute); text-align: right;
+}
+.fdy-state.held { color: var(--cyan); }
+.fdy-carry {
+  font-size: .5rem; letter-spacing: .14em; text-transform: uppercase; color: var(--lime);
+}
+
+.fdy-foot {
+  display: flex; align-items: center; gap: .8rem;
+  margin-top: .85rem; padding-top: .7rem;
+  border-top: 1px solid rgba(126, 190, 255, .12);
+}
+.fdy-note {
+  font-size: .62rem; line-height: 1.4; color: var(--ink-mute); margin-right: auto; max-width: 44ch;
+}
+.fdy-close {
+  font: inherit; font-size: .56rem; letter-spacing: .2em; text-transform: uppercase;
+  padding: .4rem .8rem; border-radius: 7px; cursor: pointer;
+  color: var(--ink-dim); background: rgba(120, 170, 230, .08);
+  border: 1px solid rgba(126, 190, 255, .22);
+}
+.fdy-close:hover { color: var(--ink); border-color: rgba(95, 230, 255, .5); }
+
+/* ---------- small screens ----------
+   The thumb owns the foot of the frame, so the hail sits higher and the card
+   gives back its side padding rather than its price column. */
+/* A phone is 414 x 896 with a companion talking across the bottom eighty
+   pixels and a thumb on the foot of the frame. The card is pinned near the top
+   rather than centred, and it gives back leading and side padding — never the
+   price column, which is the one thing the whole panel exists to show. */
+@media (max-width: 720px), (max-height: 560px) {
+  .hail { top: 50%; }
+  .fdy { place-items: start center; padding: 3.5vh 0 0; }
+  .fdy-card {
+    width: min(640px, 94vw);
+    max-height: min(76vh, calc(100vh - 200px));
+    padding: .75rem .8rem .65rem;
+  }
+  .fdy-name { font-size: .88rem; }
+  .fdy-lede { font-size: .72rem; line-height: 1.35; margin: .4rem 0 .55rem; }
+  .fdy-stock { gap: .3rem; }
+  .fdy-row { grid-template-columns: 20px 1fr auto; gap: .2rem .45rem; padding: .4rem .45rem; }
+  .fdy-act { grid-column: 2 / -1; justify-items: start; min-width: 0; }
+  .fdy-body b { font-size: .62rem; }
+  .fdy-body em { font-size: .66rem; line-height: 1.3; }
+  .fdy-price i { font-size: .82rem; }
+  .fdy-foot { margin-top: .6rem; padding-top: .5rem; }
+  .fdy-note { display: none; }
+}
+/* A phone turned sideways is 390 pixels tall with a thumb on each end. There is
+   no room to be generous about anything except the list itself, which is the
+   whole panel — so it takes the frame and scrolls inside its own box. */
+@media (max-height: 560px) {
+  .fdy { padding: 1.4vh 0; }
+  .fdy-card { max-height: calc(100vh - 22px); padding: .55rem .7rem .5rem; }
+  .fdy-lede { display: none; }
+  .fdy-row { padding: .3rem .45rem; }
+  .fdy-body em { font-size: .62rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fdy, .fdy-card, .hail { transition: opacity .18s; }
+}

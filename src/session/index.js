@@ -246,6 +246,13 @@ export function createSession({
       // here is a string frozen in whatever locale was loaded at the time.
       goalText: () => goalLong(run),
       back: backCard(),
+      /* WHERE. The orders used to name the line and what holding it buys, and
+         stop — so a learner closed the card knowing exactly what to do and
+         having no idea where to go, which is the whole defect this run of work
+         exists to fix. `src/meta/guide.js` already resolves the tear the
+         scheduler picked and how far off it is, and it is a thunk for the same
+         reason `goalText` is: this card lives for sixteen seconds. */
+      mark: () => story?.guide?.() || null,
     });
     return run;
   }

@@ -860,6 +860,15 @@ export default {
     },
     charter: {
       kick: 'Przebieg {n} · Odłamek Dziewiąty',
+      // Gdzie stoi pierwsze rozdarcie — całymi zdaniami, bo szyk dystansu i
+      // kierunku poza angielskim wygląda inaczej.
+      mark: {
+        ahead: 'Rozdarcie masz zaznaczone na szybie — {n} m, prosto przed tobą.',
+        left: 'Rozdarcie masz zaznaczone na szybie — {n} m, w lewo od ciebie.',
+        right: 'Rozdarcie masz zaznaczone na szybie — {n} m, w prawo od ciebie.',
+        behind: 'Rozdarcie masz zaznaczone na szybie — {n} m, za tobą.',
+        here: 'Rozdarcie masz zaznaczone na szybie. Stoisz w samym środku.',
+      },
       title: 'Rozkazy',
       goalHold: '{skill}. Zamknij {tears} wyrw na tej linii, a powinna się utrzymać. Utrzymać naprawdę: tak, że już nigdy się nie otworzy.',
       goalHoldN: 'Zamknij {tears} wyrw, a {n} linie powinny się utrzymać. Utrzymać naprawdę: tak, że już nigdy się nie otworzą.',
@@ -1341,10 +1350,101 @@ export default {
     soundLanded: 'Sondowanie zakończone · {n} w dół, czysto',
     soundDeep: 'Sondowanie · {n} w dół',
     soundBroke: 'Sondowanie urywa się na {n}',
+    // Lada (src/kit/foundry.js). Czasownik jeszcze nielicencjonowany można
+    // kupić na miejscu, a pasek musi to pokazać.
+    carrying: '«n|one:# w ręku|few:# w ręku|many:# w ręku|other:# w ręku»',
+    buyAt: '{name} — huta przy lądowisku je sprzedaje',
+    afford: '{n} odłamków — starczy na: {name}',
   },
 
   // Dryf i wiszące skrytki (src/world). To, co wyspa robi, kiedy nikt cię
   // o nic nie pyta.
+  // ---------------------------------------------------------------------
+  // KIERUNEK (src/meta/guide.js). Cel, znacznik, podpowiedź interakcji,
+  // nazwy, które świat nadaje sobie sam, oraz krawędź odłamka.
+  // ---------------------------------------------------------------------
+  guide: {
+    label: 'Cel',
+
+    verb: {
+      seal: 'Zamknij rozdarcie',
+      prove: 'Udowodnij linię',
+      watch: 'Stań na warcie',
+      sound: 'Zbadaj sieć',
+    },
+
+    metres: '{n} m',
+    rel: {
+      ahead: 'Przed tobą',
+      left: 'Po lewej',
+      right: 'Po prawej',
+      behind: 'Za tobą',
+      here: 'Stoisz w środku',
+    },
+
+    pay: {
+      lines: 'Utrzymaj ją, a «n|one:otworzy się jeszcze # linia sieci|few:otworzą się jeszcze # linie sieci|many:otworzy się jeszcze # linii sieci».',
+      kit: 'Utrzymaj ją, a {name} będzie twoja.',
+      calm: 'Zamknij je, a wstrząsy w tym miejscu ustaną na dobre.',
+      sound: 'Już utrzymana. Bank sięga głębiej i wciąż płaci.',
+    },
+
+    tally: '{held} utrzymane · {open} otwarte · {locked} zamknięte',
+
+    prompt: {
+      open: 'Otwórz wyrwę',
+      sound: 'Zbadaj tę linię',
+    },
+    key: {
+      kbm: 'E',
+      pad: 'X',
+      touch: 'Dotknij',
+    },
+
+    // -------------------------------------------------------------------
+    // NAZWY. Każda pada raz, na zawsze — przy pierwszym spojrzeniu na daną
+    // rzecz. Żywą etykietę na obiekcie rysuje src/world/beckon.js; tutaj jest
+    // to, czego etykieta unieść nie może: czym to jest, po co istnieje i
+    // dlaczego ma go to obchodzić. Marlow, nie dymek podpowiedzi.
+    // -------------------------------------------------------------------
+    n: {
+      tear: 'Ten pierścień to rozdarcie. Gdzieś w dowodzie założycielskim jest linia, która przestała być prawdą, i wychodzi właśnie tędy. Wejdź w środek, odpowiedz na to, co osprzęt wyrzuci ci na szybę, a dziura w świecie zamknie się za tobą.',
+      shard: 'Odłamki szyfru — luźna sieć, leżąca tam, gdzie ziemia krwawiła. Przebiegnij przez nie i są twoje. Z tego tnie się płyty wyrzutni i race, więc warto po nie nadłożyć drogi.',
+      charged: 'Te złote wyrosły przy otwartym rozdarciu: dlatego płacą trzy razy tyle co blade i dlatego stanie tutaj kosztuje cię odłamki co piętnaście sekund. Zamknij to rozdarcie, a wstrząsy ustaną. Żyła będzie płacić dalej.',
+      husk: 'Te ciemne są wypalone, a winny jesteś ty. Rozświetlą się po jakichś pięciu minutach. Na tym odłamku nie da się doić jednego zbocza, kadecie — można tylko sięgać dalej, co, jak podejrzewam, było zamierzone.',
+      anchor: 'Kotwica sieci: konstrukcja, której założyciele nie dokończyli. Nic z twojego wyposażenia nie sięga jej z płaskiego gruntu i o to właśnie chodzi. Postaw rampę, na jej szczycie drugą i dotknij. Po sześćdziesiąt odłamków za sztukę, a są trzy.',
+      cache: 'Wisząca skrytka. Belka trzyma prawdziwe zdanie, z którego wyjęto jeden odważnik — wejdź w tę przeciwwagę, która wypoziomuje belkę, a monolit się otworzy. Sto dwadzieścia odłamków, a powietrze wznosi się tam potem już na stałe.',
+      updraft: 'Wznoszące powietrze, i to sporo. Wleć w kolumnę, a da ci sześćdziesiąt metrów za darmo — tak właśnie dociera się do rzeczy, które ktoś celowo umieścił poza zasięgiem.',
+      verge: 'Ta kurtyna to miejsce, w którym kończy się Odłamek Dziewiąty, i wolę, żebyś usłyszał to ode mnie niż od skrzydła. Lądy, które widzisz, dzieli od ciebie osiemset metrów otwartego nieba, a przeprawia przez nie wyłącznie sieć. Utrzymaj tu każdą linię, a cię tam przeniesie. Do tego czasu to bardzo długi lot w dół z ładnym widokiem.',
+    },
+  },
+
+  // HUTA (src/kit/foundry.js) — lada, przy której odłamki szyfru zamieniają się
+  // w coś konkretnego, z ceną i działaniem podanymi, zanim wyda się choć jeden.
+  // Klucze dodane, należą do osprzętu.
+  foundry: {
+    kick: 'Zaopatrzenie kadetów',
+    name: 'Huta',
+    lede: 'Odłamek szyfru to ślad, jaki zostawia po sobie zamknięta wyrwa. Huta je przyjmuje i oddaje powietrze, na którym można stanąć.',
+    unit: '«n|one:odłamek|few:odłamki|many:odłamków|other:odłamka»',
+    hailStock: '«n|one:# rzecz w zasięgu|few:# rzeczy w zasięgu|many:# rzeczy w zasięgu|other:# rzeczy w zasięgu»',
+    hailNone: 'Tu wydaje się odłamki',
+    take: 'Bierz',
+    short: 'Brakuje {n}',
+    leave: 'Odsuń się',
+    sealedLines: 'Utrzymaj «n|one:# linię|few:# linie|many:# linii|other:# linii»',
+    sealedDepth: 'Utrzymaj swoje linie przez noc',
+    inHand: 'Twoje · {key}',
+    carried: '«n|one:# w ręku|few:# w ręku|many:# w ręku|other:# w ręku» · {key}',
+    bought: 'W ręku. Naciśnij {key} tam, gdzie ma stanąć',
+    note: 'Odłamki płacą za to, co leży na ladzie. Utrzymane linie otwierają resztę.',
+    callout: 'Kadecie — te odłamki to nie punkty. Przy lądowisku stoi huta, która zamienia je we wznoszące powietrze: rozświetlony sześciokąt o trzech pylonach, po twojej lewej.',
+    flare: { what: 'Sześć sekund wznoszącego powietrza pod własnymi butami, gdziekolwiek stoisz. Jedno użycie.' },
+    beacon: { what: 'Komin wznoszącego powietrza, który jutro nadal tu będzie, postawiony tam, gdzie zechcesz. Nic innego, co zrobisz na tej wyspie, nie zostaje.' },
+    plate: { what: 'Piąty element sieci. Stań na nim, a wyrzuci cię dwanaście metrów w górę.' },
+    station: { what: 'Wieża wznoszącego powietrza, która jest zarazem miejscem: stań przy jednej, wyjdź przy dowolnej innej.' },
+  },
+
   field: {
     moteTake: 'Odłamki: +{n}',
     updraft: 'Komin powietrzny',
@@ -1354,5 +1454,19 @@ export default {
     balanceNo: 'Belka tego nie przyjmuje',
     balanceReset: 'Odważniki układają się na nowo',
     cacheOpen: 'Skrytka otwarta — odłamki: {n}, a powietrze wznosi się tu już na stałe',
+
+    // --- co świat mówi, gdy do niego podchodzisz (src/world/beckon.js) ---
+    riftOpen: 'Wejdź na płytę · {skill}',
+    riftShut: 'Zapieczętowana · najpierw opanuj: {skill}',
+    riftHeld: 'Utrzymana · {skill}',
+    riftRefuse: 'Rygle trzymają. Ta wyrwa otworzy się, gdy opanujesz: {skill}.',
+    veinLit: 'Żyła szyfru · +{n} za kryształ',
+    veinRich: 'Naładowana żyła · +{n} za kryształ',
+    veinSpent: 'Żyła wybrana · rozświetli się za {time}',
+    shardsFor: 'Odłamki szyfru. Osprzęt wymienia je na płyty wyrzutni, race i stałe kominy powietrzne.',
+    anchorFind: 'Kotwica sieci · dobuduj się do niej',
+    anchorHeld: 'Kotwica zabezpieczona',
+    vergeTag: 'Skraj · koniec Odłamka Dziewiątego',
+    vergeHit: 'Skraj nie ustępuje. Tutaj kończy się Odłamek Dziewiąty — dalsze odłamki to przeprawa, której nikt nie odbył.',
   },
 };

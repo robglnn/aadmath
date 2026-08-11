@@ -277,6 +277,22 @@
   letter-spacing: .14em; text-transform: uppercase; color: rgba(159, 179, 208, .7);
 }
 .sc-seams li.hold span { color: var(--rank-ink); }
+/* Where the first tear actually is. Same rank ink as the seam that is going to
+   be held, a hairline diamond in front of it, and it sits directly under the
+   list so the eye reads "this line · that far · that way" as one sentence. */
+.sc-mark {
+  display: flex; align-items: baseline; gap: .46rem;
+  margin: .8rem 0 0; padding-top: .7rem;
+  border-top: 1px solid rgba(140, 195, 255, .12);
+  font-size: .8rem; line-height: 1.45; color: #d6e6fb; text-wrap: pretty;
+}
+.sc-mark::before {
+  content: ''; flex: 0 0 auto; width: 7px; height: 7px; rotate: 45deg; border-radius: 1px;
+  background: var(--rank-ink); box-shadow: 0 0 10px var(--rank-glow);
+  translate: 0 -1px;
+}
+.sc-mark[hidden] { display: none; }
+
 .sc-eta {
   margin: .95rem 0 0; font-size: .78rem; line-height: 1.5; color: rgba(159, 179, 208, .82);
   text-wrap: pretty;
@@ -704,6 +720,14 @@
 #ui.ses-cine .kit,
 #ui.ses-cine .kit-toast,
 #ui.ses-cine .field-tags,
+/* The direction card, its waypoint and its key prompt (src/meta/guide.js).
+   That file already stands them down for a rite and for a chapter plate; the
+   three session beats are the other ceremonies, and at 414x896 PL the card's
+   "Zamknij rozdarcie" was still sitting in the top-left corner of a close
+   card's ascension. */
+#ui.ses-cine .gd-card,
+#ui.ses-cine .gd-layer,
+#ui.ses-cine .gd-prompt,
 #ui.ses-cine .meta-comms {
   opacity: 0 !important; pointer-events: none !important;
   transition: opacity .5s ease;
@@ -750,7 +774,13 @@
      frame the session happens inside, so it takes the line; the launcher and
      the chapter card each move down by the height of what is now above them,
      and only while the band is actually on screen. */
-  #ui:has(.ses-band.show) .meta-quest { top: calc(var(--pad-t) + 196px); }
+  /* …and the newest arrival in that column, the direction card, wants the same
+     line: at 414x896 PL its verb ("Udowodnij linię") printed through the band's
+     own tear count. It goes under the band, and the chapter card goes under it
+     — src/meta/guide.js publishes its own height as `--gd-h` for exactly this,
+     so the stack survives a sentence that wraps to three lines in Polish. */
+  #ui:has(.ses-band.show) .gd-card { top: calc(var(--pad-t) + 142px); }
+  #ui:has(.ses-band.show) .meta-quest { top: calc(var(--pad-t) + 142px + var(--gd-h, 54px)); }
   .ses-band .sb-n { font-size: 1.12rem; }
   .ses-band .sb-goal { font-size: .66rem; }
   .ses-band .sb-work { font-size: .55rem; }

@@ -235,7 +235,16 @@ export class Resolution {
     for (const id of r.opened) opened.push({ strong: t('skills.' + id), note: t('session.close.openedNote') });
     if (r.chapter) opened.push({ strong: t('story.hud.act', { n: r.chapter }), note: t('session.close.chapterNote') });
     if (r.rank) opened.push({ strong: r.rank, note: t('session.close.rankNote') });
-    if (!opened.length) opened.push({ strong: t('session.close.openedNoneStrong'), note: t('session.close.openedNone') });
+    /* NOTHING OPENED is a claim, and on a run that ended on a promotion it is
+       false. The rank is normally not repeated here — the crest above is where
+       it is said, and saying it twice on one card is a card that does not trust
+       its own headline — but it is the row this block gets rather than telling
+       the learner that the run they were just promoted for opened nothing. */
+    if (!opened.length) {
+      opened.push(r.promoted
+        ? { strong: t('rank.' + r.promoted.rank), note: t('session.close.rankNote') }
+        : { strong: t('session.close.openedNoneStrong'), note: t('session.close.openedNone') });
+    }
     this._block('open', t('session.close.openedLab'), opened);
 
     this._block('next', t('session.close.nextLab'), [r.next

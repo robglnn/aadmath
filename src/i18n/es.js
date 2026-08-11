@@ -842,6 +842,15 @@ export default {
     },
     charter: {
       kick: 'Ronda {n} · Fragmento Nueve',
+      // Dónde está el primer desgarro, en frases enteras: el orden de la
+      // distancia y del rumbo no es el mismo fuera del inglés.
+      mark: {
+        ahead: 'El desgarro está marcado en tu visor: a {n} m, justo al frente.',
+        left: 'El desgarro está marcado en tu visor: a {n} m, hacia tu izquierda.',
+        right: 'El desgarro está marcado en tu visor: a {n} m, hacia tu derecha.',
+        behind: 'El desgarro está marcado en tu visor: a {n} m, a tu espalda.',
+        here: 'El desgarro está marcado en tu visor. Lo tienes bajo los pies.',
+      },
       title: 'Órdenes',
       goalHold: '{skill}. Sella {tears} grietas en esa línea y debería sostenerse. Sostenerse de verdad: de las que ya no se vuelven a abrir.',
       goalHoldN: 'Sella {tears} grietas y {n} líneas deberían sostenerse. Sostenerse de verdad: de las que ya no se vuelven a abrir.',
@@ -1321,10 +1330,101 @@ export default {
     soundLanded: 'Sondeo completado · {n} de hondura, limpio',
     soundDeep: 'Sondeo · {n} de hondura',
     soundBroke: 'El sondeo se rompe en {n}',
+    // El mostrador (src/kit/foundry.js). Un verbo que aún no tienes licenciado
+    // se puede comprar allí, y la tira debe decirlo.
+    carrying: '«n|one:# en mano|other:# en mano»',
+    buyAt: '{name}: la fundición del desembarco las vende',
+    afford: '{n} esquirlas: suficiente para {name}',
   },
 
   // La deriva y las cajas colgantes (src/world). Lo que hace la isla cuando
   // nadie te está preguntando nada.
+  // ---------------------------------------------------------------------
+  // DIRECCIÓN (src/meta/guide.js). El objetivo, la baliza, el aviso de
+  // interacción, los nombres que el mundo se pone solo, y el borde del fragmento.
+  // ---------------------------------------------------------------------
+  guide: {
+    label: 'Objetivo',
+
+    verb: {
+      seal: 'Sella el desgarro',
+      prove: 'Demuestra la línea',
+      watch: 'Monta la guardia',
+      sound: 'Sondea la red',
+    },
+
+    metres: '{n} m',
+    rel: {
+      ahead: 'Al frente',
+      left: 'A tu izquierda',
+      right: 'A tu derecha',
+      behind: 'A tu espalda',
+      here: 'Lo tienes bajo los pies',
+    },
+
+    pay: {
+      lines: 'Sostenla y «n|one:se abrirá # línea más de la red|other:se abrirán # líneas más de la red».',
+      kit: 'Sostenla y {name} será tuya.',
+      calm: 'Séllalo y las sacudidas de aquí se acaban para siempre.',
+      sound: 'Ya está sostenida. El banco baja más hondo, y sigue pagando.',
+    },
+
+    tally: '{held} sostenidas · {open} abiertas · {locked} cerradas',
+
+    prompt: {
+      open: 'Abre la grieta',
+      sound: 'Sondea esta línea',
+    },
+    key: {
+      kbm: 'E',
+      pad: 'X',
+      touch: 'Toca',
+    },
+
+    // -------------------------------------------------------------------
+    // LOS NOMBRES. Cada uno se dice una sola vez, para siempre, la primera vez
+    // que el jugador está mirando de verdad una de estas cosas. La etiqueta viva
+    // sobre el objeto la pone src/world/beckon.js; aquí va lo que una etiqueta
+    // nunca puede llevar: qué es, por qué existe y por qué debería importarle.
+    // -------------------------------------------------------------------
+    n: {
+      tear: 'Ese anillo es un desgarro. En algún punto de la demostración fundacional hay una línea que dejó de ser verdad, y sale por aquí. Métete dentro, responde a lo que el equipo te lance al visor, y el agujero se cierra a tu espalda.',
+      shard: 'Esquirlas de cifra: red suelta, tirada donde el suelo sangró. Pasa por encima y son tuyas. De ahí se cortan las placas de impulso y las bengalas, así que merecen un rodeo.',
+      charged: 'Las doradas crecieron pegadas a un desgarro abierto: por eso pagan el triple que una pálida, y por eso quedarte aquí te cuesta esquirlas cada quince segundos. Sella ese desgarro y las sacudidas paran. La veta sigue pagando.',
+      husk: 'Las oscuras están agotadas, y el culpable eres tú. Se reencienden en unos cinco minutos. En este fragmento no se puede exprimir una ladera, cadete: solo se puede llegar más lejos, que sospecho que era justo la idea.',
+      anchor: 'Un ancla de red: estructura que los fundadores dejaron a medias. Nada de tu equipo llega hasta ella desde el suelo, y esa es toda la idea. Pon una rampa, pon otra encima y tócala. Sesenta esquirlas cada una, y hay tres.',
+      cache: 'Una caja colgante. La barra sostiene una afirmación verdadera a la que le han quitado una pesa: métete en el contrapeso que deja la barra plana y el monolito se abre. Ciento veinte esquirlas, y a partir de ahí el aire sube ahí para siempre.',
+      updraft: 'Aire que sube, y en cantidad. Vuela dentro de la columna y te regala sesenta metros, que es como se llega a las cosas que alguien puso adrede fuera de tu alcance.',
+      verge: 'Esa cortina es donde se acaba el Fragmento Nueve, y prefiero que lo oigas de mí y no del ala. Las tierras que ves están a ochocientos metros de cielo abierto y lo único que cruza es la red. Sostén aquí todas las líneas y te llevará hasta allí. Hasta entonces es una caída larguísima con buenas vistas.',
+    },
+  },
+
+  // LA FUNDICIÓN (src/kit/foundry.js): el mostrador donde las esquirlas de
+  // cifra se convierten en algo, con el precio y el efecto a la vista antes de
+  // gastar ni una. Claves aditivas, propiedad del equipo.
+  foundry: {
+    kick: 'Intendencia de cadetes',
+    name: 'La Fundición',
+    lede: 'Una esquirla de cifra es lo que deja una grieta al cerrarse. La fundición las acepta y devuelve aire sobre el que sostenerse.',
+    unit: '«n|one:esquirla|other:esquirlas»',
+    hailStock: '«n|one:# cosa a tu alcance|other:# cosas a tu alcance»',
+    hailNone: 'Aquí se gastan las esquirlas',
+    take: 'Llévatelo',
+    short: 'Faltan {n}',
+    leave: 'Apartarse',
+    sealedLines: 'Domina «n|one:# línea|other:# líneas»',
+    sealedDepth: 'Conserva tus líneas de un día para otro',
+    inHand: 'Tuyo · {key}',
+    carried: '«n|one:# en mano|other:# en mano» · {key}',
+    bought: 'En mano. Pulsa {key} donde lo quieras',
+    note: 'Las esquirlas pagan lo que hay en el mostrador. Las líneas dominadas abren el resto.',
+    callout: 'Cadete: esas esquirlas no son un marcador. En el desembarco hay una fundición que las convierte en ascendencia: el hexágono iluminado de los tres pilares, a tu izquierda.',
+    flare: { what: 'Seis segundos de aire ascendente bajo tus propias botas, estés donde estés. Un solo uso.' },
+    beacon: { what: 'Una columna de aire ascendente que mañana seguirá en pie, plantada donde tú elijas. Nada más de lo que hagas en esta isla perdura.' },
+    plate: { what: 'Una quinta pieza para la red. Súbete a una y te lanza doce metros en vertical.' },
+    station: { what: 'Una torre de aire ascendente que además es un lugar: párate en una y sal por cualquier otra.' },
+  },
+
   field: {
     moteTake: '+{n} esquirlas',
     updraft: 'Ascendencia',
@@ -1334,5 +1434,19 @@ export default {
     balanceNo: 'La barra lo rechaza',
     balanceReset: 'Las pesas se rehacen',
     cacheOpen: 'Caja abierta: {n} esquirlas, y aquí el aire ya sube para siempre',
+
+    // --- lo que dice el mundo cuando te acercas (src/world/beckon.js) ---
+    riftOpen: 'Súbete a la placa · {skill}',
+    riftShut: 'Sellada · primero domina {skill}',
+    riftHeld: 'Dominada · {skill}',
+    riftRefuse: 'Las barras aguantan. Esta grieta se abre cuando domines {skill}.',
+    veinLit: 'Veta de cifra · +{n} por cristal',
+    veinRich: 'Veta cargada · +{n} por cristal',
+    veinSpent: 'Veta agotada · vuelve a encenderse en {time}',
+    shardsFor: 'Esquirlas de cifra. El equipo las cambia por placas de impulso, bengalas y ascendencias permanentes.',
+    anchorFind: 'Ancla de la red · construye hasta ella',
+    anchorHeld: 'Ancla asegurada',
+    vergeTag: 'El linde · fin del Fragmento Nueve',
+    vergeHit: 'El linde no cede. El Fragmento Nueve acaba aquí: los fragmentos lejanos son una travesía que nadie ha hecho.',
   },
 };

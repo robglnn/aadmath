@@ -4,6 +4,7 @@ import { SHARD_COST } from '../build/pieces.js';
 import {
   GRANT_LADDER, CHARTER_EVERY, CHARTER_FROM, STATION_PRICE, chartersAt, charterAt,
 } from './ladder.js';
+import { createFoundry } from './foundry.js';
 import './kit.css';
 
 /**
@@ -95,13 +96,44 @@ import './kit.css';
  *
  *      FLARE       30  six seconds, right now
  *      PLATE       18  one place, until you clear it
- *      BEACON      90  this hillside, for ever
+ *      BEACON      90  this hillside, for ever — and dearer every time
  *      WAYSTATION 240  this hillside for ever, and every other one a step away
  *
  * The fourth is what a three-hundred-shard surplus is for. It is deliberately
  * the price of two hanging caches or a very good hour, it needs a charter as
  * well as the money, and there is always another one to save for — which is
  * what stops the wallet becoming a score again the moment the last grant lands.
+ *
+ * THE THIRD COMPLAINT, AND THE FOUNDRY
+ *
+ * All of the above was true, measurable, and completely invisible. A real
+ * player finished a session holding **eight hundred shards, having spent
+ * nothing**, and wrote: *"not sure what to do about rifts, shards, and other
+ * things."* Measured against the running game, that is not a mystery:
+ *
+ *   · the island's standing charge is ~990 shards a sweep — 208 in drift motes,
+ *     600 in five hanging caches, 180 in three anchors — and every one of those
+ *     routes pays without a single question being answered;
+ *   · while **every sink in the game was gated behind a grant**. The plate
+ *     needs a line held, the flare needs two, and the beacon — the one purchase
+ *     worth saving for — sits at depth 13, which by construction cannot be
+ *     reached in a first sitting at all. A player who had not yet sealed a line
+ *     could not spend a shard on anything, ever, and nothing told him why.
+ *
+ * So the sinks are no longer keys. They are **stock, in a place**: see
+ * src/kit/foundry.js. Both consumable verbs can be bought over the counter from
+ * the first minute of the first session, whether or not the ladder has licensed
+ * them, and the licence keeps its meaning by being the right to make one
+ * *anywhere* instead of walking back. The shelves quote every price and say
+ * what each thing does before it is bought, and the two rows that are not for
+ * sale yet say exactly which held lines open them — so the shop is also where a
+ * player learns that mathematics is the thing the rest of the kit is bought
+ * with.
+ *
+ * And the beacon's price now **climbs**: 90, 120, 160, 220, 290. A permanent
+ * that stays at one price stops being a decision the moment the earn rate
+ * passes it, and four permanents is about what one full sweep of the island
+ * buys — which is exactly the shape a spend curve is supposed to have.
  *
  * This module owns no physics of its own. It edits the objects that already
  * hold the numbers — `src/player/locomotion.js`'s exported `P`, the builder's
@@ -178,6 +210,15 @@ const PRICE = {
   plate: 18, plateArray: 6,
   station: STATION_PRICE,
 };
+/**
+ * What each further standing beacon costs, as a multiple of the one before.
+ * 90 · 120 · 160 · 220 · 290 · 390. One full sweep of the island's standing
+ * charge is about four of them, and the fifth is a reason to go somewhere you
+ * have not been.
+ */
+const BEACON_STEP = 1.34;
+/** Charges bought over the counter and not yet spent. */
+const CHARGE_KEY = 'ascent.charges';
 const VAULT_KICK = 25.5;         // 12 m of clean air, before the double jump
 const VAULT_KICK_ARRAY = 34;
 
@@ -204,6 +245,7 @@ const SOUND_BASE = 1, SOUND_STEP = 1, SOUND_MAX = 12, SOUND_LAND = 30;
 export function createKit(opts = {}) {
   const {
     root, mastery, builder, player, input, hud, audio, drift, caches, fx, wallet,
+    scene,
     isBusy = () => false,
   } = opts;
 
@@ -228,6 +270,30 @@ export function createKit(opts = {}) {
   // not stored anywhere: it is re-derived from the learning record every time,
   // which means it cannot drift away from the mathematics that bought it.
   let spent = 0;
+
+  /**
+   * What the cadet is carrying out of the foundry.
+   *
+   * A charge is one use of a verb the ladder has not licensed yet, bought over
+   * the counter at the same price the licensed version costs to fire. It is the
+   * whole answer to "eight hundred shards and nothing to spend them on": the
+   * shop is open from the first minute, and the licence is still worth having,
+   * because a licence is the right to do it *out there* instead of walking
+   * back. Persisted, because a thing you paid for has to survive a reload.
+   */
+  const charges = { flare: 0, beacon: 0 };
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHARGE_KEY) || 'null');
+    if (raw && typeof raw === 'object') {
+      charges.flare = Math.max(0, raw.flare | 0);
+      charges.beacon = Math.max(0, raw.beacon | 0);
+    }
+  } catch { /* private mode */ }
+  function saveCharges() {
+    try { localStorage.setItem(CHARGE_KEY, JSON.stringify(charges)); } catch { /* private mode */ }
+  }
+  /** Held by the ladder, or carried out of the foundry — either way, it fires. */
+  const canUse = (id) => held.has(id) || (charges[id] || 0) > 0;
 
   // ---------------------------------------------------------------- surface
   const el = document.createElement('div');
@@ -266,16 +332,22 @@ export function createKit(opts = {}) {
     const next = nextGrant();
     for (const g of GRANTS) {
       const b = chips.get(g.id);
-      const on = held.has(g.id);
+      // A verb you are carrying a charge for is a verb you have, and the strip
+      // is the only place that says so once the foundry's panel has closed.
+      const on = canUse(g.id);
+      const carried = charges[g.id] || 0;
       const verb = VERBS[g.id];
       const show = (on && verb) || (!on && next && g.id === next.id);
       b.style.display = show ? '' : 'none';
       if (!show) continue;
       b.classList.toggle('on', on);
+      b.classList.toggle('carry', on && !held.has(g.id));
       b.querySelector('u').textContent = on ? verb : LOCK;
       b.querySelector('.full').textContent = t(K(g.id, 'name'));
       b.querySelector('.sh').textContent = t(K(g.id, 'short'));
-      b.querySelector('em').textContent = on ? costLine(g.id) : t('kit.next');
+      b.querySelector('em').textContent = !on
+        ? t('kit.next')
+        : (carried && !held.has(g.id) ? t('kit.carrying', { n: carried }) : costLine(g.id));
       b.title = t(K(g.id, 'what'));
     }
     el.classList.add('any');
@@ -300,11 +372,26 @@ export function createKit(opts = {}) {
 
   /** What a verb costs right now — later grants make the same verb cheaper. */
   function priceOf(id) {
-    if (id === 'vault') return SHARD_COST.vault;
+    if (id === 'vault' || id === 'plate') return SHARD_COST.vault;
     if (id === 'flare') return held.has('squall') ? PRICE.flareSquall : PRICE.flare;
-    if (id === 'beacon') return PRICE.beacon;
+    if (id === 'beacon') return beaconPrice();
     if (id === 'station') return stationPrice();
     return 0;
+  }
+
+  /**
+   * What the next standing beacon costs.
+   *
+   * It climbs, for the same reason the waystation's does: a permanent at a
+   * fixed price stops being a decision the moment the earn rate passes it, and
+   * a player standing on a surplus with nothing left to want is the exact
+   * complaint this file is answering. Counted off beacons *raised plus carried*,
+   * so buying three charges over the counter costs 90, 120 and 160 rather than
+   * ninety three times over.
+   */
+  function beaconPrice() {
+    const n = beacons.length + charges.beacon;
+    return Math.round(PRICE.beacon * Math.pow(BEACON_STEP, n) / 10) * 10;
   }
 
   /**
@@ -321,9 +408,117 @@ export function createKit(opts = {}) {
     return Math.round(PRICE.station * (1 + 0.35 * stations.length) / 10) * 10;
   }
 
+  /**
+   * Pay for one firing of a verb: a carried charge first, then the wallet.
+   *
+   * A charge was already paid for at the counter, so it is always the cheaper
+   * of the two — and it means a player who bought one before they had the
+   * licence never pays twice for the same lift.
+   */
+  function spendOrCharge(id, cost) {
+    if ((charges[id] || 0) > 0) {
+      charges[id] -= 1;
+      saveCharges();
+      paint();
+      return true;
+    }
+    if ((wallet?.count?.() ?? 0) < cost) {
+      hud?.flash?.(t('kit.needShards', { n: cost }), 'bad');
+      return false;
+    }
+    return !!wallet.spend(cost);
+  }
+
+  // -------------------------------------------------------------- the shelves
+  /**
+   * What shards buy, in the order a player meets it, with everything the
+   * foundry needs to quote a price *before* it is paid: the number, one line of
+   * what the thing does, and — for the two that are not for sale yet — exactly
+   * what opens them.
+   *
+   * `state` is one of:
+   *   buy      you can afford it and the counter will hand it over now
+   *   poor     it is for sale and you are short; the row says by how much
+   *   held     the ladder has licensed it, so it is a key out in the world
+   *   sealed   held lines open it, and `lock` says how many
+   */
+  function shelf(id, { sold = true, key = null, lock = null } = {}) {
+    const purse = wallet?.count?.() ?? 0;
+    const price = priceOf(id);
+    const licensed = held.has(id === 'plate' ? 'vault' : id);
+    let state;
+    if (licensed) state = 'held';
+    else if (!sold) state = 'sealed';
+    else state = purse >= price ? 'buy' : 'poor';
+    return {
+      id, price, key, state,
+      // The plate's rung is called `vault`; everything else names itself.
+      nameKey: 'kit.' + (id === 'plate' ? 'vault' : id) + '.name',
+      carried: charges[id] || 0,
+      lock: state === 'sealed' ? lock : null,
+    };
+  }
+
+  /**
+   * What opens a rung, said as the thing a player can act on: a count of lines
+   * for the six the first sitting reaches, and depth — lines that were still
+   * held after a night away — for the seven above them.
+   */
+  const rungAt = (id) => {
+    const g = GRANTS.find((x) => x.id === id);
+    if (!g) return null;
+    return g.lines != null
+      ? { key: 'foundry.sealedLines', n: g.lines }
+      : { key: 'foundry.sealedDepth', n: g.depth };
+  };
+
+  function stock() {
+    return [
+      // Bought over the counter from the first minute, licence or no licence.
+      shelf('flare', { key: VERBS.flare }),
+      shelf('beacon', { key: VERBS.beacon }),
+      // Placed by the lattice rather than handed over, so the counter quotes it
+      // and the ladder licenses it. This row is where a player learns that a
+      // held line is what opens the rest of the shop.
+      shelf('plate', { sold: false, key: VERBS.vault, lock: rungAt('vault') }),
+      shelf('station', { sold: false, key: VERBS.station, lock: rungAt('station') }),
+    ];
+  }
+
+  /** How many things on the shelves the wallet can pay for right now. */
+  const affordable = () => stock().filter((s) => s.state === 'buy').length;
+
+  /**
+   * What the crucible burns like, read off the wallet: dead when nothing is in
+   * reach, cold when the six-second thing is, and warm when the permanent one
+   * is. It is the only affordability readout in the game you can see from four
+   * hundred metres away, and it is the reason a full wallet feels like
+   * something rather than being a number in a corner.
+   */
+  function tone() {
+    const rows = stock();
+    if (rows.some((s) => s.state === 'buy' && s.id === 'beacon')) return 'best';
+    return rows.some((s) => s.state === 'buy') ? 'some' : 'none';
+  }
+
+  /** Buy one thing at the counter. Returns what was bought, or null. */
+  function buy(id) {
+    const row = stock().find((s) => s.id === id);
+    if (!row || row.state !== 'buy') return null;
+    if (!wallet?.spend?.(row.price)) return null;
+    charges[id] = (charges[id] || 0) + 1;
+    saveCharges();
+    paint();
+    hud?.flash?.(t('foundry.bought', { name: t(row.nameKey), key: row.key }), 'good');
+    audio?.unlocked?.();
+    fx?.impact?.('good');
+    input?.rumble?.(0.5, 120);
+    return { id, price: row.price, carried: charges[id] };
+  }
+
   /** A chip is a button as well as a readout: touch has no digit row. */
   function use(id) {
-    if (!held.has(id)) return;
+    if (!canUse(id)) return;
     if (id === 'vault') selectVault();
     if (id === 'flare') lightFlare();
     if (id === 'beacon') plantBeacon();
@@ -463,13 +658,13 @@ export function createKit(opts = {}) {
   }
 
   function lightFlare() {
-    if (!held.has('flare') || isBusy()) return false;
-    const cost = priceOf('flare');
-    if ((wallet?.count?.() ?? 0) < cost) {
-      hud?.flash?.(t('kit.needShards', { n: cost }), 'bad');
+    if (busy()) return false;
+    if (!canUse('flare')) {
+      hud?.flash?.(t('kit.buyAt', { name: t('kit.flare.name') }), 'bad');
       return false;
     }
-    if (!wallet.spend(cost)) return false;
+    const cost = priceOf('flare');
+    if (!spendOrCharge('flare', cost)) return false;
     const big = held.has('squall');
     drift?.flare?.(player.pos.x, player.pos.z, big ? { height: 74, radius: 6.6, life: 11 } : null);
     hud?.flash?.(t('kit.flareLit'), 'good');
@@ -486,12 +681,12 @@ export function createKit(opts = {}) {
    */
   const beacons = [];
   function plantBeacon(quiet) {
-    if (!held.has('beacon') || isBusy()) return false;
-    if ((wallet?.count?.() ?? 0) < PRICE.beacon) {
-      hud?.flash?.(t('kit.needShards', { n: PRICE.beacon }), 'bad');
+    if (busy()) return false;
+    if (!canUse('beacon')) {
+      hud?.flash?.(t('kit.buyAt', { name: t('kit.beacon.name') }), 'bad');
       return false;
     }
-    if (!wallet.spend(PRICE.beacon)) return false;
+    if (!spendOrCharge('beacon', priceOf('beacon'))) return false;
     raise(player.pos.x, player.pos.z);
     beacons.push([Math.round(player.pos.x), Math.round(player.pos.z)]);
     saveBeacons();
@@ -552,7 +747,7 @@ export function createKit(opts = {}) {
   }
 
   function station() {
-    if (!held.has('station') || isBusy()) return false;
+    if (!held.has('station') || busy()) return false;
     // Standing at one? Then H is the road, not the shovel.
     const at = nearestStation(STATION_REACH);
     if (at >= 0) return travel(at);
@@ -681,13 +876,76 @@ export function createKit(opts = {}) {
     lo.airDash = true;
   }
 
+  // ----------------------------------------------------------- the shop floor
+  /**
+   * The foundry is modal while it is open, so every verb the kit owns has to be
+   * as quiet under it as it is under a rift. One predicate, read everywhere.
+   */
+  const busy = () => isBusy() || foundry.isOpen();
+
+  const foundry = createFoundry({
+    scene, root, player, input, hud, audio, fx, builder, isBusy,
+    kit: {
+      stock, buy, tone, affordable,
+      purse: () => wallet?.count?.() ?? 0,
+    },
+  });
+
+  /**
+   * AFFORDABILITY, FELT.
+   *
+   * The wallet crossing a price is the only moment in the economy where nothing
+   * happened before: the number went up, and a number going up is a score. Now
+   * the first time a given price comes into reach, the world says so once —
+   * named, so it is an invitation and not a notification — and the crucible
+   * over the foundry flares. Said once per price, never again, because a
+   * message that repeats is a message a player learns to look past.
+   */
+  const announced = new Set();
+  function watchAffordable() {
+    if (busy()) return;
+    for (const s of stock()) {
+      const tag = s.id + ':' + s.price;
+      if (s.state !== 'buy') continue;
+      if (announced.has(tag)) continue;
+      announced.add(tag);
+      // The very first row a fresh wallet can pay for is worth a whole beat;
+      // after that it is a line in the corner.
+      hud?.flash?.(t('kit.afford', { n: s.price, name: t(s.nameKey) }), 'good');
+      audio?.unlocked?.();
+      break;
+    }
+  }
+
+  /**
+   * Marlow, once, if the player is carrying real money and has never found the
+   * counter. Not a tutorial: the companion says where a place is, which is the
+   * one thing a navigational intelligence is unambiguously for.
+   */
+  let nudgeT = 42;
+  let nudges = 0;
+  function nudge(dt) {
+    if (foundry.seen() || nudges >= 3) return;
+    nudgeT -= dt;
+    if (nudgeT > 0 || busy()) return;
+    nudgeT = 75;
+    if ((wallet?.count?.() ?? 0) < priceOf('flare')) return;
+    nudges++;
+    hud?.say?.(t('foundry.callout'), 8000);
+  }
+
   // ------------------------------------------------------------------- frame
   let poll = 0;
-  function update(dt) {
+  let watch = 0;
+  function update(dt, time) {
     poll -= dt;
     if (poll <= 0) { poll = 0.4; sync(); }
     pumpToast(dt);
-    if (!isBusy()) {
+    foundry.update(dt, time);
+    watch -= dt;
+    if (watch <= 0) { watch = 0.5; watchAffordable(); foundry.refresh(); }
+    nudge(dt);
+    if (!busy()) {
       vaultCheck(dt);
       if (held.has('windstep')) windstep();
     }
@@ -712,6 +970,15 @@ export function createKit(opts = {}) {
     depth: Math.max(0, depth), lines, temper,
     seals: lines,                    // the name the older harnesses print
     held: [...held],
+    // --- the shop ------------------------------------------------------------
+    // What is on the shelves, what it costs, what the wallet can reach and what
+    // the cadet is carrying out of the door — so a critic reads the economy the
+    // player is actually looking at rather than a model of it.
+    stock: stock(),
+    charges: { ...charges },
+    affordable: affordable(),
+    tone: tone(),
+    foundry: { at: [foundry.pos.x, foundry.pos.z], seen: foundry.seen(), open: foundry.isOpen(), d: Math.round(foundry.distance()) },
     // Never null. Past the last named rung the next thing is the next charter,
     // and there is always a next charter.
     next: nextGrant()?.id || 'charter',
@@ -736,7 +1003,7 @@ export function createKit(opts = {}) {
   const prices = () => ({
     plate: SHARD_COST.vault,
     flare: priceOf('flare'),
-    beacon: PRICE.beacon,
+    beacon: beaconPrice(),
     station: stationPrice(),
   });
 
@@ -763,6 +1030,26 @@ export function createKit(opts = {}) {
     sync,
     prices,
     has: (id) => held.has(id),
+    // --- the shop: the same three calls the foundry's own panel is built on ---
+    /** Everything shards buy, priced and stated, whether or not it is for sale. */
+    stock,
+    /** Buy one thing at the counter, exactly as pressing the row would. */
+    buy,
+    /** dead / cold / warm — what the crucible is saying about the wallet. */
+    tone,
+    /**
+     * The next `n` prices of a thing whose price climbs, without buying any of
+     * them — so tools/critic/econflow.mjs measures the real curve rather than
+     * re-implementing it and then agreeing with itself.
+     */
+    curve(id, n = 6) {
+      if (id !== 'beacon') return Array.from({ length: n }, () => priceOf(id));
+      const base = beacons.length + charges.beacon;
+      return Array.from({ length: n }, (_, i) =>
+        Math.round(PRICE.beacon * Math.pow(BEACON_STEP, base + i) / 10) * 10);
+    },
+    /** The place itself, so a critic can walk to it and open it for real. */
+    foundry,
     /** For the harness: light the bought verbs without a keyboard. */
     flare: lightFlare,
     vault: selectVault,
@@ -802,7 +1089,14 @@ export function createKit(opts = {}) {
       sounding = { rung: 0, best: 0, runs: 0 };
       beacons.length = 0;
       stations.length = 0;
+      charges.flare = 0;
+      charges.beacon = 0;
+      announced.clear();
+      nudges = 0;
+      nudgeT = 42;
+      foundry.reset();
       try {
+        localStorage.removeItem(CHARGE_KEY);
         localStorage.removeItem(BEACON_KEY);
         localStorage.removeItem(STATION_KEY);
         // The old attempt-counted ledger. Nothing reads it any more; it is

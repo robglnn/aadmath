@@ -22,6 +22,8 @@ import { createSession } from './session/index.js';
 import { createAudio } from './audio/index.js';
 import { createDrift } from './world/drift.js';
 import { createCaches } from './world/caches.js';
+import { createBeckon } from './world/beckon.js';
+import { createVerge, VERGE_R } from './world/verge.js';
 import { createKit } from './kit/kit.js';
 import graph from '../content/graph/algebra1-l1.json';
 
@@ -135,6 +137,9 @@ builder.wallet = wallet;
 
 const drift = createDrift({
   scene: engine.scene, player, rifts, hud, wallet, fx, isBusy: () => panel.open,
+  // world: the first crystal a cadet runs through is the only moment the game
+  // gets to say what the currency is for.
+  onFirstTake: () => beckon.firstShards(),
 });
 // Five standing updrafts are simply in the world; the rest are earned. The
 // first is deliberately within sight of the landing, because a mechanic nobody
@@ -153,6 +158,26 @@ const caches = createCaches({
 const kit = createKit({
   root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, fx,
   wallet, isBusy: () => panel.open,
+  // reward economy: the kit owns a place in the world now — the foundry, where
+  // shards are quoted, explained and spent before one is spent (src/kit/foundry.js).
+  // The only thing it needs from here is the scene it stands in.
+  scene: engine.scene,
+});
+
+// ---------------------------------------------------------------------------
+// world: nothing you can walk up to is allowed to say nothing.
+//
+// The verge makes the leash in src/player/locomotion.js a place you can see
+// instead of an invisible wall in the middle of a flight; beckon labels every
+// interactable in the world, opens a tear when you stand on its plate, and
+// makes a shut one visibly and audibly refuse. (src/world/verge.js,
+// src/world/beckon.js)
+// ---------------------------------------------------------------------------
+const verge = createVerge(engine.scene);
+const beckon = createBeckon({
+  uiRoot, player, rifts, drift, builder, hud, verge,
+  isBusy: () => panel.open || session.blocking?.() || false,
+  onOpenRift: (r) => openRift(r),
 });
 
 bootBar.style.width = '100%';
@@ -348,6 +373,10 @@ engine.add((dt, t2) => {
   drift.update(dt, t2);
   caches.update(dt, t2, engine.camera);
   kit.update(dt, t2);
+  // …and last, because everything above may have moved the cadet: the world
+  // answers whatever he is now standing in. (src/world/beckon.js)
+  verge.update(dt, t2, player, hud);
+  beckon.update(dt, t2, engine.camera);
 });
 
 // ---------------------------------------------------------------------------
@@ -359,6 +388,11 @@ engine.add((dt, t2) => {
 const story = createStory({
   root: uiRoot, scene: engine.scene, mastery, hud, input, player, rifts, fx, audio,
   isBusy: () => panel.open,
+  // direction/onboarding (src/meta/guide.js): the live objective, the waypoint
+  // that turns "there is a rift somewhere" into "it is that way, 140 m", the
+  // key prompt, and the one-line definition each noun gets the first time it is
+  // looked at. Strictly read-only — labelling and opening belong to src/world.
+  camera: engine.camera, drift, caches, builder, kit, vergeR: VERGE_R,
 });
 engine.add((dt, t2) => story.update(dt, t2));
 

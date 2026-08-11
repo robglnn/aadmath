@@ -10,6 +10,11 @@ const daisStone = new THREE.MeshStandardMaterial({ color: 0xc0b7a8, roughness: 0
 const daisGeo = new THREE.CylinderGeometry(5.4, 6.6, 2.2, 9);
 const stepGeo = new THREE.CylinderGeometry(7.4, 8.4, 1.1, 9);
 const pillarGeo = new THREE.BoxGeometry(0.9, 4.2, 0.9);
+// the standing pad on the dais, and the bars that shut a rift the cadet has
+// not earned yet — one geometry each, ten rifts
+const padGeo = new THREE.RingGeometry(2.5, 3.4, 44);
+padGeo.rotateX(-Math.PI / 2);
+const barGeo = new THREE.BoxGeometry(5.0, 0.42, 0.42);
 
 /**
  * Rifts are the learning sites. One per graph node, laid out so that
@@ -131,11 +136,51 @@ export class Rifts {
       }
       g.add(shards);
 
+      // ---- THE SEAL -------------------------------------------------------
+      // Nine of the ten rings are shut on a fresh save, and until now the only
+      // thing that said so was a slightly dimmer blue. A player walked into
+      // ring after identical ring and nothing happened, which is the single
+      // worst thing an interactable can do. A shut rift now wears its lock:
+      // three stone bars across the aperture, and they swing away when the
+      // prerequisite is held. You can read the whole knowledge graph off the
+      // skyline from two hundred metres without a word of UI.
+      const seal = new THREE.Group();
+      const barMat = new THREE.MeshStandardMaterial({
+        color: 0x8d9aab, emissive: 0x1b2836, emissiveIntensity: 0.8,
+        roughness: 0.72, metalness: 0.3, flatShading: true,
+      });
+      for (let s = 0; s < 3; s++) {
+        const bar = new THREE.Mesh(barGeo, barMat);
+        bar.rotation.z = (s - 1) * 0.62;
+        bar.position.y = (s - 1) * 1.35;
+        bar.castShadow = true;
+        seal.add(bar);
+      }
+      g.add(seal);
+
+      // ---- THE PAD --------------------------------------------------------
+      // The ring floats four metres over the dais, so nobody can literally walk
+      // *through* it: the thing you stand on is the dais. Say so. A lit ring on
+      // the stone names the exact spot, exactly the way an updraft's footprint
+      // does, and it is the only place in the world that looks like that.
+      const padMat = new THREE.MeshBasicMaterial({
+        color: 0x8fe4ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+      });
+      const pad = new THREE.Mesh(padGeo, padMat);
+      pad.position.set(x, gh + 2.2, z);
+      pad.userData.noCamBlock = true;
+      pad.renderOrder = 3;
+      this.group.add(pad);
+
       this.group.add(g);
       this.list.push({
         id: node.id, node, group: g, ring, core, coreMat, light, shards, beacon, dais,
-        pos: new THREE.Vector3(x, y, z), tier,
+        seal, pad, padMat,
+        pos: new THREE.Vector3(x, y, z), foot: new THREE.Vector3(x, gh + 2.2, z), tier,
         locked: node.prereqs.length > 0, mastered: false, phase: Math.random() * 6.28,
+        // what is standing between the cadet and this tear, filled in by sync()
+        blockers: node.prereqs.slice(), sealT: 0, hitT: 0,
       });
     });
   }
@@ -157,6 +202,11 @@ export class Rifts {
       r.shards.visible = !r.locked;
       r.beacon.material.uniforms.uCol.value.setHex(r.locked ? 0x4a5a6a : (r.mastered ? 0x8effc0 : 0x6fd0ff));
       r.beacon.material.uniforms.uPow.value = r.locked ? 0.22 : (r.mastered ? 1.15 : 0.85);
+      // What is actually standing in the way — named, so the world can say it
+      // out loud instead of leaving the cadet to guess.
+      r.blockers = r.node.prereqs.filter((p) => !engineState.get(p)?.mastered);
+      r.padMat.color.setHex(r.locked ? 0xff9a6b : (r.mastered ? 0x8effc0 : 0x8fe4ff));
+      r.padMat.opacity = r.locked ? 0.24 : 0.5;
     }
   }
 
@@ -171,8 +221,32 @@ export class Rifts {
       // walk with no fixed point; the pulse has to be applied to a base.
       const base = r.locked ? 1.2 : (r.mastered ? 11 : 8);
       r.light.intensity = base * (0.94 + 0.10 * (0.5 + 0.5 * Math.sin(t * 3 + r.phase)));
+
+      // the bars: shut when locked, swung open and gone when the line is yours
+      r.sealT += ((r.locked ? 1 : 0) - r.sealT) * Math.min(1, dt * 3.2);
+      r.seal.visible = r.sealT > 0.02;
+      r.seal.scale.setScalar(0.02 + r.sealT * 0.98);
+      for (let s = 0; s < r.seal.children.length; s++) {
+        r.seal.children[s].rotation.z = (s - 1) * 0.62 + (1 - r.sealT) * 1.4;
+      }
+      // …and they shudder when someone tries the door
+      if (r.hitT > 0) {
+        r.hitT = Math.max(0, r.hitT - dt);
+        const k = r.hitT * r.hitT;
+        r.seal.position.x = Math.sin(t * 46) * k * 0.34;
+        r.ring.material.emissiveIntensity = 0.25 + k * 5;
+      } else if (r.seal.position.x) r.seal.position.x = 0;
+
+      // the pad: a standing-here invitation that breathes, and it only breathes
+      // for a door that is actually open
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + r.phase);
+      r.pad.scale.setScalar(r.locked ? 0.9 : 0.98 + pulse * 0.07);
+      r.padMat.opacity = r.locked ? 0.20 + pulse * 0.05 : (r.mastered ? 0.3 : 0.42 + pulse * 0.26);
     }
   }
+
+  /** Rap on a shut door: the bars shudder, so the refusal is visible. */
+  refuse(r) { r.hitT = 0.55; }
 
   /** Nearest interactable rift within range of a world position. */
   nearest(p, range = 6.2) {
@@ -181,6 +255,24 @@ export class Rifts {
       if (r.locked) continue;
       const d = p.distanceTo(r.group.position);
       if (d < bd) { bd = d; best = r; }
+    }
+    return best;
+  }
+
+  /**
+   * Nearest rift of ANY state, measured to the dais a cadet actually stands on
+   * rather than to a ring hanging four metres over his head.
+   *
+   * `nearest()` skips locked rifts, which is right for "what does E open" and
+   * catastrophic for "what is the player standing in": on a fresh save nine of
+   * the ten rings are shut, so every one of them was invisible to the whole
+   * game and walking into it produced, correctly and disastrously, nothing.
+   */
+  nearestAny(p, range = 7.5) {
+    let best = null, bd = range;
+    for (const r of this.list) {
+      const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
+      if (d < bd && Math.abs(p.y - r.foot.y) < 9) { bd = d; best = r; }
     }
     return best;
   }

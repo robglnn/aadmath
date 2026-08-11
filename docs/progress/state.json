@@ -5,7 +5,7 @@
   "wave": 2,
   "summary": "Wave A closed: 30 agents, zero passes. Critics scored world 3, fx 3, player 4, learn-ux 5. A coherence pass then unified the lighting to one golden hour, fixed aerial perspective, restored the player's shadow, and found the click-swallowing modal that had silently broken building since the first commit. 60fps on an M4. Wave B now re-enters every piece seeded with its exact unclosed gap.",
   "metrics": {
-    "fps": 227,
+    "fps": 113,
     "draws": 174,
     "tris": 511076,
     "consoleErrors": 0,
@@ -202,6 +202,30 @@
     {
       "t": "endgame",
       "m": "the watch card, bounded soundings, and waystation charters — kit.next is never null again"
+    },
+    {
+      "t": "narrative",
+      "m": "Marlow state awareness: 4 registers, tutorial gated on evidence, 161 lines/locale, EN/ES/PL"
+    },
+    {
+      "t": "session close",
+      "m": "rank rite merged into the close card; one ceremony holds the frame at a time; _ceremony.mjs asserts it"
+    },
+    {
+      "t": "world affordances",
+      "m": "rift walk-in opens; locked rifts wear bars and say what unlocks them; veins/husks/anchors/verge all labelled EN-ES-PL"
+    },
+    {
+      "t": "wave 2",
+      "m": "economy legibility: shards now have a visible place to be spent — foundry at (7,15), escalating beacon curve 90→120→160→220→290"
+    },
+    {
+      "t": "wave 2",
+      "m": "reward economy: THE FOUNDRY — a place 13 m from the landing that quotes every shard price, sells flare (30) and standing beacon (90, climbing 120/160/220/290) from the first minute, and burns gold when the wallet can reach the permanent one. Measured: the island's standing charge is 988 shards a sweep against sinks that were all grant-gated."
+    },
+    {
+      "t": "direction",
+      "m": "live objective + waypoint + noun lexicon; fresh-save drive answers 'what next' at 30/90/180s"
     }
   ]
 }

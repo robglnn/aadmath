@@ -74,7 +74,13 @@ const SURGE_SPEED = 26;         // metres a second
 const SURGE_COST = 9;           // shards knocked loose
 
 export function createDrift(opts = {}) {
-  const { scene, player, rifts, hud, wallet, fx, isBusy = () => false } = opts;
+  const {
+    scene, player, rifts, hud, wallet, fx, isBusy = () => false,
+    // The first crystal a cadet ever runs through is the only moment the game
+    // gets to say what the currency is for. He finished a session with eight
+    // hundred of them and wrote "not sure what to do about shards".
+    onFirstTake = () => {},
+  } = opts;
 
   const group = new THREE.Group();
   group.name = 'drift';
@@ -369,6 +375,7 @@ export function createDrift(opts = {}) {
           m.live = false;
           m.pop = 1;
           wallet?.earn?.(worth);
+          if (stats.motes === 0) onFirstTake();
           stats.motes++; stats.events++;
           took += worth;
           tookT = 1.6;
@@ -501,6 +508,14 @@ export function createDrift(opts = {}) {
     get columns() { return columns; },
     /** One vein, by index — critics walk the real field, not a mock of it. */
     veinAt: (i) => veins[Math.max(0, Math.min(veins.length - 1, i | 0))],
+    /**
+     * The live veins, for whatever wants to label them in the world. A player
+     * who cannot tell a spent crystal from a charged one is looking at two
+     * colours of nothing: "black diamonds and golden or orange diamonds too,
+     * nothing happening, maybe just aesthetics."
+     */
+    veins,
+    values: { plain: MOTE_VALUE, rich: RICH_VALUE, recharge: RECHARGE },
     /** The island's standing charge: what is out there to be found right now. */
     field: () => ({
       veins: veins.length,

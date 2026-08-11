@@ -67,7 +67,7 @@ for (const group of GROUPS) {
         page = await ctx.newPage();
         page.setDefaultTimeout(45000);
         page.on('console', (m) => { if (m.type() === 'error') errors.push(`${tag} console: ${m.text()}`); });
-        page.on('pageerror', (e) => errors.push(`${tag} pageerror: ${e.message}`));
+        page.on('pageerror', (e) => errors.push(`${tag} pageerror: ${e.message}\n${(e.stack || '').split('\n').slice(0, 4).join('\n')}`));
       }
       await page.setViewportSize({ width: W, height: H });
 
@@ -274,6 +274,35 @@ for (const group of GROUPS) {
         fails++; missed.push(`${tag} world sequence`);
         console.log(`FAIL ${tag} world: expected the rite then the plate, saw ${dedup.join(' → ') || 'nothing'}`);
       }
+
+      /* ---- A TEAR OPENED DURING A PROMOTION -----------------------------
+         The rite deliberately does not take the controls, so a cadet can walk
+         into a tear in the middle of one — and the tear is the only surface in
+         the game that can take the screen without asking src/meta first. The
+         rite must give the frame up, and must not lose the promotion. */
+      await ev(() => { window.__ascent.story.rite.play(3, 2); });
+      await page.waitForTimeout(800);
+      await ev(() => { window.__ascent.openRiftById('var-meaning'); });
+      await page.waitForTimeout(1500);
+      const t1 = await check('tear over a live rite', 'tear-over-rite');
+      checks++;
+      if (t1.live.length === 1 && t1.live[0].name === 'tear') {
+        console.log(`ok   ${tag} tear over a live rite: the tear has the frame alone`);
+      } else {
+        fails++; missed.push(`${tag} tear over rite`);
+        console.log(`FAIL ${tag} tear over a live rite: ${t1.live.map((l) => l.name).join(' + ') || 'nothing'}`);
+      }
+      await ev(() => { window.__ascent.panel.close(); });
+      await page.waitForTimeout(2200);
+      const t2 = await check('rite after the tear', 'rite-replayed');
+      checks++;
+      if (t2.live.some((l) => l.name === 'rank rite')) {
+        console.log(`ok   ${tag} the promotion came back whole after the tear`);
+      } else {
+        fails++; missed.push(`${tag} rite not replayed`);
+        console.log(`FAIL ${tag} the promotion did not come back: ${t2.live.map((l) => l.name).join(' + ') || 'nothing'}`);
+      }
+      await ev(() => { window.__ascent.story.rite.hide(); });
     }
   }
   await page?.close();

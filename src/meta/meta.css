@@ -122,7 +122,12 @@
 #ui .meta-quest {
   position: absolute;
   left: var(--pad-l);
-  top: calc(var(--pad-t) + 78px);
+  /* The objective card (src/meta/guide.js) leads this column now: what to do
+     next outranks what the chapter is about, and the chapter card is the better
+     of the two for being second. `--gd-h` is written by the guide whenever its
+     own height changes, which a translated sentence regularly does. */
+  top: calc(var(--pad-t) + 78px + var(--gd-h, 0px));
+  transition: top .3s ease;
   width: 268px; padding: .62rem .78rem .68rem;
   background: linear-gradient(180deg, rgba(10, 18, 33, .74), rgba(5, 10, 20, .62));
   border: 1px solid rgba(140, 195, 255, .13);
@@ -426,6 +431,68 @@
 }
 #ui .meta-rite.show { opacity: 1; visibility: visible; transition-delay: 0s; transition-duration: .12s; }
 #ui .meta-rite.out { opacity: 0; transition-duration: .6s; }
+
+/* THE INSTRUMENTS STAND DOWN INSIDE THE BARS.
+   The rite letterboxes the frame and pools the rank's light under the cadet,
+   and then every readout in the game carried on printing over it: measured at
+   414x896, the word BRONZE landed on the chapter card's own title — "The ninth
+   lemma" — by 24x13 px of ink, and ASCENDED sat on the card's J key hint. On a
+   laptop the same card simply hangs in the top-left of a letterboxed frame
+   looking like something nobody remembered to turn off.
+
+   This is not the rite taking the controls: `input.uiOpen` is untouched and you
+   can still walk, glide and build through your own promotion, exactly as the
+   header promises. It is five seconds in which the frame belongs to one thing.
+   Marlow's channel deliberately stays — she has a line to say at 3.3 s and it
+   is part of the beat. */
+#ui:has(.meta-rite.show) .hud-top,
+#ui:has(.meta-rite.show) .meta-quest,
+#ui:has(.meta-rite.show) .ses-band,
+#ui:has(.meta-rite.show) .buildbar,
+#ui:has(.meta-rite.show) .crosshair,
+#ui:has(.meta-rite.show) .kit,
+#ui:has(.meta-rite.show) .kit-toast,
+#ui:has(.meta-rite.show) .rp-launch,
+#ui:has(.meta-rite.show) .field-tags,
+#ui:has(.meta-rite.show) .axiom,
+#ui:has(.meta-rite.show) .langs,
+#ui:has(.meta-rite.show) .sound,
+#ui:has(.meta-rite.show) .toast {
+  opacity: 0; pointer-events: none; transition: opacity .4s ease;
+}
+
+/* A TEAR OWNS THE FRAME TOO.
+   On a phone the rift panel is full-bleed — its header measures [0,0,390,108]
+   at 390x844 — so the chapter card and the rig sit *inside* it, and the panel's
+   own mathematics printed on them: a KaTeX `−` landed on "The ninth lemma" by
+   24x13 px at 414x896, and a `3` on "8 more to Chapter 4". Neither surface is
+   opaque enough to hide the other. The readouts therefore stand down while a
+   tear is open, exactly as they already do for a session beat (`.ses-cine`, in
+   src/session/session.css) — the tear is the most modal surface in the game and
+   it was the only one not asking for the frame.
+
+   Marlow's channel is deliberately NOT in this list: she answers answers, and
+   she does it while the tear is open. Her overlap with the panel's footer is a
+   placement problem for src/ui/rift.css, and it is named in
+   tools/critic/_frame.mjs rather than papered over here. */
+#ui:has(.rift.show) .meta-quest,
+#ui:has(.rift.show) .gd-card,
+#ui:has(.rift.show) .gd-layer,
+#ui:has(.rift.show) .gd-prompt,
+#ui:has(.rift.show) .hud-top {
+  opacity: 0; pointer-events: none; transition: opacity .3s ease;
+}
+
+/* THE PLATE IS THE CHAPTER CARD'S OWN HEADLINE, so for the three and a half
+   seconds it is drawing, the card that flared for it stands down. On a laptop
+   the two never met — the plate is centred and the card is in the left column —
+   but a phone has one column and the plate has to live in it: at 390x844 PL,
+   "Rozdział 2" printed through "jeszcze 8 do rozdziału 4" on the card three
+   inches below it. The card says the same thing thirty times a session; the
+   plate says it once. */
+#ui:has(.meta-turn.show) .meta-quest {
+  opacity: 0; pointer-events: none; transition: opacity .3s ease;
+}
 
 /* the ground: dark at the top, a pool of the rank's own light at the bottom */
 .rite-dim {
@@ -785,7 +852,8 @@
   .meta-head { font-size: .5rem; letter-spacing: .16em; }
   .meta-head .role { display: none; }
   #ui .meta-quest {
-    top: calc(var(--pad-t) + 116px);
+    /* still second in the rail: the objective card leads it at every size */
+    top: calc(var(--pad-t) + 116px + var(--gd-h, 0px));
     width: min(220px, 56vw); padding: .5rem .6rem .55rem;
   }
   /* The question text goes; the seal count does not. On a phone the card is
@@ -795,8 +863,30 @@
   .meta-quest .qs-n { font-size: 1.35rem; }
   .meta-quest .qs-lab { max-width: 6.4rem; }
   .meta-turn .tn-in { translate: 0 -18vh; }
+  /* The seal count rides the right-hand end of the rule, and 52vw of a 414 px
+     phone puts that end 30 px from the middle of the frame — i.e. straight
+     through the centred chapter word, measured at 47x4 px of ink. The rule is
+     what makes the plate a plate; on a phone it simply has to draw further
+     across the frame, which is what it does on every other screen. */
+  .meta-turn .tn-rule { width: min(86vw, 460px); }
+  /* …and the seal count comes off it. It rides the right-hand end of the rule,
+     a centred chapter word runs at it from the middle, and in Polish the two
+     meet: "Rozdział 3" printed 20x4 px of ink into "7 zamkniętych wyrw" at
+     390 px. Widening the rule buys English a few pixels and Polish none. The
+     number is not lost — it is on the chapter card, in the same corner of the
+     same screen, permanently, which is where a phone reads it anyway. */
+  .meta-turn .tn-seals { display: none; }
   .meta-stamp { top: auto; bottom: 28vh; left: max(20px, 5vw); }
   .dos-card { padding: 1rem 1rem 1.1rem; max-height: 90vh; }
+}
+/* WHERE THE PLATE LANDS ON A PHONE. A 414 px screen stacks the rig, the run
+   band and the chapter card down the top-left corner, and the plate — sitting
+   18vh above centre, as it does on a laptop where that corner is empty — put
+   CHAPTER 2 straight on top of the chapter card that had just flared for it.
+   The band between the card's foot and the top of the comms panel is where the
+   frame is actually free, so on a phone that is where the plate draws. */
+@media (max-width: 760px) and (orientation: portrait) {
+  .meta-turn .tn-in { translate: 0 4vh; }
 }
 /* Short viewports: the rite's letterbox and its two type blocks have to leave a
    band for the cadet even at 720p, and the dossier has to stop being taller
@@ -806,7 +896,7 @@
    card gives up its title line and keeps what a glance actually wants off it:
    which chapter this is, and how near the next one is. */
 @media (max-height: 520px) and (orientation: landscape) {
-  #ui .meta-quest { top: calc(var(--pad-t) + 82px); width: min(158px, 20vw); }
+  #ui .meta-quest { top: calc(var(--pad-t) + 82px + var(--gd-h, 0px)); width: min(158px, 20vw); }
   .meta-quest .qtitle { display: none; }
   .meta-quest .qs-n { font-size: 1.2rem; }
   /* the rank ladder is already the rig's whole left rail, six lines above */

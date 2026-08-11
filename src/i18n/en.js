@@ -859,6 +859,16 @@ export default {
     },
     charter: {
       kick: 'Run {n} · Shard Nine',
+      /* Where the first tear stands, said as five whole sentences rather than a
+         bearing word dropped into a slot: "51 m ahead" and "51 m to your left"
+         put the distance in different places once you leave English. */
+      mark: {
+        ahead: 'The tear is marked on your visor — {n} m, straight ahead.',
+        left: 'The tear is marked on your visor — {n} m, off to your left.',
+        right: 'The tear is marked on your visor — {n} m, off to your right.',
+        behind: 'The tear is marked on your visor — {n} m, behind you.',
+        here: 'The tear is marked on your visor. You are standing in it.',
+      },
       title: 'Orders',
       goalHold: '{skill}. Seal {tears} tears on that line and it should hold — properly held, the kind that never opens again.',
       goalHoldN: 'Seal {tears} tears and {n} lines should hold — properly held, the kind that never open again.',
@@ -1347,10 +1357,109 @@ export default {
     soundLanded: 'Sounding landed · {n} down, clean',
     soundDeep: 'Sounding · {n} down',
     soundBroke: 'The sounding breaks at {n}',
+    // The counter (src/kit/foundry.js). A verb you have not been licensed for
+    // can still be bought over it, and the strip has to say so.
+    carrying: '«n|one:# in hand|other:# in hand»',
+    buyAt: '{name} — the foundry at the landing sells them',
+    afford: '{n} shards — enough for {name}',
   },
 
   // The drift and the hanging caches (src/world). What the island does when
   // nobody is asking you a question.
+  // ---------------------------------------------------------------------
+  // DIRECTION (src/meta/guide.js). The objective, the waypoint, the interact
+  // prompt, the nouns the world teaches itself, and the edge of the shard.
+  // Additive namespace owned by src/meta.
+  // ---------------------------------------------------------------------
+  guide: {
+    label: 'Objective',
+
+    // The four things the scheduler can ask for. They are different words on
+    // purpose: practice and a proving run are not the same act, and a player
+    // who cannot tell them apart cannot tell he is nearly finished.
+    verb: {
+      seal: 'Seal the tear',
+      prove: 'Prove the line',
+      watch: 'Stand the watch',
+      sound: 'Sound the lattice',
+    },
+
+    metres: '{n} m',
+    rel: {
+      ahead: 'Ahead',
+      left: 'To your left',
+      right: 'To your right',
+      behind: 'Behind you',
+      here: 'You are standing in it',
+    },
+
+    // Why it is worth walking there. One of these, chosen by what is actually
+    // downstream of the line — never a generic reward noise.
+    pay: {
+      lines: 'Hold it and «n|one:# more line of the lattice opens|other:# more lines of the lattice open».',
+      kit: 'Hold it and {name} is yours.',
+      calm: 'Seal it and the surges here stop for good.',
+      sound: 'Held already. The bank still goes deeper, and it still pays.',
+    },
+
+    tally: '{held} held · {open} open · {locked} locked',
+
+    prompt: {
+      open: 'Open the tear',
+      sound: 'Sound this line',
+    },
+    key: {
+      kbm: 'E',
+      pad: 'X',
+      touch: 'Tap',
+    },
+
+
+    // -------------------------------------------------------------------
+    // THE NOUNS. Each of these is said once, ever, the first time the player
+    // is actually looking at one of the things. src/world/beckon.js carries
+    // the live label on the object itself — its name, its value, its timer —
+    // so these say the half a label can never carry: what the thing is, why it
+    // exists, and why he should care. Marlow, not a tooltip.
+    // -------------------------------------------------------------------
+    n: {
+      tear: 'That ring is a tear. Somewhere in the founding proof is a line that stopped being true, and this is where it comes out. Stand in it, answer what the rig throws on your visor, and the hole in the world closes behind you.',
+      shard: 'Cipher shards — loose lattice, lying where the ground bled. Run through them and they are yours. Vault plates and squall flares are cut from that, so they are worth going out of your way for.',
+      charged: 'The gold ones grew against an open tear, which is why they pay three times what a pale one does, and why standing here costs you shards every fifteen seconds. Seal that tear and the surges stop. The vein keeps paying.',
+      husk: 'The dark ones are spent, and the culprit is you. They re-light in about five minutes. You cannot farm a hillside on this shard, cadet — you can only range further out, which I suspect was rather the point.',
+      anchor: 'A lattice anchor: structure the founders left unfinished. Nothing in your kit reaches one from flat ground, and that is the entire idea. Set a ramp, set another off the top of it, and touch the thing. Sixty shards apiece, and there are three.',
+      cache: 'A hanging cache. The beam is holding a true statement with one weight taken out of it — walk into the counterweight that puts the beam level and the monolith opens. A hundred and twenty shards, and the air rises there for good afterwards.',
+      updraft: 'Rising air, and a great deal of it. Fly into the column and it hands you sixty metres for nothing, which is how you get to the things that were put deliberately out of reach.',
+      verge: 'That curtain is where Shard Nine stops, and I would rather you heard it from me than from the wing. The lands you can see are eight hundred metres of open sky away and the lattice is the only thing that crosses. Hold every line here and it will carry you out there. Until then it is a very long fall with a view.',
+    },
+  },
+
+  // THE FOUNDRY (src/kit/foundry.js) — the counter where cipher shards become
+  // something, quoted and explained before a single one is spent. Additive
+  // keys, owned by the kit.
+  foundry: {
+    kick: 'Cadet supply',
+    name: 'The Foundry',
+    lede: 'A cipher shard is what a tear leaves behind when it closes. The foundry takes them, and hands back air you can stand on.',
+    unit: '«n|one:shard|other:shards»',
+    hailStock: '«n|one:# thing you can afford|other:# things you can afford»',
+    hailNone: 'Where shards are spent',
+    take: 'Take it',
+    short: '{n} short',
+    leave: 'Step back',
+    sealedLines: 'Hold «n|one:# line|other:# lines»',
+    sealedDepth: 'Hold your lines across a night',
+    inHand: 'Yours · {key}',
+    carried: '«n|one:# in hand|other:# in hand» · {key}',
+    bought: 'In hand. Press {key} where you want it',
+    note: 'Shards buy what is on the counter. Held lines open the rest.',
+    callout: 'Cadet — those shards are not a score. There is a foundry at the landing that turns them into lift: the lit hexagon with the three pylons, off your left shoulder.',
+    flare: { what: 'Six seconds of rising air under your own boots, wherever you happen to be standing. One use.' },
+    beacon: { what: 'A column of rising air that is still standing tomorrow, planted wherever you choose. Nothing else you can do to this island lasts.' },
+    plate: { what: 'A fifth piece for the lattice. Stand on one and it throws you twelve metres straight up.' },
+    station: { what: 'A tower of rising air that is also a place: stand at one, and step out of any other.' },
+  },
+
   field: {
     moteTake: '+{n} shards',
     updraft: 'Updraft',
@@ -1360,5 +1469,19 @@ export default {
     balanceNo: 'The beam refuses it',
     balanceReset: 'The weights re-form',
     cacheOpen: 'Cache broken open — {n} shards, and the air here rises for good',
+
+    // --- what the world says when you walk up to it (src/world/beckon.js) ---
+    riftOpen: 'Step onto the plate · {skill}',
+    riftShut: 'Sealed · hold {skill} first',
+    riftHeld: 'Held · {skill}',
+    riftRefuse: 'The bars hold. This tear opens once you hold {skill}.',
+    veinLit: 'Cipher vein · +{n} a crystal',
+    veinRich: 'Charged vein · +{n} a crystal',
+    veinSpent: 'Vein harvested · relights in {time}',
+    shardsFor: 'Cipher shards. The rig trades them for vault plates, flares and standing updrafts.',
+    anchorFind: 'Lattice anchor · build up to it',
+    anchorHeld: 'Anchor secured',
+    vergeTag: 'The verge · edge of Shard Nine',
+    vergeHit: 'The verge holds. Shard Nine ends here — the far shards are a crossing nobody has made.',
   },
 };

@@ -64,12 +64,18 @@ import { createStandard } from './standard.js';
 import {
   STAGES, MILESTONES, stageIndex, registerFor, canTutor, bankKey, milestoneCrossed, milestoneKey,
 } from './voice.js';
+import { createGuide } from './guide.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 
 const SAVE_KEY = 'ascent.story';
 
 export function createStory({
   root, scene, mastery, hud, input, player, rifts, fx, audio, isBusy = () => false,
+  // DIRECTION (src/meta/guide.js). Everything below this line is optional and
+  // strictly read-only: the guide points at the world, it never touches it.
+  // Opening a tear and labelling an object both belong to src/world.
+  camera = null, drift = null, caches = null, builder = null, kit = null,
+  vergeR = 0,
 }) {
   const comms = new Comms(root);
   // Everything she says, in order, kept for the harness. A companion is judged
@@ -138,6 +144,19 @@ export function createStory({
   standard.setSeals(tears);
   refreshCard(false);
   card.show(true);
+
+  /* ------------------------------------------------------------------------
+     DIRECTION. The objective, the waypoint, the interact prompt, the nouns and
+     the edge of the shard. It is created here rather than in main.js because
+     everything it needs already lives on this file: the `seen` set that makes a
+     noun teach itself exactly once, the save that outlives the session, the
+     comms channel that gives the teaching a voice, and `frameHeld()` — so a
+     waypoint never paints through a rank rite. See `guide.js`.
+     ------------------------------------------------------------------------ */
+  const guide = camera ? createGuide({
+    root, camera, player, rifts, mastery, comms, kit, drift, caches, builder,
+    vergeR, seen, mark, save, isBusy, frameHeld,
+  }) : null;
 
   // -------------------------------------------------------------------------
   // The learning signal. One wrap, and the arc can hear the whole game.
@@ -221,6 +240,11 @@ export function createStory({
 
   /** The register Marlow is speaking in right now. */
   function reg() { return registerFor(voiceState(), peak); }
+
+  /** The finer-grained stage id, after the ratchet. Seven of these, four registers. */
+  function stg() {
+    return STAGES[Math.min(STAGES.length - 1, Math.max(stageIndex(voiceState()), peak))].id;
+  }
 
   /** One ambient bank, in the register this cadet has earned. */
   function vk(bank) { return bankKey(bank, reg()); }
@@ -342,6 +366,21 @@ export function createStory({
     save();
   }
 
+  /**
+   * Take a plate off the screen mid-draw and put it back at the head of the
+   * queue, so it plays whole rather than being talked over. Its lines are
+   * re-sent with it; a chapter that arrives without them is a title card.
+   */
+  function parkTurn() {
+    const l = turn.live;
+    turn.hide();
+    if (!l) return;
+    const act = l.id === 'coda'
+      ? { id: 'coda', lines: CODA, at: l.tears }
+      : ACTS[Math.max(0, Math.min(ACTS.length, l.n) - 1)];
+    pendingTurns.unshift({ n: l.n, act, at: 0 });
+  }
+
   /** The plate, and then the transmission that belongs to it. */
   function playTurn(p) {
     turn.play(p.n, p.act.id, p.act.at);
@@ -409,9 +448,11 @@ export function createStory({
     chapter = 6;
     refreshCard(true);
     pushSeals(false);
-    turn.play(6, 'coda', tears);
     comms.clear();
-    setTimeout(() => { comms.sayKeys(CODA); save(); }, 1900);
+    /* Through the same queue as every other plate. The tenth line can perfectly
+       well be held on the last answer of a run, and the pay-off of the whole
+       game is not something to play underneath a close card. */
+    pendingTurns.push({ n: 6, act: { id: 'coda', lines: CODA, at: tears }, at: 0 });
     save();
   }
 
@@ -491,6 +532,7 @@ export function createStory({
   function update(dt, time) {
     comms.update(dt);
     standard.update(dt, time);
+    guide?.update(dt);
     started += dt;
     idle += dt;
 
@@ -510,6 +552,16 @@ export function createStory({
         p.at += dt;
         if (p.at > 0.45) { pendingTurns.shift(); playTurn(p); }
       }
+    } else if (isBusy()) {
+      /* A TEAR OPENED UNDER A LIVE BEAT. The rift panel is the one surface that
+         can take the screen without asking this file — a promotion does not
+         take the controls, so a cadet is free to walk into a tear in the middle
+         of one — and its scrim is a hole in the air rather than a floor, so a
+         plate underneath it composites straight through. The beat stands down
+         and goes back on the queue: it plays whole when the tear closes, which
+         is a better promotion than half of one printed through a keypad. */
+      if (rite.playing) { const p = rite.claim(); if (p) pendingRite = { ...p, at: 0 }; }
+      if (turn.playing) parkTurn();
     }
 
     poll -= dt;
@@ -532,17 +584,20 @@ export function createStory({
       // now gated on evidence, and the fallback is a line per register, said
       // once per register — so the approach still has a voice, and the voice
       // still knows who it is talking to.
-      if (rifts?.nearest && started > 6 && !seen.has('rift:' + reg())) {
+      // Once per *stage*, not once per register: the tutorial is the landfall
+      // stage's line, so keying this to the register would have spent the green
+      // era on it and left `story.v.rift.green` unreachable — a bank written,
+      // translated three times, and never said.
+      if (rifts?.nearest && started > 6 && !seen.has('rift:' + stg())) {
         const near = rifts.nearest(player.pos, 26);
         if (near) {
-          const r = reg();
-          mark('rift:' + r);
+          mark('rift:' + stg());
           metRift = true;
           if (mayTutor() && !seen.has('story.voice.firstRift')) {
             mark('story.voice.firstRift');
             comms.sayKey('story.voice.firstRift', { force: true });
           } else {
-            comms.push(pick(bankKey('rift', r)), { tag: 'rift', force: true });
+            comms.push(pick(vk('rift')), { tag: 'rift', force: true });
           }
           save();
         }
@@ -696,11 +751,14 @@ export function createStory({
     standard.relabel();
     syncChip();
     refreshCard(false);
+    guide?.relocalise();
     if (dossier.open) dossier.render(dossierState());
   });
 
   return {
     begin, update, comms, standard, dossier, card, rite, turn,
+    /** What the game is currently asking for, in one object. Critics read it. */
+    guide: () => guide?.state?.() || null,
     say: (text) => comms.say(text),
     openDossier,
 
@@ -727,11 +785,7 @@ export function createStory({
      */
     yieldFrame() {
       endOpening();
-      if (turn.playing) {
-        const l = turn.live;
-        turn.hide();
-        if (l) pendingTurns.unshift({ n: l.n, act: ACTS[Math.min(ACTS.length, l.n) - 1], at: 0 });
-      }
+      if (turn.playing) parkTurn();
     },
 
     /**
@@ -766,7 +820,7 @@ export function createStory({
       // Where Marlow thinks the cadet is, and whether he is still permitted to
       // explain anything. A critic reads these rather than inferring them from
       // the transcript.
-      register: reg(), stage: STAGES[Math.min(STAGES.length - 1, Math.max(stageIndex(voiceState()), peak))].id,
+      register: reg(), stage: stg(),
       peak, canTutor: mayTutor(),
       milestones: MILESTONES.filter((m) => seen.has(milestoneKey(m))),
     }),
@@ -816,6 +870,6 @@ export function createStory({
       return standing;
     },
     release() { override = -1; recompute(); },
-    reset() { localStorage.removeItem(SAVE_KEY); },
+    reset() { guide?.reset(); localStorage.removeItem(SAVE_KEY); },
   };
 }
