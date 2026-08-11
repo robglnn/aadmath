@@ -86,7 +86,7 @@ export function createLedger({ root, initial = 0, onChange = () => {} }) {
     const sign = delta > 0 ? '+' : '−';
     row.innerHTML = '<b class="led-n"></b><span class="led-why"></span><i class="led-left"></i>';
     row.querySelector('.led-n').textContent = `${sign}${Math.abs(delta)}`;
-    row.querySelector('.led-why').textContent = reason(why);
+    row.querySelector('.led-why').textContent = reason(why, kind);
     row.querySelector('.led-left').textContent = t('ledger.left', { n: count });
     strip.appendChild(row);
     while (strip.children.length > MAX_LINES) strip.firstChild.remove();
@@ -174,7 +174,14 @@ const clean = (n) => {
   return Number.isFinite(v) && v > 0 ? v : 0;
 };
 
-const reason = (why) => {
+/**
+ * A caller that has not been taught the vocabulary — a piece the kit gains
+ * later, a sink somebody adds next week — must still produce a readable line
+ * rather than a dotted key. The fallback follows the direction of travel:
+ * money arriving was picked up, money leaving was spent.
+ */
+const reason = (why, kind) => {
   const line = t('ledger.why.' + why);
-  return line && !line.startsWith('ledger.') ? line : t('ledger.why.found');
+  if (line && !line.startsWith('ledger.')) return line;
+  return t('ledger.why.' + (kind === 'down' ? 'spent' : 'found'));
 };

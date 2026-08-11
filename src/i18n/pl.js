@@ -198,7 +198,7 @@ export default {
     on: 'Wł.',
     off: 'Wył.',
     now: 'Co robić na zewnątrz',
-    nowBody: 'Wejdź w jeden ze świecących pierścieni i naciśnij E. Sprzęt wyrzuci ci zdanie na wizjer — spraw, żeby stało się prawdziwe, a wyrwa zamknie się na dobre.',
+    nowBody: 'Wejdź w jeden ze świecących pierścieni i naciśnij {key}. Sprzęt wyrzuci ci zdanie na wizjer — spraw, żeby stało się prawdziwe, a wyrwa zamknie się na dobre.',
     screen: {
       progress: 'Raport postępów',
       dossier: 'Akta kadeta',
@@ -208,14 +208,13 @@ export default {
     bind: {
       kbm: {
         sprint: 'Shift',
-        dash: 'C · Prawy przycisk',
         progress: 'P',
         dossier: 'J',
         controls: '?',
         menu: 'Esc · F1',
       },
-      pad: { sprint: 'L3 · LT', dash: 'B · RB' },
-      touch: { sprint: 'Wychyl drążek', dash: 'Zryw' },
+      pad: { sprint: 'L3 · LT' },
+      touch: { sprint: 'Wychyl drążek' },
     },
   },
 
@@ -326,7 +325,7 @@ export default {
       cameBack: 'Echo wraca głośniej.',
       liveOnly: 'Osprzęt nie ma w zapisie innej wyrwy o tym kształcie. To twój własny ślad, odczytany z powrotem.',
       nudge: {
-        keypad: 'Powiedz sobie to zdanie, zanim cokolwiek naładujesz. Szukasz wartości, która czyni je prawdziwym, a nie tej, która leży najbliżej.',
+        keypad: 'Powiedz sobie to zdanie, zanim cokolwiek wpiszesz. Szukasz wartości, która czyni je prawdziwym, a nie tej, która leży najbliżej.',
         balance: 'Coś przykleiło się do niewiadomej. Zdejmij najpierw to z wierzchu, a belka zrobi resztę.',
         sort: 'Dwa wyrazy są podobne tylko wtedy, gdy część z literą zgadza się co do joty. Liczba nigdy nie jest podobna do litery.',
         area: 'Czynnik z zewnątrz dotyka każdej części w środku. Każdej.',
@@ -1080,7 +1079,7 @@ export default {
 
     stat: {
       ofN: 'z {n}',
-      mastered: 'Zamknięte linie',
+      mastered: 'Utrzymane linie',
       masteredNote: 'Udowodnione, a nie tylko próbowane.',
       time: 'Czas pracy',
       timeNote: 'Mierzony między odpowiedziami i ograniczony z góry, żeby bezczynność nigdy nie liczyła się jako praca.',
@@ -1143,7 +1142,7 @@ export default {
       open: 'Otwarta',
       practising: 'W toku',
       proving: 'Próba',
-      mastered: 'Zamknięta',
+      mastered: 'Utrzymana',
       provisional: 'Osuwa się',
       withdrawn: 'Otwarta ponownie',
     },
@@ -1599,6 +1598,7 @@ export default {
   // klawisz to robi i w którą stronę jest następna -------------------------
   afford: {
     open: 'Otwórz wyrwę',
+    walkIn: 'Wejdź w nią',
     sound: 'Zbadaj linię',
     shut: 'Zapieczętowana',
     needs: 'Najpierw opanuj: {skill}',

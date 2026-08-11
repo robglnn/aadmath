@@ -126,7 +126,7 @@ export default {
     sprint: 'Esprintar',
     dash: 'Impulso',
     glide: 'Planear',
-    build: 'Fijar',
+    build: 'Colocar',
     interact: 'Interactuar',
     recover: 'Recuperar',
   },
@@ -197,7 +197,7 @@ export default {
     on: 'Activada',
     off: 'Desactivada',
     now: 'Qué hacer ahí fuera',
-    nowBody: 'Métete en uno de los anillos luminosos y pulsa E. El equipo te proyecta el enunciado en el visor: hazlo verdadero y la grieta se cierra para siempre.',
+    nowBody: 'Métete en uno de los anillos luminosos y pulsa {key}. El equipo te proyecta el enunciado en el visor: hazlo verdadero y la grieta se cierra para siempre.',
     screen: {
       progress: 'Informe de progreso',
       dossier: 'Expediente del cadete',
@@ -207,14 +207,13 @@ export default {
     bind: {
       kbm: {
         sprint: 'Mayús',
-        dash: 'C · Clic der.',
         progress: 'P',
         dossier: 'J',
         controls: '?',
         menu: 'Esc · F1',
       },
-      pad: { sprint: 'L3 · LT', dash: 'B · RB' },
-      touch: { sprint: 'Empuja el stick', dash: 'Impulso' },
+      pad: { sprint: 'L3 · LT' },
+      touch: { sprint: 'Empuja el stick' },
     },
   },
 
@@ -325,7 +324,7 @@ export default {
       cameBack: 'El eco vuelve con más fuerza.',
       liveOnly: 'El equipo no tiene registrada ninguna otra grieta de esta forma. Esto es tu propio trazo, devuelto.',
       nudge: {
-        keypad: 'Dite la afirmación en voz baja antes de cargar nada. El valor que buscas es el que la hace verdadera, no el que queda más a mano.',
+        keypad: 'Dite la afirmación en voz baja antes de escribir nada. El valor que buscas es el que la hace verdadera, no el que queda más a mano.',
         balance: 'Algo va pegado a la incógnita. Deshaz primero lo de fuera y la viga hace el resto.',
         sort: 'Dos términos son semejantes solo si la parte con letra coincide exactamente. Un número nunca es semejante a una letra.',
         area: 'El factor de fuera toca cada parte de dentro. Todas.',
@@ -1062,7 +1061,7 @@ export default {
 
     stat: {
       ofN: 'de {n}',
-      mastered: 'Líneas selladas',
+      mastered: 'Líneas sostenidas',
       masteredNote: 'Demostradas, no solo intentadas.',
       time: 'Tiempo de trabajo',
       timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo.',
@@ -1125,7 +1124,7 @@ export default {
       open: 'Abierta',
       practising: 'En curso',
       proving: 'En prueba',
-      mastered: 'Sellada',
+      mastered: 'Sostenida',
       provisional: 'Cediendo',
       withdrawn: 'Reabierta',
     },
@@ -1579,6 +1578,7 @@ export default {
   // qué tecla lo hace y hacia dónde queda la siguiente ---------------------
   afford: {
     open: 'Abre la grieta',
+    walkIn: 'Entra en ella',
     sound: 'Sondea la línea',
     shut: 'Sellada',
     needs: 'Domina antes {skill}',

@@ -468,7 +468,10 @@ engine.add((dt) => session.update(dt));
 // ---------------------------------------------------------------------------
 const menu = new Menu(uiRoot, {
   input,
-  isBusy: () => panel.open || controls.open || report.open || session.blocking(),
+  // The controls card is deliberately *not* in here: it is a corner card, not a
+  // panel, and a player who presses Escape while it is up wants the menu — not
+  // to have thrown the card away for the rest of the run.
+  isBusy: () => panel.open || report.open || session.blocking(),
 });
 engine.add(() => menu.update());
 
@@ -664,6 +667,15 @@ window.__ascent = {
    * without saying why rather than watching a counter and guessing.
    */
   ledger: () => wallet.history(),
+  /**
+   * Fire exactly the levy a rift surge fires — the same `wallet.take` call
+   * src/world/drift.js makes, with nothing stubbed. A surge needs a held line,
+   * a fifteen-metre door and boots within nine metres of the ring's own
+   * ground, which makes the wipe a critic reported hard to reproduce on
+   * demand; this reaches the arithmetic that did the wiping rather than
+   * stepping around it.
+   */
+  levy: (n) => wallet.take(n, 'surge'),
   /** Ground truth for the collider: what the boots find at a column, right now. */
   surfaceAt: (x, z) => builder.solids.top(x, z),
   /** The island alone, with nothing built on it — for measuring height gained. */

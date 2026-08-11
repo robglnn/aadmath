@@ -218,6 +218,9 @@ export function createAfford(opts = {}) {
     marks.length = 0;
     _sort.length = 0;
     const p = player.pos;
+    // Has this cadet ever closed a line? Until he has, the world is allowed to
+    // say how a rift is opened; after that, saying it is noise.
+    const taught = rifts.list.some((r) => r.mastered);
     for (const r of rifts.list) {
       const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
       if (d < CALL_R) _sort.push([d, r]);
@@ -236,8 +239,18 @@ export function createAfford(opts = {}) {
         r, d, near,
         cls: r.locked ? 'shut' : (r.mastered ? 'held' : 'live'),
         cap: r.locked ? '' : cap,
+        // BEFORE THE FIRST SEAL, THE PLATE TEACHES THE MECHANIC.
+        // A cold critic's own summary of what would have saved his session:
+        // *"put one line of 'walk into the ring / hold W' on screen in the
+        // first ten seconds"*. Walking in **is** the interaction — the key is
+        // only the shortcut — and out at fifty metres the key is the one thing
+        // that cannot yet be used. So until a line is held, a live tear you
+        // have not reached asks to be walked into; step inside reach and it
+        // becomes the verb and the key it has always been. After the first
+        // seal the mechanic is learned and the plate stops explaining it.
         verb: r.locked ? t('afford.shut')
-          : (r.mastered ? t('afford.sound') : t('afford.open')),
+          : (r.mastered ? t('afford.sound')
+            : (!near && !taught ? t('afford.walkIn') : t('afford.open'))),
         what: r.locked ? t('afford.needs', { skill: blockerOf(r) }) : skill,
         far: d > REACH + 3 ? t('afford.metres', { n: num(Math.round(d)) }) : '',
         aim: !!(obj && obj.rift === r && !r.locked && !r.mastered),

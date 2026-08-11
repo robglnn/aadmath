@@ -48,51 +48,149 @@ for (const loc of LOCS) {
   /* ---- earn, on foot: run through live crystals until the wallet is worth
      taking from. The bearing comes from the real vein positions the drift
      field publishes, and the legs are real W presses. ---- */
+  /**
+   * Walk, on WASD, exactly as a pair of hands does.
+   *
+   * NOT on the mouse. Headless Chromium refuses `requestPointerLock`, so
+   * `Input.locked` is false and `src/core/input.js` drops every mousemove on
+   * the floor — a harness that "turns" with the mouse here is turning nothing
+   * and walking in whatever direction the camera started in. The camera yaw is
+   * therefore fixed, which makes the mapping exact and measurable, and it was
+   * measured against the running game: W is −z, S is +z, D is +x, A is −x.
+   */
   const walkTo = async (target, tries) => {
     for (let i = 0; i < tries; i++) {
       const nav = await page.evaluate((tg) => {
         const p = window.__ascent.player.pos;
-        const cam = window.__ascent.camera;
-        const dx = tg[0] - p.x, dz = tg[2] - p.z;
-        const d = Math.hypot(dx, dz);
-        const want = Math.atan2(dx, dz);
-        const dir = new window.__ascent.THREE.Vector3();
-        cam.getWorldDirection(dir);
-        const have = Math.atan2(dir.x, dir.z);
-        let turn = want - have;
-        while (turn > Math.PI) turn -= Math.PI * 2;
-        while (turn < -Math.PI) turn += Math.PI * 2;
-        return { d, turn };
+        return { dx: tg[0] - p.x, dz: tg[2] - p.z };
       }, target);
-      if (nav.d < 4) return true;
-      if (Math.abs(nav.turn) > 0.09) {
-        await page.mouse.move(W / 2 + Math.max(-320, Math.min(320, nav.turn * 300)), H / 2, { steps: 2 });
-        await page.waitForTimeout(60);
-      }
-      await page.keyboard.down('KeyW'); await page.keyboard.down('ShiftLeft');
-      await page.waitForTimeout(240);
-      await page.keyboard.up('ShiftLeft'); await page.keyboard.up('KeyW');
+      const d = Math.hypot(nav.dx, nav.dz);
+      if (d < 3.5) return true;
+      const keys = [];
+      if (Math.abs(nav.dz) > 1.4) keys.push(nav.dz < 0 ? 'KeyW' : 'KeyS');
+      if (Math.abs(nav.dx) > 1.4) keys.push(nav.dx > 0 ? 'KeyD' : 'KeyA');
+      if (!keys.length) return true;
+      for (const k of keys) await page.keyboard.down(k);
+      if (d > 14) await page.keyboard.down('ShiftLeft');
+      await page.waitForTimeout(d > 14 ? 260 : 130);
+      await page.keyboard.up('ShiftLeft');
+      for (const k of keys) await page.keyboard.up(k);
     }
     return false;
   };
 
-  const veins = await page.evaluate(() => (window.__ascent.drift.veins || [])
-    .map((v) => [v.x ?? v.motes?.[0]?.x, v.y ?? v.motes?.[0]?.y, v.z ?? v.motes?.[0]?.z]));
-  for (const v of veins.slice(0, 6)) {
-    if (!Number.isFinite(v[0])) continue;
-    await walkTo(v, 70);
-    if ((await motes()) >= 12) break;
+  // Chase the nearest live crystal, re-aiming every leg — a cluster is a
+  // scatter, not a point, and running at its centre of mass misses all of it.
+  for (let pass = 0; pass < 26; pass++) {
+    const at = await page.evaluate(() => {
+      const p = window.__ascent.player.pos;
+      let best = null, bd = 1e9;
+      for (const v of window.__ascent.drift.veins || []) {
+        if (v.cool > 0) continue;
+        for (const m of v.motes) {
+          if (!m.live) continue;
+          const d = Math.hypot(m.x - p.x, m.z - p.z);
+          if (d < bd) { bd = d; best = [m.x, m.y, m.z]; }
+        }
+      }
+      return best;
+    });
+    if (!at) break;
+    await walkTo(at, 26);
+    if ((await motes()) >= 16) break;
   }
   const earned = await motes();
   await shot('01-earned', 400);
 
-  /* ---- now stand where the world pushes back: inside the surge radius of an
-     unsealed rift, on foot, and do nothing at all. ---- */
-  const rift = await page.evaluate(() => {
+  /* ---- seal one rift, on foot and on the real keypad. src/world/drift.js
+     holds every surge back until the cadet has sealed something, so a wallet
+     test that never seals never meets the thing that empties it. ---- */
+  const first = await page.evaluate(() => {
     const r = (window.__ascent.rifts.list || []).find((x) => !x.locked && !x.mastered);
     return r ? [r.pos.x, r.pos.y, r.pos.z] : null;
   });
-  if (rift) await walkTo([rift[0], rift[1], rift[2] + 12], 140);
+  let sealed = false;
+  let answers = 0;
+  if (first) {
+    await walkTo([first[0], first[1], first[2] + 3], 200);
+    /* A surge only fires once a line is actually HELD (src/world/drift.js keeps
+       the world calm until then), so this answers the real rift, on the real
+       keypad, over and over, until the mastery engine grants the line. That is
+       the shortest honest road to the state the wallet complaint came from. */
+    for (let a = 0; a < 34 && !sealed; a++) {
+      const open = await page.evaluate(() => !!window.__ascent.panel?.open);
+      if (!open) {
+        await page.keyboard.press('KeyE');
+        await page.waitForTimeout(900);
+        if (!(await page.evaluate(() => !!window.__ascent.panel?.open))) {
+          const nr = await page.evaluate(() => {
+            const r = (window.__ascent.rifts.list || []).find((x) => !x.locked && !x.mastered);
+            return r ? [r.pos.x, r.pos.y, r.pos.z] : null;
+          });
+          if (!nr) break;
+          await walkTo([nr[0], nr[1], nr[2] + 3], 90);
+          continue;
+        }
+      }
+      if (a === 0) await shot('02-panel', 300);
+      // Real clicks on the real keypad; on the other modalities, the panel's
+      // own demo path, which is the same code a correct click runs.
+      const typed = await page.evaluate(async () => {
+        const p = window.__ascent.panel;
+        const ans = String(p?.item?.answer ?? '');
+        const pad = [...document.querySelectorAll('.rf-key')].filter((x) => x.offsetParent);
+        if (!pad.length) return false;
+        for (const ch of ans) {
+          const b = pad.find((x) => x.textContent.trim() === ch);
+          if (!b) return false;
+          b.click();
+        }
+        return true;
+      });
+      if (typed) {
+        if (a === 0) await shot('03-typed', 260);
+        await page.evaluate(() => {
+          const b = [...document.querySelectorAll('.rf-key')]
+            .filter((x) => x.offsetParent && /commit/.test(x.className))[0];
+          b?.click();
+        });
+      } else {
+        await page.evaluate(() => window.__ascent.panel?.demo?.('right'));
+      }
+      answers++;
+      await page.waitForTimeout(a === 0 ? 3800 : 2600);
+      if (a === 0) await shot('04-sealed', 400);
+      sealed = await page.evaluate(() => (window.__ascent.rifts.list || []).some((r) => r.mastered));
+      await page.evaluate(() => { if (window.__ascent.panel?.open) window.__ascent.panel.close(); });
+      await page.waitForTimeout(500);
+    }
+  }
+
+  /* ---- now stand where the world pushes back.
+     A ring is born at ground level under the rift and only catches a cadet
+     whose boots are within nine metres of it (src/world/drift.js), so the
+     stand point is chosen off the real terrain: a ring twenty to thirty metres
+     out — past the fifteen-metre door, inside the thirty-four-metre reach —
+     whose ground is level with the rift's own. Then the harness does nothing
+     whatsoever, which is what the player was doing. ---- */
+  const spot = await page.evaluate(() => {
+    const r = (window.__ascent.rifts.list || []).find((x) => !x.locked && !x.mastered);
+    if (!r) return null;
+    const base = window.__ascent.islandAt(r.pos.x, r.pos.z);
+    let best = null, bg = 1e9;
+    for (let a = 0; a < 48; a++) {
+      for (const rad of [19, 22, 25, 28, 31]) {
+        const th = (a / 48) * Math.PI * 2;
+        const x = r.pos.x + Math.cos(th) * rad, z = r.pos.z + Math.sin(th) * rad;
+        const g = window.__ascent.islandAt(x, z);
+        if (g === null) continue;
+        const gap = Math.abs(g - (base ?? r.pos.y));
+        if (gap < bg) { bg = gap; best = [x, g, z]; }
+      }
+    }
+    return best && bg < 7 ? best : null;
+  });
+  if (spot) await walkTo(spot, 220);
 
   const events = [];
   let last = await motes();
@@ -113,7 +211,12 @@ for (const loc of LOCS) {
   await shot('02-stood', 200);
 
   out[loc] = {
-    earned, final: last, lowest: low.min,
+    earned, sealed, answers, final: last, lowest: low.min,
+    dist: await page.evaluate(() => {
+      const p = window.__ascent.player.pos;
+      const r = (window.__ascent.rifts.list || []).find((x) => !x.locked && !x.mastered);
+      return r ? Math.round(Math.hypot(p.x - r.pos.x, p.z - r.pos.z)) : null;
+    }),
     zeroed: low.min === 0 && earned > 0,
     events,
     ledger: await page.evaluate(() => window.__ascent.ledger()),

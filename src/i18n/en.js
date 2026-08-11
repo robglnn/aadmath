@@ -210,7 +210,7 @@ export default {
     on: 'On',
     off: 'Off',
     now: 'What to do out there',
-    nowBody: 'Walk into one of the glowing rings and press E. The rig throws the statement onto your visor — make it true and the tear closes for good.',
+    nowBody: 'Walk into one of the glowing rings and press {key}. The rig throws the statement onto your visor — make it true and the rift closes for good.',
     screen: {
       progress: 'Progress report',
       dossier: 'Cadet dossier',
@@ -220,14 +220,13 @@ export default {
     bind: {
       kbm: {
         sprint: 'Shift',
-        dash: 'C · Right click',
         progress: 'P',
         dossier: 'J',
         controls: '?',
         menu: 'Esc · F1',
       },
-      pad: { sprint: 'L3 · LT', dash: 'B · RB' },
-      touch: { sprint: 'Push the stick', dash: 'Dash' },
+      pad: { sprint: 'L3 · LT' },
+      touch: { sprint: 'Push the stick' },
     },
   },
 
@@ -343,7 +342,7 @@ export default {
       cameBack: 'The echo comes back louder.',
       liveOnly: 'The rig has no other rift of this shape on record. This is your own line, read back to you.',
       nudge: {
-        keypad: 'Say the statement to yourself before you charge anything. The value you want is the one that makes it true, not the one that sits nearest.',
+        keypad: 'Say the statement to yourself before you type anything. The value you want is the one that makes it true, not the one that sits nearest.',
         balance: 'Something is stuck to the unknown. Undo the outermost thing first, and the beam does the rest.',
         sort: 'Two terms are alike only when the letter part matches exactly. A number is never like a letter.',
         area: 'The factor outside touches every part inside. Every part.',
@@ -1622,6 +1621,7 @@ export default {
   // do, the key that does it, and the bearing to the next one -------------
   afford: {
     open: 'Open the rift',
+    walkIn: 'Walk into it',
     sound: 'Sound the line',
     shut: 'Sealed shut',
     needs: 'Hold {skill} first',

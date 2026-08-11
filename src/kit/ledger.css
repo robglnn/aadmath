@@ -1,14 +1,22 @@
 /* THE LEDGER STRIP — every movement of the currency, where nothing can stomp it.
  *
- * It sits directly under the rig, in the top-left corner, because that is where
- * the mote count itself is: the number and the reason it moved are read in one
- * glance. It is a separate element from `#toast` on purpose — the toast is one
- * slot on an 1800 ms timer, and the surge line was being deleted by the "no
- * footing" toast that the same surge caused half a second later. */
+ * It is a separate element from `#toast` on purpose: the toast is ONE slot on
+ * an 1800 ms timer, and the line explaining a surge was being deleted by the
+ * "no footing" toast that the same surge's knockback fired half a second
+ * later. This has its own element and its own clock.
+ *
+ * WHERE. Not under the rig, which is where it belongs by meaning and where it
+ * cannot go by geometry: the top-left column already carries the objective card
+ * and the chapter card down to the middle of the screen, and a first capture
+ * showed the strip reading "…2 left / 4 left" from behind them. It sits instead
+ * in the left column's dead band, directly above the kit strip and the build
+ * charge — the other place the wallet is spent. Anchored to the bottom, the
+ * block grows upward and the NEWEST line is always the lowest one, a hand's
+ * width above the mote prices it is about to change. */
 
 .ledger{
   position:absolute;
-  top:calc(var(--pad-t) + 108px);
+  bottom:calc(96px + var(--safe));
   left:var(--pad-l);
   width:min(304px,42vw);
   display:flex;flex-direction:column;gap:.26rem;
@@ -51,6 +59,6 @@
    rig itself is narrower — so the strip narrows with it and drops the balance
    tail rather than wrapping into three lines over the world. */
 @media (max-width:760px){
-  .ledger{top:calc(var(--pad-t) + 84px);width:min(220px,54vw)}
+  .ledger{bottom:calc(128px + var(--safe));width:min(220px,54vw)}
   .led-left{display:none}
 }

@@ -43,6 +43,12 @@ import './field.css';
  *             it is the reason the richest mote veins — the ones that grow
  *             right up against an open rift — are not free money.
  *
+ *             It does not start until the cadet has sealed his first line, and
+ *             no tear ever throws a ring at somebody standing on its own
+ *             doorstep — a first walk up to a first rift is unopposed, because
+ *             a mechanic that pushes you away from the only objective you have
+ *             is not pressure, it is a wall.
+ *
  *             **Seal the line and the surges stop.** For ever, at that rift.
  *             That is the whole design in one sentence: the mathematics is the
  *             only thing in the game that calms the world down.
@@ -72,6 +78,10 @@ const SURGE_EVERY = 15.5;       // seconds between rings at an unsealed rift
 const SURGE_R = 34;             // how far a ring reaches
 const SURGE_SPEED = 26;         // metres a second
 const SURGE_COST = 9;           // shards knocked loose
+// Metres inside which a tear will not throw anything: its own doorstep. A cadet
+// this close is arriving, and a ring that shoves him back off the plate is the
+// game taking away the thing it just told him to go and get.
+const SURGE_DOOR = 15;
 
 export function createDrift(opts = {}) {
   const {
@@ -461,7 +471,29 @@ export function createDrift(opts = {}) {
     if (!lifting) inColumn = Math.max(0, inColumn - dt);
 
     // ---- surges ----
-    if (rifts && !busy) {
+    // THE THING THAT WAS THROWING THE CADET OFF THE FIRST RIFT.
+    //
+    // A cold critic could not reach rift one and wrote down, precisely, what
+    // was happening to him without knowing what it was: *"an uncommunicated
+    // backward dash that repeatedly shoved me away from the thing I was trying
+    // to touch"*, *"nothing but a red 'Rift surge' toast"*, and *"cipher shards
+    // silently reset to zero three separate times"*. All three are this block.
+    // An unsealed tear threw a pressure ring every fifteen seconds, and the
+    // ring gave him 15 m/s outward, 7 m/s upward, no footing and −9 shards —
+    // aimed, by construction, at whoever was walking toward it. On the first
+    // objective in the game, before he had opened anything, that is not
+    // pressure, it is a locked door with a bouncer.
+    //
+    // Two rules make it the mechanic it was designed to be:
+    //   · **Nothing surges until the cadet has closed one line.** The first
+    //     walk up to the first tear is unopposed, always. After that he knows
+    //     what a rift is, what a mote is worth and what the strip is telling
+    //     him, and the world is allowed to push back.
+    //   · **No tear surges at its own door.** Inside fifteen metres you are
+    //     arriving, not loitering; being thrown off a plate you are stepping
+    //     onto reads as the game refusing you, whatever the toast says.
+    const calm = !rifts?.list?.some((r) => r.mastered);
+    if (rifts && !busy && !calm) {
       for (const r of rifts.list) {
         // Locked rifts are dormant and sealed ones are calm. The only thing
         // that throws pressure at you is a line you have been asked to close
@@ -470,7 +502,8 @@ export function createDrift(opts = {}) {
         const t0 = (timers.get(r.id) || 0) + dt;
         if (t0 > SURGE_EVERY) {
           timers.set(r.id, 0);
-          if (Math.hypot(p.x - r.pos.x, p.z - r.pos.z) < SURGE_R * 2.2) emit(r);
+          const d = Math.hypot(p.x - r.pos.x, p.z - r.pos.z);
+          if (d < SURGE_R * 2.2 && d > SURGE_DOOR) emit(r);
         } else timers.set(r.id, t0);
       }
     }

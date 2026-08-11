@@ -238,6 +238,18 @@
     {
       "t": "wave 2",
       "m": "world hotfix: one screen-space ledger (src/world/tagspace.js) — 0 world-tag intersections at 390/414/1280/1600 x EN/ES/PL, 648 driven frames, 0 console errors"
+    },
+    {
+      "t": "P0 menu",
+      "m": "pause/help/settings on Esc+F1+Start with a visible MENU pill; vault chip padlock; verified cold-save with real input"
+    },
+    {
+      "t": "P0 rift-1",
+      "m": "first rift reachable+openable on foot from 8/8 bearings cold; surge no longer throws cadets off the first objective"
+    },
+    {
+      "t": "wave kit",
+      "m": "ledger: levy capped at a quarter, every mote movement on its own strip; vocab sweep set→place/seal, standing rows renamed, EN/ES/PL agree"
     }
   ]
 }

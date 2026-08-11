@@ -257,7 +257,7 @@ export function createBeckon(opts = {}) {
     // Separating the daises (src/world/rifts.js) fixes the layout; this fixes
     // the rule, because "you were standing marginally nearer the thing you
     // cannot have" is never the answer a player is asking for.
-    const near = rifts.nearest(player.pos, RIFT_STEP)
+    const near = rifts.nearestLive(player.pos, RIFT_STEP)
       || rifts.nearestAny(player.pos, RIFT_STEP);
     const off = rifts.nearestAny(player.pos, RIFT_REARM);
     if (!off) armed = true;
@@ -271,6 +271,10 @@ export function createBeckon(opts = {}) {
       }
       return;
     }
+    // A held tear is calm: it opens on the key, never on a boot. Otherwise the
+    // rift you have just finished stands between you and the one the game is
+    // asking for, and crossing your own work drags you back into it.
+    if (near.mastered) return;
     if (!armed) return;
     armed = false;
     onOpenRift(near);

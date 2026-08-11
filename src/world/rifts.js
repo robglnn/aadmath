@@ -535,6 +535,27 @@ export class Rifts {
   }
 
   /**
+   * Nearest tear that is *live* — open, and not yet held.
+   *
+   * The one a walk-in is allowed to trigger. `nearest()` also returns a sealed
+   * tear, which is right for "what does the key open" and wrong for "what does
+   * walking into it open": a held tear stands between the plaza and the next
+   * objective more often than not, and a cadet crossing his own finished work
+   * on the way to the line the game just told him to go and seal should not be
+   * pulled into a deep sounding he did not ask for. Sounding a held line is a
+   * deliberate act, and it has a key printed on the ring.
+   */
+  nearestLive(p, range = 9.0) {
+    let best = null, bd = range;
+    for (const r of this.list) {
+      if (r.locked || r.mastered) continue;
+      const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
+      if (d < bd && Math.abs(p.y - r.foot.y) < 9) { bd = d; best = r; }
+    }
+    return best;
+  }
+
+  /**
    * Nearest rift of ANY state, measured to the dais a cadet actually stands on
    * rather than to a ring hanging four metres over his head.
    *

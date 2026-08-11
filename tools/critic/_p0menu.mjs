@@ -38,6 +38,24 @@ out.pillVisible = await page.evaluate(() => {
 });
 await shot('10s');
 
+// --- a session beat may own the frame; hand it back the way a player does --
+async function clearFloor() {
+  for (let i = 0; i < 6; i++) {
+    if (!await page.evaluate(() => window.__ascent.session.blocking())) return true;
+    const hit = await page.evaluate(() => {
+      const card = document.querySelector('.ses-charter.show, .ses-close.show, .ses-rest.show, [class^="ses-"].show');
+      const b = card && [...card.querySelectorAll('button')].find((x) => x.getBoundingClientRect().width > 10);
+      if (b) { b.click(); return b.textContent.trim(); }
+      return null;
+    });
+    await page.waitForTimeout(900);
+    if (!hit) break;
+  }
+  return !await page.evaluate(() => window.__ascent.session.blocking());
+}
+out.floorCleared = await clearFloor();
+await dump();
+
 // --- Escape opens it ------------------------------------------------------
 await page.keyboard.press('Escape');
 await page.waitForTimeout(600);
@@ -68,24 +86,6 @@ await shot('menu-settings');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(500);
 out.afterClose = await st();
-
-// --- a session beat may own the frame; hand it back the way a player does --
-async function clearFloor() {
-  for (let i = 0; i < 6; i++) {
-    if (!await page.evaluate(() => window.__ascent.session.blocking())) return true;
-    const hit = await page.evaluate(() => {
-      const card = document.querySelector('.ses-charter.show, .ses-close.show, .ses-rest.show, [class^="ses-"].show');
-      const b = card && [...card.querySelectorAll('button')].find((x) => x.getBoundingClientRect().width > 10);
-      if (b) { b.click(); return b.textContent.trim(); }
-      return null;
-    });
-    await page.waitForTimeout(900);
-    if (!hit) break;
-  }
-  return !await page.evaluate(() => window.__ascent.session.blocking());
-}
-out.floorCleared = await clearFloor();
-await dump();
 
 // --- the pill opens it too ------------------------------------------------
 await page.click('.mnu-pill');

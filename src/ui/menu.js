@@ -46,7 +46,7 @@ const VERBS = [
   { id: 'jump', bind: 'firstrun' },
   { id: 'glide', bind: 'firstrun' },
   { id: 'sprint', bind: 'menu' },
-  { id: 'dash', bind: 'menu' },
+  { id: 'dash', bind: 'firstrun' },
   { id: 'interact', bind: 'firstrun' },
   { id: 'build', bind: 'firstrun' },
   { id: 'recover', bind: 'firstrun' },
@@ -147,13 +147,17 @@ export class Menu {
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
       if (e.code !== 'Escape' && e.code !== 'F1') return;
-      if (this.open) { this.hide(); e.preventDefault(); return; }
+      if (this.open) { this.hide(); stop(e); return; }
       // Escape belongs to whichever panel is on screen; this one only takes it
       // when the frame is otherwise the world's. (F1 asks the same question a
       // moment later, in `show()`, but never has to compete for its key.)
       if (e.code === 'Escape' && this.input?.uiOpen) return;
-      this.show();
-      e.preventDefault();
+      if (!this.open) this.show();
+      // Taken. Nothing downstream gets this key — otherwise the controls card,
+      // which also closes on Escape, would be dismissed for the rest of the run
+      // by the same press that opened this, and the player would have thrown
+      // away the card without ever choosing to.
+      if (this.open) stop(e);
     }, true);
 
     this.retext();
@@ -172,7 +176,6 @@ export class Menu {
     this.el.querySelector('.mnu-slider .mnu-verb').textContent = t('menu.sens');
     this.el.querySelector('.mnu-set .mnu-row:last-child .mnu-verb').textContent = t('menu.invert');
     this.nowH.textContent = t('menu.now');
-    this.nowP.textContent = t('menu.nowBody');
     this.card.setAttribute('aria-label', t('menu.title'));
     this._paintSettings();
     this._bindings(this._hands());
@@ -211,6 +214,11 @@ export class Menu {
         li.querySelector('.mnu-keys').innerHTML = caps(t('menu.bind.kbm.' + id));
       }
     }
+    // The one sentence a lost player is looking for names the key that is
+    // actually under their hand — E on a keyboard, X on a pad, the button on
+    // a phone — composed from one pattern rather than glued together, so the
+    // word order stays the translator's.
+    this.nowP.textContent = t('menu.nowBody', { key: t(`firstrun.bind.${s}.interact`) });
     // Look speed and inverted aim are a mouse and a stick's settings; a thumb
     // has neither, and the row would be a dead control on a phone.
     this.el.querySelector('.mnu-set').hidden = s === 'touch';
@@ -254,9 +262,35 @@ export class Menu {
     if (this.input && !this.isBusy()) this.input.uiOpen = false;
   }
 
+  /**
+   * Start, on a controller.
+   *
+   * Read here rather than in the input layer because a pause button is the one
+   * verb that has to work *while* the world is deaf: `Input._press` drops every
+   * action the moment a panel owns the frame, so a Start routed through it
+   * could open this card and never close it again. Standard mapping — button 9
+   * is Start / Options / +.
+   */
+  _pad() {
+    const gp = navigator.getGamepads?.()[0];
+    const on = !!gp?.connected && !!gp.buttons[9]?.pressed;
+    const edge = on && !this._padStart;
+    this._padStart = on;
+    if (edge) this.toggleOpen();
+  }
+
   /** Ticked by main.js. Keeps the frame held and the bindings honest. */
   update() {
+    // The handle stands aside while a panel owns the frame: a button that is
+    // plainly on screen and refuses the click is worse than no button.
+    this.pill.classList.toggle('away', !this.open && !!this.input?.uiOpen);
+    this._pad();
     if (!this.open) return;
+    // Somebody else took the frame while this was up — the report on P, the
+    // dossier on J, a session beat that came due. Stand down rather than sit
+    // underneath it: two stacked cards means the next Escape closes the wrong
+    // one, which is how a player ends up with a panel they cannot dismiss.
+    if (this.isBusy()) { this.hide(); return; }
     this._bindings(this._hands());
     // Another surface may have released `uiOpen` on its way out — a rift that
     // closed behind this card, say. While this is on screen the world stays
@@ -264,6 +298,9 @@ export class Menu {
     if (this.input && !this.input.uiOpen) this.input.uiOpen = true;
   }
 }
+
+/** This key is spoken for: no default, and nobody downstream hears it. */
+function stop(e) { e.preventDefault(); e.stopPropagation(); }
 
 function row(id) {
   return `<li data-v="${id}"><span class="mnu-verb"></span><span class="mnu-keys"></span></li>`;
