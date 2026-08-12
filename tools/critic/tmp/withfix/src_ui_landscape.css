@@ -1,0 +1,367 @@
+/* ===========================================================================
+   A PHONE ON ITS SIDE.
+
+   Every viewport this game had ever been photographed at was portrait or
+   desktop — 414x896, 390x844, 1280x720, 1600x900. Nobody had once turned the
+   handset. A player did, and sent back a frame in which Marlow's card was cut
+   off mid-sentence ("…Place a ramp, place another off the top of it, and touch
+   the thing. Sixty motes apiece, and there are t—"), with the PROGRESS and MENU
+   pills printed on top of what was left of it and the build hotbar behind it.
+
+   The reason is not that the rules were wrong. It is that landscape had been
+   treated as portrait with less room, and patched one element at a time by
+   whoever noticed: each module measured its own landscape offset against a
+   guess about what the modules above it were doing, and the guesses were made
+   at different times against different layouts. `.fc` docked "under the
+   top-right chip, where nothing else lives on a narrow frame" — which is true
+   at 414 px wide and false at 844, where that is exactly where the companion's
+   card ends. Six correct-looking rules, one broken screen.
+
+   So this file is not more patches. It is the one place the landscape frame is
+   composed, loaded last, and it says where every persistent thing goes:
+
+     TOP BAND     one row, 40 px, across the whole width:
+                  the rig at the left, the hotbar centred, and
+                  PROGRESS / MENU / language at the right.
+     LEFT RAIL    below it, 196 px wide: the session band, the objective,
+                  the chapter. Vertical things go in a column, once.
+     CENTRE       kept clear. Only the crosshair, the contextual prompt and
+                  the world's own labels, which dodge everything here already
+                  (src/world/tagspace.js reads these selectors).
+     RIGHT FLANK  the first-contact card, laid out in two columns so it is
+                  wide and short instead of tall and narrow.
+     THE FLOOR    Marlow, full width between the two thumbs, sized to her own
+                  sentence in every language.
+     THE THUMBS   the two bottom corners, smaller than they are in portrait —
+                  a 150 px control cluster is 38% of a 390 px screen.
+
+   Short and wide is a different problem from tall and narrow, and it has a
+   different answer: spend the width, never the height. Nothing here shrinks a
+   font to make room; things move to the flanks, lay out in two columns, or go
+   away because something else on screen already says them.
+
+   Owned by the mobile-landscape pass. It is loaded last on purpose, so it can
+   place another module's furniture without editing that module's stylesheet —
+   every rule below is a position, a size or a wrap, never a colour, a border
+   or a voice.
+   =========================================================================== */
+
+/* The one query. It is the same one src/ui/style.css, src/meta/meta.css,
+   src/build/build.css, src/player/touch.css and src/session/session.css use, so
+   there is exactly one definition of "a phone on its side" in the game and no
+   band of viewports where half the rules apply. 520 px covers every handset in
+   landscape — the tallest is 428 — and the 890x460 frame the defect was
+   reported from. A tablet at 1024x768 is not a short screen and is deliberately
+   left on the desktop composition. */
+@media (max-height: 520px) and (orientation: landscape) {
+
+  :root {
+    /* The frame, in five numbers. Everything below is positioned off these,
+       so moving a band moves everything in it. */
+    --lsc-band: 40px;      /* height of the top instrument row */
+    --lsc-rail: 196px;     /* width of the left column */
+    --lsc-flank: 300px;    /* width of the right-hand card */
+    --lsc-step: 6px;       /* the gap between two things in a column */
+
+    /* The stacking ladder, written down once. Landscape is where these
+       actually collide, so this is where the order is declared:
+         world labels < rail < top band < companion < first contact < modals */
+    --lsc-z-rail: 20;
+    --lsc-z-band: 22;
+    --lsc-z-comms: 24;
+    --lsc-z-first: 30;
+  }
+
+  /* -------------------------------------------------------------------------
+     A THUMB IS NOT A HOTBAR.
+
+     `--hud-b` reserves the foot of the screen for whatever is docked there.
+     In portrait that is the build hotbar (`--dock-b`, 96 px). In landscape on
+     a touch device the hotbar is at the TOP — so the 96 px was being held
+     empty for furniture that had moved out, pushing the companion a third of
+     the way up a 390 px screen for nothing. The thumbs are beside her here,
+     not under her, so the floor is hers.
+     ------------------------------------------------------------------------- */
+  :root[data-touch] {
+    --dock-b: 0px;
+    --thumb-b: 8px;
+    /* what the two clusters below actually claim, plus a gutter */
+    --thumb-l: 104px;
+    --thumb-r: 140px;
+  }
+
+  /* =========================================================================
+     1. THE TOP BAND — the rig, the hotbar, and the three controls.
+     ========================================================================= */
+
+  /* The rig gives up the width the hotbar needs and keeps every word: this is
+     the panel the client saw clip "Drive back: Readin—". Nothing in it is
+     allowed to be cut, so the caption wraps rather than truncating and the
+     shard caption comes back (there is room for it across 196 px). */
+  #ui .hud-top { right: auto; width: var(--lsc-rail); }
+  #ui .rig { max-width: var(--lsc-rail); min-width: 0; padding: .34rem .5rem .4rem .56rem; }
+  #ui .rig-cap { white-space: normal; }
+  #ui .rig-rank i, #ui .rig-shards i { overflow: visible; text-overflow: clip; }
+
+  /* The hotbar is a row across the middle of the band, and it is smaller than
+     it is in portrait — five 42 px slots plus a place verb is 286 px, which
+     runs into the language pill at 844. */
+  :root[data-touch] #ui .buildbar,
+  :root[data-touch] .buildbar {
+    left: 50%; right: auto; top: var(--pad-t); bottom: auto;
+    transform: translateX(-50%);
+    flex-direction: row; gap: .15rem; padding: .18rem;
+    z-index: var(--lsc-z-band);
+  }
+  :root[data-touch] .slot { width: 38px; height: 34px; }
+  :root[data-touch] .slot svg { width: 17px; height: 17px; }
+  :root[data-touch] .buildbar .place { height: 34px; width: 46px; margin: 0 0 0 .22rem; }
+  :root[data-touch] .buildbar .place svg { width: 19px; height: 19px; }
+
+  /* The three controls share the band's right-hand end, in one row, in the
+     order a thumb reaches them: language furthest out, then the way out
+     (MENU), then the thing a student actually opens (PROGRESS), which is the
+     only one that keeps its word. They used to be stacked at 74 px and 120 px
+     down the right flank, which is the middle of a 390 px screen — and the
+     flank is where the first-contact card lives. */
+  #ui .langs { top: var(--pad-t); right: var(--pad-r); z-index: var(--lsc-z-band); }
+  #ui .mnu-pill {
+    top: var(--pad-t); bottom: auto;
+    left: auto; right: calc(var(--pad-r) + 122px);
+    min-height: 30px; padding: .3rem .44rem;
+    z-index: var(--lsc-z-band);
+  }
+  #ui .mnu-pill b { display: none; }          /* the icon and the title attribute carry it */
+  .rp-launch {
+    top: var(--pad-t); bottom: auto;
+    left: auto; right: calc(var(--pad-r) + 164px);
+    min-height: 30px; padding: .3rem .5rem;
+    font-size: .5rem; letter-spacing: .14em;
+    z-index: var(--lsc-z-band);
+  }
+  .rp-launch svg { width: 13px; height: 13px; }
+
+  /* =========================================================================
+     2. THE LEFT RAIL — one column, in one order, with one set of offsets.
+
+     rig → session band → objective → chapter. Each is placed off the one above
+     it rather than off a number somebody measured on a different screen, and
+     the two that can change height (the session band appears mid-run; the
+     objective card grows a line in Polish) are answered with `:has()` and with
+     `--gd-h`, which src/meta/guide.js already writes on every resize.
+     ========================================================================= */
+
+  #ui .ses-band {
+    top: calc(var(--pad-t) + var(--lsc-band) + var(--lsc-step));
+    left: var(--pad-l); right: auto;
+    width: var(--lsc-rail); min-width: 0;
+    z-index: var(--lsc-z-rail);
+  }
+
+  #ui .gd-card {
+    top: calc(var(--pad-t) + var(--lsc-band) + var(--lsc-step));
+    width: var(--lsc-rail); padding: .42rem .56rem .46rem;
+    z-index: var(--lsc-z-rail);
+  }
+  #ui:has(.ses-band.show) .gd-card {
+    top: calc(var(--pad-t) + var(--lsc-band) + 54px + var(--lsc-step) * 2);
+  }
+  .gd-verb { font-size: .8rem; }
+  .gd-what { font-size: .66rem; }
+
+  /* The chapter card is fourth in a column on a 390 px screen, so it is the
+     one that becomes a strip: which chapter, and how many statements are
+     sealed. The bar and the "3 more to chapter 2" line are the same fact one
+     step less precisely, and the report panel prints both. What it gets back
+     is width — at 158 px "RIFTS SEALED IN ALL" orphaned its last word on a
+     line of its own, which is the other thing the client photographed. */
+  #ui .meta-quest {
+    top: calc(var(--pad-t) + var(--lsc-band) + var(--lsc-step) + var(--gd-h, 0px));
+    width: var(--lsc-rail); padding: .4rem .56rem .44rem;
+    z-index: var(--lsc-z-rail);
+  }
+  #ui:has(.ses-band.show) .meta-quest {
+    top: calc(var(--pad-t) + var(--lsc-band) + 54px + var(--lsc-step) * 2 + var(--gd-h, 0px));
+  }
+  .meta-quest .qseal { margin-top: .34rem; padding-top: .34rem; }
+  .meta-quest .qs-n { font-size: 1.1rem; }
+  .meta-quest .qs-lab { max-width: none; }        /* stop orphaning the last word */
+  .meta-quest .qs-track, .meta-quest .qs-next { display: none; }
+
+  /* =========================================================================
+     3. THE CENTRE — kept clear.
+     ========================================================================= */
+
+  /* One compass, not two. `.afd-head` prints "that way, 140 m" across the top
+     centre, which in landscape is where the hotbar now is — and the objective
+     card three inches to the left prints the same verb, the same place and the
+     same distance, with the waypoint diamond drawing the direction in the
+     world itself. On a screen with 390 px of height, saying it twice costs the
+     hotbar its row. */
+  #ui .afd-head { display: none; }
+
+  /* The contextual prompt and the foundry's hail sit just above and below the
+     crosshair rather than sliding down into the companion's band. */
+  .hail { top: calc(50% - 52px); }
+  #ui .gd-prompt { top: calc(50% - 4px); }
+  .toast { top: calc(var(--pad-t) + var(--lsc-band) + 26px); }
+
+  /* The build charge chip and its clear button come off the left rail, which
+     is full, and off `--hud-b`, which no longer describes anything at the foot
+     of a landscape screen. They take the bottom-left band between the end of
+     the rail and the resting ring. */
+  .axiom {
+    left: var(--pad-l); right: auto;
+    top: auto; bottom: calc(var(--sa-b) + 96px);
+    z-index: var(--lsc-z-rail);
+  }
+  .axiom-clear {
+    left: var(--pad-l); right: auto;
+    top: auto; bottom: calc(var(--sa-b) + 96px);
+  }
+
+  /* =========================================================================
+     4. THE RIGHT FLANK — first contact, in two columns.
+
+     This card is the thing that was actually cutting Marlow's sentence in half.
+     It is 310 px wide and eight rows tall, docked bottom-right on a pointer
+     device and top-right on a touch one — 220 px of a 390 px screen, sitting
+     directly on the companion's card, on both pills, and on two of the four
+     thumb buttons. Landscape has width it does not have height, so the rows
+     go into two columns and the card becomes wide and short.
+     ========================================================================= */
+  #ui .fc, #ui .fc.high, :root[data-touch] #ui .fc {
+    top: calc(var(--pad-t) + var(--lsc-band) + var(--lsc-step)); bottom: auto;
+    left: auto; right: var(--pad-r);
+    width: min(var(--lsc-flank), 40vw);
+    z-index: var(--lsc-z-first);
+  }
+  #ui .fc-card { padding: .5rem .6rem .5rem .66rem; }
+  #ui .fc-head { margin-bottom: .38rem; }
+  #ui .fc-head h3 { font-size: .58rem; letter-spacing: .16em; }
+  #ui .fc-x { font-size: .52rem; padding: .14rem .4rem .16rem; }
+  #ui .fc-rows { grid-template-columns: 1fr 1fr; gap: .22rem .6rem; }
+  #ui .fc-rows li { font-size: .62rem; gap: .34rem; }
+  #ui .fc kbd, #ui .fcs kbd { font-size: .54rem; min-width: 1.2em; padding: .1em .28em .14em; }
+  #ui .fc-pill, #ui .fc-pill.high, :root[data-touch] #ui .fc-pill {
+    top: calc(var(--pad-t) + var(--lsc-band) + var(--lsc-step)); bottom: auto;
+    left: auto; right: var(--pad-r);
+    z-index: var(--lsc-z-first);
+  }
+  /* The way out of a hole keeps the middle of the frame, but 390 px of height
+     cannot carry a 340 px card with a paragraph in it. */
+  #ui .fcs { width: min(360px, 56vw); }
+  #ui .fcs .fc-card { padding: .6rem .8rem .7rem; }
+  #ui .fcs p { font-size: .74rem; margin-bottom: .5rem; }
+
+  /* =========================================================================
+     5. THE FLOOR — Marlow, full width, between the thumbs.
+
+     The card is sized by its own sentence, in whatever language, and it is
+     never cut: `max-width` comes off so it can spend the 560 px landscape
+     gives it instead of wrapping into a 390 px screen's height. The one guard
+     is a last resort — if a sentence ever needs more than half the frame the
+     text scrolls, which is a decision; it does not truncate, which is not.
+     ========================================================================= */
+  #ui .meta-comms {
+    left: calc(var(--pad-l) + var(--thumb-l));
+    right: calc(var(--pad-r) + var(--thumb-r));
+    bottom: calc(var(--sa-b) + 10px);
+    max-width: none; width: auto;
+    grid-template-columns: 30px 1fr; gap: .62rem;
+    padding: .48rem .78rem .54rem .66rem;
+    max-height: calc(100% - var(--pad-t) - 150px);
+    z-index: var(--lsc-z-comms);
+  }
+  #ui .meta-comms > div:last-child { display: flex; flex-direction: column; min-height: 0; }
+  .meta-face { width: 30px; height: 30px; }
+  .meta-face svg { width: 19px; height: 19px; }
+  .meta-head { margin-bottom: .26rem; }
+  .meta-text {
+    font-size: .8rem; line-height: 1.42;
+    flex: 0 1 auto; min-height: 0;
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  /* The subtitle channel is laid out in the same band, on the same terms. */
+  .marlow {
+    left: calc(var(--pad-l) + var(--thumb-l));
+    right: calc(var(--pad-r) + var(--thumb-r));
+    bottom: calc(var(--sa-b) + 10px);
+    max-width: none; font-size: .8rem; padding: .5rem .8rem;
+  }
+
+  /* =========================================================================
+     6. THE THUMBS — usable, and no longer half the frame.
+
+     The portrait cluster is 132x150 with 46 px buttons and a 72 px jump. On a
+     390 px screen that is 38% of the height and a quarter of the width per
+     side. Everything here is scaled to a thumb rather than to a screenshot:
+     38 px buttons clear Apple's 36 pt minimum at this density, the jump keeps
+     its emphasis at 56, and the whole cluster fits in 112x118 — which is what
+     buys the companion her width back.
+     ========================================================================= */
+  #touchpad .home {
+    left: max(12px, var(--sa-l)); bottom: calc(14px + var(--sa-b));
+    width: 76px; height: 76px; opacity: .78;
+  }
+  #touchpad .home i { width: 32px; height: 32px; }
+  #touchpad .stick { width: 112px; height: 112px; margin: -56px 0 0 -56px; }
+  #touchpad .stick::after { inset: 22px; }
+  #touchpad .knob { width: 48px; height: 48px; margin: -24px 0 0 -24px; }
+
+  /* `.pads` is lifted 20 px rather than 10: each button prints its own name
+     *below* itself, so the bottom of the cluster is not the bottom of the
+     jump button, it is the bottom of the word JUMP. */
+  #touchpad .pads {
+    right: max(10px, var(--sa-r)); bottom: calc(20px + var(--sa-b));
+    width: 112px; height: 118px;
+  }
+  #touchpad .btn { width: 38px; height: 38px; }
+  #touchpad .btn svg { width: 19px; height: 19px; }
+  #touchpad .btn b { font-size: 8.5px; top: calc(100% + 2px); letter-spacing: .06em; }
+  #touchpad .btn[data-a="jump"] { right: 0; bottom: 12px; width: 56px; height: 56px; }
+  #touchpad .btn[data-a="jump"] svg { width: 26px; height: 26px; }
+  #touchpad .btn[data-a="jump"] b { font-size: 9.5px; }
+  #touchpad .btn[data-a="dash"] { right: 62px; bottom: 16px; }
+  #touchpad .btn[data-a="glide"] { right: 2px; bottom: 74px; }
+  #touchpad .btn[data-a="interact"] { right: 60px; bottom: 68px; }
+
+  /* =========================================================================
+     7. THE PANELS THAT TAKE THE WHOLE FRAME.
+
+     A rift, the report and the foundry are modal: they own the screen and
+     nothing else on this page applies while they are up. What they all have to
+     be told is that the frame is 390 px tall — `100vh` on a landscape phone is
+     not the generous number it is on a laptop, and a card that is centred in
+     it with `max-height: 94vh` and a min-height inside it will simply hang off
+     both ends. Everything here bounds the card to the frame and lets its own
+     body scroll, which is what all three were already built to do.
+     ========================================================================= */
+  #ui .rift { padding: 0; }
+  #ui .fdy { padding: 6px 0; }
+  .rp-scrim { padding: 0; }
+
+  /* the language pill is a modal's business too: it must not sit on a card */
+  #ui:has(.rift.show) .langs,
+  #ui:has(.rp-scrim.show) .langs,
+  #ui:has(.mnu.show) .langs { opacity: 0; pointer-events: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   A SHORT SCREEN THAT IS NOT A PHONE.
+
+   Between 521 px and 620 px of height there is no handset, but there are
+   browser windows, split-screen tablets and the odd Chromebook dragged short.
+   None of the composition above applies there — it would be wrong — but the
+   one thing that is true at any short height is that a modal card must not be
+   taller than the window it is centred in.
+   --------------------------------------------------------------------------- */
+@media (max-height: 620px) and (orientation: landscape) {
+  .rp-card { max-height: 100%; }
+  .rf-plate { max-height: 100%; }
+  .fdy-card { max-height: calc(100% - 12px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ui .meta-comms, #ui .fc, #ui .gd-card, #ui .meta-quest { transition-duration: .01ms; }
+}

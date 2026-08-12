@@ -36,16 +36,55 @@ export const CHAPTER_AT = [0, 3, 7, 16, 28];
 // Marlow names these four numbers out loud in `story.chN.b1`, in all three
 // locales. Retune them here and the lines have to be retuned with them.
 
+/**
+ * NIGHTS HELD that must also be behind you. See `days.js` for what a night is.
+ *
+ * The first three chapters are the hook and stay on the fast clock: chapter
+ * three lands inside the first five minutes, exactly as before. The last two
+ * are the payload — Marlow's own hand in the margin, and what he asks you for
+ * — and a story whose whole arc can be finished in one afternoon has spent its
+ * best material on the session least likely to need it.
+ *
+ *   CHAPTER 4   the reveal   1 night held   — day two
+ *   CHAPTER 5   the ask      3 nights held  — about day three
+ *
+ * Neither is a wall. The chapter card names the night it is waiting for, and
+ * everything else in the game stays open while it waits.
+ */
+export const CHAPTER_NIGHTS = [0, 0, 0, 1, 3];
+
 /** Tears closed = statements sealed, assisted or not. One answer, one tear. */
 export function tearsOf(led) {
   return (led?.clean || 0) + (led?.assisted || 0);
 }
 
-/** Which chapter that many sealed tears has opened (1..5). */
-export function chapterFor(tears) {
+/**
+ * Which chapter this state has opened (1..5). Both gates, so the answer is the
+ * lower of the two ladders — and a chapter, once opened, is never taken back.
+ *
+ * @param {number} tears
+ * @param {number} nights nights held; omitted means "do not ask".
+ */
+export function chapterFor(tears, nights = Infinity) {
   let ch = 1;
-  for (let i = 1; i < CHAPTER_AT.length; i++) if ((tears || 0) >= CHAPTER_AT[i]) ch = i + 1;
+  for (let i = 1; i < CHAPTER_AT.length; i++) {
+    if ((tears || 0) >= CHAPTER_AT[i] && (nights ?? Infinity) >= CHAPTER_NIGHTS[i]) ch = i + 1;
+    else break;
+  }
   return ch;
+}
+
+/**
+ * What the next chapter is still waiting for — one thing, never two.
+ * @returns {{kind:'tears'|'nights'|'top', need:number}}
+ */
+export function chapterGate(tears, nights, chapter) {
+  if (chapter >= CHAPTER_AT.length) return { kind: 'top', need: 0 };
+  const owed = Math.max(0, CHAPTER_AT[chapter] - (tears || 0));
+  if (owed > 0) return { kind: 'tears', need: owed };
+  const nightsOwed = Math.max(0, CHAPTER_NIGHTS[chapter] - (nights || 0));
+  if (nightsOwed > 0) return { kind: 'nights', need: nightsOwed };
+  return { kind: 'tears', need: 0 };
 }
 
 /** How far across the current chapter, 0..1. Chapter five reads full. */

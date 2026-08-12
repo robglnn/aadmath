@@ -29,7 +29,22 @@ import { createAfford } from './world/afford.js';
 import { createVerge, VERGE_R } from './world/verge.js';
 import { createKit } from './kit/kit.js';
 import { createLedger } from './kit/ledger.js';
-import graph from '../content/graph/algebra1-l1.json';
+// Content is data, not code. The unit that boots is named in
+// content/courses.json, resolved by src/content, and defaults to Algebra I
+// Level 1 — the same ten-node graph this line used to import directly.
+// `?unit=<id>` runs one unit, `?course=<id>` composes every unit in a course.
+import { loadContent } from './content/index.js';
+// LAST, on purpose. src/ui/landscape.css composes the whole frame for a phone
+// held sideways, and it does that by placing furniture that six other modules
+// own. Loading it after every one of them is what lets it do so without
+// editing anybody else's stylesheet — see the header of that file.
+import './ui/landscape.css';
+// Screen quiet (src/ui/quiet.js): how many text panels may stand at once.
+// Owns none of them; it only decides who yields. Wiring only.
+import { startQuiet } from './ui/quiet.js';
+
+const content = loadContent();
+const graph = content.graph;
 
 initI18n();
 applyStatic();
@@ -99,7 +114,17 @@ const controls = new ControlsCard(uiRoot, {
 player.onStuck = (on) => controls.setStuck(on);
 player.onRecover = () => hud.flash(t('firstrun.recovered'), 'good');
 
-hud.onSlot = (i) => { builder.setSlot(i); input.slot = i; hud.setSlot(i); };
+hud.onSlot = (i) => { builder.setSlot(i); };
+// THE HOTBAR FOLLOWS THE HAND, ALWAYS. (build)
+// It used to be repainted only on the frames where `input.slot` and
+// `builder.slot` disagreed — which on the keyboard path they never did, because
+// both listeners had already moved by then. So a digit key changed the ghost
+// and left the highlight on the previous piece: the hotbar advertised one piece
+// while the world built another. The builder is the source of truth now and it
+// announces every landing, refusals included.
+builder.onSlot = (i) => { input.slot = i; hud.setSlot(i); };
+// The rotate, for a device with no keyboard.
+hud.onTurn = () => builder.rotate(1);
 // perf/hud: the HUD follows the live input source (kbm / pad / touch) so it can
 // print the binding the player is actually holding, keep the thumb zone clear,
 // and give a controller a way through a panel. And on a touch device the hotbar
@@ -374,7 +399,8 @@ engine.add((dt, t2) => {
   input.sample(dt);
   if (!panel.open) {
     player.update(dt, t2);
-    if (input.slot !== builder.slot) { builder.setSlot(input.slot); hud.setSlot(builder.slot); }
+    // the wheel moves `input.slot`; the builder answers and repaints the bar
+    if (input.slot !== builder.slot) builder.setSlot(input.slot);
   }
   // The builder owns the whole verb — aim, preview, commit, edit, charge — so
   // that a click and a held button behave the same way in one place.
@@ -543,6 +569,12 @@ window.__ascent = {
   // put the *tallest* representation on the learning surface instead of whatever
   // the scheduler happened to pick. (learn-ux wiring; read-only.)
   skillIds: SKILLS, formsBySkill: FORMS_BY_SKILL,
+  // content: which course and unit this session is running, and which generator
+  // packs are loaded. Critics assert the default is still Algebra I Level 1.
+  content: () => ({
+    course: content.courseId, units: content.unitIds, packs: content.packs,
+    nodes: graph.nodes.map((n) => n.id),
+  }),
   // i18n: critics drive the real bundles, and switch locale the way the HUD does
   t, locale: () => getLocale(), setLocale,
   // perf: real percentiles off the engine's frame log, not an average
@@ -686,6 +718,9 @@ window.__ascent = {
     at: (builder.anchors?.list || []).map((a) => a.pos.toArray()),
   }),
 
+  /** Screen quiet (src/ui/quiet.js): what yielded on the last pass. */
+  quiet: () => quiet.state(),
+
   reset() {
     localStorage.removeItem('ascent.save');
     report.tracker.reset(); story.reset(); session.reset();
@@ -693,3 +728,6 @@ window.__ascent = {
     location.reload();
   },
 };
+
+// The screen's own budget. Started last, so every panel it governs exists.
+const quiet = startQuiet();

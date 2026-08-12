@@ -318,9 +318,12 @@ export function createSession({
     if (aim && kit) {
       const g = kit.nextGrant?.();
       const skill = t('skills.' + aim.id);
+      // The orders lead with the verb. That needs the count, so it is passed:
+      // "Seal 5 rifts on Reading a variable" rather than the skill's name and
+      // a paragraph. i18n, additive — the keys themselves are in src/i18n.
       return g
-        ? t('kit.charterNext', { skill, grant: g.name, what: g.what })
-        : t('kit.charterOpen', { skill });
+        ? t('kit.charterNext', { skill, grant: g.name, what: g.what, tears: r.target })
+        : t('kit.charterOpen', { skill, tears: r.target });
     }
     if (hold.length >= 2) return t('session.charter.goalHoldN', { n: hold.length, tears: r.target });
     if (hold.length === 1) {
@@ -424,6 +427,15 @@ export function createSession({
       // What keeps going once there is no `next` left. Never read unless the
       // lattice is whole, and never null then. See `endgame()`.
       endgame: next ? null : endgame(),
+      /* THE RETURNING LOOP, NAMED ON EVERY CLOSE.
+         The endgame rows above only exist once the lattice is whole, so a
+         learner three lines in read a card that said nothing at all about why
+         tomorrow is different from another twenty minutes today. Nights held is
+         the number that answers that, it is the number rank and the last two
+         chapters are now paced against (src/meta/days.js), and it is the one
+         number a long sitting cannot move. It goes on every close. */
+      nights: s.nights || 0,
+      due: watchNow()?.due || 0,
       lines: [...mastery.state.values()].filter((x) => x.mastered).length,
       minutes: Math.round(run.focus / 60),
       // Work done. A run that sealed nothing still has these, and they are the
@@ -501,6 +513,11 @@ export function createSession({
    * All three are read off the objects the HUD reads, never off a tally here,
    * and a missing kit only costs the rows it owns.
    */
+  /** What the retention schedule wants looked at, off its own wall clock. */
+  function watchNow() {
+    try { return mastery.watch?.() || null; } catch { return null; }
+  }
+
   function endgame() {
     let w = null;
     let k = null;

@@ -351,7 +351,15 @@
         "multi-step",
         "both-sides"
       ],
-      "how": "Prerequisite gating means a learner never meets a problem they were not equipped for, so persistence is asked for where it can succeed."
+      "how": "Prerequisite gating means a learner never meets a problem they were not equipped for, so persistence is asked for where it can succeed.",
+      "i18n": {
+        "es": {
+          "how": "El control de prerrequisitos hace que el estudiante nunca encuentre un problema para el que no esté equipado. Así, la persistencia se pide donde puede tener éxito."
+        },
+        "pl": {
+          "how": "Bramkowanie wymagań wstępnych sprawia, że uczeń nigdy nie trafia na zadanie, do którego nie był przygotowany. Wytrwałości żądamy więc tam, gdzie może przynieść skutek."
+        }
+      }
     },
     {
       "code": "MP.2",
@@ -363,7 +371,15 @@
         "one-step-mul",
         "both-sides"
       ],
-      "how": "Contextual forms move between a situation and its symbols in both directions."
+      "how": "Contextual forms move between a situation and its symbols in both directions.",
+      "i18n": {
+        "es": {
+          "how": "Las formas contextuales van de la situación a sus símbolos y de vuelta."
+        },
+        "pl": {
+          "how": "Formy kontekstowe przechodzą między sytuacją a jej symbolami w obie strony."
+        }
+      }
     },
     {
       "code": "MP.3",
@@ -374,7 +390,15 @@
         "multi-step",
         "both-sides"
       ],
-      "how": "Error-analysis items present two cadets' contradictory chains and ask which is sound; each wrong option is a real, named misconception rather than a random number."
+      "how": "Error-analysis items present two cadets' contradictory chains and ask which is sound; each wrong option is a real, named misconception rather than a random number.",
+      "i18n": {
+        "es": {
+          "how": "Las preguntas de análisis de errores presentan las cadenas contradictorias de dos cadetes y preguntan cuál es válida. Cada opción errónea es un error conceptual real y con nombre, no un número al azar."
+        },
+        "pl": {
+          "how": "Zadania analizy błędu pokazują sprzeczne ciągi rozumowania dwojga kadetów i pytają, który jest poprawny. Każda błędna opcja to prawdziwe, nazwane błędne przekonanie, a nie przypadkowa liczba."
+        }
+      }
     },
     {
       "code": "MP.4",
@@ -385,7 +409,15 @@
         "one-step-add",
         "two-step"
       ],
-      "how": "The modelling form asks for the equation that records a situation, before any solving happens."
+      "how": "The modelling form asks for the equation that records a situation, before any solving happens.",
+      "i18n": {
+        "es": {
+          "how": "La forma de modelado pide la ecuación que registra una situación, antes de resolver nada."
+        },
+        "pl": {
+          "how": "Forma modelowania prosi o równanie, które zapisuje sytuację, zanim cokolwiek rozwiążemy."
+        }
+      }
     },
     {
       "code": "MP.6",
@@ -396,7 +428,15 @@
         "order-ops",
         "one-step-mul"
       ],
-      "how": "Answers are exact rationals; the game never accepts a rounded value, and negative signs are generated deliberately from difficulty band 3."
+      "how": "Answers are exact rationals; the game never accepts a rounded value, and negative signs are generated deliberately from difficulty band 3.",
+      "i18n": {
+        "es": {
+          "how": "Las respuestas son racionales exactos. El juego nunca acepta un valor redondeado, y los signos negativos se generan a propósito a partir de la banda de dificultad 3."
+        },
+        "pl": {
+          "how": "Odpowiedzi są dokładnymi liczbami wymiernymi. Gra nigdy nie przyjmuje wartości zaokrąglonej, a znaki ujemne pojawiają się celowo od pasma trudności 3."
+        }
+      }
     },
     {
       "code": "MP.7",
@@ -408,7 +448,15 @@
         "multi-step",
         "both-sides"
       ],
-      "how": "Factoring items ask the learner to see a sum as a product; the area model shows the distributive property as a split rectangle."
+      "how": "Factoring items ask the learner to see a sum as a product; the area model shows the distributive property as a split rectangle.",
+      "i18n": {
+        "es": {
+          "how": "Las preguntas de factorización piden al estudiante ver una suma como un producto. El modelo de área muestra la propiedad distributiva como un rectángulo partido."
+        },
+        "pl": {
+          "how": "Zadania rozkładu na czynniki proszą ucznia, by zobaczył sumę jako iloczyn. Model pola pokazuje rozdzielność jako dzielony prostokąt."
+        }
+      }
     },
     {
       "code": "MP.8",
@@ -417,7 +465,15 @@
         "like-terms",
         "multi-step"
       ],
-      "how": "Table forms make a rule visible across rows before it is written symbolically."
+      "how": "Table forms make a rule visible across rows before it is written symbolically.",
+      "i18n": {
+        "es": {
+          "how": "Las formas de tabla hacen visible una regla a lo largo de las filas antes de escribirla en símbolos."
+        },
+        "pl": {
+          "how": "Formy tabelaryczne pokazują regułę w kolejnych wierszach, zanim zapiszemy ją symbolami."
+        }
+      }
     }
   ]
 }

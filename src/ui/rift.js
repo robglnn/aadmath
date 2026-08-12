@@ -1217,7 +1217,11 @@ export class RiftPanel {
     if (tier <= 0) { this.el.classList.remove('echo-on'); return; }
 
     this.$('#rf-echo-who').textContent = t('rift.echo.cadet', { name: this.cadet, n: this.arc });
-    this.$('#rf-echo-depth').textContent = t('rift.echo.depth' + tier);
+    // The badge says WHERE you are in the trace; the rail below says WHAT is
+    // at this layer. They used to say the identical four words twice, which is
+    // one surface too many and told a first-time reader nothing about what the
+    // numbered chips were counting. i18n, additive.
+    this.$('#rf-echo-depth').textContent = t('rift.echo.tier', { n: tier, of: MAX_TIER });
     btn.textContent = this.echoTier >= MAX_TIER ? t('rift.echo.spent') : t('rift.echo.more');
     btn.disabled = this.echoTier >= MAX_TIER;
     if (!quiet) {
@@ -1501,18 +1505,23 @@ export class RiftPanel {
       // Two honest attempts in and the rig stops asking for a value it cannot
       // help with: the noise clears, three readings remain, and the keypad
       // stands down rather than competing with them.
-      if (self.wrongCount >= 2 && !narrowed && (self.item.distractors || []).length) {
-        narrowed = true;
-        entry = '';
-        paint();
-        self.el.classList.add('narrowed');
-        self._narrow(extra, (picked, btn) => {
+      if (self.wrongCount >= 2 && !narrowed) {
+        const took = self._narrow(extra, (p, btn) => {
           if (self._settled) return;
-          if (self._accepts(picked)) { btn.classList.add('right'); self._solve(); return; }
+          // `p.ok` is the key and is never anything else; `_accepts` is the
+          // second opinion. Either is enough, so a blind spot in one of them
+          // can never be the thing that tells a right cadet they are wrong.
+          if (p.ok || self._accepts(p.v)) { btn.classList.add('right'); self._solve(); return; }
           btn.classList.add('wrong');
           btn.disabled = true;
-          self._miss(self._mis(picked), null, picked);
+          self._miss(p.m || self._mis(p.v), null, p.v);
         });
+        if (took) {
+          narrowed = true;
+          entry = '';
+          paint();
+          self.el.classList.add('narrowed');
+        }
       }
     };
 
@@ -1580,15 +1589,51 @@ export class RiftPanel {
   }
 
   /**
+   * The readings a cadet chooses between — built once, here, for every surface
+   * that offers a choice.
+   *
+   * A student who is right and is told they are wrong stops believing the
+   * thing that told them, and there is no way back from that. Two properties
+   * therefore have to hold on every set of options this rig has ever drawn,
+   * and neither can be left to the generator to remember:
+   *
+   *   1. the key is in the set, and it is the ONLY option the rig would accept.
+   *      Any distractor `_accepts()` says yes to is silently dropped, because
+   *      it is not a distractor — it is a second correct answer that would be
+   *      marked wrong the moment a cadet reached for it;
+   *   2. no two options draw the same glyphs. Two readings that look identical
+   *      are one reading and a trap, and a cadet who picks the one on the right
+   *      has been failed by the surface, not by the mathematics.
+   *
+   * The rendered HTML is built here too, so what is compared is exactly what
+   * is mounted — not a second guess at it.
+   */
+  _readings(ds) {
+    const key = String(this.item.answer);
+    const draw = (v) => texFirst([texify(v), v]) || v;
+    const pool = [{ v: key, ok: true, html: draw(key) }];
+    for (const d of ds) {
+      const v = String(d.value ?? '');
+      if (!v.trim() || this._accepts(v)) continue;
+      const html = draw(v);
+      if (pool.some((p) => p.html === html)) continue;
+      pool.push({ v, m: d.misconception, html });
+    }
+    return pool;
+  }
+
+  /**
    * The scaffold of last resort. Two real attempts have been spent, so the rig
    * stops asking the cadet to conjure a value out of nothing and clears the
    * noise down to three readings instead. The keypad goes dark: one instrument
    * on the surface at a time.
+   *
+   * Returns false when there is no honest choice to offer — a single reading is
+   * not a narrowed field, it is the answer handed over — and the keypad stays.
    */
   _narrow(host, onPick) {
-    const item = this.item;
-    const pool = [{ v: String(item.answer), ok: true }];
-    for (const d of (item.distractors || []).slice(0, 2)) pool.push({ v: String(d.value) });
+    const pool = this._readings((this.item.distractors || []).slice(0, 2));
+    if (pool.length < 2) return false;
     host.innerHTML = '';
     const lab = document.createElement('div');
     lab.className = 'rf-narrow-lead';
@@ -1600,12 +1645,13 @@ export class RiftPanel {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ans rf-reading';
-      b.innerHTML = texFirst([texify(p.v), p.v]) || p.v;
+      b.innerHTML = p.html;
       b.dataset.value = p.v;
-      b.addEventListener('click', () => onPick(p.v, b));
+      b.addEventListener('click', () => onPick(p, b));
       box.appendChild(b);
     }
     host.appendChild(box);
+    return true;
   }
 
   // ------------------------------------------------------- modality: choice
@@ -1613,8 +1659,7 @@ export class RiftPanel {
   _choice(work) {
     const self = this;
     const item = this.item;
-    const pool = [{ v: String(item.answer), ok: true }];
-    for (const d of item.distractors || []) pool.push({ v: String(d.value), m: d.misconception });
+    const pool = this._readings(item.distractors || []);
     if (pool.length < 2) return null;
 
     const box = document.createElement('div');
@@ -1627,11 +1672,12 @@ export class RiftPanel {
       b.dataset.value = p.v;
       // A keyed channel, not an anonymous slab: the rig numbers its readings so
       // a hand on a keyboard can take one without going looking for a cursor.
-      b.innerHTML = `<span class="key">${picks.length + 1}</span>`
-        + (texFirst([texify(p.v), p.v]) || p.v);
+      b.innerHTML = `<span class="key">${picks.length + 1}</span>${p.html}`;
       const take = () => {
         if (self._settled || b.disabled) return;
-        if (p.ok) { b.classList.add('right'); self._solve(); return; }
+        // Same two opinions as the narrowed field: the key, and anything the
+        // checker would have accepted had it been typed.
+        if (p.ok || self._accepts(p.v)) { b.classList.add('right'); self._solve(); return; }
         b.classList.add('wrong');
         b.disabled = true;
         self._miss(p.m || self._mis(p.v), null, p.v);

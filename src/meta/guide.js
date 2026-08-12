@@ -177,7 +177,16 @@ export function createGuide(opts) {
     for (; i < obj.held; i++) pips[i].className = 'held';
     for (; i < obj.held + obj.open; i++) pips[i].className = 'open';
     for (; i < total; i++) pips[i].className = '';
-    el.tally.textContent = t('guide.tally', { held: obj.held, open: obj.open, locked: obj.locked });
+    // "0 held · 1 open · 9 locked" was the first place a learner ever read the
+    // word *held*, and nothing on the card said what it meant. While the count
+    // is zero there is no number to lose, so the slot says the word instead.
+    // i18n, additive — both keys are in src/i18n.
+    // The pips above already show held, open and locked as colour. Until the
+    // first line is held, the row below them spends its one line on the word
+    // instead of on a zero.
+    el.tally.textContent = obj.held === 0
+      ? t('guide.tallyNew')
+      : t('guide.tally', { held: obj.held, open: obj.open, locked: obj.locked });
   }
 
   function payLine(o) {

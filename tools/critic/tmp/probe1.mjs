@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({args:['--use-gl=angle','--enable-unsafe-swiftshader']});
+const c = await b.newContext({viewport:{width:844,height:390},hasTouch:true});
+const p = await c.newPage();
+p.on('console', m=>console.log('['+m.type()+']', m.text().slice(0,300)));
+p.on('pageerror', e=>console.log('[pageerror]', e.message.split('\n')[0]));
+await p.goto('http://127.0.0.1:5173', {waitUntil:'networkidle'});
+await p.waitForTimeout(6000);
+console.log('ascent?', await p.evaluate(()=>!!window.__ascent));
+await b.close();

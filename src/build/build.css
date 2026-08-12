@@ -9,6 +9,7 @@
    viewport, so it has to win the specificity fight explicitly. */
 #ui .axiom,
 #ui .axiom-aim,
+#ui .axiom-out,
 #ui .axiom-tags { pointer-events: none; }
 #ui .axiom-clear { pointer-events: auto; }
 
@@ -57,6 +58,56 @@
   opacity: 0; transition: opacity .16s;
 }
 .axiom-aim.show { opacity: 1; }
+
+/* Why it will not go there.
+   A red ghost says "no"; this says which no. It sits where the refusal is —
+   under the crosshair, on the piece being refused — and it is up before the
+   click, not as a toast afterwards, so the rule is learnt in one placement. */
+.axiom-why {
+  position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%);
+  padding: .22rem .66rem; border-radius: 999px; pointer-events: none;
+  background: rgba(38, 10, 20, .8); border: 1px solid rgba(255, 92, 122, .55);
+  color: #ffb3c2; font-size: .62rem; letter-spacing: .18em; text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0; translate: 0 -4px; transition: opacity .14s, translate .14s;
+}
+.axiom-why.show { opacity: 1; translate: 0 0; }
+
+/* THE EMERGENCY EXIT.
+   A cadet shut inside his own walls cannot read a hint in the corner — the
+   frame is full of wall and he is pushing at it. So this sits over the middle
+   of the screen, in alarm amber, and it names the one key that always opens a
+   hole. It is the only thing in this stylesheet allowed to be loud.
+
+   ABOVE the crosshair, not below it. Everything else that speaks near the
+   reticle speaks underneath it — the refusal chip at +26 px, and the world's
+   own interact tags at about +60 — and photographed in a closed box this
+   banner landed exactly on top of THE FOUNDRY's label, two sentences fighting
+   for the same forty pixels at the one moment the player has to read one of
+   them. Overhead is the band nothing else claims. */
+.axiom-out {
+  position: absolute; left: 50%; top: calc(50% - 104px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: .5rem;
+  padding: .34rem .8rem; border-radius: 999px; pointer-events: none;
+  background: rgba(44, 22, 4, .84); border: 1px solid rgba(255, 176, 60, .7);
+  box-shadow: 0 0 30px -6px rgba(255, 176, 60, .55);
+  color: #ffd79a; font-size: .64rem; letter-spacing: .17em; text-transform: uppercase;
+  white-space: nowrap; opacity: 0; translate: 0 6px;
+  transition: opacity .18s, translate .18s;
+}
+.axiom-out.show { opacity: 1; translate: 0 0; animation: axiomOut 1.9s ease-in-out infinite; }
+/* Sideways on a phone the middle band is 390 px tall and the crosshair sits in
+   the middle of it; 104 px up is off the top of the play area. Ride closer. */
+@media (max-height: 560px) { .axiom-out { top: calc(50% - 74px); font-size: .58rem; } }
+.axiom-out b {
+  font: inherit; font-weight: 700; letter-spacing: .1em;
+  border: 1px solid rgba(255, 194, 95, .75); border-radius: 4px;
+  padding: .06rem .34rem; color: #ffe9c4; background: rgba(255, 194, 95, .14);
+}
+@keyframes axiomOut {
+  0%, 100% { box-shadow: 0 0 30px -6px rgba(255, 176, 60, .5); }
+  50% { box-shadow: 0 0 34px -2px rgba(255, 176, 60, .85); }
+}
 
 /* touch: a thumb needs a target for the verb a keyboard gets a key for */
 .axiom-clear {
@@ -116,5 +167,6 @@
   .axiom-clear { bottom: calc(var(--hud-b) + 95px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .axiom, .axiom-aim { transition: none; }
+  .axiom, .axiom-aim, .axiom-out { transition: none; }
+  .axiom-out.show { animation: none; }
 }

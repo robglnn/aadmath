@@ -28,7 +28,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generate, SKILLS, FORMS_BY_SKILL, verify, demandOf, literalsOf } from '../src/learn/generators.js';
 import { ITEM_BUNDLES, ITEM_LOCALES } from '../src/learn/strings.js';
-import { fromString, eq as req } from '../src/learn/rational.js';
+import { fromString, eq as req, str as rstr } from '../src/learn/rational.js';
 import { equivalent, solveLinear } from '../src/learn/parser.js';
 import { diagnose } from '../src/learn/diagnose.js';
 import { analogueFor } from '../src/learn/scaffold.js';
@@ -311,6 +311,30 @@ const K = (src, label, where, display) => {
   }
 };
 
+/**
+ * The picture an option actually becomes on the learning surface.
+ *
+ * A choice set is compared here by what it DRAWS, not by the strings it was
+ * built from: "6/8" and "3/4" are different strings and the same reading would
+ * be a defect, while "4k" and "\frac{k}{4}" are near-identical strings and two
+ * completely different readings. The wrapper mirrors `texify()` in
+ * `src/ui/rift.js`, which is what the panel puts round a bare answer before
+ * mounting it, and the render options are the ones `src/ui/tex.js` ships.
+ */
+const drawn = (value) => {
+  const s = String(value).trim();
+  const frac = s.match(/^(-?\d+)\/(\d+)$/);
+  const src = frac
+    ? `${Number(frac[1]) < 0 ? '-' : ''}\\frac{${Math.abs(Number(frac[1]))}}{${frac[2]}}`
+    : s;
+  for (const candidate of [src, s]) {
+    try {
+      return katex.renderToString(candidate, { throwOnError: true, strict: 'error', output: 'html', trust: false });
+    } catch { /* the panel falls through to the next candidate too */ }
+  }
+  return null;
+};
+
 const repsSeen = {};
 for (const locale of ITEM_LOCALES) {
   for (const skill of SKILLS) {
@@ -391,6 +415,26 @@ for (const locale of ITEM_LOCALES) {
           }
           if (item.distractors.length !== 3) fail(`${where}: ${item.distractors.length} distractors, expected 3`);
 
+          // ---- ANSWER INTEGRITY, at the level of what gets drawn ----
+          // Two options that render to the same glyphs are one option and a
+          // trap: a cadet who picks the one on the right is marked wrong for a
+          // reading identical to the one that would have been marked right.
+          // The bank compares values; only this compares PICTURES, using the
+          // same wrapper `src/ui/rift.js` mounts (`texify` there, mirrored by
+          // `drawn()` here), so a difference that survives rendering is the
+          // only difference that counts.
+          {
+            const shown = new Map();
+            for (const v of [item.answer, ...item.distractors.map((dd) => dd.value)]) {
+              const pic = drawn(v);
+              if (pic == null) continue;
+              if (shown.has(pic) && shown.get(pic) !== String(v)) {
+                fail(`${where}: "${shown.get(pic)}" and "${v}" draw the same reading`);
+              }
+              shown.set(pic, String(v));
+            }
+          }
+
           const values = new Set();
           for (const dd of item.distractors) {
             if (values.has(dd.value)) fail(`${where}: duplicate distractor ${dd.value}`);
@@ -412,7 +456,12 @@ for (const locale of ITEM_LOCALES) {
             if (item.check.kind === 'equationChoice') {
               let s2 = null;
               try { s2 = solveLinear(dd.value, item.check.variable); } catch { s2 = null; }
-              if (s2 && s2.kind === 'unique' && String(s2.value.n / s2.value.d) === item.check.expect) {
+              // `check.expect` is written by the generator as an exact rational
+              // ("5/2"), so it has to be compared as one. Dividing it out to a
+              // float meant every non-integer model equation slipped this test
+              // — a distractor with the right solution would have been offered
+              // as a wrong answer, and picking it marked a correct cadet wrong.
+              if (s2 && s2.kind === 'unique' && rstr(s2.value) === item.check.expect) {
                 fail(`${where}: distractor equation has the right solution`);
               }
             }

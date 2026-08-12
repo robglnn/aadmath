@@ -5,7 +5,7 @@
   "wave": 2,
   "summary": "Wave A closed: 30 agents, zero passes. Critics scored world 3, fx 3, player 4, learn-ux 5. A coherence pass then unified the lighting to one golden hour, fixed aerial perspective, restored the player's shadow, and found the click-swallowing modal that had silently broken building since the first commit. 60fps on an M4. Wave B now re-enters every piece seeded with its exact unclosed gap.",
   "metrics": {
-    "fps": 113,
+    "fps": 82,
     "draws": 174,
     "tris": 511076,
     "consoleErrors": 0,
@@ -250,6 +250,46 @@
     {
       "t": "wave kit",
       "m": "ledger: levy capped at a quarter, every mote movement on its own strip; vocab sweep set→place/seal, standing rows renamed, EN/ES/PL agree"
+    },
+    {
+      "t": "answer-integrity",
+      "m": "render-level choice audit added: 22k option sets through the real rift, 0 findings; katex.min.css hazard + option-set invariants fixed"
+    },
+    {
+      "t": "narrative",
+      "m": "third clock: nights held gate rank + last two chapters; content is data (manifest, loader, packs, 2nd unit)"
+    },
+    {
+      "t": "standards",
+      "m": "Framework toggle (CCSS/TEKS) + standard-level coverage in report, teacher record, print and exports"
+    },
+    {
+      "t": "build alignment",
+      "m": "lattice rebuilt: walls/beams on cell faces, decks top-at-level, ramps true wedges, node posts close every corner"
+    },
+    {
+      "t": "language",
+      "m": "ASD-STE100 + ELI18 + ADHD pass across EN/ES/PL; tools/check-language.mjs wired into npm run check; coldplay 6/6, fps 88.5, 0 console errors"
+    },
+    {
+      "t": "language",
+      "m": "ASD-STE100 + ELI18 + ADHD pass across EN/ES/PL; check-language.mjs wired into npm run check"
+    },
+    {
+      "t": "language",
+      "m": "item stems cut to 25 words max, orders card leads with the action, terms defined at first use, screen quiet at 3 prose panels"
+    },
+    {
+      "t": "bilingual record + capture",
+      "m": "17 TEKS caveats, 14 process notes, 12 gap notes and 5 L2 caveats now ES+PL; check-i18n polices content/; shoot.mjs asserts surfaces and rejects duplicate frames"
+    },
+    {
+      "t": "language",
+      "m": "stems <=25 words, orders leads with the action, terms glossed at first use, 3 prose panels max"
+    },
+    {
+      "t": "mobile-landscape",
+      "m": "landscape frame composed in src/ui/landscape.css; tools/critic/landscape.mjs gates 4 landscape viewports x EN/ES/PL x 8 scenes"
     }
   ]
 }

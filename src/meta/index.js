@@ -50,10 +50,15 @@
  */
 import './meta.css';
 import {
-  ACTS, CODA, RANKS, RANK_AT, RANK_INK, RANK_GLOW, rankFor, rungProgress,
+  ACTS, CODA, RANKS, RANK_AT, RANK_NIGHTS, RANK_INK, RANK_GLOW, rankFor, rankGate, rungProgress,
 } from './arc.js';
 import { blankLedger, standingOf } from './standing.js';
-import { CHAPTER_AT, tearsOf, chapterFor, chapterFrac, tearsToNext } from './shard.js';
+import {
+  CHAPTER_AT, CHAPTER_NIGHTS, tearsOf, chapterFor, chapterFrac, tearsToNext, chapterGate,
+} from './shard.js';
+import {
+  blankDays, noteDay, noteNight, seedNights, daysSince, dispatchFor, nightBeat,
+} from './days.js';
 import { Comms } from './comms.js';
 import { QuestCard } from './quest.js';
 import { ColdOpen } from './opening.js';
@@ -104,11 +109,35 @@ export function createStory({
   const ledger = { ...blankLedger(), ...(saved.ledger || {}) };
   const told = new Set(saved.told || []);   // per-skill "you are close" said once
 
+  /* ------------------------------------------------------------------------
+     THE THIRD CLOCK (`days.js`). Nights held gate the top of the rank ladder
+     and the last two chapters; days returned carry the dispatches. Both read
+     the same wall clock the spacing schedule reads — `mastery.now()` — so a
+     harness that moves the clock moves the story with it, and a tab left open
+     overnight is not two days.
+     ------------------------------------------------------------------------ */
+  const days = { ...blankDays(), ...(saved.days || {}) };
+  const dayMarks = new Set(saved.dayMarks || []);
+  const clock = () => (mastery.now ? mastery.now() : Date.now());
+  /** The engine's raw count of re-probes passed after a real gap. */
+  const durableNow = () => (mastery.durableCount ? mastery.durableCount() : 0);
+  seedNights(days, durableNow());
+  /**
+   * Nights held: separate days on which the lattice re-checked a line this
+   * cadet already held and it was still there. One per day, maximum, whatever
+   * else happens — see `noteNight`.
+   */
+  const nightsHeld = () => days.nights || 0;
+  let nights = nightsHeld();
+  /** The gap, in days, that this session opened with. Zero on a same-day return. */
+  const gapDays = daysSince(days, clock());
+  let dayGreeted = false;
+
   let standing = 0;
   let rank = 0;
   let shownRank = 0;
   let tears = tearsOf(ledger);
-  let chapter = chapterFor(tears);
+  let chapter = Math.max(saved.chapter | 0, chapterFor(tears, nightsHeld()), 1);
   let lines = countMastered();
   let opened = countOpen();
   let streak = 0;
@@ -204,8 +233,14 @@ export function createStory({
   // -------------------------------------------------------------------------
   function begin() {
     if (returning) {
-      // What "welcome back" sounds like depends entirely on who is coming back.
-      setTimeout(() => comms.push(pick(vk('returning')), { tag: 'returning', force: true }), 1400);
+      /* ONE GREETING, NOT TWO.
+         A real gap gets the night beat, because that one knows what day it is
+         and what survived it — and a cadet who has just been told "you were
+         away a day, nothing has fallen due, pick a rift" does not also need
+         "welcome back" from the ambient bank. Same-day reloads, which have no
+         night to report, keep the ambient line. */
+      if (gapDays > 0) sayNightBeat();
+      else setTimeout(() => comms.push(pick(vk('returning')), { tag: 'returning', force: true }), 1400);
       cold.end();
       return;
     }
@@ -227,6 +262,46 @@ export function createStory({
   // speaking, and exactly one predicate — `mayTutor()` — that permits an
   // explanation. See `voice.js` for the ladder and the ratchet.
   // -------------------------------------------------------------------------
+  /**
+   * THE DAY OPENS on the first answer, not on the first frame.
+   *
+   * A cadet who loads the game and walks away has not worked, and crediting
+   * them with a day would make the third clock a login streak — which is the
+   * one thing it must never be. One answer is the whole test.
+   *
+   * When a new day opens and a dispatch belongs to it, Marlow says it. Not a
+   * chapter: nothing turns, nothing takes the frame, and missing it costs
+   * nothing.
+   */
+  function openDay() {
+    const { fresh, day } = noteDay(days, clock());
+    if (!fresh) return;
+    const d = dispatchFor(day);
+    if (d && !dayMarks.has(d.id)) {
+      dayMarks.add(d.id);
+      setTimeout(() => { comms.sayKeys(d.lines); d.lines.forEach(mark); }, 2200);
+    }
+    // A day that opened may also have opened a chapter, if the nights are in.
+    recompute();
+    save();
+  }
+
+  /**
+   * WHAT HELD WHILE YOU WERE AWAY — said once, on a real return, before
+   * anything else. The number first, because that is the part a learner wants,
+   * and only ever a true one: nights held come off the mastery engine's own
+   * durable count and lines due come off its wall clock.
+   */
+  function sayNightBeat() {
+    if (dayGreeted || !gapDays) return;
+    dayGreeted = true;
+    let w = null;
+    try { w = mastery.watch?.(); } catch { /* the beat is optional */ }
+    const beat = nightBeat({ nights: nightsHeld(), gap: gapDays, held: w?.due || 0 });
+    if (!beat) return;
+    setTimeout(() => comms.sayKey(beat.key, { params: () => beat.params, force: true }), 1400);
+  }
+
   function voiceState() {
     return { tears, lines, chapter, rankIndex: shownRank, integrity: mastery.integrity() };
   }
@@ -274,8 +349,12 @@ export function createStory({
     const before = standing;
     const beforeTears = tears;
     tears = tearsOf(ledger);
+    // A night is credited before the ladders are read, so the answer that
+    // passes a re-probe is the answer that turns the chapter it bought.
+    noteNight(days, clock(), durableNow());
+    nights = nightsHeld();
     standing = standingOf(ledger, lines, opened);
-    const now = override >= 0 ? override : rankFor(standing);
+    const now = override >= 0 ? override : rankFor(standing, nights);
     if (live) {
       standard.setProgress(rungProgress(standing, now), { kick: standing > before });
       standard.setSeals(tears);
@@ -291,7 +370,7 @@ export function createStory({
     // The story clock is read after the rank one, so a chapter that turns on
     // the same answer as a promotion queues behind the rite rather than under it.
     if (live && chapter < ACTS.length) {
-      const ch = chapterFor(tears);
+      const ch = chapterFor(tears, nights);
       if (ch > chapter) turnChapter(ch);
     }
     liftPeak();
@@ -332,7 +411,10 @@ export function createStory({
   /** The seal ledger on the card — the number that moves on every answer. */
   function pushSeals(gained) {
     const w = watchNow();
-    if (w) { card.setWatch(w); return; }
+    // The watch prints "nights held", so it prints the third clock's number and
+    // not the engine's raw re-probe count — ten held lines re-checked on one
+    // morning is one night, not ten. See `days.js`.
+    if (w) { card.setWatch({ ...w, durable: nights }); return; }
     card.setWatch(null);
     card.setSeals({
       tears,
@@ -340,6 +422,9 @@ export function createStory({
       toNext: tearsToNext(tears, chapter),
       chapter,
       top: chapter >= CHAPTER_AT.length,
+      // WHY THE NEXT CHAPTER IS NOT HERE. One thing, never two, and named — a
+      // chapter that has stopped moving without saying why reads as a bug.
+      gate: chapterGate(tears, nights, chapter),
       gained,
     });
   }
@@ -404,6 +489,9 @@ export function createStory({
       frac: rungProgress(standing, rank),
       have: standing,
       need: next != null ? RANK_AT[next] : standing,
+      // Standing first, nights second: a cadet short of both is told to work,
+      // not told to come back tomorrow.
+      gate: rankGate(standing, nights, rank),
       gained,
     });
   }
@@ -462,6 +550,7 @@ export function createStory({
   function onAnswer(id, correct, meta, res) {
     lastSkill = id;
     idle = 0;
+    openDay();
     const assisted = !!meta.assisted;
     if (correct) {
       streak++;
@@ -731,6 +820,10 @@ export function createStory({
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         seen: [...seen], told: [...told], ledger, rank, peak,
+        // The third clock. `chapter` is persisted with it because a chapter,
+        // once opened, is never taken back — not by a demoted line, not by a
+        // device with the wrong date on it.
+        days, dayMarks: [...dayMarks], chapter,
       }));
     } catch { /* private mode — the arc simply does not persist */ }
   }
@@ -816,6 +909,14 @@ export function createStory({
       // the endgame clock: what is due tonight, and how many nights have been
       // held. Null until the proof is closed.
       watch: watchNow(),
+      // the third clock (src/meta/days.js) — the one a long sitting cannot move
+      nights, days: days.count, streak: days.streak, bestStreak: days.best,
+      gapDays,
+      rankGate: rankGate(standing, nights, rank),
+      chapterGate: chapterGate(tears, nights, chapter),
+      rankNights: RANK_NIGHTS[Math.min(RANKS.length - 1, rank + 1)] || 0,
+      chapterNights: CHAPTER_NIGHTS[Math.min(CHAPTER_AT.length - 1, chapter)] || 0,
+      dispatches: [...dayMarks],
       seen: [...seen],
       // Where Marlow thinks the cadet is, and whether he is still permitted to
       // explain anything. A critic reads these rather than inferring them from
@@ -869,6 +970,13 @@ export function createStory({
       save();
       return standing;
     },
+    /**
+     * Critic hook: the third clock, driven the way a real night drives it.
+     * `window.__ascent.advanceDays()` moves the wall clock; the nights
+     * themselves are earned by passing re-probes, so this only exists to let a
+     * harness assert the gates rather than to hand out ranks.
+     */
+    daysState: () => ({ ...days, nights, gapDays }),
     release() { override = -1; recompute(); },
     reset() { guide?.reset(); localStorage.removeItem(SAVE_KEY); },
   };

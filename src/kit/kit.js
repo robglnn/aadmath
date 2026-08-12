@@ -1,6 +1,6 @@
 import { P } from '../player/locomotion.js';
 import { t, onLocaleChange } from '../i18n/index.js';
-import { SHARD_COST } from '../build/pieces.js';
+import { SHARD_COST, SPEC } from '../build/pieces.js';
 import {
   GRANT_LADDER, CHARTER_EVERY, CHARTER_FROM, STATION_PRICE, chartersAt, charterAt,
 } from './ladder.js';
@@ -860,7 +860,9 @@ export function createKit(opts = {}) {
       cool.set(q.id, Math.max(0, c));
       if (c > 0) continue;
       if (Math.abs(p.x - q.x) > 2.1 || Math.abs(p.z - q.z) > 2.1) continue;
-      const top = q.y + 0.22;
+      // A deck's origin IS the surface you stand on now (src/build/pieces.js),
+      // so read the plate's top off the spec rather than off a copied constant.
+      const top = q.y + SPEC.vault.hi;
       if (p.y > top + 1.1 || p.y < top - 1.2) continue;
       if (player.vel.y > 3) continue;
       cool.set(q.id, 0.75);

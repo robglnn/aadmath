@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { KINDS, SPEC } from './pieces.js';
+import {
+  KINDS, SPEC, LEVEL, WALL_T, DECK_T, NODE_T, endNodes, baseOf,
+} from './pieces.js';
 
 /**
  * WHAT A SET AXIOM IS MADE OF.
@@ -103,6 +105,36 @@ export class Lattice {
       this.live[kind] = [];
     }
 
+    // THE POST THAT CLOSES A CORNER.
+    //
+    // A wall spans one whole cell edge and is centred on it, so where two walls
+    // meet at right angles their outer faces stop half a thickness short of the
+    // corner and leave a slot you can see daylight through. Every modular kit
+    // that has ever shipped answers this the same way: the wall is the panel,
+    // and the *node* is a post.
+    //
+    // So the renderer draws one post at every lattice node a wall ends on, and
+    // — this is the part that matters — it draws it exactly **once**, however
+    // many walls arrive there. Letting each wall carry its own end cap would
+    // put two identical boxes in the same cubic half-metre at every corner and
+    // in the middle of every straight run, which is a z-fighting shimmer rather
+    // than a joint.
+    this.nodeGeo = nodeGeometry();
+    const nodeState = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 2), 2);
+    const nodeTint = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 3), 3);
+    this.nodeGeo.setAttribute('aState', nodeState);
+    this.nodeGeo.setAttribute('aTint', nodeTint);
+    this.nodes = new THREE.InstancedMesh(this.nodeGeo, this.frameMat, MAX);
+    this.nodes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.nodes.castShadow = true;
+    this.nodes.receiveShadow = true;
+    this.nodes.frustumCulled = false;
+    this.nodes.count = 0;
+    this.group.add(this.nodes);
+    this.nodeAttrs = { state: nodeState, tint: nodeTint };
+    this._nodeMap = new Map();
+    this._ends = [0, 0, 0, 0];
+
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
     this._e = new THREE.Euler();
@@ -130,9 +162,57 @@ export class Lattice {
     this._dirty = true;
   }
 
+  /**
+   * One post per lattice node that a wall ends on, carrying the strongest
+   * grow-in of the walls that meet there so a corner rises with its walls.
+   */
+  _nodePass() {
+    const map = this._nodeMap;
+    map.clear();
+    for (const p of this.live.wall) {
+      const u = p.dead ? p.fade : p.grow;
+      if (u <= 0.001) continue;
+      endNodes(p, this._ends);
+      const base = baseOf(p);
+      for (let i = 0; i < 2; i++) {
+        const x = this._ends[i * 2], z = this._ends[i * 2 + 1];
+        const k = `${Math.round(x * 2)},${Math.round(z * 2)},${Math.round(base * 64)}`;
+        const had = map.get(k);
+        if (had) {
+          if (u > had.u) { had.u = u; had.sel = p.sel; }
+        } else {
+          map.set(k, { x, z, y: base + LEVEL / 2, u, sel: p.sel });
+        }
+      }
+    }
+    let i = 0;
+    for (const n of map.values()) {
+      if (i >= MAX) break;
+      const s = Math.max(0.0001, ease(Math.min(1, n.u)));
+      this._p.set(n.x, n.y - (LEVEL / 2) * (1 - s), n.z);
+      this._q.set(0, 0, 0, 1);
+      this._s.set(1, s, 1);
+      this._m.compose(this._p, this._q, this._s);
+      this.nodes.setMatrixAt(i, this._m);
+      this.nodeAttrs.state.array[i * 2 + 0] = n.u;
+      this.nodeAttrs.state.array[i * 2 + 1] = n.sel;
+      const flash = (1 - Math.min(1, n.u)) * 1.5;
+      this.nodeAttrs.tint.array[i * 3 + 0] = 0.012 + flash * 1.10;
+      this.nodeAttrs.tint.array[i * 3 + 1] = 0.048 + flash * 1.30;
+      this.nodeAttrs.tint.array[i * 3 + 2] = 0.082 + flash * 1.45;
+      i++;
+    }
+    this.nodes.count = i;
+    this.nodes.instanceMatrix.needsUpdate = true;
+    this.nodes.boundingSphere = null;
+    this.nodeAttrs.state.needsUpdate = true;
+    this.nodeAttrs.tint.needsUpdate = true;
+  }
+
   update(dt, time) {
     this.time = time;
     this.glazeMat.uniforms.uTime.value = time;
+    let nodesMoved = this._dirty;
 
     for (const kind of KINDS) {
       let moving = false;
@@ -158,6 +238,7 @@ export class Lattice {
         }
       }
 
+      if (kind === 'wall' && moving) nodesMoved = true;
       if (!moving && !this._dirty) continue;
 
       const n = list.length;
@@ -206,6 +287,7 @@ export class Lattice {
       b.tint.needsUpdate = true;
       b.state.needsUpdate = true;
     }
+    if (nodesMoved) this._nodePass();
     this._dirty = false;
   }
 }
@@ -510,168 +592,280 @@ function frameOf(parts) {
 }
 
 const SLOPE = Math.SQRT1_2;              // cos 45° = sin 45°
-const RAMP_L = Math.SQRT2 * 4;           // the slope length of one cell of climb
 
-/** A member lying flat on the ramp's deck, `up` metres proud of it. */
+/**
+ * A member lying flat on the ramp's deck, `up` metres proud of it.
+ * The deck surface passes through local (z = s, y = s + 2) and its unit normal
+ * is (0, cos45, -sin45), so "proud" means up *and* back.
+ */
 function onSlope(w, h, d, along, up, tone, acc = 0, grip = 0) {
-  // deck surface passes through local (z = s, y = s + 2); its normal is
-  // (0, cos45, -sin45), so "proud" means up *and* back
   return bar(w, h, d, 0, along + 2 + up * SLOPE, along - up * SLOPE, -Math.PI / 4,
     tone, acc, grip);
 }
 
 /**
- * Each kind is authored so its base sits at local y = SPEC.lo, and so the
- * silhouette says what it is from any angle *and* says you can stand on it: a
- * wall is a closed mullioned panel, a ramp is a solid stair with raised treads
- * and kerbs, a floor is a closed deck plate with a rim, a beam is an open truss
- * with a lit core — the one piece that is *meant* to read as a bar.
+ * An extruded profile — the honest way to draw a wedge.
+ *
+ * The ramp's deck is a plane, `y = z + 2`, and the collider believes that
+ * exactly. Drawing it as a rotated box meant the box's *ends* were cut square
+ * across the slope, so the drawn surface stopped fourteen centimetres short of
+ * the cell at the head and overhung it at the foot: the ramp you could walk on
+ * and the ramp you could see were two different objects, and the head never met
+ * a floor. A profile extruded along x lands on the cell boundary exactly.
+ *
+ * `profile` is a closed polygon in (z, y), wound so that edge 0 is the deck.
+ */
+function prism(profile, hx, faces) {
+  const pos = [], col = [], acc = [], grip = [];
+  const push = (x, y, z, f) => {
+    pos.push(x, y, z);
+    col.push(f.tone[0], f.tone[1], f.tone[2]);
+    acc.push(f.acc || 0);
+    grip.push(f.grip || 0);
+  };
+  const tri = (a, b, c, f) => { push(...a, f); push(...b, f); push(...c, f); };
+
+  const n = profile.length;
+  for (let i = 0; i < n; i++) {
+    const [z0, y0] = profile[i];
+    const [z1, y1] = profile[(i + 1) % n];
+    const f = faces[i] || faces[0];
+    const A = [-hx, y0, z0], B = [-hx, y1, z1], C = [hx, y1, z1], D = [hx, y0, z0];
+    tri(A, B, C, f); tri(A, C, D, f);
+  }
+  const cap = faces[n] || faces[0];
+  for (let i = 1; i < n - 1; i++) {
+    const P0 = profile[0], Pi = profile[i], Pj = profile[i + 1];
+    tri([hx, P0[1], P0[0]], [hx, Pi[1], Pi[0]], [hx, Pj[1], Pj[0]], cap);
+    tri([-hx, P0[1], P0[0]], [-hx, Pj[1], Pj[0]], [-hx, Pi[1], Pi[0]], cap);
+  }
+
+  const g = new THREE.BufferGeometry();
+  const v = pos.length / 3;
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+  g.setAttribute('acc', new THREE.BufferAttribute(new Float32Array(acc), 1));
+  g.setAttribute('grip', new THREE.BufferAttribute(new Float32Array(grip), 1));
+  // the merge below insists every part carry the same attributes; the alloy
+  // shader projects its plate pattern from object space and never reads uv
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(v * 2), 2));
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * THE POST AT A LATTICE NODE.
+ *
+ * Four metres tall, `NODE_T` square, and a shade proud of a wall's face on all
+ * four sides so it reads as a stanchion the panels are hung between rather than
+ * as a lump. It is drawn once per node by `Lattice._nodePass`, which is what
+ * lets it close a corner without two walls fighting over the same half-metre.
+ */
+function nodeGeometry() {
+  const H = LEVEL / 2;
+  const w = NODE_T;
+  const parts = [
+    bar(w, LEVEL, w, 0, 0, 0, 0, RAIL),
+    bar(w + 0.06, 0.32, w + 0.06, 0, H - 0.17, 0, 0, DARK),
+    bar(w + 0.06, 0.32, w + 0.06, 0, -H + 0.17, 0, 0, DARK),
+    bar(w + 0.05, 0.20, w + 0.05, 0, 0, 0, 0, DARK),
+    bar(0.10, LEVEL - 0.90, w + 0.036, 0, 0, 0, 0, GLOW, 1),
+    bar(w + 0.036, LEVEL - 0.90, 0.10, 0, 0, 0, 0, GLOW, 1),
+  ];
+  return frameOf(parts);
+}
+
+/**
+ * EVERY KIND, AUTHORED TO THE LATTICE RATHER THAN TO THE EYE.
+ *
+ * The silhouette still has to say what a piece is from any angle — a wall is a
+ * closed mullioned panel, a ramp a solid stair, a floor a plated deck, a beam an
+ * open truss — but every dimension now comes off `pieces.js`, so the metal lands
+ * exactly on the slot boundary:
+ *
+ *  - a **wall** is 4.00 long and `WALL_T` thick, centred on its face, so a run
+ *    of them butts end to end with no seam and the node posts fill the corners;
+ *  - a **floor** is 4.00 square with a **dead flat top at local y = 0**. The
+ *    kerb that used to stand seven centimetres proud of the deck is now a fascia
+ *    hanging *below* it: two adjacent decks with kerbs show a double ridge along
+ *    every seam, and no floor anybody has ever walked on does that;
+ *  - a **ramp** is a true extruded wedge whose upper face is the plane the
+ *    collider walks, from the cell's near edge at `y = 0` to its far edge at
+ *    `y = LEVEL` — which is a deck's level, so its head meets a floor flush;
+ *  - a **beam** is a rail whose top is its level, at half a storey;
+ *  - a **vault** is a floor with a coil sunk into it, tiling with floors exactly.
  */
 function buildGeometry(kind) {
   if (kind === 'wall') {
-    const D = 0.34;
+    const D = WALL_T;              // 0.44 — the frame's full thickness
+    const F = 0.30;                // the closed face is a little thinner
     const parts = [
       // the closed face — this is the difference between a wall and a window
-      bar(3.86, 3.86, D, 0, 0, 0, 0, PLATE),
-      // frame
-      bar(4.0, 0.30, 0.46, 0, 1.85, 0),
-      bar(4.0, 0.30, 0.46, 0, -1.85, 0),
-      bar(0.30, 3.40, 0.46, -1.85, 0, 0),
-      bar(0.30, 3.40, 0.46, 1.85, 0, 0),
+      bar(3.86, 3.86, F, 0, 0, 0, 0, PLATE),
+      // frame: exactly 4.00 across and 4.00 tall, so the panel IS the cell edge
+      bar(4.00, 0.28, D, 0, 1.86, 0),
+      bar(4.00, 0.28, D, 0, -1.86, 0),
+      bar(0.28, 3.44, D, -1.86, 0, 0),
+      bar(0.28, 3.44, D, 1.86, 0, 0),
       // mullions
-      bar(3.4, 0.20, 0.44, 0, 0, 0, 0, DARK),
-      bar(0.20, 3.4, 0.44, 0, 0, 0, 0, DARK),
+      bar(3.44, 0.18, D - 0.03, 0, 0, 0, 0, DARK),
+      bar(0.18, 3.44, D - 0.03, 0, 0, 0, 0, DARK),
       // the inlay square: the piece's own light
-      bar(2.9, 0.07, 0.48, 0, 1.30, 0, 0, GLOW, 1),
-      bar(2.9, 0.07, 0.48, 0, -1.30, 0, 0, GLOW, 1),
-      bar(0.07, 2.54, 0.48, -1.30, 0, 0, 0, GLOW, 1),
-      bar(0.07, 2.54, 0.48, 1.30, 0, 0, 0, GLOW, 1),
+      bar(2.90, 0.07, D + 0.02, 0, 1.30, 0, 0, GLOW, 1),
+      bar(2.90, 0.07, D + 0.02, 0, -1.30, 0, 0, GLOW, 1),
+      bar(0.07, 2.54, D + 0.02, -1.30, 0, 0, 0, GLOW, 1),
+      bar(0.07, 2.54, D + 0.02, 1.30, 0, 0, 0, GLOW, 1),
     ];
     for (const sx of [-1, 1]) {
-      for (const sy of [-1, 1]) parts.push(bar(0.58, 0.58, 0.54, sx * 1.72, sy * 1.72, 0, 0, DARK));
+      for (const sy of [-1, 1]) {
+        parts.push(bar(0.52, 0.52, D + 0.01, sx * 1.74, sy * 1.74, 0, 0, DARK));
+      }
     }
     const a = new THREE.PlaneGeometry(3.4, 3.4);
-    a.translate(0, 0, 0.24);
+    a.translate(0, 0, F / 2 + 0.01);
     const b = new THREE.PlaneGeometry(3.4, 3.4);
     b.rotateY(Math.PI);
-    b.translate(0, 0, -0.24);
+    b.translate(0, 0, -F / 2 - 0.01);
     return { frame: frameOf(parts), panel: mergeGeometries([a, b], false) };
   }
 
   if (kind === 'floor') {
+    const T = DECK_T;              // the deck hangs entirely below y = 0
     const parts = [
-      // closed deck: top face lands exactly on SPEC.floor.hi
-      bar(3.92, 0.30, 3.92, 0, 0.03, 0, 0, PLATE),
-      // ribs, so the underside is a structure rather than a blank
-      bar(3.9, 0.14, 0.30, 0, -0.17, -1.1, 0, DARK),
-      bar(3.9, 0.14, 0.30, 0, -0.17, 1.1, 0, DARK),
-      bar(0.30, 0.14, 3.9, 0, -0.17, 0, 0, DARK),
-      // rim kerb — a low nosing rather than the wall of a tray. It stands
-      // 7 cm proud of the tread, which is a kerb; at 15 cm the deck read as a
-      // sunken bath and you would not have guessed it was for standing on.
-      bar(4.0, 0.18, 0.30, 0, 0.18, -1.85),
-      bar(4.0, 0.18, 0.30, 0, 0.18, 1.85),
-      bar(0.30, 0.18, 3.4, -1.85, 0.18, 0),
-      bar(0.30, 0.18, 3.4, 1.85, 0.18, 0),
-      // …and a lit line laid into the top of that nosing, all the way round.
-      // A deck seen from thirty metres away in flat light is a dark rectangle
-      // on dark stone; a deck with a lit outline is a place to put your feet,
-      // and the outline is the same colour at every hour.
-      bar(3.5, 0.045, 0.09, 0, 0.275, -1.85, 0, GLOW, 1),
-      bar(3.5, 0.045, 0.09, 0, 0.275, 1.85, 0, GLOW, 1),
-      bar(0.09, 0.045, 3.5, -1.85, 0.275, 0, 0, GLOW, 1),
-      bar(0.09, 0.045, 3.5, 1.85, 0.275, 0, 0, GLOW, 1),
-      // walking surface: four knurled tread panels split by a lit seam cross
-      bar(1.62, 0.06, 1.62, -0.87, 0.20, -0.87, 0, TREAD, 0, 1),
-      bar(1.62, 0.06, 1.62, 0.87, 0.20, -0.87, 0, TREAD, 0, 1),
-      bar(1.62, 0.06, 1.62, -0.87, 0.20, 0.87, 0, TREAD, 0, 1),
-      bar(1.62, 0.06, 1.62, 0.87, 0.20, 0.87, 0, TREAD, 0, 1),
-      bar(3.5, 0.05, 0.10, 0, 0.215, 0, 0, GLOW, 1),
-      bar(0.10, 0.05, 3.5, 0, 0.215, 0, 0, GLOW, 1),
+      // structure, all of it under the walking plane
+      bar(4.00, 0.12, 4.00, 0, -T + 0.06, 0, 0, PLATE),
+      bar(4.00, 0.10, 4.00, 0, -0.09, 0, 0, PLATE),
+      bar(3.90, 0.15, 0.26, 0, -T + 0.15, -1.05, 0, DARK),
+      bar(3.90, 0.15, 0.26, 0, -T + 0.15, 1.05, 0, DARK),
+      bar(0.26, 0.15, 3.90, 0, -T + 0.15, 0, 0, DARK),
+      // the fascia: what a deck shows to the air on an edge nobody built onto.
+      // It stops at ±2.00, so two decks side by side hide each other's fascia
+      // and read as one continuous floor rather than as two trays.
+      bar(4.00, 0.22, 0.28, 0, -0.24, -1.86),
+      bar(4.00, 0.22, 0.28, 0, -0.24, 1.86),
+      bar(0.28, 0.22, 3.44, -1.86, -0.24, 0),
+      bar(0.28, 0.22, 3.44, 1.86, -0.24, 0),
+      // …with a lit line along it, so a deck seen from below or from across the
+      // plaza is a place to put your feet rather than a dark rectangle
+      bar(3.50, 0.05, 0.06, 0, -0.18, -1.97, 0, GLOW, 1),
+      bar(3.50, 0.05, 0.06, 0, -0.18, 1.97, 0, GLOW, 1),
+      bar(0.06, 0.05, 3.50, -1.97, -0.18, 0, 0, GLOW, 1),
+      bar(0.06, 0.05, 3.50, 1.97, -0.18, 0, 0, GLOW, 1),
+      // the walking surface: four knurled panels whose tops are EXACTLY y = 0
+      bar(1.86, 0.05, 1.86, -1.03, -0.025, -1.03, 0, TREAD, 0, 1),
+      bar(1.86, 0.05, 1.86, 1.03, -0.025, -1.03, 0, TREAD, 0, 1),
+      bar(1.86, 0.05, 1.86, -1.03, -0.025, 1.03, 0, TREAD, 0, 1),
+      bar(1.86, 0.05, 1.86, 1.03, -0.025, 1.03, 0, TREAD, 0, 1),
+      // and the light, sunk into the seams between them rather than standing
+      // proud, so nothing on this piece is higher than the level it defines
+      bar(3.92, 0.04, 0.12, 0, -0.045, 0, 0, GLOW, 1),
+      bar(0.12, 0.04, 3.92, 0, -0.045, 0, 0, GLOW, 1),
     ];
     for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) parts.push(bar(0.52, 0.52, 0.52, sx * 1.78, 0.10, sz * 1.78, 0, DARK));
+      for (const sz of [-1, 1]) {
+        parts.push(bar(0.50, 0.24, 0.50, sx * 1.74, -0.25, sz * 1.74, 0, DARK));
+      }
     }
-    const panel = new THREE.PlaneGeometry(3.4, 3.4);
+    const panel = new THREE.PlaneGeometry(3.86, 3.86);
     panel.rotateX(-Math.PI / 2);
-    panel.translate(0, 0.245, 0);
+    panel.translate(0, 0.004, 0);
     return { frame: frameOf(parts), panel };
   }
 
   if (kind === 'ramp') {
+    // The profile, in (z, y), wound so the first edge is the deck:
+    //   A(-2, 0) → B(2, LEVEL)   the plane the collider walks, corner to corner
+    //   B → C(2, LEVEL - 0.44)   the head's vertical face
+    //   C → D(-1.48, 0)          the underside
+    //   D → A                    the foot, flat on the level it was founded on
+    const deck = { tone: TREAD, grip: 1 };
+    const side = { tone: PLATE };
+    const under = { tone: DARK };
     const parts = [
-      // the solid wedge: a 40 cm slab whose upper face IS the collision surface
-      bar(3.86, 0.40, RAMP_L, 0, 2 - 0.20 / SLOPE, 0, -Math.PI / 4, PLATE, 0, 1),
-      // kick plate at the foot and a closing plate at the head
-      bar(3.9, 0.70, 0.34, 0, -0.30, -1.83, 0, DARK),
-      bar(3.9, 0.90, 0.34, 0, 3.52, 1.83, 0, DARK),
-      // the lit nosing on the bottom step: the one line that says "start here",
-      // and the thing that makes a ramp legible as a way up from across the
-      // plaza rather than as a wedge lying on the ground
-      bar(3.30, 0.06, 0.10, 0, 0.08, -1.72, 0, GLOW, 1),
+      prism([[-2, 0], [2, LEVEL], [2, LEVEL - 0.44], [-1.48, 0]], 2.0,
+        [deck, under, under, under, side]),
+      // the lit nosing at the foot: the one line that says "start here", and
+      // what makes a ramp legible as a way up from across the plaza
+      onSlope(3.30, 0.05, 0.12, -1.80, 0.025, GLOW, 1),
     ];
-    // treads — eight of them, alternating, so the climb is legible from below
+    // treads — eight of them, sunk into the deck rather than standing on it, so
+    // the surface you see is within four millimetres of the surface you walk
     for (let i = 0; i < 8; i++) {
-      const s = -1.75 + i * 0.5;
-      parts.push(onSlope(3.42, 0.13, 0.30, s, 0.065, i % 2 ? TREAD : RAIL, 0, 1));
+      parts.push(onSlope(3.40, 0.10, 0.30, -1.75 + i * 0.5, -0.046,
+        i % 2 ? RAIL : DARK, 0, 1));
     }
     // kerbs down both edges, each with a lit inlay running up its top
     for (const sx of [-1, 1]) {
-      parts.push(bar(0.30, 0.46, RAMP_L, sx * 1.85, 2 + 0.23 * SLOPE, -0.23 * SLOPE, -Math.PI / 4));
-      parts.push(bar(0.12, 0.06, RAMP_L * 0.96, sx * 1.85, 2 + 0.49 * SLOPE, -0.49 * SLOPE,
-        -Math.PI / 4, GLOW, 1));
-      parts.push(bar(0.52, 0.62, 0.52, sx * 1.80, 0.05, -1.80, 0, DARK));
-      parts.push(bar(0.52, 0.62, 0.52, sx * 1.80, 3.72, 1.80, 0, DARK));
+      const kerb = onSlope(0.30, 0.34, 4.90, 0, 0.17, RAIL);
+      kerb.translate(sx * 1.85, 0, 0);
+      const lamp = onSlope(0.12, 0.05, 4.70, 0, 0.365, GLOW, 1);
+      lamp.translate(sx * 1.85, 0, 0);
+      parts.push(kerb, lamp);
     }
-    const panel = new THREE.PlaneGeometry(3.4, RAMP_L * 0.94);
+    const panel = new THREE.PlaneGeometry(3.40, 5.30);
     panel.rotateX(-Math.PI / 2);
     panel.rotateX(-Math.PI / 4);
-    panel.translate(0, 2 + 0.07 * SLOPE, -0.07 * SLOPE);
+    panel.translate(0, 2 + 0.02 * SLOPE, -0.02 * SLOPE);
     return { frame: frameOf(parts), panel };
   }
 
   if (kind === 'vault') {
-    // The vault plate: a deck with a coil in it. It has to read from thirty
-    // metres away as *a thing that throws you*, so the silhouette is a sunken
-    // dish inside a heavy ring, with four lit chevrons pointing up and out.
+    // The vault plate: a deck with a coil in it. It tiles with a floor exactly —
+    // same 4.00 square, same flat top at y = 0, same fascia — because it *is* a
+    // deck. What makes it read as a machine from thirty metres is the sunken
+    // dish and the four lit chevrons, and both of those sit inboard of the rim.
+    const T = DECK_T;
     const parts = [
-      bar(3.92, 0.26, 3.92, 0, 0.00, 0, 0, PLATE),
-      bar(3.9, 0.14, 0.30, 0, -0.16, -1.1, 0, DARK),
-      bar(3.9, 0.14, 0.30, 0, -0.16, 1.1, 0, DARK),
-      // the ring: taller than a floor kerb, because this one is a machine
-      bar(4.0, 0.44, 0.36, 0, 0.20, -1.82),
-      bar(4.0, 0.44, 0.36, 0, 0.20, 1.82),
-      bar(0.36, 0.44, 3.3, -1.82, 0.20, 0),
-      bar(0.36, 0.44, 3.3, 1.82, 0.20, 0),
-      // the coil — three concentric lit rails sunk into the dish
-      bar(2.9, 0.05, 2.9, 0, 0.20, 0, 0, GLOW, 1),
-      bar(2.0, 0.06, 2.0, 0, 0.24, 0, 0, TREAD, 0, 1),
-      bar(1.1, 0.07, 1.1, 0, 0.28, 0, 0, GLOW, 1),
+      bar(4.00, 0.12, 4.00, 0, -T + 0.06, 0, 0, PLATE),
+      bar(4.00, 0.10, 4.00, 0, -0.11, 0, 0, PLATE),
+      bar(3.90, 0.15, 0.26, 0, -T + 0.15, -1.05, 0, DARK),
+      bar(3.90, 0.15, 0.26, 0, -T + 0.15, 1.05, 0, DARK),
+      // the ring: heavier than a floor's fascia, because this one is a machine
+      bar(4.00, 0.26, 0.30, 0, -0.22, -1.85),
+      bar(4.00, 0.26, 0.30, 0, -0.22, 1.85),
+      bar(0.30, 0.26, 3.40, -1.85, -0.22, 0),
+      bar(0.30, 0.26, 3.40, 1.85, -0.22, 0),
+      // the deck itself: four plates whose tops are exactly y = 0
+      bar(1.86, 0.06, 1.86, -1.03, -0.03, -1.03, 0, TREAD, 0, 1),
+      bar(1.86, 0.06, 1.86, 1.03, -0.03, -1.03, 0, TREAD, 0, 1),
+      bar(1.86, 0.06, 1.86, -1.03, -0.03, 1.03, 0, TREAD, 0, 1),
+      bar(1.86, 0.06, 1.86, 1.03, -0.03, 1.03, 0, TREAD, 0, 1),
+      // the coil — three concentric lit rails sunk into the dish between them
+      bar(1.90, 0.04, 1.90, 0, -0.05, 0, 0, GLOW, 1),
+      bar(1.10, 0.05, 1.10, 0, -0.04, 0, 0, TREAD, 0, 1),
+      bar(0.46, 0.06, 0.46, 0, -0.03, 0, 0, GLOW, 1),
     ];
-    // four chevrons on the ring, pointing up: the direction it sends you
+    // four chevrons standing proud, well inboard of the rim: the way it sends you
     for (const [sx, sz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-      parts.push(bar(sz ? 1.1 : 0.16, 0.42, sz ? 0.16 : 1.1,
-        sx * 1.66, 0.46, sz * 1.66, 0, GLOW, 1));
+      parts.push(bar(sz ? 1.10 : 0.16, 0.26, sz ? 0.16 : 1.10,
+        sx * 1.40, 0.10, sz * 1.40, 0, GLOW, 1));
     }
     for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) parts.push(bar(0.56, 0.62, 0.56, sx * 1.78, 0.16, sz * 1.78, 0, DARK));
+      for (const sz of [-1, 1]) {
+        parts.push(bar(0.50, 0.24, 0.50, sx * 1.74, -0.25, sz * 1.74, 0, DARK));
+      }
     }
-    const panel = new THREE.PlaneGeometry(3.0, 3.0);
+    const panel = new THREE.PlaneGeometry(3.00, 3.00);
     panel.rotateX(-Math.PI / 2);
-    panel.translate(0, 0.30, 0);
+    panel.translate(0, 0.006, 0);
     return { frame: frameOf(parts), panel };
   }
 
   // beam — a truss, and the piece that becomes a balance at a rift. This one is
-  // supposed to read as an open member: it is a lever, not a floor.
+  // supposed to read as an open member: it is a lever, not a floor. Its top is
+  // its level, half a storey up, so two rails on neighbouring faces meet in one
+  // plane and a rail set from a deck lands where a handrail belongs.
   const parts = [
-    bar(4, 0.17, 0.34, 0, 0.16, 0),
-    bar(4, 0.17, 0.34, 0, -0.16, 0),
-    bar(3.6, 0.10, 0.16, 0, 0, 0, 0, GLOW, 1),
+    bar(4.00, 0.12, WALL_T, 0, -0.06, 0),
+    bar(4.00, 0.12, WALL_T, 0, -0.30, 0),
+    bar(3.60, 0.09, 0.20, 0, -0.18, 0, 0, GLOW, 1),
   ];
-  for (let i = -2; i <= 2; i++) parts.push(bar(0.14, 0.36, 0.22, i * 0.8, 0, 0, 0, DARK));
-  for (const sx of [-1, 1]) parts.push(bar(0.34, 0.58, 0.44, sx * 1.9, 0, 0, 0, DARK));
-  const panel = new THREE.PlaneGeometry(3.7, 0.30);
+  for (let i = -2; i <= 2; i++) parts.push(bar(0.14, 0.24, 0.26, i * 0.8, -0.18, 0, 0, DARK));
+  for (const sx of [-1, 1]) {
+    parts.push(bar(0.30, 0.36, WALL_T + 0.02, sx * 1.85, -0.18, 0, 0, DARK));
+  }
+  const panel = new THREE.PlaneGeometry(3.70, 0.30);
+  panel.translate(0, -0.18, 0);
   return { frame: frameOf(parts), panel };
 }
 

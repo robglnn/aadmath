@@ -35,6 +35,10 @@
 import { R, add, sub, mul, div, neg, str as rstr, texOf, fromString, eq as reqq, isZero, toNum } from './rational.js';
 import { evaluate, solveLinear, equivalent, parse, evalAst, parseEquation, linearize, parseArrayCells, varsOf } from './parser.js';
 import { makeT } from './strings.js';
+import {
+  registerPack, formsFor, setFormSummary,
+  SKILLS as REGISTERED_SKILLS, FORMS_BY_SKILL as REGISTERED_FORMS_BY_SKILL,
+} from '../content/registry.js';
 
 // ---------------------------------------------------------------------------
 // deterministic randomness
@@ -2719,6 +2723,29 @@ function arrayTexInput(vname, ruleLabel, rowsShown) {
   return `\\begin{array}{c|c} ${vname} & ${ruleLabel} \\\\ \\hline ${body} \\end{array}`;
 }
 
+/**
+ * Does the prompt on screen really say what the verifier checked?
+ *
+ * True when the checked expression IS the prompt, or sits inside it delimited
+ * by something that cannot change its value: a digit, letter, sign or exponent
+ * touching either end means the learner is reading a different quantity from
+ * the one that was proved correct.
+ */
+function targetIsThePrompt(latex, math) {
+  const hay = normalise(latex);
+  const needle = normalise(math);
+  if (hay === needle) return true;
+  const OPEN = /[0-9a-zA-Z.+\-]/;   // would extend a number or a term leftwards
+  const CLOSE = /[0-9a-zA-Z.^]/;    // would extend it, or raise it to a power
+  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) {
+    const before = i > 0 ? hay[i - 1] : '';
+    const after = hay[i + needle.length] || '';
+    if ((before && OPEN.test(before)) || (after && CLOSE.test(after))) continue;
+    return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Verification — the item is read back and worked out from scratch.
 // ---------------------------------------------------------------------------
@@ -2726,9 +2753,15 @@ export function verify(item) {
   const c = item.check;
   if (!c) throw new Error('item has no verification descriptor');
 
-  // The mathematics we check must be the mathematics we display.
-  if (c.math && !c.loose && !normalise(item.latex).includes(normalise(c.math))) {
-    throw new Error('verification target is not part of the displayed prompt');
+  // The mathematics we check must be the mathematics we display — and a
+  // substring test is not enough to say so. "3(x+2)" occurs inside "-3(x+2)"
+  // and "12+4" occurs inside "112+4": both would pass, and both describe an
+  // item whose answer is right about a prompt the learner is not looking at.
+  // That is the one way a fully verified bank can still tell a correct student
+  // they are wrong, so the match has to land on a boundary where no digit,
+  // letter, sign or exponent is left dangling outside it.
+  if (c.math && !c.loose && !targetIsThePrompt(item.latex, c.math)) {
+    throw new Error(`verification target "${c.math}" is not what the prompt "${item.latex}" displays`);
   }
 
   switch (c.kind) {
@@ -3077,7 +3110,6 @@ function specialTex(kind, T) {
 // ---------------------------------------------------------------------------
 // public API
 // ---------------------------------------------------------------------------
-export const SKILLS = Object.keys(FORMS);
 /** Every situation key a deck can produce, by deck name. */
 export const DECK_SCENES = Object.fromEntries(
   Object.entries(DECKS).map(([k, v]) => [
@@ -3110,19 +3142,52 @@ export const DECK_PAIRS = Object.entries(DECKS).flatMap(([deckName, entries]) =>
   return asks.flatMap(([slot, ask]) => scenes.map((ctx) => ({ deck: deckName, ctx, slot, ask })));
 }));
 
-export const FORMS_BY_SKILL = Object.fromEntries(
-  Object.entries(FORMS).map(([k, v]) => [k, v.map((f) => ({
-    id: f.id, rep: f.rep, dMin: f.dMin, dMax: f.dMax,
-    distinctNums: !!f.distinctNums,
-    // Which deck of situations this form is dressed from, and the framings in
-    // it. The scheduler reads this to ask "is there a world here this learner
-    // has not worked in yet?" without having to generate an item to find out.
-    scenes: f.scenes || null,
-    sceneKeys: f.scenes ? DECK_SCENES[f.scenes] : [],
-  }))])
-);
+/**
+ * THE BANK IS A REGISTRY, NOT A LITERAL.
+ *
+ * Algebra I Level 1 is registered here, unconditionally, so this module behaves
+ * exactly as it always did. Every other course registers a pack of its own
+ * through `src/content` and appears in the same two exports. Nothing below this
+ * line knows how many courses are loaded. See `src/content/registry.js`.
+ */
+setFormSummary((f) => ({
+  id: f.id, rep: f.rep, dMin: f.dMin, dMax: f.dMax,
+  distinctNums: !!f.distinctNums,
+  // Which deck of situations this form is dressed from, and the framings in
+  // it. The scheduler reads this to ask "is there a world here this learner
+  // has not worked in yet?" without having to generate an item to find out.
+  scenes: f.scenes || null,
+  sceneKeys: f.scenes ? DECK_SCENES[f.scenes] || [] : [],
+}));
+registerPack({ id: 'algebra1-l1', skills: FORMS });
+
+/** Every skill the loaded courses can generate. Live: a pack extends it. */
+export const SKILLS = REGISTERED_SKILLS;
+/** Form summaries per skill, for every loaded course. Live. */
+export const FORMS_BY_SKILL = REGISTERED_FORMS_BY_SKILL;
 
 export const REPS = ['symbolic', 'context', 'table', 'graph', 'verbal'];
+
+/**
+ * THE TOOLKIT A COURSE PACK BUILDS WITH.
+ *
+ * A pack in `src/content/packs` writes item forms in exactly the shape this
+ * file has always used, so it needs the same small tools: the difficulty bands,
+ * the draws that respect them, the notation writers, and the array printer.
+ * Exporting them is what stops a second course from copying them — two
+ * definitions of "band 4" is two difficulty ladders, and `validate-items`
+ * measures only one of them.
+ *
+ * Everything here is pure. A pack cannot reach the deck of situations through
+ * it, cannot touch the served-scenes ledger, and cannot skip `finalize` — so a
+ * pack can add mathematics but cannot add a way past the content gate.
+ */
+export const kit = {
+  rng, pick, int, nz, nzc,
+  band, Bcoef, Bkonst, Broot, Bval, Pcoef, Pkonst, Proot, Pgroups,
+  co, sg, sgc, term, lin, paren, distinct, arrayTex,
+  VARS,
+};
 
 /**
  * Generate one verified item.
@@ -3133,7 +3198,7 @@ export const REPS = ['symbolic', 'context', 'table', 'graph', 'verbal'];
  *          reps?:string[], strict?:boolean}} opts
  */
 export function generate(skill, difficulty = 1, seed = Math.floor(Math.random() * 1e9), opts = {}) {
-  const all = FORMS[skill];
+  const all = formsFor(skill);
   if (!all) throw new Error(`No generator for skill "${skill}"`);
   const d = Math.max(1, Math.min(5, difficulty | 0));
   const T = makeT(opts.locale || 'en', { strict: !!opts.strict });

@@ -77,6 +77,17 @@ const CHROME = [
   '.field-tag',                     // a cache's own maths, pinned to the puzzle
   '.rp-launch',
   '#touchpad .pads', '#touchpad .home',
+  /* Six more plates that were on the glass and not on this list, found by
+     photographing a phone in landscape for the first time: at 844x390 the
+     wallet's ledger strip and WALK INTO IT were printed through each other.
+     Every one of these is furniture a world label must walk around, and a
+     selector that matches nothing costs nothing here. (mobile-landscape pass —
+     additive selectors only; no behaviour in this file is changed.) */
+  '.ledger',                        // the wallet's own audit trail (src/kit)
+  '.sound',                         // the audio chip (src/audio)
+  '.axiom', '.axiom-clear',         // the build charge and its clear (src/build)
+  '.mnu-pill',                      // the way out (src/ui/menu.js)
+  '.ses-band',                      // the run's own progress (src/session)
 ];
 
 /** Vertical steps a label is allowed to walk away from its anchor, in px. */

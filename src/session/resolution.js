@@ -341,12 +341,15 @@ function openedNoneRow(r, held) {
  */
 function nextRows(r) {
   if (r.next) {
-    return [{
-      strong: t('skills.' + r.next.id),
-      note: r.next.minutes != null
-        ? t('session.close.nextNote', { n: r.next.minutes })
-        : t('session.close.nextNoteUnknown'),
-    }];
+    return [
+      {
+        strong: t('skills.' + r.next.id),
+        note: r.next.minutes != null
+          ? t('session.close.nextNote', { n: r.next.minutes })
+          : t('session.close.nextNoteUnknown'),
+      },
+      nightsRow(r),
+    ];
   }
   const e = r.endgame || {};
   const rows = [{
@@ -386,7 +389,40 @@ function nextRows(r) {
         note: t('session.close.stationNoteNone'),
       });
   }
+  rows.push(nightsRow(r));
   return rows;
+}
+
+/**
+ * THE ROW THAT SAYS WHY TOMORROW IS DIFFERENT FROM MORE OF TODAY.
+ *
+ * A learner three lines into the shard used to close a session with no reason
+ * on screen to come back rather than to keep going. Nights held is that reason,
+ * and it is honest: it is the mastery engine's own count of lines re-probed
+ * after a real break and still known (src/meta/days.js). It is what rank costs
+ * above Silver and what the last two chapters wait for, and it is the one
+ * number in the game that a long sitting cannot move.
+ *
+ * When something has actually fallen due, that comes first — it is the concrete
+ * next action, and a concrete next action beats a definition.
+ */
+function nightsRow(r) {
+  if ((r.due || 0) > 0) {
+    return {
+      strong: t('session.close.dueStrong', { n: r.due }),
+      note: t('session.close.dueNote'),
+    };
+  }
+  if ((r.nights || 0) > 0) {
+    return {
+      strong: t('session.close.nightsStrong', { n: r.nights }),
+      note: t('session.close.nightsNote'),
+    };
+  }
+  return {
+    strong: t('session.close.nightsNoneStrong'),
+    note: t('session.close.nightsNoneNote'),
+  };
 }
 
 /**

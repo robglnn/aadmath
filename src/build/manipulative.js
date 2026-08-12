@@ -152,7 +152,9 @@ export class Manipulatives {
   _area(piece, c) {
     const owned = [];
     const g = new THREE.Group();
-    g.position.set(piece.x, piece.y + 0.2, piece.z);
+    // A deck's origin IS its walking surface now (pieces.js), so the model is
+    // laid a few centimetres over the plate rather than a fifth of a metre.
+    g.position.set(piece.x, piece.y + 0.06, piece.z);
     g.rotation.y = piece.yaw;
     this.group.add(g);
 

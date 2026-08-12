@@ -54,7 +54,12 @@ export function dateText(iso, withTime = false) {
 }
 
 export const RECORD_KIND = 'ascent.learner-record';
-export const RECORD_VERSION = 1;
+/**
+ * 2 adds `framework` and `standards`: the expectation-level coverage, in the
+ * framework the record was drawn in. Version 1 records still import — the
+ * shape only grew, and `isRecord` checks the parts a class roster reads.
+ */
+export const RECORD_VERSION = 2;
 
 const REPS = ['symbolic', 'context', 'verbal', 'table', 'graph'];
 
@@ -64,10 +69,15 @@ const REPS = ['symbolic', 'context', 'verbal', 'table', 'graph'];
  * `depthOf` is injected rather than imported so this module never has to know
  * how the two standards frameworks store their coverage depth.
  */
-export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf }) {
+export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf, coverage }) {
   const total = graph.nodes.length;
   const held = graph.nodes.filter((n) => mastery.get(n.id).mastered).length;
   const trust = tracker.trust();
+  // Standard-level coverage in the framework this device reports in. It travels
+  // inside the record rather than being recomputed by each reader, so the
+  // printed sheet, the JSON a teacher files and the CSV they paste into a
+  // gradebook cannot disagree about what was covered.
+  const cov = coverage ? coverage() : null;
 
   const skills = graph.nodes.map((n) => {
     const s = mastery.get(n.id);
@@ -113,6 +123,27 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
     generatedAt: new Date().toISOString(),
     locale: getLocale(),
     level: { id: graph.id, title: graph.title, frameworks: graph.frameworks || [] },
+    framework: cov?.framework || null,
+    standards: cov
+      ? {
+        totals: cov.totals,
+        rows: cov.rows.map((r) => ({
+          code: r.short,
+          citation: r.citation,
+          text: r.text,
+          depth: r.depth,
+          cover: r.cover,
+          heldLines: r.heldLines,
+          totalLines: r.totalLines,
+          lines: r.lines.map((l) => ({ id: l.id, title: t('skills.' + l.id), depth: l.depth, state: l.state })),
+          formsMet: r.formsMet,
+          formsDeclared: r.formsDeclared,
+          answers: r.answers,
+          unaided: r.unaided,
+          thin: r.thin,
+        })),
+      }
+      : null,
     learner: { name: (learner?.name || '').trim() || null, group: (learner?.group || '').trim() || null },
     recordId: tracker.state.recordId || null,
     observations: tracker.state.seq ?? null,
@@ -158,10 +189,15 @@ export function recordToCsv(rec) {
     t('report.record.col.skill'), t('report.record.col.state'), t('report.record.col.confidence'),
     t('report.record.col.items'), t('report.record.col.unaided'), t('report.record.col.time'),
     t('report.record.col.road'), t('report.record.col.claimItems'), t('report.record.col.band'),
-    t('report.record.col.retention'), t('report.record.col.ccss'), t('report.record.col.teks'),
+    t('report.record.col.retention'),
+    // One standards column, in the framework this record was drawn in. Two
+    // columns made a Texas gradebook carry Common Core codes it will never
+    // read, and a teacher had to delete one before the file was usable.
+    t('report.record.col.framework'), t('report.record.col.standards'),
     t('report.record.col.trust'),
   ];
   const name = rec.learner.name || t('report.record.anon');
+  const frame = rec.framework ? t('report.std.frame.' + rec.framework) : '';
   const rows = rec.skills.map((s) => [
     name, rec.learner.group || '', rec.generatedAt,
     s.title, t('report.state.' + s.state), s.pL,
@@ -171,9 +207,40 @@ export function recordToCsv(rec) {
     s.claim ? s.claim.items : '',
     s.claim ? s.claim.band : '',
     s.probes.hit + s.probes.miss ? `${s.probes.hit}/${s.probes.hit + s.probes.miss}` : '',
-    s.ccss.map((c) => `${short(c.code)} (${c.depth || '?'})`).join(' '),
-    s.teks.map((c) => `${c.code} (${c.depth})`).join(' '),
+    frame,
+    (rec.framework === 'teks' ? s.teks : s.ccss)
+      .map((c) => `${short(c.code)} (${c.depth || '?'})`).join(' '),
     t('report.record.trust.' + rec.trust.level),
+  ]);
+  return [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+}
+
+/**
+ * The standards sheet as a spreadsheet. One row per expectation, in the
+ * framework the record was drawn in — because a district that asks for a
+ * coverage file asks for it in their own codes, and a file carrying both
+ * frameworks makes the reader filter before they can read.
+ */
+export function standardsToCsv(rec) {
+  const head = [
+    t('report.record.col.student'), t('report.record.col.group'), t('report.record.col.generated'),
+    t('report.record.col.framework'), t('report.record.col.code'), t('report.record.col.depth'),
+    t('report.record.col.citation'), t('report.record.col.cover'), t('report.record.col.linesHeld'),
+    t('report.record.col.carriedBy'), t('report.record.col.formsMet'), t('report.record.col.answers'),
+    t('report.record.col.unaided'), t('report.record.col.expectation'),
+  ];
+  const name = rec.learner.name || t('report.record.anon');
+  const frame = rec.framework ? t('report.std.frame.' + rec.framework) : '';
+  const rows = (rec.standards?.rows || []).map((s) => [
+    name, rec.learner.group || '', rec.generatedAt,
+    frame, s.code, t('report.std.depth.' + (s.depth || 'unknown')),
+    s.citation || '',
+    t('report.std.cover.group.' + s.cover),
+    `${s.heldLines}/${s.totalLines}`,
+    s.lines.map((l) => l.title).join(' · '),
+    `${s.formsMet}/${s.formsDeclared}`,
+    s.answers, s.unaided,
+    s.text,
   ]);
   return [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
 }
@@ -247,10 +314,17 @@ export function classBySkill(recs) {
   return [...byId.values()];
 }
 
-/** A file name a teacher can find again a month later. */
-export function fileName(rec, ext) {
+/**
+ * A file name a teacher can find again a month later. `tag` separates the two
+ * CSVs a teacher can pull for the same student on the same day \u2014 the line sheet
+ * and the standards sheet \u2014 so the second one does not silently overwrite the
+ * first in a downloads folder.
+ */
+export function fileName(rec, ext, tag = '') {
   const who = (rec.learner.name || t('report.record.anon'))
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'record';
-  return `ascent-${who}-${rec.generatedAt.slice(0, 10)}.${ext}`;
+  // i18n-allow: a download file name is a path, not display language
+  const part = tag ? `${tag}-` : '';
+  return `ascent-${part}${who}-${rec.generatedAt.slice(0, 10)}.${ext}`;
 }

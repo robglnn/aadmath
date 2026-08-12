@@ -1,4 +1,13 @@
 import katex from 'katex';
+// KaTeX's own stylesheet, imported by the module that *needs* it rather than
+// left to whoever happens to boot first. `output: 'htmlAndMathml'` below emits
+// the expression twice — once as spans for the eye and once as MathML for a
+// screen reader — and the only thing hiding the second copy is katex.min.css.
+// Without it every number on the learning surface renders doubled: an answer of
+// -10 reads as "-10-10", and a choice set becomes unreadable. It was reached
+// through `src/main.js` alone, so any entry point that mounted the rift without
+// the whole game shipped mathematics no one could read.
+import 'katex/dist/katex.min.css';
 
 /**
  * Every piece of mathematics in the game goes through here. Strict mode is on

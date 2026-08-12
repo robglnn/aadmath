@@ -1,0 +1,15 @@
+import { connect, shot, dumpText, URL } from './nplib.mjs';
+import { writeFile } from 'node:fs/promises';
+const { page } = await connect();
+await page.goto(URL, { waitUntil: 'load' });
+await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch {} });
+await page.reload({ waitUntil: 'load' });
+const t0 = Date.now();
+await writeFile('/tmp/np-t0.txt', String(t0));
+await page.waitForTimeout(3000);
+await shot(page, 't0003-arrival');
+await dumpText(page, '3s');
+await page.waitForTimeout(7000);
+await shot(page, 't0010');
+await dumpText(page, '10s');
+process.exit(0);

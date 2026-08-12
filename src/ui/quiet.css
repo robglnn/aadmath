@@ -1,0 +1,25 @@
+/*
+ * The hush. One class, one job, no layout.
+ *
+ * `visibility` rather than `display`, on purpose: a hushed panel keeps its box,
+ * so its owner's own measurements, fits and transitions go on working and
+ * nothing reflows when the screen goes quiet or comes back.
+ *
+ * Deliberately no positioning, no sizing and no colour: this file must never
+ * be the thing that decides where a panel sits, and must never collide with
+ * a stylesheet that does.
+ */
+#ui .qt-hush,
+.qt-hush {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  /*
+   * No transition, deliberately. A delayed `visibility` was a trap here: the
+   * coordinator re-evaluates nine times a second, anything that restarts the
+   * delay leaves a panel wearing the hush and still fully on screen, and that
+   * is exactly what the first draft shipped. These panels arrive and leave
+   * constantly anyway, so an instant yield is the honest behaviour and the one
+   * that cannot get stuck half done.
+   */
+}

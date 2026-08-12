@@ -109,11 +109,20 @@ export class QuestCard {
   setSeals(s) {
     this.sn.textContent = String(s.tears);
     this.slab.textContent = t('story.hud.sealed');
+    /* WHY THE NEXT CHAPTER HAS NOT TURNED.
+       The tear count can be full and the chapter still shut, because the last
+       two acts also cost nights held (src/meta/shard.js). A bar sitting at
+       100% under "3 more tears" would read as a bug, so the line says the real
+       reason and names the one number that is missing. */
+    const gate = s.gate || { kind: 'tears', need: s.toNext };
     this.snext.textContent = s.top
       ? t('story.hud.sealsAll')
-      : t('story.hud.toChapter', { n: s.toNext, ch: s.chapter + 1 });
+      : gate.kind === 'nights'
+        ? t('story.hud.chapterNight', { n: gate.need, ch: s.chapter + 1 })
+        : t('story.hud.toChapter', { n: gate.need, ch: s.chapter + 1 });
     this.sfill.style.width = `${Math.round(s.frac * 100)}%`;
     this.seal.classList.toggle('full', !!s.top);
+    this.seal.classList.toggle('gated', gate.kind === 'nights');
     if (s.gained) {
       this.splus.textContent = t('story.hud.plusSeal');
       this.seal.classList.remove('pop');
@@ -128,11 +137,18 @@ export class QuestCard {
    */
   setRung(s) {
     this.rnow.textContent = s.rankName;
-    this.rnext.textContent = s.nextName
-      ? t('story.hud.toNext', { rank: s.nextName, n: Math.max(0, s.need - s.have) })
-      : t('story.hud.summit');
+    /* Same rule as the seal row: Gold and Sovereign also cost nights held, so
+       a cadet who has the standing and not the nights is told which one is
+       missing rather than watching a full bar do nothing. */
+    const gate = s.gate || { kind: 'standing', need: Math.max(0, s.need - s.have) };
+    this.rnext.textContent = !s.nextName
+      ? t('story.hud.summit')
+      : gate.kind === 'nights'
+        ? t('story.hud.nextNight', { rank: s.nextName, n: gate.need })
+        : t('story.hud.toNext', { rank: s.nextName, n: gate.need });
     this.rfill.style.width = `${Math.round(s.frac * 100)}%`;
     this.rung.classList.toggle('full', !s.nextName);
+    this.rung.classList.toggle('gated', gate.kind === 'nights');
     if (s.gained) {
       this.rung.classList.remove('tick');
       void this.rung.offsetWidth;

@@ -361,6 +361,133 @@
   margin:.45rem 0 0; font-size:.68rem; line-height:1.45; color:var(--ink-mute);
 }
 
+/* ------------------------------------------------------- framework switch --
+   Two buttons, never a select. The point of the control is that a teacher can
+   see the framework they did *not* pick is available; a closed dropdown hides
+   exactly that. The live one is a pressed toggle, not a coloured word, so the
+   state survives a greyscale printout and a colour-blind reader. */
+.rp-frame{
+  display:flex; align-items:center; gap:.3rem; flex-wrap:wrap; flex:none;
+}
+.rp-frame-lab{
+  font-size:.52rem; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--ink-mute); font-weight:700; margin-right:.15rem;
+}
+.rp-frame-b{
+  padding:.34rem .7rem; min-height:32px;
+  font:inherit; font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; font-weight:700;
+  color:var(--ink-mute); background:rgba(9,18,33,.55); cursor:pointer;
+  border:1px solid var(--rp-line); border-radius:6px;
+  transition:color .15s ease,border-color .15s ease;
+}
+.rp-frame-b:hover,.rp-frame-b:focus-visible{color:var(--ink); border-color:rgba(95,230,255,.45)}
+.rp-frame-b.on{
+  color:var(--cyan); border-color:rgba(95,230,255,.55); background:rgba(95,230,255,.1);
+  box-shadow:inset 0 0 0 1px rgba(95,230,255,.18);
+}
+
+/* --------------------------------------------------- standards coverage --- */
+.rp-cover-head{
+  display:flex; align-items:baseline; gap:.8rem 1rem; flex-wrap:wrap;
+  margin-top:1.5rem;
+}
+.rp-cover-head .rp-h3{margin:0}
+.rp-cover-sub{
+  margin:.35rem 0 .7rem; max-width:62ch;
+  font-size:.7rem; line-height:1.45; color:var(--ink-mute);
+}
+.rp-cover-strip{display:flex; flex-wrap:wrap; gap:.4rem 1.4rem; margin:0 0 .9rem}
+.rp-strip-i.t-warn b{color:var(--amber)}
+
+.rp-cover{display:flex; flex-direction:column; gap:.9rem}
+.rp-cgrp{display:flex; flex-direction:column; gap:.25rem}
+.rp-cgrp-h{
+  display:flex; align-items:baseline; gap:.45rem; margin:0;
+  font-size:.58rem; letter-spacing:.2em; text-transform:uppercase; font-weight:700;
+  color:var(--ink-mute);
+}
+.rp-cgrp-h i{
+  font-style:normal; font-size:.62rem; letter-spacing:0;
+  color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.rp-cgrp.c-held .rp-cgrp-h{color:var(--lime)}
+.rp-cgrp.c-part .rp-cgrp-h{color:var(--cyan)}
+.rp-cgrp.c-none .rp-cgrp-h{color:var(--ink-mute)}
+.rp-cgrp-note{margin:0 0 .2rem; font-size:.66rem; line-height:1.4; color:var(--ink-mute)}
+
+.rp-cstd{
+  border:1px solid var(--rp-line); border-radius:7px;
+  background:rgba(8,16,30,.42); overflow:hidden;
+}
+.rp-crow{
+  display:grid; width:100%; align-items:center; gap:.55rem;
+  grid-template-columns:minmax(6.5rem,auto) auto minmax(0,1fr) auto 12px;
+  padding:.5rem .7rem; min-height:42px;
+  font:inherit; text-align:left; color:inherit;
+  background:transparent; border:0; cursor:pointer;
+}
+.rp-crow:hover{background:rgba(95,230,255,.05)}
+.rp-crow:focus-visible{outline:2px solid var(--cyan); outline-offset:-2px}
+.rp-ccode{
+  font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
+  font-size:.75rem; color:var(--ink); white-space:nowrap;
+}
+.rp-cdepth{
+  padding:.1rem .36rem; border-radius:3px; white-space:nowrap;
+  font-size:.5rem; letter-spacing:.14em; text-transform:uppercase; font-weight:700;
+  color:var(--ink-mute); background:rgba(150,200,255,.08);
+  border:1px solid rgba(150,200,255,.16);
+}
+.rp-cstd[data-depth="core"] .rp-cdepth{
+  color:var(--lime); border-color:rgba(142,240,168,.36); background:rgba(142,240,168,.08);
+}
+.rp-cstd[data-depth="supporting"] .rp-cdepth{color:#cfe6ff}
+.rp-cstd[data-depth="introduced"] .rp-cdepth{
+  color:var(--amber); border-color:rgba(255,194,95,.3); background:rgba(255,194,95,.08);
+}
+.rp-clines{
+  font-size:.66rem; color:var(--ink-mute); text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.rp-cthin{
+  flex:none; padding:.1rem .34rem; border-radius:3px; white-space:nowrap;
+  font-size:.5rem; letter-spacing:.14em; text-transform:uppercase; font-weight:700;
+  color:#ffd9a8; background:rgba(255,194,95,.1); border:1px solid rgba(255,194,95,.32);
+  cursor:help;
+}
+.rp-cstd[data-cover="held"]{border-color:rgba(142,240,168,.26)}
+.rp-cstd[data-cover="none"]{opacity:.72}
+
+.rp-cdetail{padding:.1rem .8rem .8rem; border-top:1px solid rgba(150,200,255,.1)}
+.rp-cquote{
+  margin:.15rem 0 0; padding-left:.7rem;
+  border-left:2px solid rgba(95,230,255,.3);
+  font-size:.78rem; line-height:1.5; color:var(--ink-dim);
+}
+.rp-cquote-note{margin:.25rem 0 0; font-size:.62rem; color:var(--ink-mute)}
+.rp-clist{list-style:none; margin:.1rem 0 0; padding:0; display:flex; flex-direction:column; gap:.2rem}
+.rp-clist li{
+  display:flex; align-items:baseline; gap:.5rem; flex-wrap:wrap;
+  padding:.26rem .4rem; border-radius:5px; background:rgba(150,200,255,.045);
+}
+.rp-clist b{font-size:.74rem; font-weight:400; color:var(--ink)}
+.rp-clist em{
+  font-style:normal; font-size:.5rem; letter-spacing:.14em; text-transform:uppercase;
+  font-weight:700; color:var(--ink-mute);
+}
+.rp-clist li[data-state="mastered"] b,.rp-clist li[data-state="provisional"] b{color:var(--lime)}
+.rp-clist i{
+  font-style:normal; margin-left:auto;
+  font-size:.5rem; letter-spacing:.16em; text-transform:uppercase; font-weight:700;
+  color:var(--ink-mute);
+}
+.rp-cnone,.rp-cnote{margin:.2rem 0 0; font-size:.66rem; line-height:1.4; color:var(--ink-mute)}
+.rp-cwarn{
+  margin:.5rem 0 0; padding:.4rem .5rem;
+  border-left:2px solid rgba(255,194,95,.55); background:rgba(255,194,95,.07);
+  font-size:.68rem; line-height:1.45; color:var(--ink-dim);
+}
+
 /* ------------------------------------------------------------- warning ---- */
 .rp-warn{
   display:flex; flex-direction:column; gap:.2rem;
@@ -406,7 +533,10 @@
 }
 
 /* ------------------------------------------------------------ phone size -- */
-@media (max-width:720px){
+/* …and the same in landscape: at 844x390 the report was drawn at its desktop
+   size and ran a page and a half off the bottom of the frame with no scroll.
+   Breakpoint only; the declarations are untouched. (mobile-landscape pass) */
+@media (max-width:720px),(max-height:520px) and (orientation:landscape){
   .rp-scrim{padding:0}
   .rp-card{
     width:100%; height:100%; max-height:100%;
@@ -446,6 +576,16 @@
   .rp-facts dt{padding-top:.5rem}
   .rp-facts dd{padding-bottom:.35rem}
   .rp-std-lab{min-width:100%}
+  /* The coverage row goes to flow at 414: code, depth and the thin-claim flag
+     ride the first line, and "lines proved" drops under them rather than being
+     squeezed into forty pixels. */
+  .rp-crow{display:flex; flex-wrap:wrap; align-items:center; gap:.3rem .5rem; min-height:48px}
+  .rp-cthin{order:4}
+  .rp-caret{order:5; margin-left:auto}
+  .rp-clines{order:9; width:100%; text-align:left}
+  .rp-cover-head{gap:.5rem}
+  .rp-frame{width:100%}
+  .rp-frame-b{flex:1 1 0; min-width:0}
   /* On a phone the right-hand column belongs to the build hotbar and the foot
      of the screen belongs to the companion's line, so the launcher moves to the
      top left, into the gap between the integrity rig and the chapter card. It
@@ -499,8 +639,12 @@
   display:flex; align-items:flex-start; gap:1rem;
   padding:1rem 1.15rem .8rem; border-bottom:1px solid var(--rp-line);
 }
-.rp-doc-x{margin-left:auto}
-.rp-tabs{display:flex; gap:.3rem; padding:.6rem 1.15rem 0}
+.rp-doc-head{flex-wrap:wrap}
+/* The switch sits with the close button, not with the title: it governs every
+   pane below, so it must not read as part of the heading of one of them. */
+.rp-doc-head .rp-frame-slot{margin-left:auto}
+.rp-doc-x{margin-left:.5rem}
+.rp-tabs{display:flex; gap:.3rem; padding:.6rem 1.15rem 0; flex-wrap:wrap}
 .rp-tab{
   padding:.42rem .9rem; min-height:36px;
   font:inherit; font-size:.58rem; letter-spacing:.18em; text-transform:uppercase; font-weight:700;
@@ -602,6 +746,30 @@
 .rp-table tr[data-state="provisional"] td:nth-child(2){color:var(--amber)}
 .rp-table tr[data-state="withdrawn"] td:nth-child(2){color:var(--rose)}
 .rp-list{margin:.4rem 0 0; padding-left:1.1rem; font-size:.74rem; color:var(--ink-dim)}
+/* The quoted wording of each expectation: a code, then what it asks. A
+   definition list rather than a two-column table, because the second column is
+   a sentence and a sentence in a table cell is a scroll bar. */
+/* A note that belongs on the paper as well as on the glass. `.rp-note` cannot
+   be used: the print stylesheet hides that class, correctly, because it is what
+   the on-screen identity hints wear. */
+.rp-sheet-note{margin:.4rem 0 0; font-size:.68rem; line-height:1.45; color:var(--ink-mute)}
+.rp-gaps li{margin-bottom:.45rem}
+.rp-gaps b{display:block; color:var(--ink)}
+.rp-gaps span{display:block; margin-top:.1rem}
+.rp-defs{margin:.4rem 0 0}
+.rp-defs dt{
+  margin-top:.6rem;
+  font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
+  font-size:.7rem; color:var(--ink);
+}
+.rp-defs dd{margin:.15rem 0 0 0; font-size:.73rem; line-height:1.5; color:var(--ink-dim)}
+.rp-def-caveat{color:var(--ink-mute) !important; font-size:.68rem !important}
+.rp-def-caveat b{
+  display:block; font-size:.5rem; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink-mute); font-weight:700; margin-top:.25rem;
+}
+.rp-table tr[data-cover="held"] td:nth-child(3){color:var(--lime)}
+.rp-table tr[data-cover="none"] td{opacity:.7}
 .rp-sheet-foot{
   margin:1.1rem 0 0; padding-top:.7rem; border-top:1px solid rgba(150,200,255,.1);
   font-size:.66rem; line-height:1.5; color:var(--ink-mute);
@@ -613,6 +781,8 @@
   .rp-doc{width:100%; height:100%; max-height:100%; border-radius:0}
   .rp-sheet{padding:.85rem .7rem 1rem}
   .rp-table{display:block; overflow-x:auto; white-space:nowrap}
+  .rp-doc-head .rp-frame-slot{margin-left:0; width:100%; order:3}
+  .rp-doc-head .rp-frame-b{flex:1 1 0; min-width:0}
 }
 
 /* ------------------------------------------------------------------ paper -- */
@@ -639,8 +809,22 @@
     border:0 !important; margin:0 !important;
   }
   .rp-pane[hidden]{display:none !important}
+  body[data-rp-print="one"] .p-std,
   body[data-rp-print="one"] .p-class,
-  body[data-rp-print="class"] .p-one{display:none !important}
+  body[data-rp-print="std"] .p-one,
+  body[data-rp-print="std"] .p-class,
+  body[data-rp-print="class"] .p-one,
+  body[data-rp-print="class"] .p-std{display:none !important}
+  .rp-sheet-note{color:#444 !important}
+  /* The withdrawn-claims list and the declared alignment gaps both live in
+     `.rp-list`, which is ink-dim on glass and all but invisible on paper. */
+  .rp-list{color:#111 !important}
+  .rp-gaps b{color:#000 !important}
+  .rp-gaps li{break-inside:avoid}
+  .rp-defs dt{color:#000 !important; font-weight:700}
+  .rp-defs dd{color:#111 !important}
+  .rp-def-caveat{color:#444 !important}
+  .rp-defs dt,.rp-defs dd{break-inside:avoid}
   .rp-sheet{
     border:0 !important; background:#fff !important; padding:0 !important;
     color:#000 !important;

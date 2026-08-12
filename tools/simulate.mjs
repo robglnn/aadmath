@@ -81,12 +81,41 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MasteryEngine, itemSeconds } from '../src/learn/mastery.js';
-import { FORMS_BY_SKILL, SKILLS, generate, demandOf } from '../src/learn/generators.js';
+import { FORMS_BY_SKILL, generate, demandOf } from '../src/learn/generators.js';
 import { echoScript } from '../src/learn/echo.js';
 import enItems from '../content/lang/items.en.js';
+import { allUnits, loadUnit, loadCourse, standalone } from './_courses.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const graph = JSON.parse(await readFile(path.join(ROOT, 'content/graph/algebra1-l1.json'), 'utf8'));
+
+/**
+ * WHICH LATTICE IS BEING SIMULATED.
+ *
+ * The default is Algebra I Level 1 and nothing about it has changed: same
+ * graph, same ten nodes, same numbers. `--unit <id>` runs any unit in
+ * content/courses.json and `--course <id>` runs a whole course composed into
+ * one lattice, so a new course is proved by the same simulation rather than by
+ * a second one written to flatter it. Everything below reads the graph; nothing
+ * below names a course.
+ */
+const argOf = (k) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : null; };
+const WANT_UNIT = argOf('--unit');
+const WANT_COURSE = argOf('--course');
+let graph;
+let LATTICE = 'Algebra I Level 1';
+if (WANT_COURSE) {
+  graph = await loadCourse(WANT_COURSE);
+  LATTICE = `course ${WANT_COURSE}`;
+} else {
+  const units = await allUnits();
+  const pick = units.find((u) => u.unit.id === (WANT_UNIT || 'algebra1-l1'));
+  if (!pick) throw new Error(`no unit "${WANT_UNIT}" in content/courses.json`);
+  graph = standalone(await loadUnit(pick.unit));
+  LATTICE = WANT_UNIT ? `unit ${WANT_UNIT}` : 'Algebra I Level 1';
+}
+
+/** The skills of the lattice under test — read off the graph, never hardcoded. */
+const SKILLS = graph.nodes.map((n) => n.id);
 
 const LEARNERS = Number(process.argv[2] || 2000);
 const BUDGET = Number(process.argv[3] || 800);
@@ -94,7 +123,9 @@ const CHECKPOINTS = [150, 300, 450, 600, 800, 1000].filter((c) => c <= BUDGET);
 
 // --- competence thresholds ------------------------------------------------
 const TRUE_MASTERY = 0.85;   // hidden competence that counts as "really knows it"
-const SKILLS_NEEDED = 9;     // of 10 — the level is mastered, not every atom perfect
+// 9 of 10 on Level 1 — the level is mastered, not every atom perfect. Stated as
+// a proportion so a lattice of a different size gets the same standard.
+const SKILLS_NEEDED = Math.max(1, Math.round(0.9 * graph.nodes.length));
 const HOLLOW = 0.75;         // engine says mastered but truth is below this
 
 // ---------------------------------------------------------------------------
@@ -1143,7 +1174,7 @@ console.log(`  learners with any hollow mastery claim   ${pct(anyHollow)}  (engi
 console.log(`  mean hidden competence across all skills ${meanAvg.toFixed(3)}`);
 
 console.log('\nRESULT');
-console.log(`  true mastery of Algebra I Level 1: ${pct(reached)} of learners`);
+console.log(`  true mastery of ${LATTICE}: ${pct(reached)} of learners`);
 console.log(`  every one of the ${SKILLS.length} skills truly mastered: ${pct(allTen)}`);
 console.log(`\n  >>> ${(100 * reached / LEARNERS).toFixed(1)}% of simulated learners reach true mastery <<<\n`);
 

@@ -47,28 +47,28 @@ import { createTracker } from './track.js';
 import { createTeacher } from './teacher.js';
 import { buildRecord, duration, dateText } from './record.js';
 import { allPrereqs } from '../learn/mastery.js';
-import ccssMap from '../../content/standards/ccss-algebra1-l1.json';
+import {
+  buildCoverage, buildProcess, createFrameSwitch, depthFor, caveatFor,
+  getFramework, onFrameworkChange, shortCode,
+} from './standards.js';
 
 const REPS = ['symbolic', 'context', 'verbal', 'table', 'graph'];
 const DEPTHS = ['core', 'supporting', 'introduced'];
+const COVERS = ['held', 'part', 'indirect', 'working', 'none'];
 
 /**
  * Coverage depth, for both frameworks, from the same working data the build is
  * gated on.
  *
- * TEKS rows carry their depth inside the graph node. CCSS rows do not — the
- * depth lives in the standards map — so before this the report drew a Common
- * Core chip with no depth at all and a TEKS chip whose depth was in a `data-`
- * attribute nothing rendered. On screen that made `eval-expr` read "TEKS 7.7,
- * A.12(B)" with nothing to say that neither is a core claim on that line, while
- * content/STANDARDS.md said so in writing. A standards claim a reader cannot
- * see the depth of is a stronger claim than the one we actually make.
+ * Both frameworks now answer through one function in `./standards.js`, which
+ * reads the depth out of the standards maps — including the per-line override
+ * TEKS needs, because `A.5(A)` is genuinely core on `multi-step` and supporting
+ * on `two-step`. Before this the report drew a Common Core chip with no depth
+ * at all, so `eval-expr` read "TEKS 7.7, A.12(B)" with nothing to say that
+ * neither is a core claim on that line. A standards claim a reader cannot see
+ * the depth of is a stronger claim than the one we actually make.
  */
-const CCSS_DEPTH = new Map((ccssMap.standards || []).map((s) => [s.code, s.depth]));
-function depthOf(framework, nodeId, code) {
-  if (framework === 'ccss') return CCSS_DEPTH.get(code) || null;
-  return null;
-}
+const depthOf = (framework, nodeId, code) => depthFor(framework, nodeId, code);
 
 export function createReport({ root, mastery, graph, isBusy = () => false, onToggle }) {
   const tracker = createTracker(mastery);
@@ -100,6 +100,13 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       <div class="rp-next"></div>
       <h3 class="rp-h3 rp-h-skills"></h3>
       <div class="rp-skills"></div>
+      <div class="rp-cover-head">
+        <h3 class="rp-h3 rp-h-cover"></h3>
+        <div class="rp-frame-slot"></div>
+      </div>
+      <p class="rp-cover-sub"></p>
+      <div class="rp-cover-strip"></div>
+      <div class="rp-cover"></div>
       <h3 class="rp-h3 rp-h-record"></h3>
       <p class="rp-recsub"></p>
       <div class="rp-trust"></div>
@@ -112,12 +119,26 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
   const q = (sel) => el.querySelector(sel);
   const open = { value: false };
   const expanded = new Set();
+  const stdOpen = new Set();
+
+  // The framework switch. It writes one setting that every standards surface in
+  // this folder reads, so the report, the printed record and the exports can
+  // never disagree about which framework a teacher asked for.
+  const frame = createFrameSwitch();
+  q('.rp-frame-slot').appendChild(frame.el);
 
   // The teacher's copy: the same numbers as a dated, named, printable document.
   const teacher = createTeacher({
-    build: (learner) => buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf }),
+    build: (learner) => buildRecord({
+      mastery, graph, tracker, learner, stateOf, depthOf,
+      coverage: () => coverage(),
+    }),
+    coverage: () => coverage(),
+    process: () => buildProcess({ graph, mastery, framework: getFramework(), stateOf }),
     onToggle: (on) => { el.classList.toggle('behind', on); },
   });
+
+  const coverage = () => buildCoverage({ graph, mastery, framework: getFramework(), stateOf });
 
   q('.rp-x').addEventListener('click', close);
   q('.rp-teacher').addEventListener('click', () => teacher.show());
@@ -145,6 +166,10 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
   });
 
   onLocaleChange(() => { relabel(); if (open.value) render(); if (teacher.open) teacher.render(); });
+  // One click on the switch re-expresses both screens. Open rows are keyed by
+  // standard code, and the two frameworks share no codes, so a switch lands on
+  // a clean list rather than on somebody else's expanded row.
+  onFrameworkChange(() => { if (open.value) render(); if (teacher.open) teacher.render(); });
   relabel();
 
   function relabel() {
@@ -354,15 +379,226 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     q('.rp-teacher').textContent = t('report.record.open');
     q('.rp-teacher').title = t('report.record.openHint');
     q('.rp-h-skills').textContent = t('report.skillsHead');
+    q('.rp-h-cover').textContent = t('report.std.cover.head');
+    q('.rp-cover-sub').textContent = t('report.std.cover.sub');
     q('.rp-h-record').textContent = t('report.recordHead');
     q('.rp-recsub').textContent = t('report.recordSub');
     q('.rp-foot').textContent = t('report.foot');
 
+    frame.relabel();
     renderStrip();
     renderNext();
     renderSkills();
+    renderCoverage();
     renderTrust();
     renderStats();
+  }
+
+  // -------------------------------------------------------------------------
+  // Standards coverage
+  //
+  // The report turned the other way up. Above this a row is one of our skills;
+  // here a row is one expectation in the framework the teacher picked, and our
+  // skills are the evidence underneath it. Rows are grouped by how much
+  // evidence there is, strongest group first, because the two questions a
+  // teacher opens this for are "what can I sign off?" and "what has this child
+  // never touched?" — and both are answered by which group a code is in.
+  // -------------------------------------------------------------------------
+  function renderCoverage() {
+    const cov = coverage();
+    renderCoverStrip(cov);
+
+    const host = q('.rp-cover');
+    host.innerHTML = '';
+    for (const key of COVERS) {
+      const rows = cov.rows.filter((r) => r.cover === key);
+      const grp = document.createElement('section');
+      grp.className = `rp-cgrp c-${key}`;
+      const head = document.createElement('h4');
+      head.className = 'rp-cgrp-h';
+      const nameEl = document.createElement('b');
+      nameEl.textContent = t('report.std.cover.group.' + key);
+      const countEl = document.createElement('i');
+      countEl.textContent = num(rows.length);
+      head.append(nameEl, countEl);
+      const note = document.createElement('p');
+      note.className = 'rp-cgrp-note';
+      note.textContent = rows.length
+        ? t('report.std.cover.groupNote.' + key)
+        : t('report.std.cover.empty');
+      grp.append(head, note);
+      for (const row of rows) grp.appendChild(coverRow(row));
+      host.appendChild(grp);
+    }
+  }
+
+  /** The three figures that answer the whole section before it is read. */
+  function renderCoverStrip(cov) {
+    const host = q('.rp-cover-strip');
+    host.innerHTML = '';
+    const tot = cov.totals;
+    for (const [big, small, lab, tone] of [
+      [num(tot.evidenced), t('report.std.cover.ofN', { n: tot.total }), t('report.std.cover.evidenced'), ''],
+      [num(tot.coreHeld), t('report.std.cover.ofN', { n: tot.coreTotal }), t('report.std.cover.core'), 'good'],
+      [num(tot.none), '', t('report.std.cover.untouched'), tot.none ? 'warn' : ''],
+    ]) {
+      const d = document.createElement('div');
+      d.className = `rp-strip-i${tone ? ' t-' + tone : ''}`;
+      d.innerHTML = '<b></b><i></i><span></span>';
+      d.querySelector('b').textContent = big;
+      d.querySelector('i').textContent = small;
+      d.querySelector('span').textContent = lab;
+      host.appendChild(d);
+    }
+  }
+
+  function coverRow(row) {
+    const art = document.createElement('article');
+    art.className = 'rp-cstd';
+    art.dataset.cover = row.cover;
+    art.dataset.depth = row.depth || 'unknown';
+    const isOpen = stdOpen.has(row.code);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'rp-crow';
+    btn.setAttribute('aria-expanded', String(isOpen));
+    btn.setAttribute('aria-label', t('report.std.cover.openRow', { code: row.short }));
+    const code = document.createElement('code');
+    code.className = 'rp-ccode';
+    code.textContent = row.short;
+    const dep = document.createElement('span');
+    dep.className = 'rp-cdepth';
+    dep.textContent = t('report.std.depth.' + (DEPTHS.includes(row.depth) ? row.depth : 'unknown'));
+    dep.title = t('report.std.depthNote.' + (DEPTHS.includes(row.depth) ? row.depth : 'unknown'));
+    const lines = document.createElement('span');
+    lines.className = 'rp-clines';
+    lines.textContent = t('report.std.cover.linesHeld', { n: num(row.heldLines), of: num(row.totalLines) });
+    const caret = document.createElement('span');
+    caret.className = 'rp-caret';
+    caret.setAttribute('aria-hidden', 'true');
+    btn.append(code, dep, lines);
+    // The thinnest kind of true claim, on the closed row: every line behind
+    // this expectation was proved on first sight. A teacher scanning twenty
+    // codes should find those without opening one.
+    if (row.thin) {
+      const flag = document.createElement('span');
+      flag.className = 'rp-cthin';
+      flag.textContent = t('report.road.sight');
+      flag.title = t('report.std.cover.thin');
+      btn.appendChild(flag);
+    }
+    btn.appendChild(caret);
+
+    const det = document.createElement('div');
+    det.className = 'rp-cdetail';
+    det.hidden = !isOpen;
+    btn.addEventListener('click', () => {
+      const now = !stdOpen.has(row.code);
+      if (now) stdOpen.add(row.code); else stdOpen.delete(row.code);
+      btn.setAttribute('aria-expanded', String(now));
+      det.hidden = !now;
+      if (now && !det.childElementCount) fillCover(det, row);
+    });
+    if (isOpen) fillCover(det, row);
+    art.append(btn, det);
+    return art;
+  }
+
+  function fillCover(host, row) {
+    host.innerHTML = '';
+
+    // --- what the standard asks -------------------------------------------
+    host.appendChild(h4(t('report.std.cover.textHead')));
+    const quote = document.createElement('p');
+    quote.className = 'rp-cquote';
+    // The expectation, word for word. It is a legal quotation of a US standard,
+    // so it stays in English in every locale and is labelled as a quotation
+    // rather than passed off as our own prose — TEKS and Common Core have no
+    // official Spanish or Polish text, and inventing one would be a worse lie
+    // than the language mismatch.
+    quote.textContent = row.text;
+    quote.lang = 'en';
+    host.appendChild(quote);
+    if (row.citation) {
+      const cite = document.createElement('p');
+      cite.className = 'rp-cquote-note';
+      cite.textContent = row.citation;
+      host.appendChild(cite);
+    }
+    const src = document.createElement('p');
+    src.className = 'rp-cquote-note';
+    src.textContent = t('report.std.cover.textNote');
+    host.appendChild(src);
+
+    // --- the lines that carry it ------------------------------------------
+    host.appendChild(h4(t('report.std.cover.linesHead')));
+    const ul = document.createElement('ul');
+    ul.className = 'rp-clist';
+    for (const line of row.lines) {
+      const li = document.createElement('li');
+      li.dataset.state = line.state;
+      const nm = document.createElement('b');
+      nm.textContent = t('skills.' + line.id);
+      const dp = document.createElement('em');
+      dp.textContent = t('report.std.depth.' + (DEPTHS.includes(line.depth) ? line.depth : 'unknown'));
+      dp.title = t('report.std.depthNote.' + (DEPTHS.includes(line.depth) ? line.depth : 'unknown'));
+      const st = document.createElement('i');
+      st.textContent = t('report.state.' + line.state);
+      li.append(nm, dp, st);
+      ul.appendChild(li);
+    }
+    host.appendChild(ul);
+
+    // --- what this learner actually did -----------------------------------
+    host.appendChild(h4(t('report.std.cover.evHead')));
+    if (!row.answers) {
+      const none = document.createElement('p');
+      none.className = 'rp-cnone';
+      none.textContent = t('report.std.cover.noneYet');
+      host.appendChild(none);
+    } else {
+      const dl = document.createElement('dl');
+      dl.className = 'rp-facts';
+      for (const [k, v, tip] of [
+        [t('report.std.cover.forms'),
+          t('report.std.cover.formsVal', { n: num(row.formsMet), of: num(row.formsDeclared) }),
+          t('report.std.cover.formsNote', { n: num(row.formsMet), of: num(row.formsDeclared) })],
+        [t('report.std.cover.answers'), num(row.answers), ''],
+        [t('report.std.cover.unaided'), num(row.unaided), t('report.std.cover.unaidedNote')],
+      ]) {
+        const dt = document.createElement('dt');
+        dt.textContent = k;
+        const dd = document.createElement('dd');
+        dd.textContent = v;
+        if (tip) { dt.title = tip; dd.title = tip; }
+        dl.append(dt, dd);
+      }
+      host.appendChild(dl);
+      const note = document.createElement('p');
+      note.className = 'rp-cnote';
+      note.textContent = t('report.std.cover.unaidedNote');
+      host.appendChild(note);
+    }
+
+    for (const [flag, key] of [
+      [row.cover === 'indirect', 'indirectNote'],
+      [row.thin, 'thin'],
+      [row.unevidenced, 'unevidenced'],
+    ]) {
+      if (!flag) continue;
+      const warn = document.createElement('p');
+      warn.className = 'rp-cwarn';
+      warn.textContent = t('report.std.cover.' + key);
+      host.appendChild(warn);
+    }
+  }
+
+  function h4(text) {
+    const e = document.createElement('h4');
+    e.className = 'rp-h4';
+    e.textContent = text;
+    return e;
   }
 
   /**
@@ -658,38 +894,50 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     // first encounter, and it gave Common Core chips no depth at all. An
     // alignment claim whose depth is invisible reads as core, which is a
     // stronger claim than the one the working papers make.
+    // One framework at a time, and it is the one the teacher chose. Printing
+    // both at once means a Texas reader scans past Common Core codes to find
+    // theirs, and a Common Core reader does the same in reverse. The switch is
+    // one click and it is at the top of the coverage section.
+    const fw = getFramework();
     const counts = { core: 0, total: 0 };
-    for (const [labKey, rows, cls] of [
-      ['report.std.ccss', (n.standards || []).map((x) => ({
-        code: x.code.replace('CCSS.MATH.CONTENT.', ''), title: x.text, depth: depthOf('ccss', n.id, x.code),
-      })), 'ccss'],
-      ['report.std.teks', (n.teks || []).map((x) => ({
-        code: x.code, title: `${x.citation} — ${x.text}${x.caveat ? '\n\n' + x.caveat : ''}`, depth: x.depth,
-      })), 'teks'],
-    ]) {
-      const grp = document.createElement('div');
-      grp.className = `rp-std-grp g-${cls}`;
-      const lab = document.createElement('span');
-      lab.className = 'rp-std-lab';
-      lab.textContent = t(labKey);
-      grp.appendChild(lab);
-      for (const row of rows) {
-        const depth = DEPTHS.includes(row.depth) ? row.depth : 'unknown';
-        counts.total += 1;
-        if (depth === 'core') counts.core += 1;
-        const chip = document.createElement('code');
-        chip.className = 'rp-chip';
-        chip.dataset.depth = depth;
-        const code = document.createElement('span');
-        code.textContent = row.code;
-        const dep = document.createElement('i');
-        dep.textContent = t('report.std.depth.' + depth);
-        chip.append(code, dep);
-        chip.title = `${row.title}\n\n${t('report.std.depthNote.' + depth)}`;
-        grp.appendChild(chip);
-      }
-      std.appendChild(grp);
+    const chips = fw === 'teks'
+      ? (n.teks || []).map((x) => ({
+        code: x.code,
+        title: [x.citation, x.text].filter(Boolean).join('\n'),
+        // The graph copy of a citation carries no caveat — the standards record
+        // is where that prose lives, and it is translated there.
+        caveat: caveatFor('teks', x.code),
+        depth: depthOf('teks', n.id, x.code),
+      }))
+      : (n.standards || []).map((x) => ({
+        code: shortCode(x.code),
+        title: x.text,
+        caveat: caveatFor('ccss', x.code),
+        depth: depthOf('ccss', n.id, x.code),
+      }));
+    const grp = document.createElement('div');
+    grp.className = `rp-std-grp g-${fw}`;
+    const lab = document.createElement('span');
+    lab.className = 'rp-std-lab';
+    lab.textContent = t('report.std.' + fw);
+    grp.appendChild(lab);
+    for (const row of chips) {
+      const depth = DEPTHS.includes(row.depth) ? row.depth : 'unknown';
+      counts.total += 1;
+      if (depth === 'core') counts.core += 1;
+      const chip = document.createElement('code');
+      chip.className = 'rp-chip';
+      chip.dataset.depth = depth;
+      const code = document.createElement('span');
+      code.textContent = row.code;
+      const dep = document.createElement('i');
+      dep.textContent = t('report.std.depth.' + depth);
+      chip.append(code, dep);
+      chip.title = [row.title, row.caveat, t('report.std.depthNote.' + depth)]
+        .filter(Boolean).join('\n\n');
+      grp.appendChild(chip);
     }
+    std.appendChild(grp);
     host.appendChild(std);
 
     const depthLine = document.createElement('p');
@@ -723,8 +971,22 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     teacher,
     /** Everything the report shows, as data — for critics and for exports. */
     snapshot() {
+      const cov = coverage();
       return {
         locale: getLocale(),
+        framework: cov.framework,
+        // Standard-level coverage, as data: a critic can compare what the
+        // screen printed against what the learner model actually holds.
+        coverage: {
+          totals: cov.totals,
+          rows: cov.rows.map((r) => ({
+            code: r.short, depth: r.depth, cover: r.cover, thin: r.thin,
+            heldLines: r.heldLines, totalLines: r.totalLines,
+            formsMet: r.formsMet, formsDeclared: r.formsDeclared,
+            answers: r.answers, unaided: r.unaided,
+            lines: r.lines.map((l) => ({ id: l.id, depth: l.depth, state: l.state })),
+          })),
+        },
         mastered: graph.nodes.filter((n) => mastery.get(n.id).mastered).length,
         total: graph.nodes.length,
         totalMs: tracker.totalMs(),
@@ -755,6 +1017,10 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       };
     },
     /** The document a teacher would print or export, as data. */
-    record: (learner) => buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf }),
+    record: (learner) => buildRecord({
+      mastery, graph, tracker, learner, stateOf, depthOf, coverage: () => coverage(),
+    }),
+    /** Standard-level coverage in the framework now chosen. */
+    coverage,
   };
 }

@@ -1,0 +1,307 @@
+{
+  "id": "algebra1-level2",
+  "course": "algebra1",
+  "unit": "algebra1-l2",
+  "titleKey": "unit.algebra1-l2.title",
+  "title": "Algebra I — Level 2: Structure and Rate",
+  "description": "Three lines beyond the first shard. Brackets standing on both sides of a balance, a balance divided rather than multiplied, and a rule read off a table that never states it. Written as the proof that the content system is data: this unit adds a graph, a generator pack and a manifest entry, and touches no engine file.",
+  "schema": "unified-alignment-1",
+  "requires": [
+    "algebra1-l1"
+  ],
+  "masteryThreshold": 0.95,
+  "mastery": {
+    "pL": 0.95,
+    "cleanRun": 3,
+    "minDifficulty": 3,
+    "checkItems": 3,
+    "checkMinDifficulty": 4,
+    "checkRequiresUnseenForm": true,
+    "checkRequiresNonSymbolic": true,
+    "reviewIntervals": [
+      6,
+      16,
+      40,
+      90
+    ],
+    "note": "The gate is the Level 1 gate, unchanged, because the gate belongs to the engine and not to the course. A unit may retune these numbers; it may not invent a different kind of proof."
+  },
+  "commonMisconceptions": [
+    {
+      "id": "arith-slip",
+      "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+    },
+    {
+      "id": "sign-slip",
+      "text": "Loses or invents a minus sign somewhere in the chain."
+    },
+    {
+      "id": "partial-rule",
+      "text": "Applies part of the rule and stops before finishing it."
+    },
+    {
+      "id": "off-by-one-row",
+      "text": "Reads the neighbouring row of a table instead of the one asked for."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bracket-both-sides",
+      "prereqs": [
+        "distribute",
+        "both-sides"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "A bracket on each side is still one balance. Open both brackets first, then gather the letters on one side — the order is what keeps the statement true.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.B",
+          "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity.",
+          "depth": "supporting",
+          "caveat": "The learner has to read a(x + b) as one quantity before opening it. The full expectation also covers non-linear structure, which this unit does not reach.",
+          "i18n": {
+            "es": {
+              "caveat": "El estudiante tiene que leer a(x + b) como una sola cantidad antes de abrirlo. La expectativa completa cubre también estructuras no lineales, a las que esta unidad no llega."
+            },
+            "pl": {
+              "caveat": "Uczeń musi odczytać a(x + b) jako jedną wielkość, zanim ją otworzy. Pełne oczekiwanie obejmuje także strukturę nieliniową, do której ta jednostka nie dochodzi."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides;",
+          "depth": "core"
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.REI.B.3 is proved by the gate itself: three unassisted items at band 4 or above, at least one of them in a situation rather than in notation. HSA.SSE.A.1.B is supported by the symbolic form, where the two brackets must be seen as single quantities before either is opened.",
+        "TEKS": "A.5(A) names both hard cases in one sentence — the distributive property, and variables on both sides. This node is the only place where a learner meets both in the same statement, so the citation is core rather than supporting."
+      },
+      "bkt": {
+        "pInit": 0.16,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "partial-distribute",
+          "text": "Multiplies the bracket by the outside number once and leaves the second term alone."
+        },
+        {
+          "id": "neg-distribute",
+          "text": "Carries the minus sign into the first term of the bracket only."
+        },
+        {
+          "id": "collect-wrong-side",
+          "text": "Moves the letters to the side that leaves a negative coefficient, then loses the sign."
+        },
+        {
+          "id": "one-side-only",
+          "text": "Opens one bracket and solves as if the other side were already simple."
+        }
+      ]
+    },
+    {
+      "id": "fraction-solve",
+      "prereqs": [
+        "two-step"
+      ],
+      "worldSite": "span",
+      "bigIdea": "A division is an operation like any other, so it comes off like any other: multiply both sides by the number underneath before anything else moves.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently. Compare an algebraic solution to an arithmetic solution, identifying the sequence of the operations used in each approach.",
+          "depth": "supporting",
+          "caveat": "Covered in the (x + q)/p framing, which is the same equation written with the division shown rather than a bracket.",
+          "i18n": {
+            "es": {
+              "caveat": "Cubierto en el planteamiento (x + q)/p, que es la misma ecuación escrita con la división a la vista en lugar de un paréntesis."
+            },
+            "pl": {
+              "caveat": "Objęte przez ujęcie (x + q)/p, czyli to samo równanie zapisane z widocznym dzieleniem zamiast nawiasu."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)",
+          "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides;",
+          "depth": "supporting",
+          "caveat": "The rational-coefficient case is inside A.5(A) but is not one of the two cases the expectation names, so the claim is supporting.",
+          "i18n": {
+            "es": {
+              "caveat": "El caso de coeficiente racional está dentro de A.5(A), pero no es ninguno de los dos casos que la expectativa nombra. Por eso la afirmación es de apoyo."
+            },
+            "pl": {
+              "caveat": "Przypadek współczynnika wymiernego mieści się w A.5(A), ale nie jest żadnym z dwóch przypadków wymienionych w tym oczekiwaniu. Dlatego twierdzenie jest wspierające."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.REI.B.3 is proved by the gate. 7.EE.B.4.A is supported by the situation form, where a total is shared before a fixed amount is added.",
+        "TEKS": "A.5(A) is claimed at supporting depth. A Texas Algebra I student meets rational coefficients under A.5(A), but the expectation names the distributive and both-sides cases explicitly and this node tests neither."
+      },
+      "bkt": {
+        "pInit": 0.2,
+        "pTransit": 0.26,
+        "pSlip": 0.09,
+        "pGuess": 0.12
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "divide-not-multiply",
+          "text": "Divides by the number underneath instead of multiplying by it."
+        },
+        {
+          "id": "wrong-unwrap-order",
+          "text": "Clears the fraction before removing the loose number, so only part of the side gets multiplied."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Multiplies one side by the denominator and leaves the other side as it was."
+        }
+      ]
+    },
+    {
+      "id": "rule-from-table",
+      "prereqs": [
+        "eval-expr"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "A table with even steps hides one rule. Find how much the output moves for one step of the input, and the rest of the table follows.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.8.F.B.4",
+          "text": "Construct a function to model a linear relationship between two quantities. Determine the rate of change and initial value of the function from a description of a relationship or from two (x, y) values, including reading these from a table or from a graph.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.LE.A.2",
+          "text": "Construct linear and exponential functions, including arithmetic and geometric sequences, given a graph, a description of a relationship, or two input-output pairs (include reading these from a table).",
+          "depth": "supporting",
+          "caveat": "Linear only. Nothing in this unit constructs an exponential function.",
+          "i18n": {
+            "es": {
+              "caveat": "Solo lineal. Nada en esta unidad construye una función exponencial."
+            },
+            "pl": {
+              "caveat": "Tylko liniowe. Nic w tej jednostce nie buduje funkcji wykładniczej."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.3(B)",
+          "citation": "19 TAC §111.39(c)(3)(B)",
+          "text": "calculate the rate of change of a linear function represented tabularly, graphically, or algebraically in context of mathematical and real-world problems;",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.2(C)",
+          "citation": "19 TAC §111.39(c)(2)(C)",
+          "text": "write linear equations in two variables given a table of values, a graph, and a verbal description;",
+          "depth": "supporting",
+          "caveat": "The learner reads the rule and uses it. Writing the equation down in y = mx + b form is Level 3.",
+          "i18n": {
+            "es": {
+              "caveat": "El estudiante lee la regla y la usa. Escribir la ecuación en la forma y = mx + b es Nivel 3."
+            },
+            "pl": {
+              "caveat": "Uczeń odczytuje regułę i jej używa. Zapisanie równania w postaci y = mx + b to Poziom 3."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "8.F.B.4 is core: the table never states its rule, so the learner has to derive the rate of change and the initial value before any row can be filled. HSF.LE.A.2 is the same act stated at high-school level and is claimed as supporting because only the linear half is tested.",
+        "TEKS": "A.3(B) is core — rate of change from a table is exactly what the gate tests. A.2(C) is supporting: the rule is used, not written."
+      },
+      "bkt": {
+        "pInit": 0.24,
+        "pTransit": 0.27,
+        "pSlip": 0.08,
+        "pGuess": 0.14
+      },
+      "requiredReps": [
+        "table",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "off-by-one-row",
+          "text": "Reads the neighbouring row of a table instead of the one asked for."
+        },
+        {
+          "id": "add-not-multiply",
+          "text": "Adds the step to the input instead of multiplying by the rate."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Finds the rate of change and forgets the constant the table starts from."
+        }
+      ]
+    }
+  ]
+}

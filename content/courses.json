@@ -1,0 +1,82 @@
+{
+  "$comment": [
+    "THE COURSE MANIFEST — the one place that says what content exists.",
+    "",
+    "Nothing in src/ names a course, a unit or a graph file. src/content/index.js",
+    "reads this file, resolves the graphs beside it, loads the generator packs the",
+    "units name, and hands the engine a graph. Adding Algebra II, Geometry or",
+    "Trigonometry is: write a graph, write a pack, add a block here.",
+    "",
+    "See content/COURSES.md for the full walk-through.",
+    "",
+    "FIELDS",
+    "  courses[].id        stable id; used in the save and in ?course=",
+    "  courses[].titleKey  i18n key for the course name (src/i18n)",
+    "  courses[].status    'shipped' | 'preview' | 'planned'",
+    "  courses[].frameworks which standards frameworks its nodes cite",
+    "  units[].id          stable id; used in ?unit= and names the graph file",
+    "  units[].graph       path, relative to content/, of the unit's graph",
+    "  units[].pack        generator pack module id, or null for the core bank",
+    "  units[].requires    unit ids whose nodes this unit's prereqs may point at",
+    "",
+    "default names the unit a player gets when nothing asks for anything else.",
+    "It must never change without a migration: it is the shipped experience."
+  ],
+  "default": { "course": "algebra1", "unit": "algebra1-l1" },
+  "courses": [
+    {
+      "id": "algebra1",
+      "titleKey": "course.algebra1.title",
+      "subject": "algebra",
+      "status": "shipped",
+      "frameworks": ["CCSS-M", "TEKS"],
+      "standardsMaps": {
+        "CCSS-M": "standards/ccss-algebra1-l1.json",
+        "TEKS": "standards/teks-algebra1-l1.json",
+        "readable": "STANDARDS.md"
+      },
+      "units": [
+        {
+          "id": "algebra1-l1",
+          "titleKey": "unit.algebra1-l1.title",
+          "graph": "graph/algebra1-l1.json",
+          "pack": null,
+          "requires": [],
+          "status": "shipped"
+        },
+        {
+          "id": "algebra1-l2",
+          "titleKey": "unit.algebra1-l2.title",
+          "graph": "graph/algebra1-l2.json",
+          "pack": "algebra1-l2",
+          "requires": ["algebra1-l1"],
+          "status": "preview"
+        }
+      ]
+    },
+    {
+      "id": "algebra2",
+      "titleKey": "course.algebra2.title",
+      "subject": "algebra",
+      "status": "planned",
+      "frameworks": ["CCSS-M", "TEKS"],
+      "units": []
+    },
+    {
+      "id": "geometry",
+      "titleKey": "course.geometry.title",
+      "subject": "geometry",
+      "status": "planned",
+      "frameworks": ["CCSS-M", "TEKS"],
+      "units": []
+    },
+    {
+      "id": "trigonometry",
+      "titleKey": "course.trigonometry.title",
+      "subject": "trigonometry",
+      "status": "planned",
+      "frameworks": ["CCSS-M", "TEKS"],
+      "units": []
+    }
+  ]
+}

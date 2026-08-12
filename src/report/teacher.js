@@ -13,10 +13,18 @@
  * twenty-nine children, and it evaporates when the tab closes. So:
  *
  *   ONE LEARNER  a dated, named evidence sheet — every line, the state, the
- *                evidence behind the claim, the road it was granted on, both
- *                standards frameworks with their coverage depth, and the
+ *                evidence behind the claim, the road it was granted on, the
+ *                standards it answers to with their coverage depth, and the
  *                withdrawn claims. Printable to paper or PDF, exportable as
  *                JSON (the whole record) or CSV (a gradebook row per line).
+ *
+ *   STANDARDS    the same evidence addressed to the framework a district
+ *                actually uses. A row is an expectation — `A.10(D)`,
+ *                `8.EE.C.7.B` — not one of our skill names, and it carries the
+ *                depth of the claim, the lines that carry it, what this learner
+ *                did for it, and whether it has any evidence at all. The
+ *                framework switch in the header governs this pane, the sheet
+ *                above it and every export.
  *
  *   A CLASS      the same records, collected. A teacher drops the JSON files
  *                their class exported and gets a roster with a row per student
@@ -31,23 +39,27 @@
  */
 import { t, num, pct } from '../i18n/index.js';
 import {
-  recordToCsv, classToCsv, classBySkill, isRecord, fileName, duration, dateText,
+  recordToCsv, standardsToCsv, classToCsv, classBySkill, isRecord, fileName, duration, dateText,
 } from './record.js';
+import { createFrameSwitch, gapsOf, shortCode } from './standards.js';
 
 const LEARNER_KEY = 'ascent.learner';
 const CLASS_KEY = 'ascent.class';
+const DEPTHS = ['core', 'supporting', 'introduced'];
 
-export function createTeacher({ build, onToggle }) {
+export function createTeacher({ build, coverage, process: processOf, onToggle }) {
   const host = document.createElement('div');
   host.className = 'rp-doc-host';
   host.id = 'rp-doc-host';
   host.innerHTML = `<section class="rp-doc" role="dialog" aria-modal="true">
       <header class="rp-doc-head">
         <div class="rp-titles"><h2 class="rp-h rp-doc-h"></h2><p class="rp-sub rp-doc-sub"></p></div>
+        <div class="rp-frame-slot"></div>
         <button class="rp-x rp-doc-x" type="button"></button>
       </header>
       <nav class="rp-tabs" role="tablist">
         <button class="rp-tab on" type="button" data-tab="one" role="tab"></button>
+        <button class="rp-tab" type="button" data-tab="std" role="tab"></button>
         <button class="rp-tab" type="button" data-tab="class" role="tab"></button>
       </nav>
       <div class="rp-doc-body">
@@ -55,6 +67,10 @@ export function createTeacher({ build, onToggle }) {
           <div class="rp-ident"></div>
           <div class="rp-acts"></div>
           <div class="rp-sheet"></div>
+        </div>
+        <div class="rp-pane p-std" hidden>
+          <div class="rp-acts rp-acts-std"></div>
+          <div class="rp-sheet rp-std-sheet"></div>
         </div>
         <div class="rp-pane p-class" hidden>
           <div class="rp-acts rp-acts-class"></div>
@@ -69,6 +85,12 @@ export function createTeacher({ build, onToggle }) {
   let tab = 'one';
   let learner = loadJson(LEARNER_KEY) || { name: '', group: '' };
   let roster = (loadJson(CLASS_KEY) || []).filter(isRecord);
+
+  // The same switch as the report screen, on the document a teacher prints.
+  // It is in the header rather than inside a pane, because the choice governs
+  // every pane and a control that moves with the tab reads as a filter.
+  const frame = createFrameSwitch();
+  q('.rp-frame-slot').appendChild(frame.el);
 
   q('.rp-doc-x').addEventListener('click', close);
   host.addEventListener('click', (e) => { if (e.target === host) close(); });
@@ -106,14 +128,20 @@ export function createTeacher({ build, onToggle }) {
     q('.rp-doc-sub').textContent = t('report.record.sub');
     q('.rp-doc-x').textContent = t('report.close');
     q('.rp-doc-x').setAttribute('aria-label', t('report.close'));
+    frame.relabel();
     const tabs = [...host.querySelectorAll('.rp-tab')];
-    tabs[0].textContent = t('report.record.tab.one');
-    tabs[1].textContent = t('report.record.tab.class', { n: roster.length });
-    for (const b of tabs) b.classList.toggle('on', b.dataset.tab === tab);
-    q('.p-one').hidden = tab !== 'one';
-    q('.p-class').hidden = tab === 'one';
-    document.body.dataset.rpPrint = tab === 'one' ? 'one' : 'class';
+    for (const b of tabs) {
+      b.textContent = b.dataset.tab === 'class'
+        ? t('report.record.tab.class', { n: roster.length })
+        : t('report.record.tab.' + b.dataset.tab);
+      b.classList.toggle('on', b.dataset.tab === tab);
+    }
+    for (const pane of host.querySelectorAll('.rp-pane')) {
+      pane.hidden = !pane.classList.contains('p-' + tab);
+    }
+    document.body.dataset.rpPrint = tab;
     if (tab === 'one') { renderIdentity(); renderActions(); renderSheet(); }
+    else if (tab === 'std') { renderStdActions(); renderStdSheet(); }
     else { renderClassActions(); renderClass(); }
   }
 
@@ -162,6 +190,192 @@ export function createTeacher({ build, onToggle }) {
         download(fileName(r, 'csv'), recordToCsv(r), 'text/csv');
       }),
     );
+  }
+
+  function renderStdActions() {
+    const box = q('.rp-acts-std');
+    box.innerHTML = '';
+    box.append(
+      button('report.record.print', () => window.print(), 'primary'),
+      button('report.record.exportStd', () => {
+        const r = build(learner);
+        download(fileName(r, 'csv', 'standards'), standardsToCsv(r), 'text/csv');
+      }),
+      button('report.record.exportJson', () => {
+        const r = build(learner);
+        download(fileName(r, 'json'), JSON.stringify(r, null, 2), 'application/json');
+      }),
+    );
+  }
+
+  /**
+   * The standards sheet: the same evidence, addressed to the framework a
+   * district actually uses.
+   *
+   * A teacher does not file "distribute". They file A.10(D), or 8.EE.C.7.B, and
+   * they need three things beside the code before it is worth filing: how deep
+   * the claim goes, what the student did for it, and — the part a vendor sheet
+   * always leaves out — which expectations have nothing behind them at all.
+   */
+  function renderStdSheet() {
+    const box = q('.rp-std-sheet');
+    box.innerHTML = '';
+    const rec = build(learner);
+    const cov = coverage();
+    const fw = cov.framework;
+
+    // --- head -------------------------------------------------------------
+    const head = document.createElement('div');
+    head.className = 'rp-sheet-head';
+    const h = document.createElement('h1');
+    h.textContent = rec.learner.name || t('report.record.anon');
+    const sub = document.createElement('p');
+    sub.className = 'rp-sheet-sub';
+    sub.textContent = [
+      rec.learner.group,
+      t('report.record.stdSub', { frame: t('report.std.frame.full.' + fw) }),
+      t('report.record.generatedLine', { date: dateText(rec.generatedAt, true) }),
+    ].filter(Boolean).join(' · ');
+    const auth = document.createElement('p');
+    auth.className = 'rp-doc-trust';
+    auth.textContent = t('report.std.frame.authority.' + fw);
+    head.append(h, sub, auth);
+    box.appendChild(head);
+
+    // --- the five figures -------------------------------------------------
+    const dl = document.createElement('dl');
+    dl.className = 'rp-sum';
+    for (const [k, v] of [
+      [t('report.record.col.framework'), t('report.std.frame.' + fw)],
+      [t('report.std.cover.evidenced'), `${num(cov.totals.evidenced)} / ${num(cov.totals.total)}`],
+      [t('report.std.cover.group.held'), num(cov.totals.held)],
+      [t('report.std.cover.core'), `${num(cov.totals.coreHeld)} / ${num(cov.totals.coreTotal)}`],
+      [t('report.std.cover.untouched'), num(cov.totals.none)],
+    ]) {
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = v;
+      dl.append(dt, dd);
+    }
+    box.appendChild(dl);
+
+    // --- coverage, one row per expectation --------------------------------
+    box.appendChild(h3(t('report.std.cover.head')));
+    const cols = [
+      'report.record.col.code', 'report.record.col.depth', 'report.record.col.cover',
+      'report.record.col.linesHeld', 'report.record.col.formsMet', 'report.record.col.answers',
+      'report.record.col.unaided', 'report.record.col.carriedBy',
+    ];
+    const tbl = table(cols);
+    const body = tbl.querySelector('tbody');
+    for (const r of cov.rows) {
+      const tr = document.createElement('tr');
+      tr.dataset.cover = r.cover;
+      for (const c of [
+        r.short,
+        t('report.std.depth.' + (DEPTHS.includes(r.depth) ? r.depth : 'unknown')),
+        t('report.std.cover.group.' + r.cover),
+        `${num(r.heldLines)} / ${num(r.totalLines)}`,
+        `${num(r.formsMet)} / ${num(r.formsDeclared)}`,
+        num(r.answers),
+        num(r.unaided),
+        r.lines.map((l) => t('skills.' + l.id)).join(' · '),
+      ]) {
+        const td = document.createElement('td');
+        td.textContent = c;
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+    box.appendChild(tbl);
+
+    if (cov.rows.some((r) => r.thin)) box.appendChild(sheetNote(t('report.std.cover.thin')));
+    if (cov.totals.indirect) box.appendChild(sheetNote(t('report.std.cover.indirectNote')));
+
+    // --- the wording, quoted ---------------------------------------------
+    box.appendChild(h3(t('report.record.stdSheetHead')));
+    box.appendChild(sheetNote(t('report.std.cover.textNote')));
+    const wl = document.createElement('dl');
+    wl.className = 'rp-defs';
+    for (const r of cov.rows) {
+      const dt = document.createElement('dt');
+      dt.textContent = r.citation ? `${r.short} · ${r.citation}` : r.short;
+      const dd = document.createElement('dd');
+      dd.lang = 'en';
+      dd.textContent = r.text;
+      wl.append(dt, dd);
+      if (!r.caveat) continue;
+      const cav = document.createElement('dd');
+      cav.className = 'rp-def-caveat';
+      const head = document.createElement('b');
+      head.textContent = t('report.std.cover.caveatHead');
+      // OURS, NOT THEIRS. The `dd` above is a quotation of a US standard and
+      // stays English under `lang="en"` with the note that says so. This
+      // paragraph is the project explaining the edge of its own claim, so it
+      // arrives in the reader's language and carries no `lang` override — it
+      // used to carry one, and a department head reading the Spanish record
+      // found seventeen English paragraphs under a Spanish heading.
+      const body2 = document.createElement('span');
+      body2.textContent = r.caveat;
+      cav.append(head, body2);
+      wl.appendChild(cav);
+    }
+    box.appendChild(wl);
+
+    // --- process standards / practices ------------------------------------
+    const proc = processOf ? processOf() : [];
+    if (proc.length) {
+      box.appendChild(h3(t('report.std.cover.processHead.' + fw)));
+      box.appendChild(sheetNote(t('report.std.cover.processNote')));
+      // The EXPECTATION column quotes the standard, so it needs the same
+      // disclosure the expectation table above carries. The MET column does
+      // not: it is our own sentence, and it is translated.
+      box.appendChild(sheetNote(t('report.std.cover.textNote')));
+      const pt = table(['report.record.col.code', 'report.record.col.linesHeld',
+        'report.record.col.expectation', 'report.record.col.processMet']);
+      const pb = pt.querySelector('tbody');
+      for (const p of proc) {
+        const tr = document.createElement('tr');
+        for (const [c, quoted] of [[p.short, false], [`${num(p.held)} / ${num(p.total)}`, false],
+          [p.text, true], [p.how, false]]) {
+          const td = document.createElement('td');
+          if (quoted) td.lang = 'en';
+          td.textContent = c;
+          tr.appendChild(td);
+        }
+        pb.appendChild(tr);
+      }
+      box.appendChild(pt);
+    }
+
+    // --- where the alignment stops ---------------------------------------
+    const gaps = gapsOf(fw);
+    if (gaps.length) {
+      box.appendChild(h3(t('report.std.cover.gapHead')));
+      box.appendChild(sheetNote(t('report.std.cover.gapNote')));
+      const ul = document.createElement('ul');
+      ul.className = 'rp-list rp-gaps';
+      for (const g of gaps) {
+        // Where the alignment stops is our finding about our own product. It
+        // quotes nothing, so it is translated like any other sentence we wrote.
+        const li = document.createElement('li');
+        const head = document.createElement('b');
+        head.textContent = g.finding || '';
+        li.appendChild(head);
+        for (const part of [g.why, g.resolution]) {
+          if (!part) continue;
+          const sp = document.createElement('span');
+          sp.textContent = part;
+          li.appendChild(sp);
+        }
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+
+    const foot = document.createElement('p');
+    foot.className = 'rp-sheet-foot';
+    foot.textContent = t('report.record.stdFoot');
+    box.appendChild(foot);
   }
 
   function renderClassActions() {
@@ -272,7 +486,7 @@ export function createTeacher({ build, onToggle }) {
         s.accuracy == null ? '—' : pct(s.accuracy),
         s.timeMs == null ? '—' : duration(s.timeMs).full,
         probes ? t('report.evidence.probeCount', { hit: s.probes.hit, n: probes }) : '—',
-        standardsText(s),
+        standardsText(s, rec),
       ];
       for (const c of cells) {
         const td = document.createElement('td');
@@ -338,12 +552,16 @@ export function createTeacher({ build, onToggle }) {
     return parts.join(' · ');
   }
 
-  function standardsText(s) {
-    const all = [
-      ...s.ccss.map((c) => `${c.code.replace('CCSS.MATH.CONTENT.', '')} (${t('report.std.depth.' + (c.depth || 'unknown'))})`),
-      ...s.teks.map((c) => `${c.code} (${t('report.std.depth.' + c.depth)})`),
-    ];
-    return all.join(', ');
+  /**
+   * The standards cell on the line-by-line table, in the framework the teacher
+   * chose. It used to print both at once, which meant a Texas reader scanned
+   * past Common Core codes in every row of a sheet they were about to file.
+   */
+  function standardsText(s, rec) {
+    const rows = rec.framework === 'teks' ? s.teks : s.ccss;
+    return rows
+      .map((c) => `${shortCode(c.code)} (${t('report.std.depth.' + (c.depth || 'unknown'))})`)
+      .join(', ');
   }
 
   // ------------------------------------------------------------------ class --
@@ -443,6 +661,32 @@ export function createTeacher({ build, onToggle }) {
     el.className = 'rp-sheet-h';
     el.textContent = text;
     return el;
+  }
+
+  /**
+   * A note that belongs on the paper. `.rp-note` is hidden by the print
+   * stylesheet — correctly, because it is the class the on-screen identity
+   * hints use — so a note the printed sheet needs carries its own class.
+   */
+  function sheetNote(text) {
+    const p = document.createElement('p');
+    p.className = 'rp-sheet-note';
+    p.textContent = text;
+    return p;
+  }
+
+  /** An empty ruled table with a localised header row. */
+  function table(keys) {
+    const tbl = document.createElement('table');
+    tbl.className = 'rp-table';
+    tbl.innerHTML = '<thead><tr></tr></thead><tbody></tbody>';
+    const tr = tbl.querySelector('thead tr');
+    for (const k of keys) {
+      const th = document.createElement('th');
+      th.textContent = t(k);
+      tr.appendChild(th);
+    }
+    return tbl;
   }
 
   return {

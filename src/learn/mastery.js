@@ -1713,9 +1713,14 @@ export class MasteryEngine {
  */
 let LADDER = null;
 function demandLadder() {
-  if (LADDER) return LADDER;
-  LADDER = {};
+  // `SKILLS` is the live registry (src/content/registry.js), so a course pack
+  // loaded after the first engine was built adds rows to it. Memoise per skill
+  // rather than per call, or the ladder silently has no opinion about the
+  // skills of the second unit.
+  if (LADDER && SKILLS.every((s) => LADDER[s])) return LADDER;
+  LADDER = LADDER || {};
   for (const s of SKILLS) {
+    if (LADDER[s]) continue;
     const row = [];
     for (let d = 1; d <= 5; d++) {
       let sum = 0, n = 0;

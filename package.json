@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "ASCENT: The Cipher Worlds \u2014 an adaptive Algebra I mastery game",
+  "description": "ASCENT: The Cipher Worlds — an adaptive Algebra I mastery game",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "vite build",
@@ -13,9 +13,11 @@
     "check:i18n": "node tools/check-i18n.mjs --self-test && node tools/check-i18n.mjs",
     "check:items": "node tools/validate-items.mjs",
     "check:prose": "node tools/check-context-ask.mjs --self-test && node tools/check-context-ask.mjs",
+    "check:lang": "node tools/check-language.mjs --self-test && node tools/check-language.mjs",
     "check:scenes": "node tools/scene-audit.mjs",
     "check:marlow": "node tools/narrative/marlow-audit.mjs",
-    "check": "npm run check:i18n && npm run check:prose && npm run check:items && npm run check:scenes && npm run check:marlow"
+    "check": "npm run check:i18n && npm run check:prose && npm run check:items && npm run check:lang && npm run check:choices && npm run check:scenes && npm run check:marlow",
+    "check:choices": "node tools/critic/choiceaudit.mjs"
   },
   "dependencies": {
     "katex": "^0.16.11",

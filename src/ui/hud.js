@@ -174,6 +174,17 @@ export class HUD {
       // system, four buttons wide, that did nothing. It belongs on the hotbar
       // rather than on the thumb pad because that is where the piece it places
       // was chosen, and because the hotbar is already out of the stick's way.
+      // Turning the piece is a core build control, not a keyboard luxury: on a
+      // phone there is no yaw key at all, so without this a thumb can never
+      // choose which face of a cell a wall goes on — which is to say it can
+      // never intend a corner. It wears `.place` so it inherits every rule that
+      // button already has, including the landscape ones.
+      + `<button type="button" class="slot place turn" data-turn="1">
+           <u aria-hidden="true"></u>
+           <svg viewBox="0 0 24 24" aria-hidden="true">
+             <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3v4h-4"/></svg>
+           <span>${t('build.turn')}</span>
+         </button>`
       + `<button type="button" class="slot place" data-place="1">
            <svg viewBox="0 0 24 24" aria-hidden="true">
              <path d="M12 3 L20 7.5 L12 12 L4 7.5 Z"/><path d="M4 12.5 L12 17 L20 12.5"/>
@@ -181,6 +192,11 @@ export class HUD {
            <span>${t('controls.build')}</span>
          </button>`;
     this.slots = [...bar.querySelectorAll('.slot[data-slot]')];
+    this.turnBtn = bar.querySelector('.slot.turn');
+    const turn = (e) => { e.preventDefault(); this.turnBtn.classList.add('hit'); this.onTurn?.(); };
+    this.turnBtn.addEventListener('click', turn);
+    this.turnBtn.addEventListener('touchstart', turn, { passive: false });
+    this.turnBtn.addEventListener('animationend', () => this.turnBtn.classList.remove('hit'));
     this.slots.forEach((s) => s.addEventListener('click', () => this.onSlot?.(+s.dataset.slot)));
     const place = bar.querySelector('.place');
     const fire = (e) => { e.preventDefault(); place.classList.add('hit'); this.onPlace?.(); };
@@ -366,6 +382,10 @@ export class HUD {
       const u = s.querySelector('u');
       if (u) u.textContent = pad ? (i === 0 ? 'LB' : i === 3 ? 'RB' : '') : String(i + 1);
     });
+    const tu = this.turnBtn?.querySelector('u');
+    // i18n-allow: keycaps. `F` is the same cap on every layout this game ships
+    // to, and a d-pad glyph is a picture of a control, not a word.
+    if (tu) tu.textContent = pad ? '✛' : 'F';
     this.root.dataset.bind = src;
   }
 

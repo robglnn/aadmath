@@ -196,7 +196,11 @@ export class Player {
     // back on the same square metre, pressed against the same wall, is a button
     // that does nothing as far as the player can tell — so when the world had
     // hold, the search starts one ring out and the cadet visibly steps clear.
-    const away = this.stuck || reason === 'buried' || reason === 'fell';
+    // `boxed` is written by src/build/builder.js when the cadet's own lattice
+    // has closed over him. It belongs in this list for exactly the reason the
+    // others are here: recovering onto the same square metre, still inside the
+    // same four walls, is a button that did nothing.
+    const away = this.stuck || this.boxed || reason === 'buried' || reason === 'fell';
     const spot = this._safeSpot(p.x, p.z, away ? 3.5 : 0)
       || this._safeSpot(this.home.x, this.home.z, 0)
       || { x: this.home.x, y: this.home.y, z: this.home.z };

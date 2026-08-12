@@ -62,11 +62,61 @@ export const RANKS = ['copper', 'bronze', 'silver', 'gold', 'sovereign'];
  */
 export const RANK_AT = [0, 12, 30, 60, 96];
 
-/** Which rank a given standing buys. */
-export function rankFor(standing) {
+/**
+ * NIGHTS HELD, per rank. The third clock — see `days.js`.
+ *
+ * Standing alone could be maxed in one long sitting: two hundred and sixty
+ * items reached Sovereign with zero nights held, which made the highest rank in
+ * the order a statement about one Sunday afternoon. It is not that any more.
+ *
+ *   COPPER    0   you are here
+ *   BRONZE    0   four clean seals, minutes in. The first rite has to be
+ *                 reachable inside the first session or nobody ever sees one.
+ *   SILVER    1   one line you held yesterday, still held today
+ *   GOLD      4   four of them
+ *   SOVEREIGN 9   nine. Reachable in about a week of coming back, and not
+ *                 reachable any faster, by anybody, at any skill level.
+ *
+ * A night held is a re-probe passed after five hours or more away from the
+ * machine (`mastery.durableCount()`). It is evidence the engine already
+ * gathers for its own purposes; nothing new is asked of the learner, and
+ * nothing about learning is gated behind it.
+ */
+export const RANK_NIGHTS = [0, 0, 1, 4, 9];
+
+/**
+ * Which rank a state buys. Both gates must be met, so the answer is the lower
+ * of the two ladders.
+ *
+ * @param {number} standing
+ * @param {number} nights nights held; omitted means "do not ask", which is what
+ *        a critic previewing a rank and the old save format both want.
+ */
+export function rankFor(standing, nights = Infinity) {
   let i = 0;
-  for (let k = 1; k < RANK_AT.length; k++) if ((standing || 0) >= RANK_AT[k]) i = k;
+  for (let k = 1; k < RANK_AT.length; k++) {
+    if ((standing || 0) >= RANK_AT[k] && (nights ?? Infinity) >= RANK_NIGHTS[k]) i = k;
+    else break;
+  }
   return i;
+}
+
+/**
+ * Why the next rank is not here yet — the one number the card prints.
+ *
+ * Exactly one of these is returned, and standing comes first: a cadet who is
+ * short of both should be told to go and work, not told to come back tomorrow.
+ *
+ * @returns {{kind:'standing'|'nights'|'top', need:number}}
+ */
+export function rankGate(standing, nights, rank) {
+  const next = rank + 1;
+  if (next >= RANK_AT.length) return { kind: 'top', need: 0 };
+  const shortStanding = Math.max(0, RANK_AT[next] - (standing || 0));
+  if (shortStanding > 0) return { kind: 'standing', need: shortStanding };
+  const shortNights = Math.max(0, RANK_NIGHTS[next] - (nights || 0));
+  if (shortNights > 0) return { kind: 'nights', need: shortNights };
+  return { kind: 'standing', need: 0 };
 }
 
 /** Progress across the current rung, 0..1. Sovereign is always full. */
