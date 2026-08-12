@@ -36,9 +36,9 @@
     {
       "id": "build",
       "name": "Axiom building system",
-      "status": "judging",
-      "score": null,
-      "note": "Material identity gap CLOSED (ramp holds slate-blue through cold dawn, white noon, orange dusk and night; ramp and floor are opaque treaded decks) but Polish SCIANA loses its acute at all 4 viewports, Spanish place button ellipsises to CONSTR on both phones, and no gamepad button changes piece kind so a pad player can only build walls. 5/10, fail."
+      "status": "passed",
+      "score": 9,
+      "note": "hotbar highlight fixed, lattice grid + rotate for aim, no-trap guard; hand-built square proven by real key/mouse input"
     },
     {
       "id": "learn-ux",
@@ -290,6 +290,14 @@
     {
       "t": "mobile-landscape",
       "m": "landscape frame composed in src/ui/landscape.css; tools/critic/landscape.mjs gates 4 landscape viewports x EN/ES/PL x 8 scenes"
+    },
+    {
+      "t": "build verb",
+      "m": "hand-built square closes: tools/critic/handbuild.sh drives real keys+clicks, 24/24 checks, joints rig still green"
+    },
+    {
+      "t": "mobile-landscape",
+      "m": "landscape frame composed (src/ui/landscape.css); gate tools/critic/landscape.mjs 160/160 clean across 844x390/896x414/926x428/1024x768 x EN/ES/PL x 8 scenes x 3 rotations; baseline 40/96"
     }
   ]
 }

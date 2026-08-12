@@ -89,6 +89,7 @@ const target = await page.evaluate(() => {
 note(!!target, 'an unlocked rift exists to walk to', target ? `${target.id} at ${target.dist.toFixed(0)}m` : 'none');
 
 let reached = false, opened = false;
+let held = false;
 if (target) {
   await page.mouse.move(800, 450);
   await page.mouse.click(800, 450); // pointer lock
@@ -106,9 +107,11 @@ if (target) {
 
     if (Math.abs(err.d) > 0.06) await page.mouse.move(800 - err.d * 240, 450, { steps: 2 });
 
-    await page.keyboard.down('KeyW');
+    // Hold the key down and steer while running, the way a person does.
+    // Tapping W for 120ms and releasing never lets the acceleration curve build,
+    // so the cadet shuffles at walking pace and the gate blames the game.
+    if (!held) { await page.keyboard.down('KeyW'); held = true; }
     await page.waitForTimeout(120);
-    await page.keyboard.up('KeyW');
 
     // Arriving is either standing next to it OR the ring opening on contact —
     // and contact STOPS the player, so a distance test alone reports failure at
@@ -116,6 +119,7 @@ if (target) {
     opened = await page.evaluate(() => !!window.__ascent.panel?.open);
     if (err.dist < 5 || opened) reached = true;
   }
+  if (held) { await page.keyboard.up('KeyW'); held = false; }
   await shot('02-at-the-rift');
   note(reached, 'a stranger can WALK to the first rift with WASD alone',
     reached ? (opened ? 'the ring opened on contact' : '') : 'never got within 5m using only W and the mouse');

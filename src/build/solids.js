@@ -212,7 +212,6 @@ export class Solids {
           const ddx = p.x - x, ddz = p.z - z;
           if (ddx * ddx + ddz * ddz > r2) continue;
           const b = qLevel(baseOf(p));
-          const n0 = out.length;
           out.push(b, b + LEVEL, b - LEVEL);
           // a deck's own surface is its level; a wall's head is a storey up —
           // both already covered, but a ramp also offers the level it lands on
@@ -220,7 +219,6 @@ export class Solids {
           if (!ranks) continue;
           const joined = slotNodes ? shareNode(slotNodes, nodesOf(p, pn)) : 0;
           while (ranks.length < out.length) ranks.push(joined);
-          void n0;
         }
       }
     }

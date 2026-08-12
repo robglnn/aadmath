@@ -73,20 +73,24 @@ const BASELINE = process.argv.includes('--baseline');
 const UNDO_LANDSCAPE = `(() => {
   for (const sheet of document.styleSheets) {
     let rules; try { rules = sheet.cssRules; } catch { continue; }
-    let mine = false;
-    for (const r of rules) if (r.cssText && r.cssText.includes('--lsc-band')) { mine = true; break; }
-    if (mine) { sheet.disabled = true; continue; }
-    const strip = (list) => {
-      for (const r of list) {
-        if (r.media && r.conditionText
-            && /max-width/.test(r.conditionText)
-            && /orientation:\s*landscape/.test(r.conditionText)) {
-          for (const m of [...r.media]) if (/orientation:\s*landscape/.test(m)) r.media.deleteMedium(m);
-        }
-        if (r.cssRules) strip(r.cssRules);
+    /* Backwards: deleting shifts every index after it. Two things go:
+         · any block carrying the pass's own fingerprint (--lsc-on), which is
+           the landscape composition itself — found by its content rather than
+           by a file name, because a production bundle has concatenated every
+           stylesheet in the game into one and there is no landscape sheet to
+           disable;
+         · the landscape clause on any media query that also carries a phone
+           max-width, which is the one-line change that made the existing phone
+           rules apply to a phone on its side. */
+    for (let i = rules.length - 1; i >= 0; i--) {
+      const r = rules[i];
+      if (r.cssText && r.cssText.includes('--lsc-on')) { sheet.deleteRule(i); continue; }
+      if (r.media && r.conditionText
+          && /max-width/.test(r.conditionText)
+          && /orientation:\s*landscape/.test(r.conditionText)) {
+        for (const m of [...r.media]) if (/orientation:\s*landscape/.test(m)) r.media.deleteMedium(m);
       }
-    };
-    try { strip(rules); } catch { /* cross-origin */ }
+    }
   }
 })()`;
 const SIZES = arg('sizes', '')

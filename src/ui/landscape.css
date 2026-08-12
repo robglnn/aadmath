@@ -61,6 +61,16 @@
    left on the desktop composition. */
 @media (max-height: 520px) and (orientation: landscape) {
 
+  /* The pass's own fingerprint. `tools/critic/landscape.mjs --baseline`
+     photographs this game with the landscape composition switched off, so that
+     the before and the after are the same harness against the same build
+     rather than two rounds of screenshots and somebody's word for what
+     changed. It finds these blocks by this property and deletes them — which
+     has to work against a production bundle, where every stylesheet in the
+     game has been concatenated into one and "disable the landscape sheet" is
+     not a thing that exists. Nothing reads it. */
+  :root { --lsc-on: 1; }
+
   :root {
     /* The frame, in five numbers. Everything below is positioned off these,
        so moving a band moves everything in it — and they are measured, not
@@ -566,6 +576,16 @@
    taller than the window it is centred in.
    --------------------------------------------------------------------------- */
 @media (max-height: 620px) and (orientation: landscape) {
+  /* The pass's own fingerprint. `tools/critic/landscape.mjs --baseline`
+     photographs this game with the landscape composition switched off, so that
+     the before and the after are the same harness against the same build
+     rather than two rounds of screenshots and somebody's word for what
+     changed. It finds these blocks by this property and deletes them — which
+     has to work against a production bundle, where every stylesheet in the
+     game has been concatenated into one and "disable the landscape sheet" is
+     not a thing that exists. Nothing reads it. */
+  :root { --lsc-on: 1; }
+
   .rp-card { max-height: 100%; }
   .rf-plate { max-height: 100%; }
   .fdy-card { max-height: calc(100% - 12px); }
@@ -589,6 +609,16 @@
    these are or how they behave.
    --------------------------------------------------------------------------- */
 @media (min-width: 721px) and (min-height: 521px) {
+  /* The pass's own fingerprint. `tools/critic/landscape.mjs --baseline`
+     photographs this game with the landscape composition switched off, so that
+     the before and the after are the same harness against the same build
+     rather than two rounds of screenshots and somebody's word for what
+     changed. It finds these blocks by this property and deletes them — which
+     has to work against a production bundle, where every stylesheet in the
+     game has been concatenated into one and "disable the landscape sheet" is
+     not a thing that exists. Nothing reads it. */
+  :root { --lsc-on: 1; }
+
   /* The right flank on a touch tablet had five things stacked on one 54 px
      column of glass — the language pill, PROGRESS, MENU, the build hotbar
      (which `[data-touch]` stands on end and runs down this edge) and the
@@ -607,6 +637,16 @@
     right: calc(var(--pad-r) + 139px);
   }
   :root[data-touch] .buildbar { top: calc(var(--pad-t) + 50px); }
+  /* The session band is centred at the top and 369 px wide at 1024, which
+     leaves it 10 px clear of the rig in the corner — and a notch is 44. Rotate
+     a tablet so the camera is on the left and the rail slides right into it:
+     WORLD REPAIRED 0% printed through RUN 1. The band is bounded by what is
+     between the two rails rather than by a fraction of the frame, so the gap
+     survives any inset the device hands it. */
+  :root[data-touch] #ui .ses-band {
+    width: min(392px, calc(100vw - var(--pad-l) - var(--pad-r) - 680px));
+    min-width: 260px;
+  }
   /* …and the card steps one hotbar's width inboard, so the rack it is
      explaining is never behind it. */
   :root[data-touch] #ui .fc,
@@ -620,6 +660,12 @@
      other. The gap is the width of the longest word in any locale. */
   #touchpad .btn[data-a="interact"] { right: 92px; }
   #touchpad .btn[data-a="glide"] { bottom: 104px; }
+  /* The foundry's hail sits at 57% of the frame, which is above the
+     companion's card on a laptop and *inside* it on a tablet — her card is
+     bottom-anchored to the reserved thumb band, so 21 px of home indicator
+     lifts it 21 px into the hail. It goes just above the crosshair here, the
+     same place it takes on a phone. */
+  :root[data-touch] .hail { top: calc(50% - 20px); }
   /* The kit strip and the companion's card are both anchored 4 px above the
      reserved thumb band, so on a touch device they are in the same 24 px of
      glass — the strip's own comment says the line above it "is bottom-anchored
@@ -643,6 +689,16 @@
    rows it sheds on a phone: the question it restates, and a rank ladder that
    is already the rig's entire left edge. */
 @media (min-width: 721px) and (min-height: 521px) and (max-height: 860px) {
+  /* The pass's own fingerprint. `tools/critic/landscape.mjs --baseline`
+     photographs this game with the landscape composition switched off, so that
+     the before and the after are the same harness against the same build
+     rather than two rounds of screenshots and somebody's word for what
+     changed. It finds these blocks by this property and deletes them — which
+     has to work against a production bundle, where every stylesheet in the
+     game has been concatenated into one and "disable the landscape sheet" is
+     not a thing that exists. Nothing reads it. */
+  :root { --lsc-on: 1; }
+
   :root[data-touch] .meta-quest .qbody,
   :root[data-touch] .meta-quest .qrung { display: none; }
 }
