@@ -14,9 +14,12 @@
  *   1. NOTHING CLIPS ITS OWN TEXT. Any element that is actually clipping
  *      (computed overflow hidden/clip, or text-overflow:ellipsis engaged) and
  *      whose scroll size exceeds its client size is a failure. `auto`/`scroll`
- *      is allowed — that is a panel that has decided to scroll, which is a
- *      design decision; a box that silently eats the back half of a sentence is
- *      not.
+ *      is allowed only to a surface NAMED in `SCROLL_OK` (_viewports.mjs) —
+ *      a progress document, a dossier, a menu: long things with a visible thumb
+ *      and a fade at the edge that a reader knows to push. Everything else that
+ *      reached for `overflow:auto` as a last resort and then quietly used it is
+ *      eating its own words with an extra step. The controls legend lost two of
+ *      its eight rows exactly that way and audited clean for it.
  *   2. NOTHING LEAVES THE FRAME. The viewport is the biggest clipping box on
  *      the screen and the one every portrait-only layout forgets. Any visible
  *      text whose rect crosses an edge is a failure.
@@ -27,7 +30,13 @@
  *   4. SAFE AREAS ARE HONOURED. `--sa-*` are ordinary custom properties holding
  *      an `env()` value (src/ui/style.css), so this harness can hand a desktop
  *      Chromium a notch and a home indicator and photograph a real iPhone
- *      layout. `--notch` runs assert nothing lands in the inset.
+ *      layout. `--notch` runs assert nothing lands in the inset — and the notch
+ *      is shaped per viewport (`insetsFor`, _viewports.mjs): a flank inset for
+ *      a phone on its side, a TOP inset for a phone held up. It was flank-
+ *      shaped for everything until now, which meant `--sa-t` was zero in every
+ *      capture this project ever took and the whole portrait ladder, which
+ *      hangs off `max(14px, var(--sa-t))`, had never been photographed with a
+ *      notch on it at all.
  *
  * Touch is EMULATED (`hasTouch`), because the whole defect only exists on a
  * device with thumbs on the glass: src/ui/hud.js sets `[data-touch]` off the
@@ -51,7 +60,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { LANDSCAPE, audit, AUDIT_SRC } from './_viewports.mjs';
+import { LANDSCAPE, audit, AUDIT_SRC, insetsFor, APPLY_INSET_SRC } from './_viewports.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -147,20 +156,19 @@ const LONG = {
 
 for (const vp of SIZES) {
   for (const loc of LOCALES) {
-    /* THE NOTCH, MODELLED THE WAY A HANDSET ACTUALLY HAS ONE.
-       A phone has a camera housing on ONE short edge and a home indicator on
-       the long one, so in landscape the insets are (44, 0, 21) or (0, 44, 21)
-       depending on which way it was rotated — never 44 on both flanks. Both
-       rotations are captured, because they are different layouts: the side the
-       notch lands on is the side that loses 30 px. */
-    const INSETS = [
-      { name: '', l: '0px', r: '0px', b: '0px' },
-      { name: '-notchL', l: '44px', r: '0px', b: '21px' },
-      { name: '-notchR', l: '0px', r: '44px', b: '21px' },
-    ];
-    for (const inset of INSETS) {
+    /* THE NOTCH, IN THE SHAPE THIS VIEWPORT CAN ACTUALLY HAVE ONE.
+       A phone on its side wears its housing on a flank; a phone held up wears
+       it on the top edge. `insetsFor` picks per viewport — see the long note in
+       _viewports.mjs for why that distinction was worth a round of its own. */
+    for (const inset of insetsFor(vp)) {
       const notch = !!inset.name;
-      if (notch && loc !== 'en') continue;         // the inset is a geometry test, not a language one
+      /* The inset used to be skipped outside English — "a geometry test, not a
+         language one". It is both. An inset does not move a box, it takes room
+         away from the column above it, and how much room that column wanted is
+         decided by how long the words in it are: at 390x844 with a Dynamic
+         Island the controls legend needs 124 px in English and 155 in Spanish
+         and Polish, against a budget of 88. Skipping the other two locales
+         photographed the cheapest third of the problem. */
       const tag = `${vp.name}-${loc}${inset.name}`;
       const ctx = await browser.newContext({
         viewport: { width: vp.w, height: vp.h },
@@ -175,22 +183,26 @@ for (const vp of SIZES) {
 
       try {
       await page.addInitScript(AUDIT_SRC);
+      /* The inset goes on as an INIT script, not once after boot: a locale
+         switch full-reloads the page, and an inline style set on
+         `document.documentElement` before that reload is gone afterwards — a
+         "notched" capture that quietly photographs an unnotched frame is
+         exactly the class of blind spot this run exists to close. */
+      if (notch) {
+        await page.addInitScript(`(() => {
+          const apply = () => (${APPLY_INSET_SRC})(${JSON.stringify(inset)});
+          if (document.documentElement) apply();
+          document.addEventListener('DOMContentLoaded', apply);
+        })()`);
+      }
       await page.goto(URL, { waitUntil: 'networkidle' });
       await page.evaluate(() => { try { localStorage.clear(); } catch { /* private mode */ } });
       await page.reload({ waitUntil: 'networkidle' });
       await waitForAscent(page, tag);
 
-      // A notch on the left, a notch on the right, a home indicator along the
-      // bottom: exactly what a handset in landscape hands the page.
-      if (notch) {
-        await page.evaluate((i) => {
-          const s = document.documentElement.style;
-          s.setProperty('--sa-l', i.l);
-          s.setProperty('--sa-r', i.r);
-          s.setProperty('--sa-b', i.b);
-          s.setProperty('--sa-t', '0px');
-        }, inset);
-      }
+      // Exactly what this handset, in this rotation, hands the page — all four
+      // edges, so nothing inherits an edge from the shape it is not wearing.
+      if (notch) await page.evaluate(`(${APPLY_INSET_SRC})(${JSON.stringify(inset)})`);
       if (BASELINE) await page.evaluate(UNDO_LANDSCAPE);
       await page.evaluate((l) => window.__ascent.setLocale(l), loc);
       await page.evaluate(() => document.getElementById('boot')?.classList.add('gone'));
@@ -203,14 +215,24 @@ for (const vp of SIZES) {
         await page.screenshot({ path: f });
         shots.push(f);
         const r = await page.evaluate(() => window.__landAudit());
-        const row = { vp: vp.name, loc, notch, scene, ...r, shot: f };
+        const row = { vp: vp.name, loc, notch, inset: inset.name || 'flat', scene, ...r, shot: f };
         rows.push(row);
-        const bad = r.clipped.length + r.outside.length + r.overlaps.length + (notch ? r.inSafe.length : 0);
+        /* The frame has to be wearing the notch it was asked to wear. */
+        const want = { t: parseFloat(inset.t), r: parseFloat(inset.r),
+                       b: parseFloat(inset.b), l: parseFloat(inset.l) };
+        const wrong = Object.keys(want).filter((k) => Math.abs(want[k] - (r.safe[k] || 0)) > 0.5);
+        if (wrong.length) {
+          throw new Error(`the page is not wearing the inset it was handed: `
+            + `${wrong.map((k) => `${k} ${r.safe[k]}!=${want[k]}`).join(', ')}`);
+        }
+        const bad = r.clipped.length + r.outside.length + r.overlaps.length
+          + r.silent.length + (notch ? r.inSafe.length : 0);
         if (bad) failures.push(row);
         const mark = bad ? 'FAIL' : ' ok ';
         console.log(`  ${mark}  ${tag.padEnd(22)} ${scene.padEnd(16)} `
-          + `clip:${r.clipped.length} out:${r.outside.length} lap:${r.overlaps.length}`
+          + `clip:${r.clipped.length} out:${r.outside.length} lap:${r.overlaps.length} scr:${r.silent.length}`
           + (notch ? ` safe:${r.inSafe.length}` : ''));
+        for (const c of r.silent.slice(0, 4)) console.log(`         scroll ${c.sel}  ${c.what}  "${c.text.slice(0, 40)}"`);
         for (const c of r.clipped.slice(0, 4)) console.log(`         clip  ${c.sel}  ${c.what}`);
         for (const o of r.outside.slice(0, 4)) console.log(`         out   ${o.sel}  ${o.edge} by ${o.by}px  "${o.text}"`);
         for (const o of r.overlaps.slice(0, 5)) console.log(`         lap   ${o.a} x ${o.b}  ${o.w}x${o.h}px`);

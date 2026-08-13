@@ -156,6 +156,18 @@
   #ui:has(.gd-card.show) { --pt-obj: var(--gd-h, 94px); }
   #ui:has(.meta-quest.show) { --pt-chap: 36px; }
 
+  /* …and the floor's reserves are asked the same question, which they were not.
+     The column's three bands contribute nothing when they are not on screen;
+     the floor's three claimed 228 px of an 844 px frame unconditionally, and
+     two of the three are every bit as intermittent. The kit strip is only there
+     once a verb has been bought (`.kit.any` is what src/kit/kit.js sets), and
+     the wallet's strip only holds a row for the few seconds after a movement —
+     `.led-row` deletes itself. Holding 62 px against furniture that is not
+     there is the same guess this file exists to stop making, and it is 62 px
+     off the top of the one card in this layout that has nowhere else to go. */
+  #ui:not(:has(.kit.any)) { --pt-strip: 0px; }
+  #ui:not(:has(.ledger .led-row)) { --pt-led: 0px; }
+
   /* =========================================================================
      1. THE TOP ROW — the rig and the language pill.
 
@@ -377,17 +389,11 @@
     z-index: var(--pt-z-first);
   }
 
-  /* THE CARD THAT NEVER GOT THE COLD OPEN'S MEMO.
-
-     `#ui.meta-cine` stands every readout down while the arrival plays, so the
-     stamp is the only thing on the sky — the rig, the rack, the kit, the
-     language pill, the sound chip, the chapter card and Marlow's subtitle are
-     all named in src/meta/meta.css. The controls card was built afterwards and
-     was never added, so on a 414 px frame it printed straight through THE
-     SKYREN LATTICE and the two lines under it, in every locale. It stands down
-     with the rest of them and comes back with them; nothing is `display:none`,
-     so nothing reflows when it returns. */
-  #ui.meta-cine .fc, #ui.meta-cine .fc-pill { opacity: 0 !important; pointer-events: none !important; }
+  /* THE CARD THAT NEVER GOT THE COLD OPEN'S MEMO used to be stood down here,
+     which fixed it on the one shape of screen this file is allowed to speak
+     for and left it lit through the whole arrival at 1280x720. It is on the
+     shared list in src/meta/meta.css now, beside the other nine, and this file
+     says nothing about it. */
   /* …and the stamp, which is pinned to 20vh on a phone — 179 px at 414x896,
      which is the middle of the objective card — takes the band the controls
      card has just vacated. It is placed off the ladder like everything else, so
@@ -413,6 +419,24 @@
   .toast { top: auto; bottom: calc(var(--pt-floor) + 6px); }
   #ui .gd-prompt { top: auto; bottom: calc(var(--pt-floor) + 46px); }
   .hail { top: auto; bottom: calc(var(--pt-floor) + 88px); }
+  /* THE FOURTH THING ON THIS AXIS, AND THE ONLY ONE THAT NEVER HAD A SLOT.
+     `.kit-toast` — the plate that names the verb a cadet has just spent motes
+     on — is pinned at `top: 64%` in src/kit/kit.css, which is a fraction of the
+     frame in a layout where nothing else is. At 390x844 that is 540 px, and
+     540 px is the top edge of the companion's card to the pixel once a home
+     indicator lifts her. It audited clean only because no driven state in the
+     matrix has ever bought anything. It takes the middle of the band between
+     the foot of the column and the floor's reserves — the one piece of glass
+     this composition deliberately keeps empty — and, being the thing the cadet
+     has just paid for, it owns that band for its five seconds. */
+  .kit-toast {
+    top: calc((var(--pt-y-fc) + var(--pt-stop)) / 2); bottom: auto;
+    left: 50%; transform: translate(-50%, -50%);
+  }
+  #ui:has(.kit-toast.show) .hail,
+  #ui:has(.kit-toast.show) .gd-prompt,
+  #ui:has(.kit-toast.show) .toast,
+  #ui:has(.kit-toast.show) .fc { opacity: 0; }
   /* One compass, not two: `.afd-head` prints the same verb, the same place and
      the same distance as the objective card at the top of the same screen, with
      the waypoint diamond drawing the direction in the world itself. */
@@ -441,6 +465,34 @@
   #ui:has(.fc.show) .hail,
   #ui:has(.fc.show) .gd-prompt,
   #ui:has(.fc.show) .toast { opacity: 0; }
+
+  /* …AND THE SAME DEAL ONE BAND HIGHER, FOR THE SAME REASON, BECAUSE A NOTCH
+     COSTS 59 PX AND THE COLUMN HAS NOWHERE TO PUT THEM.
+
+     Every capture this project had ever taken handed the page `--sa-t: 0`, so
+     `--pad-t: max(14px, var(--sa-t))` had only ever resolved to 14 and the
+     whole ladder was measured on a phone with no camera in it. A real handset
+     held up has 47 px there, and one with a Dynamic Island has 59. Give it 59
+     and the column starts 45 px lower with the floor where it was: the
+     controls card's budget falls to 88 px, it needs 124 in English and 155 in
+     Spanish and Polish, and it does what its own stylesheet told it to do as a
+     last resort — it scrolls. Silently. INTERACT and RECOVER simply stopped
+     being on the screen, with no thumb, no fade and no clue, and the audit
+     called the frame clean because `overflow-y: auto` was in the rule. Eight
+     controls, six printed, on the one card in this game whose entire job is to
+     name the controls. (tools/critic/_viewports.mjs now fails that.)
+
+     So the two readouts standing in the band it needs stand down while it is
+     up, on exactly the terms the three above already do: the chapter strip,
+     which is a running total that will still be true in thirty seconds, and
+     the kit strip, which lists verbs the card beneath it is naming in full.
+     Both come back the instant GOT IT is pressed — and it is one tap away,
+     which is the whole reason this card is allowed to ask for the room.
+     That is 66 px, and it takes the budget to 186 against a worst case of 155
+     in the longest language on the smallest frame with the largest notch. */
+  #ui:has(.fc.show) { --pt-chap: 0px; --pt-strip: 0px; }
+  #ui:has(.fc.show) .meta-quest,
+  #ui:has(.fc.show) .kit { opacity: 0; pointer-events: none; }
 
   /* =========================================================================
      6. THE FLOOR — bottom-up, in reserves that add up.

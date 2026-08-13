@@ -35,6 +35,72 @@ export const DESKTOP = [
 
 export const ALL = [...DESKTOP, ...PORTRAIT, ...LANDSCAPE];
 
+/* ===========================================================================
+   THE NOTCH, MODELLED THE WAY A HANDSET ACTUALLY HAS ONE.
+
+   `--sa-*` are ordinary custom properties holding an `env()` value
+   (src/ui/style.css), so a desktop Chromium can be handed a notch and a home
+   indicator and made to compose a real handset layout. What matters is that the
+   shape handed to it is the shape the device has.
+
+   This lived inline in landscape.mjs, and it was landscape-shaped in both
+   senses: `l/r = 44`, `b = 21`, `t = 0`. That is exactly right for a phone on
+   its side — the camera housing is on one SHORT edge, so it eats a flank, and
+   the home indicator runs along the long edge at the bottom. It is exactly
+   wrong for a phone held up, where the housing is on the TOP edge and the
+   flanks are clear, and it was nonetheless what every portrait capture in this
+   project was ever handed. Portrait safe areas had therefore never once been
+   photographed: `--pad-t: max(14px, var(--sa-t))` had only ever resolved to
+   14px, and the entire portrait ladder hangs off `--pad-t`.
+
+   The numbers are the real ones. Portrait: 47 top / 34 bottom is what an
+   iPhone 11–14 reports (the two portrait sizes in this matrix are an iPhone
+   13/12 and an iPhone 11/XR); a Dynamic Island reports 59, which is the worst
+   case any current handset hands a page, so it is captured too — a top band
+   that survives 47 and not 59 is not a portrait layout, it is a lucky one.
+   Landscape: 44 on ONE flank and 21 at the foot, never 44 on both, and both
+   rotations are captured because they are different layouts — the side the
+   notch lands on is the side that loses 30 px.
+   =========================================================================== */
+
+/** A phone on its side: the housing eats one flank, the indicator the foot. */
+export const LANDSCAPE_INSETS = [
+  { name: '', t: '0px', r: '0px', b: '0px', l: '0px' },
+  { name: '-notchL', t: '0px', r: '0px', b: '21px', l: '44px' },
+  { name: '-notchR', t: '0px', r: '44px', b: '21px', l: '0px' },
+];
+
+/** A phone held up: the housing eats the top, the indicator the foot. */
+export const PORTRAIT_INSETS = [
+  { name: '', t: '0px', r: '0px', b: '0px', l: '0px' },
+  { name: '-notch', t: '47px', r: '0px', b: '34px', l: '0px' },
+  { name: '-island', t: '59px', r: '0px', b: '34px', l: '0px' },
+];
+
+/**
+ * Which shape of inset this viewport can actually be handed.
+ *
+ * Taller than it is wide → a handset held up. Everything else — a phone on its
+ * side, a tablet, a Chromebook in a split window — gets the landscape shape.
+ * A laptop has no notch at all, but a desktop-composed frame is the one every
+ * `--sa-b` regression has hidden in, so it is driven with one anyway.
+ */
+export function insetsFor(vp) {
+  return vp.h > vp.w ? PORTRAIT_INSETS : LANDSCAPE_INSETS;
+}
+
+/**
+ * Hand the page an inset. All four edges, every time — a run that sets only
+ * the three it cares about inherits the fourth from whatever the last one left
+ * on the element, which is how a "portrait" capture ends up wearing a landscape
+ * notch.
+ */
+export const APPLY_INSET_SRC = `(i => {
+  const s = document.documentElement.style;
+  s.setProperty('--sa-t', i.t); s.setProperty('--sa-r', i.r);
+  s.setProperty('--sa-b', i.b); s.setProperty('--sa-l', i.l);
+})`;
+
 /**
  * The audit, as a function that is injected into the page.
  *
@@ -54,6 +120,38 @@ export const AUDIT_SRC = `(() => {
                       scrim's own scroll size says nothing about the card in it. The
                       card is measured directly, as .rf-frame and .rf-plate. */
                    '.rift', '.rf-spill', '.rf-motes'];
+  /* SURFACES WHOSE JOB IS TO SCROLL, AND WHICH SAY SO.
+
+     The audit permits overflow:auto because "a panel that has decided to
+     scroll is a design decision". That is true of a progress document, a
+     dossier, a menu and a foundry catalogue — long things, in a frame with a
+     visible thumb and a fade at the edge, that a reader knows to push.
+
+     It is not true of the three places the layout passes reached for auto as a
+     LAST RESORT — the controls legend's rows, the companion's line, the rift's
+     stage. Each of those carries a comment saying it has never needed to
+     scroll in any of the three languages, and each of them was measured
+     against a frame whose --sa-t was zero. Give a 390 px handset the Dynamic
+     Island's 59 px and the controls legend loses INTERACT and RECOVER with no
+     thumb, no fade and no clue: eight controls, six printed, and the audit
+     called it clean because auto was in the stylesheet.
+
+     So a scroller has to be NAMED here to be allowed to eat its own content.
+     Adding one is a decision somebody makes on purpose; forgetting to is now a
+     failing frame rather than a silent one.
+
+     .rf-stage is named on exactly those terms and no others. It is the rift's
+     balance scene on a 390 px-high frame, and src/ui/landscape.css spends
+     fourteen lines saying why it is allowed to scroll there — the fit pass has
+     a floor past which the mathematics is unreadable, and below that floor the
+     alternative is not a shorter scene, it is the commit key and CALL THE ECHO
+     off the bottom of the screen. The head, the statement and the foot are
+     guaranteed on the frame; what moves is the artwork between them. That is a
+     decision with a guarantee attached, which is the difference between this
+     and a legend that lost two of its eight rows. */
+  const SCROLL_OK = ['.rp-body', '.rp-doc-body', '.rp-sum', '.rp-table',
+                     '.dos-left', '.dos-log', '.dos-grid',
+                     '.mnu-card', '.fdy-card', '.sx-scroll', '.rf-stage'];
   /* Marks that legitimately ride the edge of the frame — an off-screen waypoint
      arrow is *supposed* to be half off the screen; that is what makes it an
      arrow rather than a label. This exempts them from the bounds test ONLY:
@@ -159,7 +257,7 @@ export const AUDIT_SRC = `(() => {
     const all = [...scope.querySelectorAll('*')];
     if (layer) all.unshift(layer);
 
-    const clipped = [], outside = [], texts = [], inSafe = [], panels = [];
+    const clipped = [], outside = [], texts = [], inSafe = [], panels = [], silent = [];
 
     const safe = {
       l: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sa-l')) || 0,
@@ -187,6 +285,16 @@ export const AUDIT_SRC = `(() => {
         }
         if (hidY && overH > 1) {
           clipped.push({ sel: sel(el), what: 'y ' + el.scrollHeight + '>' + el.clientHeight, text: txt.slice(0, 70) });
+        }
+
+        /* ---- 1b. or scrolling it away without saying so? ---- */
+        const scrX = cs.overflowX === 'auto' || cs.overflowX === 'scroll';
+        const scrY = cs.overflowY === 'auto' || cs.overflowY === 'scroll';
+        if (!isClipper(el, SCROLL_OK) && ((scrX && overW > 1) || (scrY && overH > 1))) {
+          silent.push({ sel: sel(el),
+            what: (scrY && overH > 1 ? 'y ' + el.scrollHeight + '>' + el.clientHeight
+                                     : 'x ' + el.scrollWidth + '>' + el.clientWidth),
+            text: txt.slice(0, 70) });
         }
       }
 
@@ -286,8 +394,12 @@ export const AUDIT_SRC = `(() => {
       }
     }
 
+    /* The inset is reported, not just used. An instrument that measures the wrong
+       thing has cost this project several rounds, so every row carries the
+       inset it was actually shot under and a run can assert that the notch it
+       asked for is the notch the page was wearing. */
     return { w: W, h: H, layer: layer ? sel(layer) : null, nodes: texts.length,
-             plates: panels.length, clipped, outside, overlaps, inSafe };
+             plates: panels.length, clipped, outside, overlaps, inSafe, silent, safe };
   };
 })()`;
 

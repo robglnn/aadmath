@@ -34,8 +34,9 @@
  * target" and not "amazing job!" — Marlow does not flatter and does not scold.
  *
  * THE SHELF. This card is the last screen of the loop and on most of the
- * screens it has to run on it is taller than the frame, so the controls ride a
- * sticky opaque shelf at the foot of the scroller. Whether it does is a fact
+ * screens it has to run on it is taller than the frame, so the card is a column
+ * — a body that scrolls, and an opaque control shelf under it that does not.
+ * Whether the body scrolls is a fact
  * about the content and not about the viewport — see `fit()` — because the
  * three blocks plus the sign-off overflow a 1280x720 Chromebook exactly as
  * readily as a 390x844 phone, and deciding it with a width media query left
@@ -52,6 +53,31 @@ export class Resolution {
     this.el.innerHTML = `
       <div class="sx-dim"></div>
       <div class="sx-in" role="dialog" aria-modal="true">
+        <!-- THE SHELF IS NOT IN THE SCROLLER.
+
+             It used to be: .sx-acts sat last in this flow on position:sticky,
+             which pins it to the foot of the scrollport and therefore ON TOP OF
+             whatever is last in the flow until the card has been scrolled all
+             the way down. That is the standard answer to "there is more below"
+             and it is why the layout audit exempts a docked toolbar — but it
+             means the card opens with its final paragraph half under an opaque
+             strip, and which paragraph that is depends on how long the strings
+             happen to be. At 1280x720 the Spanish card overflows its 92vh by
+             one pixel; that one pixel turns the shelf on; turning the shelf on
+             adds its own foot padding and a 2.8 rem gap, which makes the card
+             overflow by twenty-two more; and the strip then covered sixty-two
+             pixels of content at rest, of which the last forty were the caption
+             that exists to be read BEFORE the eye goes looking for a second
+             button. English cleared the line by four pixels and Polish by
+             eleven. Nobody had written a layout that worked; three locales had
+             got lucky and one had not.
+
+             So the card is a column: a body that scrolls, and a shelf that does
+             not, outside it. The shelf can then never be over anything, in any
+             locale, at any height, at any scroll position — and the fade above
+             it goes back to doing the one job a gradient can honestly do, which
+             is to dissolve the EDGE of the scroller rather than a sentence. -->
+        <div class="sx-scroll">
         <div class="sx-crest" hidden>
           <div class="sx-sig"></div>
           <div class="sx-crest-kick"></div>
@@ -73,12 +99,25 @@ export class Resolution {
           <section class="sx-b sx-next"><h3></h3><ul></ul></section>
         </div>
         <p class="sx-sign"></p>
-        <p class="sx-cap"></p>
+        </div>
+        <!-- …AND THE CAPTION IS PART OF THE SHELF, NOT THE LAST THING ABOVE IT.
+
+             It says why there is no second button, so it has to be read before
+             the eye goes looking for one — which makes "last thing in a
+             scroller" the one place it must never be. Taking the shelf out of
+             the scroller stopped it being covered; it did not stop it being the
+             line the scroller happens to end on, half dissolved by the fade
+             that marks the edge. In the shelf it is not in the scroller at all:
+             crisp at rest, in every locale, at every height, beside the button
+             it is about. It costs the body those few pixels, and the body
+             scrolls. -->
         <div class="sx-acts">
+          <p class="sx-cap"></p>
           <button type="button" class="sx-rest"></button>
           <button type="button" class="sx-more"></button>
         </div>
       </div>`;
+    this.scroll = this.el.querySelector('.sx-scroll');
     this.crest = this.el.querySelector('.sx-crest');
     this.crestSig = this.el.querySelector('.sx-sig');
     this.crestKick = this.el.querySelector('.sx-crest-kick');
@@ -121,12 +160,17 @@ export class Resolution {
    * the content taller (it adds its own foot padding and a gap above itself) —
    * asking in the on-state would let a card that only just overflows latch on
    * and never let go, and asking it on every resize would then flicker.
+   *
+   * The question is asked of `.sx-scroll`, which is the body. `.sx-in` is the
+   * card, and since the shelf came out of the scroller the card itself never
+   * overflows — asking it would answer "no" on every screen and the shelf would
+   * lose its fade exactly where it is needed.
    */
   fit() {
-    if (!this.inn || !this.open) return;
+    if (!this.scroll || !this.open) return;
     const on = this.el.classList.contains('scrolls');
     if (on) this.el.classList.remove('scrolls');
-    const over = this.inn.scrollHeight > this.inn.clientHeight + 2;
+    const over = this.scroll.scrollHeight > this.scroll.clientHeight + 2;
     this.el.classList.toggle('scrolls', over);
   }
 
@@ -150,7 +194,7 @@ export class Resolution {
        used to open exactly where the last one was left, which on a screen short
        enough to scroll meant the headline was already off the top before the
        learner had looked at it. */
-    if (this.inn) this.inn.scrollTop = 0;
+    if (this.scroll) this.scroll.scrollTop = 0;
     this.el.classList.remove('show');
     void this.el.offsetWidth;
     this.el.classList.add('show');

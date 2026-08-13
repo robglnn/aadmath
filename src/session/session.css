@@ -331,14 +331,26 @@
 /* -------------------------------------------------------------- the close --
    Not a results card. Three blocks in the order a person actually wants them:
    what is now yours, what that opened, and what tomorrow opens with. */
+/* A COLUMN, NOT A SCROLLER: a body that scrolls, and a shelf that does not.
+   `.sx-in` used to be the scroller itself with the shelf riding its foot on
+   `position: sticky`, which meant the shelf was always on top of the last thing
+   in the flow. See src/session/resolution.js for the frame that cost. */
 .ses-close .sx-in {
   position: relative; width: min(760px, 92vw);
-  max-height: 92vh; overflow: auto;
+  max-height: 92vh; overflow: hidden;
+  display: flex; flex-direction: column;
   /* The side and foot padding are held in variables because the control shelf
      below has to bleed to exactly these edges and re-supply exactly this foot,
      at every viewport, without repeating the numbers three times. */
   --sx-px: 1.6rem; --sx-pb: 1.5rem;
   padding: 1.4rem var(--sx-px) var(--sx-pb); text-align: center;
+}
+/* `min-height: 0` is load-bearing: without it a flex child refuses to shrink
+   below its content and the card grows past its own max-height instead. */
+.ses-close .sx-scroll {
+  flex: 0 1 auto; min-height: 0;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 /* ------------------------------------------------------- the ascension --
    A promotion earned on the last answer of a run is not a second ceremony to
@@ -441,7 +453,13 @@
   color: #fff;
 }
 .sx-title span {
-  display: inline-block; opacity: 0;
+  /* `text-indent: .2em` above is the optical correction for the trailing
+     letter-space, and it moves this inline-block right without taking anything
+     off its width — so a title that wraps to the full line runs .2em past the
+     card's own content box: 9 px at 1280 and 5 px at 390, in every locale that
+     wraps. It never showed because the card used to be a two-axis scroller and
+     simply scrolled. It is a column now, and a column has to fit. */
+  display: inline-block; max-width: calc(100% - .2em); opacity: 0;
   text-shadow: 0 0 10px color-mix(in srgb, var(--rank-ink) 80%, transparent),
     0 0 52px color-mix(in srgb, var(--rank-glow) 70%, transparent);
 }
@@ -544,9 +562,13 @@
 .ses-close.show .sx-acts { animation: sesUp .6s ease forwards calc(var(--sx-t0) + 1.3s); }
 .sx-more[hidden] { display: none; }
 /* Why the offer is not there — read *before* the eye goes looking for a second
-   button, not as a footnote to its absence. */
+   button, not as a footnote to its absence. It is the first row OF the shelf
+   rather than the last line above it (src/session/resolution.js says why), so
+   it takes the whole flex line and the buttons wrap under it the way they
+   already wrap under each other. The row gap supplies the space under it. */
 .sx-cap {
-  margin: 1rem auto -.2rem; max-width: 48ch; font-size: .74rem; line-height: 1.5;
+  flex: 0 0 100%; margin: 0 auto; max-width: 48ch;
+  font-size: .74rem; line-height: 1.5;
   color: rgba(159, 179, 208, .74); text-wrap: pretty; opacity: 0;
 }
 .sx-cap:empty { display: none; }
@@ -572,22 +594,26 @@
    gradient cannot be the thing that hides text; it is the thing that hides the
    *edge*. So the shelf is a flat solid, and the fade lives above it in
    ::before, outside the shelf's own box, where its job is to dissolve the line
-   the shelf would otherwise guillotine — and to say "there is more up there",
-   which is the affordance the fold was missing. */
+   the scroller would otherwise guillotine — and to say "there is more up
+   there", which is the affordance the fold was missing.
+
+   THE SHELF IS ALSO NOT IN THE SCROLLER ANY MORE. It was, on `position:
+   sticky`, which is the same statement one step weaker: a sticky footer is
+   still laid out as the last thing in the flow and still paints over whatever
+   is behind it until the card is scrolled to its foot. A solid that covers no
+   text is a shelf; a solid that covers text nobody has scrolled past yet is
+   the same gradient problem with sharper edges. */
 .ses-close.scrolls .sx-in {
-  /* The shelf re-supplies this, and a sticky box is clamped inside its
-     containing block's *content* box rather than the scrollport — so every
-     pixel of foot padding left here is a pixel of the last paragraph showing
-     in the clear underneath the controls. */
+  /* The shelf re-supplies this. */
   padding-bottom: 0;
 }
+/* Deep enough that at the foot of the scroll the fade is lying on empty gap and
+   the last line of the card is at full strength rather than half dissolved. */
+.ses-close.scrolls .sx-scroll { padding-bottom: 2.8rem; }
 .ses-close.scrolls .sx-acts {
-  position: sticky; bottom: 0; z-index: 3;
-  /* Bled to the card's own edges so the strip is opaque all the way across.
-     The top margin is exactly the height of the fade below it, so that once
-     the card is scrolled to its foot the fade is lying on empty gap and the
-     last line of the caption is at full strength instead of half dissolved. */
-  margin: 2.8rem calc(var(--sx-px) * -1) 0;
+  position: relative; z-index: 3;
+  /* Bled to the card's own edges so the strip is opaque all the way across. */
+  margin: 0 calc(var(--sx-px) * -1);
   padding: .9rem var(--sx-px) var(--sx-pb);
   background: var(--ses-floor);
   box-shadow: 0 -1px 0 rgba(140, 195, 255, .13);
@@ -799,7 +825,7 @@
   .sx-blocks { grid-template-columns: 1fr; gap: .55rem; }
   .sx-b { padding: .6rem .7rem .68rem; }
   .sx-sign { font-size: .78rem; }
-  .sx-cap { margin: .7rem auto .1rem; }
+  .sx-cap { margin: 0 auto; }
   .sc-go, .sx-rest, .sx-more, .sr-again, .sr-off { padding: .66rem 1.1rem; font-size: .62rem; }
   .ses-rest .sr-arc { left: 10%; right: 10%; }
 }

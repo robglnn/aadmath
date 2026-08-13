@@ -34,8 +34,9 @@
                   the interact prompt, the toast — with a slot each. The world
                   labels dodge all of it already (src/world/tagspace.js reads
                   these selectors).
-     RIGHT FLANK  the first-contact card, laid out in two columns so it is
-                  wide and short instead of tall and narrow.
+     RIGHT FLANK  the first-contact card, inset off the thumb reserve and laid
+                  out in columns so it is wide and short instead of tall and
+                  narrow.
      THE FLOOR    Marlow, full width between the two thumbs, sized to her own
                   sentence in every language.
      THE THUMBS   the two bottom corners, smaller than they are in portrait —
@@ -80,7 +81,7 @@
     --lsc-band: 62px;      /* height of the top instrument row — the rig's */
     --lsc-sb: 52px;        /* height of the session band under it */
     --lsc-rail: 196px;     /* width of the left column */
-    --lsc-flank: 300px;    /* width of the right-hand card */
+    --lsc-flank: 356px;    /* width of the right-hand card (see 4) */
     --lsc-step: 4px;       /* the gap between two things in a column */
 
     /* The stacking ladder, written down once. Landscape is where these
@@ -295,6 +296,24 @@
   .hail { top: calc(50% - 52px); }
   #ui .gd-prompt { top: calc(50% - 4px); }
   .toast { top: calc(50% + 50px); }
+  /* THE SIXTH, AND THE ONLY ONE THAT NEVER HAD A SLOT. `.kit-toast` — the plate
+     that names the verb a cadet has just spent motes on — is pinned at
+     `top: 64%` in src/kit/kit.css, a fraction of a frame in a composition where
+     nothing else is one. On 390 px of height that is 250 px, which is the same
+     glass as the toast at `50% + 50` and, in Spanish, the top of the
+     companion's card. It audited clean in all 24 driven states only because no
+     driven state in the matrix has ever bought anything.
+     It takes the axis, and — like `.fcs`, on the same terms — it owns the
+     middle while it is up. That is five seconds, for the one plate on this
+     screen a cadet has just paid for; everything it stands on comes straight
+     back, and the right-hand card comes with them. */
+  .kit-toast { top: 50%; bottom: auto; left: 50%; transform: translate(-50%, -50%); }
+  #ui:has(.kit-toast.show) .hail,
+  #ui:has(.kit-toast.show) .gd-prompt,
+  #ui:has(.kit-toast.show) .toast,
+  #ui:has(.kit-toast.show) .kit,
+  #ui:has(.kit-toast.show) .axiom,
+  #ui:has(.kit-toast.show) .fc { opacity: 0; }
   /* The clear-build button takes the right flank under the first-contact card,
      inset far enough that it can never reach the thumb cluster. */
   .axiom-clear {
@@ -357,28 +376,58 @@
      ========================================================================= */
   #ui .fc, #ui .fc.high, :root[data-touch] #ui .fc {
     top: calc(var(--pad-t) + var(--lsc-band) + var(--lsc-step)); bottom: auto;
-    left: auto; right: var(--pad-r);
-    /* The width is bounded by what is LEFT, not by a fraction of the frame:
-       the foundry's hail is pinned to the crosshair's axis and is 197 px wide,
-       so the flank starts where the hail ends. On a notched 844 the card is
-       inset 44 px from the right before it starts, which is exactly how it
-       came to be printed through WHERE MOTES BUY THINGS. */
-    width: min(var(--lsc-flank), calc(50vw - var(--pad-r) - 118px));
+    /* IT CLEARS THE THUMB, LIKE EVERYTHING ELSE ON THIS FLOOR.
+
+       `--thumb-r` is declared at the top of this file as what the right-hand
+       control cluster actually claims plus a gutter, and the companion's card
+       is already inset by it. This card was not: it was pinned to `--pad-r` and
+       grew downward out of a band the file's own comment describes as "164 px
+       tall between the top band and the thumb cluster" — an assumption with
+       nothing enforcing it. In Polish, on the shortest frame in the matrix,
+       with a home indicator lifting the cluster 21 px, it is 157 px tall and
+       the assumption failed: STEROWANIE printed its plate over the on-screen
+       GLIDE and INTERACT buttons, which are two of the eight controls it is
+       naming. It was never photographed because the inset runs were English
+       only, and English is 29 px shorter.
+
+       Inset by the same reserve, the card cannot reach that cluster at any
+       height, in any language, on either rotation — it is 22 px clear of the
+       nearer button at 844x390 and further everywhere else.
+
+       The width is bounded by what is LEFT: the rail, the two reserves and a
+       gutter. It used to be bounded by the foundry's hail instead
+       (`50vw - --pad-r - 118px`), which on a notch-right 844 came to 260 px —
+       and a card 40 px narrower is a card that has to be taller. The hail no
+       longer needs avoiding, because while this card is up the hail is not
+       there: the axis stands down under it, which is the deal the portrait
+       sheet has always made and for exactly this reason. */
+    left: auto; right: calc(var(--pad-r) + var(--thumb-r));
+    width: min(var(--lsc-flank),
+               calc(100% - var(--pad-l) - var(--lsc-rail)
+                    - var(--pad-r) - var(--thumb-r) - 24px));
     z-index: var(--lsc-z-first);
   }
+  /* The way out of a hole owns the middle while it is up; so does the card that
+     names the controls, on the same terms — the foundry's plate, the interact
+     prompt and the toast stand down and come straight back when GOT IT is
+     pressed, which is one tap away. Portrait has said this since it was
+     written; landscape only ever said it for `.fcs`. */
+  #ui:has(.fc.show) .hail,
+  #ui:has(.fc.show) .gd-prompt,
+  #ui:has(.fc.show) .toast { opacity: 0; }
   #ui .fc-card { padding: .5rem .6rem .5rem .66rem; }
   #ui .fc-head { margin-bottom: .38rem; }
   #ui .fc-head h3 { font-size: .58rem; letter-spacing: .16em; }
   #ui .fc-x { font-size: .52rem; padding: .14rem .4rem .16rem; }
   /* TWO COLUMNS, AND A ROW THAT WRAPS RATHER THAN OVERLAPS.
 
-     The flank is 164 px tall between the top band and the thumb cluster, and
-     between 260 and 300 px wide depending on which way the handset was
-     rotated — the notch is on ONE short edge, so half the time it eats the
-     side this card lives on. `auto-fit` keeps two columns across that whole
-     range instead of collapsing to one and growing 50 px taller, which at
-     844x390 rotated notch-right printed the card's last two rows across the
-     thumb cluster.
+     The flank is 356 px wide on every frame in the matrix now — the card is
+     inset off the thumb reserve rather than off the raw edge, so which way the
+     handset was rotated no longer changes its width and a notch no longer
+     costs it 40 px and buys it a row. `auto-fit` spends that width on columns
+     instead of collapsing to one and growing 50 px taller, which at 844x390
+     rotated notch-right printed the card's last two rows across the thumb
+     cluster.
 
      And the row wraps. A row is a verb and a key; in Spanish the key is
      ARRASTRA A LA DERECHA — 100 px of keycap in a 135 px column, beside a verb

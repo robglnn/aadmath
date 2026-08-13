@@ -46,8 +46,17 @@
 
 /* the grant itself: it lands once, in the middle of the frame, and it names the
    capability rather than congratulating anybody */
+/* 64% of the frame, which is where this plate has always read best — except
+   that 64% is a fraction of the whole window and the companion's card is
+   anchored to the FOOT of it, so on any screen short enough the two travel into
+   each other. The mobile compositions give this plate a real slot (see
+   src/ui/portrait.css and src/ui/landscape.css); this is the same promise for
+   every other screen — 64% wherever there is room for it, and above the band
+   the companion may claim where there is not. 260 px is her worst case at
+   desktop plus this plate's own half-height. */
 .kit-toast {
-  position: absolute; left: 50%; top: 64%; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; transform: translate(-50%, -50%);
+  top: min(64%, calc(100% - var(--hud-b) - 260px));
   display: grid; justify-items: center; gap: .2rem; text-align: center;
   padding: .7rem 1.4rem; border-radius: var(--cut);
   background: var(--plate-bg); border: 1px solid rgba(95, 230, 255, .34);

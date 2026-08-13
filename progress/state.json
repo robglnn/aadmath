@@ -1,93 +1,89 @@
 {
   "title": "ASCENT — The Cipher Worlds",
   "subtitle": "Adaptive Algebra I mastery, built to a Fortnite / Breath of the Wild bar",
-  "updated": "wave 2",
-  "wave": 2,
-  "summary": "Wave A closed: 30 agents, zero passes. Critics scored world 3, fx 3, player 4, learn-ux 5. A coherence pass then unified the lighting to one golden hour, fixed aerial perspective, restored the player's shadow, and found the click-swallowing modal that had silently broken building since the first commit. 60fps on an M4. Wave B now re-enters every piece seeded with its exact unclosed gap.",
+  "updated": "round 9",
+  "wave": 9,
+  "summary": "Live and playable at robglnn.github.io/aadmath. Mobile clean in both orientations. A teacher can switch the progress record between TEKS and Common Core, and a department head passed it for adoption at 8/10. The cold-player gate — real key input, debug API forbidden — passes 6/6 against the production URL.",
   "metrics": {
-    "fps": 82,
-    "draws": 174,
-    "tris": 511076,
+    "fps": 108.4,
     "consoleErrors": 0,
-    "itemsValidated": 15096,
-    "masteryRate": 86.5,
-    "masteryPct": 94.9,
-    "trueMasteryPct": 94.9,
-    "lowestQuintilePct": 86.3,
-    "mastery": 94,
-    "pedagogySituations": 310,
-    "situations": 310
+    "itemsValidated": 12180,
+    "i18nKeys": 1072,
+    "trueMasteryPct": 99.8,
+    "lowestQuintilePct": 89.3,
+    "portraitFrames": "80/80",
+    "landscapeFrames": "160/160"
   },
   "pieces": [
     {
       "id": "world",
       "name": "World & art direction",
-      "status": "judging",
-      "score": 3,
-      "note": "Sightlines genuinely fixed - 4/5 far worlds unoccluded from spawn, ashen centre-frame at arrival, terrace runnable - but the horizon is flat paper triangles and black cutouts, the lookout does not read as built, and a straight run up the Spine renders pure black. 5/10."
+      "status": "passed",
+      "score": 7,
+      "note": "Five far regions, real aerial perspective, hero silhouettes."
     },
     {
       "id": "player",
       "name": "Movement, camera & game feel",
-      "status": "building",
-      "score": 4,
-      "note": "camera collision that never buries the lens, planted feet, real landing weight, fall pose"
+      "status": "passed",
+      "score": 7,
+      "note": "Shadow, contact, silhouette. A/D handedness and hyperextended elbows fixed."
     },
     {
       "id": "build",
       "name": "Axiom building system",
-      "status": "passed",
-      "score": 9,
-      "note": "hotbar highlight fixed, lattice grid + rotate for aim, no-trap guard; hand-built square proven by real key/mouse input"
+      "status": "building",
+      "score": 6,
+      "note": "Geometry was always right; the controls were not. Hotbar, rotate and grid fixed."
     },
     {
       "id": "learn-ux",
       "name": "Rift learning surface",
-      "status": "building",
-      "score": 5,
-      "note": "killing fixed-height boxes; echo must reflow not clip; 414x896 fit"
+      "status": "passed",
+      "score": 7,
+      "note": "Five answer modalities. Echo diagnoses the exact misconception."
     },
     {
       "id": "pedagogy",
       "name": "Content, item bank & mastery model",
       "status": "passed",
-      "score": 9,
-      "note": "fast test-out: a knower clears each skill in 3 items / 2.3 min in the real game; leverage router lifts true mastery 96.2->99.8%, Q1 89->99.5%, hollow 2.3->0.1%"
+      "score": 8,
+      "note": "99.8% simulated true mastery, 0.1% hollow claims, ~2.7 min test-out median."
     },
     {
       "id": "i18n",
       "name": "EN / ES / PL localisation",
-      "status": "building",
-      "score": 9,
-      "note": "wave 3 round 1: transcreation quality pass, PL case/aspect, locale math typography, overflow at all viewports"
+      "status": "passed",
+      "score": 8,
+      "note": "1072 keys x 3 locales; content/ now policed too. ASD-STE100 + ADHD structure."
     },
     {
       "id": "narrative",
       "name": "Narrative, voice & progression",
-      "status": "judging",
-      "score": null,
-      "note": "two clocks: chapter turns on rifts sealed (3/7/16/28), rank still costs mastery; verified 10 rifts -> ch3, silver"
+      "status": "building",
+      "score": 6,
+      "note": "Arc reaches the endgame; rank and story still not day-gated."
     },
     {
       "id": "fx",
       "name": "Post-processing & atmosphere",
-      "status": "judging",
-      "score": 8,
-      "note": "4/10 — gap NOT closed: volumetric march renders height fog not shafts (zero god rays facing a low sun through a tower); beacon lights nothing it stands next to; motes vanish when the sun is behind you; the seal beat is a 2D bar glued to screen centre at every pitch; pixel ratio ceiling 1.5 (0.84 in the harness) softens every wide frame on an M4 doing 6.4ms"
+      "status": "passed",
+      "score": 7,
+      "note": "One golden hour, aerial perspective, volumetrics."
     },
     {
       "id": "audio",
       "name": "Audio & music",
-      "status": "building",
-      "score": null,
-      "note": "w3r1 done: envelope fix (score was silent between chords), transient fix, fall wind, breathing, momentum, softening slips, 30Hz automation"
+      "status": "passed",
+      "score": 7,
+      "note": "Synthesised adaptive score, surface-varied footsteps."
     },
     {
       "id": "perf",
       "name": "Performance & platform reach",
-      "status": "building",
-      "score": null,
-      "note": "mobile-first HUD: safe areas, touch controls, gamepad end-to-end at 390x844 and 414x896"
+      "status": "passed",
+      "score": 8,
+      "note": "108 fps median. Mobile clean portrait and landscape."
     }
   ],
   "log": [
@@ -302,6 +298,26 @@
     {
       "t": "mobile portrait",
       "m": "portrait composed in one place (src/ui/portrait.css): 40/80 -> 80/80 gate frames clean at 414x896 + 390x844, EN/ES/PL, notch rotations"
+    },
+    {
+      "t": "round 9",
+      "m": "Portrait 40/80 -> 80/80; landscape 40/96 -> 160/160. Each orientation composed in one file."
+    },
+    {
+      "t": "round 9",
+      "m": "Teacher view passed adoption review 8/10 in both TEKS and Common Core framings."
+    },
+    {
+      "t": "round 9",
+      "m": "Answer-integrity audit: 2880 items, 225 choice surfaces, 0 findings. Now a permanent gate."
+    },
+    {
+      "t": "round 9",
+      "m": "Cold-player gate added: real key input, debug API forbidden. It caught three rounds of false fixes."
+    },
+    {
+      "t": "layout",
+      "m": "portrait-shaped safe-area model added to the shared gate; full matrix 576/576 clean in EN/ES/PL x flat/notch/island"
     }
   ]
 }

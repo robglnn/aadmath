@@ -346,8 +346,37 @@
 .meta-bar.b { bottom: 0; background: linear-gradient(0deg, rgba(2, 5, 11, .8), rgba(2, 5, 11, 0)); }
 .meta-open.on .meta-bar { opacity: 1; }
 
+/* WHERE THE STAMP LANDS, AND WHAT IT IS NOT ALLOWED TO LAND ON.
+
+   44% of the frame, which is where it has always been and where it looks
+   right — but 44% is a fraction of the whole window, and the companion's card
+   is anchored to the FOOT of it (`bottom: calc(var(--hud-b) + 4px)`, thirty
+   lines above). The two therefore travel towards each other on any screen that
+   is short, and past each other on any screen that is short AND has a home
+   indicator: at 1280x720 with `--sa-b: 21px` the 21 px lifts her card exactly
+   into the stamp's fourth line, and "First light · fourth day of the tearing"
+   was photographed printed through the top edge of her plate, 203x233 px of
+   ink at 10 px tall.
+
+   A phone already knew this. The portrait sheet places the stamp off its own
+   ladder and the phone media query below pins it to 20vh, both of which say
+   the same thing in different words: the card owns the foot, the stamp takes
+   the sky above it. This is that rule for every other screen — the stamp keeps
+   44% wherever there is room for 44%, and where there is not, it stops at the
+   line the floor's reserves begin at instead of walking into them.
+
+   `--meta-say` is what her card may claim, measured rather than guessed: at
+   1280 the longest line any of the three locales has runs to five lines in a
+   760 px plate, which is 159 px of card. `--meta-stamp-h` is the stamp's own
+   height, four lines and a rule, measured at 100 px on the same screen. Both
+   carry air. Neither is used anywhere a phone can see. */
+#ui {
+  --meta-say: 200px;
+  --meta-stamp-h: 120px;
+}
 .meta-stamp {
-  position: absolute; left: max(30px, 3.4vw); top: 44%; z-index: 1;
+  position: absolute; left: max(30px, 3.4vw); z-index: 1;
+  top: min(44%, calc(100% - var(--hud-b) - var(--meta-say) - var(--meta-stamp-h)));
   opacity: 0; translate: 0 10px; transition: opacity .9s ease, translate .9s ease;
 }
 .meta-open.on .meta-stamp { opacity: 1; translate: 0 0; }
@@ -391,19 +420,47 @@
    PLATE, THE FOUNDRY, VAULT PLATE NEXT, and Marlow talking under all four —
    and the last two of those are the kit's chip strip and the foundry's plate.
    They stand down with everything else now and come back with it. */
+/* …and `.fc` was the third. The controls card was built after this list and
+   never added to it, so on a 414 px frame it printed straight through THE
+   SKYREN LATTICE and the two lines under it, in every locale. The portrait
+   sheet fixed that — inside `@media (max-width: 560px) and (orientation:
+   portrait)`, which is the one shape of screen where the card and the stamp do
+   not have to share a corner. At 1280x720 the card is still lit through the
+   whole cold open. A stand-down list is not a place for a media query: the
+   memo goes here, where the other nine are, and it holds at every size.
+   (The portrait sheet's copy is gone; this is the only one.) */
 #ui.meta-cine .hud-top,
 #ui.meta-cine .crosshair,
 #ui.meta-cine .buildbar,
 #ui.meta-cine .kit,
+#ui.meta-cine .kit-toast,
 #ui.meta-cine .hail,
 #ui.meta-cine .langs,
 #ui.meta-cine .sound,
 #ui.meta-cine .marlow,
+#ui.meta-cine .fc,
+#ui.meta-cine .fc-pill,
 #ui.meta-cine .meta-quest {
   opacity: 0 !important;
   pointer-events: none !important;
   transition: opacity .55s ease;
 }
+/* WHAT IS DELIBERATELY NOT ON THAT LIST, and why, so the next person does not
+   "finish" it:
+
+   `.meta-comms` — Marlow speaks THROUGH the open. src/meta/index.js says the
+   first act's lines at 2.6 s and lets the open run to 21 s, so standing her
+   card down would not tidy the arrival, it would delete the arrival's script:
+   eighteen seconds of the game's opening narration typing itself onto a
+   surface at `opacity: 0`. She is not an instrument reporting a number at the
+   player; she is the other half of the frame the stamp is the first half of,
+   and the two are composed to sit in different bands — see `.meta-stamp`
+   below, which is where the collision they were photographed in actually was.
+
+   `.rp-launch` / `.mnu-pill` — the two doors out. The open ends the moment the
+   cadet takes a step, but nothing makes them take one, and a PROGRESS pill
+   that is drawn and inert for twenty-one seconds is worse than one that is
+   drawn and works. They are the only controls in #ui that go somewhere. */
 #ui .hud-top, #ui .crosshair, #ui .buildbar, #ui .langs, #ui .sound {
   transition: opacity .9s ease .25s;
 }
