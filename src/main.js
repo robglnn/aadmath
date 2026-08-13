@@ -39,6 +39,11 @@ import { loadContent } from './content/index.js';
 // own. Loading it after every one of them is what lets it do so without
 // editing anybody else's stylesheet — see the header of that file.
 import './ui/landscape.css';
+// …and the same for a phone held up. src/ui/portrait.css composes the tall
+// narrow frame the same way and for the same reason — one place, loaded last,
+// positions and sizes only. The two share no viewport: one is
+// `orientation: landscape`, the other `orientation: portrait`.
+import './ui/portrait.css';
 // Screen quiet (src/ui/quiet.js): how many text panels may stand at once.
 // Owns none of them; it only decides who yields. Wiring only.
 import { startQuiet } from './ui/quiet.js';

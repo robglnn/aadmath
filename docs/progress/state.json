@@ -298,6 +298,10 @@
     {
       "t": "mobile-landscape",
       "m": "landscape frame composed (src/ui/landscape.css); gate tools/critic/landscape.mjs 160/160 clean across 844x390/896x414/926x428/1024x768 x EN/ES/PL x 8 scenes x 3 rotations; baseline 40/96"
+    },
+    {
+      "t": "mobile portrait",
+      "m": "portrait composed in one place (src/ui/portrait.css): 40/80 -> 80/80 gate frames clean at 414x896 + 390x844, EN/ES/PL, notch rotations"
     }
   ]
 }

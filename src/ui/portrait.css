@@ -1,0 +1,596 @@
+/* ===========================================================================
+   A PHONE HELD UP.
+
+   The mobile-landscape pass ended with a note: "Portrait carries the same
+   first-contact-card defect (`--sizes 414x896` → 4 of 8 scenes fail)." It does,
+   and for the same reason. Six modules each carried their own portrait offset,
+   each measured against a guess about what the modules above it were doing, and
+   the guesses were made at different times against different layouts:
+
+     · `.fc` docked "under the top-right chip, where nothing else lives on a
+       narrow frame" — src/player/controls.css. On a 414 px portrait frame what
+       lives there is the sound chip at `--pad-t + 40`, the build rack running
+       down the flank from `--pad-t + 84`, and the session band, and the
+       objective card. The card was printed over all four, and at arrival
+       through THE SKYREN LATTICE as well.
+     · `.rp-launch` moved to "the gap between the integrity rig and the chapter
+       card" at `--pad-t + 142` — src/report/report.css.
+     · `.gd-card` moved to `--pad-t + 142` too — src/session/session.css, for a
+       different reason, on a different day. Two opaque plates, same pixel.
+     · `.mnu-pill` took `--pad-t + 112` — src/ui/menu.css, which is the middle
+       of the session band.
+
+   Eighty frames, forty clean. So this file is not more patches. It is the one
+   place the portrait frame is composed, loaded last, and it says where every
+   persistent thing goes:
+
+     TOP ROW      the rig at the left, the language pill at the right — the one
+                  band in this layout where two things sit side by side, and
+                  they are the two that have always been there.
+     RIGHT FLANK  56 px: the build rack, standing on end, from under the rig
+                  down to a declared line. Nothing else is ever in it.
+     LEFT COLUMN  everything else, inset by the flank, stacked: the session
+                  band, then one row carrying PROGRESS · MENU · sound, then the
+                  objective, then the chapter as a strip, then first contact.
+                  Each is placed off the one above it — never off a number
+                  somebody measured on a different screen.
+     THE CENTRE   kept clear. The crosshair's own axis carries the four
+                  contextual things that belong on it, with a slot each.
+     THE FLOOR    bottom-up: the thumbs, then Marlow full width, then the strip
+                  the kit chips and the build charge share, then the ledger.
+     THE THUMBS   lighter than they were. A 132x150 cluster is 18% of an
+                  844 px frame and a third of its width.
+
+   Tall and narrow is a different problem from short and wide, and it has the
+   opposite answer: spend the HEIGHT, never the width. Nothing here shrinks a
+   font to make room; panels take the width they need and go under each other,
+   because going under is what portrait has room for.
+
+   Owned by the mobile-portrait pass. It is loaded last on purpose, so it can
+   place another module's furniture without editing that module's stylesheet —
+   every rule below is a position, a size or a wrap, never a colour, a border
+   or a voice.
+
+   `tools/critic/landscape.mjs --sizes 414x896,390x844` is the gate. It is
+   viewport-agnostic despite the name, it measures ink rather than boxes, and
+   every number in this file is a measurement it keeps honest.
+   =========================================================================== */
+
+/* The one query. 560 px covers every handset in portrait — the widest in the
+   matrix is 414 — and excludes a tablet, which is not a narrow frame and keeps
+   the desktop composition. `orientation: portrait` keeps it off the landscape
+   sheet entirely, so there is no band of viewports where half of each applies.
+   `max-width: 560px` alone is not enough: an 844x390 phone on its side is
+   wider than that, but a 390 px browser window on a laptop is not portrait. */
+@media (max-width: 560px) and (orientation: portrait) {
+
+  /* The pass's own fingerprint, and the same one the landscape sheet carries.
+     `tools/critic/landscape.mjs --baseline` photographs this game with the
+     mobile composition switched off, by finding these blocks by this property
+     and deleting them — which has to work against a production bundle, where
+     every stylesheet in the game has been concatenated into one and "disable
+     the portrait sheet" is not a thing that exists. Nothing reads it. */
+  :root { --lsc-on: 1; }
+
+  /* =========================================================================
+     THE LADDER.
+
+     Every persistent thing in the left column is positioned off the running
+     total of what is above it, so moving a band moves everything under it and
+     a panel that grows a line in Polish pushes rather than prints.
+
+     Each `--pt-*` below is a band's height INCLUDING its own trailing gap, or
+     zero when that band is not on screen — which is why they are declared on
+     `#ui` and not on `:root`: `--gd-h` is written there by src/meta/guide.js on
+     every resize, and a ladder that cannot see it is a ladder made of guesses.
+
+     The numbers are measured, not chosen. At 390x844, in the longest of the
+     three languages: the rig comes in at 60, the session band at 51 once the
+     row the track already draws comes off, the three pills at 34, the objective
+     card publishes 79 through `--gd-h`, and the rack is 297.
+     ========================================================================= */
+  #ui {
+    --pt-gap: 6px;
+    --pt-rig: 64px;                 /* the rig's own height, plus the gap */
+    --pt-band: 0px;                 /* the session band, when it is up */
+    --pt-ctl: 40px;                 /* PROGRESS · MENU · sound, one row */
+    --pt-obj: 0px;                  /* the objective card = --gd-h */
+    --pt-chap: 0px;                 /* the chapter strip, when it is up */
+
+    /* The right flank, and how far down it the rack runs. Measured: six 40 px
+       slots and a place verb come in at 297 on both portrait sizes. */
+    --pt-flank: 56px;
+    --pt-rack: 302px;
+
+    /* THE FLOOR, from the bottom edge up. These are reserves, not positions:
+       each band below claims its own, and the top column is forbidden to
+       cross the line they add up to. Measured at both sizes in all three
+       languages: the longest line the companion has runs to six lines at 390 px
+       and a card of 153, the chip strip is 24, a row of the ledger is 28. */
+    --pt-say: 166px;                /* what the companion's card may claim */
+    --pt-strip: 30px;               /* kit chips and the build charge */
+    --pt-led: 32px;                 /* the wallet's ledger, its newest row */
+    /* …and the three slots on the crosshair's axis, stacked up off the floor:
+       the toast, the interact prompt, the foundry's hail. */
+    --pt-axis: 132px;
+    /* Where the floor begins, counted once. Everything below is placed off
+       this rather than off a number of its own. */
+    --pt-floor: calc(var(--hud-b) + var(--pt-say) + var(--pt-strip) + var(--pt-led));
+
+    /* The running total. Nothing in the left column carries an offset of its
+       own; it carries one of these. */
+    --pt-y-band: calc(var(--pad-t) + var(--pt-rig));
+    --pt-y-ctl: calc(var(--pt-y-band) + var(--pt-band));
+    --pt-y-obj: calc(var(--pt-y-ctl) + var(--pt-ctl));
+    --pt-y-chap: calc(var(--pt-y-obj) + var(--pt-obj));
+    --pt-y-fc: calc(var(--pt-y-chap) + var(--pt-chap));
+
+    /* …and the line the column is not allowed to cross, which is where the
+       floor's reserves begin. `100%` is the frame: `#ui` is `inset: 0`, so an
+       absolutely positioned child resolves percentages against the whole
+       viewport, and `--hud-b` already carries the safe-area inset. */
+    --pt-stop: calc(100% - var(--pt-floor));
+
+    /* The stacking ladder, written down once. Portrait is where these collide,
+       so this is where the order is declared:
+         world labels < left column < the rack < companion < first contact */
+    --pt-z-col: 22;
+    --pt-z-rack: 23;
+    --pt-z-comms: 24;
+    --pt-z-first: 30;
+  }
+
+  /* The flank is the rack's, and the rack is only on the flank when there are
+     thumbs on the glass: on a pointer device `.buildbar` is a row across the
+     foot of the frame, so there is nothing out there and the column takes the
+     whole width. A narrow window on a laptop is not a phone. */
+  :root:not([data-touch]) #ui { --pt-flank: 0px; --pt-rack: 0px; }
+
+  /* The three bands that appear and disappear mid-run. `:has()` is how the
+     ladder learns about them: the session band arrives at the first charter,
+     the objective card whenever there is somewhere to be, the chapter strip
+     once there is a chapter. Anything that is not on screen contributes
+     nothing, so the column closes up rather than leaving a hole where a panel
+     used to be. */
+  #ui:has(.ses-band.show) { --pt-band: 58px; }
+  #ui:has(.gd-card.show) { --pt-obj: var(--gd-h, 94px); }
+  #ui:has(.meta-quest.show) { --pt-chap: 36px; }
+
+  /* =========================================================================
+     1. THE TOP ROW — the rig and the language pill.
+
+     The only band in this composition where two things share a horizontal
+     line, because they are the two that have always shared it and both are
+     bounded: the rig gives up the pill's width and keeps every word.
+     ========================================================================= */
+  #ui .hud-top { right: calc(var(--pad-r) + 118px); }
+  #ui .rig-cap { white-space: normal; }
+  #ui .rig-rank i, #ui .rig-shards i { overflow: visible; text-overflow: clip; }
+  #ui .langs { top: var(--pad-t); right: var(--pad-r); }
+
+  /* =========================================================================
+     2. THE RIGHT FLANK — the build rack, and nothing else, ever.
+
+     `[data-touch]` already stands the rack on end and runs it down this edge,
+     which is right: a portrait frame has 390 px of width and a six-slot row
+     does not fit beside anything. What was wrong is that four other things
+     were also told this flank was empty. It is the rack's, from under the rig
+     to `--pt-rack`, and every other rule in this file inserts the left column
+     by `--pt-flank` for as long as the rack is there.
+     ========================================================================= */
+  :root[data-touch] #ui .buildbar,
+  :root[data-touch] .buildbar {
+    left: auto; right: var(--pad-r); bottom: auto;
+    top: var(--pt-y-band);
+    flex-direction: column; gap: .2rem; padding: .22rem;
+    z-index: var(--pt-z-rack);
+  }
+  :root[data-touch] .slot { width: 44px; height: 40px; }
+  :root[data-touch] .slot svg { width: 18px; height: 18px; }
+  :root[data-touch] .slot span { font-size: .4rem; letter-spacing: .05em; max-width: 40px; }
+
+  /* =========================================================================
+     3. THE LEFT COLUMN — one order, one set of offsets.
+
+     session band → PROGRESS · MENU · sound → objective → chapter → first
+     contact. Every one of them is `left: --pad-l`, `right: --pad-r + --pt-flank`
+     and `width: auto`, so a panel is as wide as the frame allows and a
+     sentence has somewhere to go but down.
+     ========================================================================= */
+
+  /* ---- the session band ---------------------------------------------------
+     It already took the full width on a phone; what it did not have was a line
+     of its own that nothing else wanted. It has one now, and it sheds the row
+     the track directly above it already draws: "0 of 17 rifts" is the track,
+     counted, and the chapter strip two rows down counts it again. Three of the
+     same number is what a 390 px column cannot afford — and that row is the
+     one the MENU pill was printed on. */
+  #ui .ses-band {
+    top: var(--pt-y-band);
+    left: var(--pad-l); right: calc(var(--pad-r) + var(--pt-flank));
+    width: auto; min-width: 0;
+    /* Its own padding was `--pad-t * .55 + .34rem` because on a laptop this
+       band hangs off the top edge of the frame and has to clear the notch. Here
+       it is the second row of a column and the notch is the rig's problem. */
+    padding: .36rem .7rem .44rem;
+    z-index: var(--pt-z-col);
+  }
+  .ses-band .sb-foot { display: none; }
+  /* "Drive back: Reading a variable" is 168 px of sentence in a box with
+     `text-overflow: ellipsis` on it, and an ellipsis is a truncation with a dot
+     on it. It wraps instead — inside the head's own row where the column has
+     the width for it, and onto a second row rather than through the kick when
+     it has not. */
+  .ses-band .sb-head { flex-wrap: wrap; }
+  .ses-band .sb-goal {
+    flex: 1 1 auto; min-width: 0; font-size: .68rem; line-height: 1.3;
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
+
+  /* ---- the control row ----------------------------------------------------
+     Three pills that were stacked down the left edge at 66, 112 and 142 px —
+     three numbers, from three stylesheets, two of which landed on the same
+     pixel as an opaque card. Portrait has 390 px of width and these are 210 px
+     of pill, so they take one row: the thing a student opens at the left, and
+     the two housekeeping controls at the right, in the order a thumb reaches
+     them.
+
+     They are anchored from opposite ends rather than laid out from one: the
+     sound chip is a speaker glyph and five meter bars, so it is 58 px wide in
+     every locale and MENU can be placed off it — and PROGRESS, which is the
+     only one of the three carrying a translated word (98 px in Polish, 109 in
+     Spanish), grows into the gap between them from the left instead of pushing
+     anything. At 390 the two ends are 108 px and 165 px apart. */
+  /* The second selector is not decoration. src/session/session.css moves this
+     launcher and the objective card down a row while the band is up, with
+     `#ui:has(.ses-band.show) .rp-launch` — which is one class more specific
+     than `#ui .rp-launch` and wins however late this sheet is loaded. Matching
+     its shape is what lets the ladder do the moving instead. The same is true
+     of the two cards below. */
+  #ui .rp-launch,
+  #ui:has(.ses-band.show) .rp-launch {
+    top: var(--pt-y-ctl); bottom: auto;
+    left: var(--pad-l); right: auto;
+    min-height: 34px; padding: .36rem .58rem;
+    z-index: var(--pt-z-col);
+  }
+  .sound {
+    top: var(--pt-y-ctl); bottom: auto;
+    left: auto; right: calc(var(--pad-r) + var(--pt-flank));
+    padding: .3rem .5rem;
+  }
+  #ui .mnu-pill {
+    top: var(--pt-y-ctl); bottom: auto;
+    left: auto; right: calc(var(--pad-r) + var(--pt-flank) + 63px);
+    min-height: 34px; padding: .34rem .5rem;
+    z-index: var(--pt-z-col);
+  }
+  #ui .mnu-pill b { display: none; }        /* the icon and the title carry it */
+
+  /* ---- the objective card -------------------------------------------------
+     The one clear next action, and the panel this whole file exists to keep
+     legible. It takes the column's full width, so the verb and the distance
+     never wrap into a third line, and it publishes its own height back into
+     the ladder through `--gd-h`. */
+  #ui .gd-card,
+  #ui:has(.ses-band.show) .gd-card {
+    top: var(--pt-y-obj);
+    left: var(--pad-l); right: calc(var(--pad-r) + var(--pt-flank));
+    width: auto; padding: .5rem .66rem .54rem;
+    z-index: var(--pt-z-col);
+  }
+  /* The verb and the distance stay; the skill's name goes. It is printed on the
+     session band's goal line directly above this card, on the chapter strip
+     below it, and on the rift's own plate when you get there — three times, on
+     a screen with 390 px of width. (The same cut the landscape sheet makes,
+     for the same reason.) */
+  .gd-what { display: none; }
+
+  /* ---- the chapter card becomes a chapter strip ---------------------------
+     Fifth in a column that still has the controls card to fit, and stacked as a
+     card it is 120 px of restatement: the question it asks is the objective
+     card one row up, and the rank ladder is the rig's entire left edge. What is
+     worth a row is which chapter this is and how near the next one is — and it
+     stays a button, because it is the only way into the dossier that a thumb
+     has (a keyboard has J; a phone has this).
+
+     It wraps rather than overlaps. A strip that wraps is a strip; a strip that
+     overlaps is a bug — and `--pt-chap` is the reserve the ladder holds for it,
+     which the gate photographs in all three languages at both sizes. */
+  #ui .meta-quest,
+  #ui:has(.ses-band.show) .meta-quest {
+    top: var(--pt-y-chap);
+    left: var(--pad-l); right: calc(var(--pad-r) + var(--pt-flank));
+    width: auto; padding: .3rem .5rem .32rem .56rem;
+    display: flex; align-items: center; flex-wrap: wrap; gap: .1rem .5rem;
+    z-index: var(--pt-z-col);
+  }
+  .meta-quest .qh { flex: 0 1 auto; min-width: 0; }
+  .meta-quest .qact { font-size: .46rem; letter-spacing: .14em; }
+  .meta-quest .qkey { display: none; }              /* there is no J on a phone */
+  .meta-quest .qtitle { display: none; }
+  .meta-quest .qseal {
+    flex: 0 1 auto; max-width: none; margin: 0 0 0 auto;
+    padding: 0; border-top: 0;
+  }
+  .meta-quest .qs-n { font-size: .9rem; }
+  .meta-quest .qs-lab { max-width: none; font-size: .42rem; letter-spacing: .1em; line-height: 1.2; }
+  .meta-quest .qs-track, .meta-quest .qs-next { display: none; }
+  /* …and the rank ladder goes. COPPER → IRON with a track under it is the rig's
+     entire left edge, four rows above this strip and permanently on screen. It
+     was 22 px of a card whose reserve is 36, which is how the strip's own
+     bottom row came to be printed through the controls card's title in all
+     three languages at 06-hud-full. */
+  .meta-quest .qrung { display: none; }
+
+  /* =========================================================================
+     4. FIRST CONTACT — last in the column, and laid out sideways.
+
+     This card is the thing that was actually breaking the frame. It is 248 px
+     wide and eight rows tall, docked at `--pad-t + 46` on a touch device — the
+     top-right corner "where nothing else lives on a narrow frame", which on a
+     414 px portrait frame is the sound chip, the build rack, the session band
+     and the objective card, all four at once.
+
+     It goes to the foot of the column, where the frame is actually free, and
+     its eight rows go into two columns so it is wide and short instead of
+     narrow and tall. The row wraps: a key is ARRASTRA A LA DERECHA in Spanish
+     and PRZYTRZYMAJ in Polish, and a verb with `flex: 1; min-width: 0` beside
+     one of those shrinks to nothing and lets its own word hang out of the box.
+     The key drops under its verb instead. A box smaller than the sentence
+     inside it is two things in one place, whatever the geometry says.
+     ========================================================================= */
+  #ui .fc,
+  #ui .fc.high,
+  :root[data-touch] #ui .fc {
+    top: var(--pt-y-fc); bottom: auto;
+    left: var(--pad-l); right: calc(var(--pad-r) + var(--pt-flank));
+    width: auto;
+    /* The last resort, and the only one this card is allowed. It may grow until
+       its foot is 8 px above the line the floor's reserves begin at, and past
+       that its ROWS scroll — which is a decision. It has never needed to in any
+       of the three languages at either size; the gate photographs the longest
+       card there is. But a locale nobody has written yet is not allowed to
+       print through the companion. */
+    max-height: calc(var(--pt-stop) - var(--pt-y-fc) - 8px);
+    display: flex; flex-direction: column;
+    z-index: var(--pt-z-first);
+  }
+  #ui .fc-card { padding: .5rem .6rem .52rem .68rem; display: flex; flex-direction: column; min-height: 0; }
+  #ui .fc-head { margin-bottom: .34rem; }
+  #ui .fc-head h3 { font-size: .58rem; letter-spacing: .16em; }
+  #ui .fc-x { font-size: .54rem; padding: .16rem .44rem .18rem; }
+  #ui .fc-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .18rem .5rem;
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  #ui .fc-rows.tail { margin-top: .34rem; padding-top: .34rem; }
+  #ui .fc-rows li { font-size: .62rem; gap: .3rem; line-height: 1.1; flex-wrap: wrap; }
+  #ui .fc-rows li .fc-verb { flex: 1 1 auto; }
+  #ui .fc kbd, #ui .fcs kbd { font-size: .5rem; min-width: 1.2em; padding: .1em .3em .14em; }
+  #ui .fc-pill,
+  #ui .fc-pill.high,
+  :root[data-touch] #ui .fc-pill {
+    top: var(--pt-y-fc); bottom: auto;
+    left: auto; right: calc(var(--pad-r) + var(--pt-flank));
+    z-index: var(--pt-z-first);
+  }
+
+  /* THE CARD THAT NEVER GOT THE COLD OPEN'S MEMO.
+
+     `#ui.meta-cine` stands every readout down while the arrival plays, so the
+     stamp is the only thing on the sky — the rig, the rack, the kit, the
+     language pill, the sound chip, the chapter card and Marlow's subtitle are
+     all named in src/meta/meta.css. The controls card was built afterwards and
+     was never added, so on a 414 px frame it printed straight through THE
+     SKYREN LATTICE and the two lines under it, in every locale. It stands down
+     with the rest of them and comes back with them; nothing is `display:none`,
+     so nothing reflows when it returns. */
+  #ui.meta-cine .fc, #ui.meta-cine .fc-pill { opacity: 0 !important; pointer-events: none !important; }
+  /* …and the stamp, which is pinned to 20vh on a phone — 179 px at 414x896,
+     which is the middle of the objective card — takes the band the controls
+     card has just vacated. It is placed off the ladder like everything else, so
+     a chapter strip that wraps in Polish moves the arrival with it. */
+  .meta-stamp { top: calc(var(--pt-y-fc) + 8px); bottom: auto; left: var(--pad-l); }
+
+  /* =========================================================================
+     5. THE CENTRE — kept clear.
+
+     Below the column and above the floor there is nothing but the world. The
+     three contextual things that belong on the crosshair's axis get a slot
+     each, and no two share one: at most two are ever up at once, but they are
+     laid out as though all three were, because "usually not both" is how a card
+     ends up printed through a sentence.
+
+     They are stacked UP off the floor's reserves rather than off 50% of the
+     frame, so that all the slack in this layout pools in one place — the band
+     between the foot of the column and the top of this stack — instead of being
+     shared out between a panel that grows in Polish and a panel that does not.
+     The toast is lowest because it is the shortest-lived; the foundry's hail is
+     highest because it is the one you walk towards.
+     ========================================================================= */
+  .toast { top: auto; bottom: calc(var(--pt-floor) + 6px); }
+  #ui .gd-prompt { top: auto; bottom: calc(var(--pt-floor) + 46px); }
+  .hail { top: auto; bottom: calc(var(--pt-floor) + 88px); }
+  /* One compass, not two: `.afd-head` prints the same verb, the same place and
+     the same distance as the objective card at the top of the same screen, with
+     the waypoint diamond drawing the direction in the world itself. */
+  #ui .afd-head { display: none; }
+  /* Two things that both mean "the thing in front of you", drawn from different
+     modules against different coordinate systems — one pinned to the crosshair,
+     one projected off a point in the world. Standing at the counter, the
+     distance to somewhere else is the less useful of the two. */
+  #ui:has(.hail.show) .gd-mark:not(.edge) .gd-lab { opacity: 0; }
+  /* The way out of a hole owns the middle while it is up, and everything else
+     on the axis stands down — the same deal the landscape sheet makes. */
+  #ui:has(.fcs.show) .hail,
+  #ui:has(.fcs.show) .gd-prompt,
+  #ui:has(.fcs.show) .kit,
+  #ui:has(.fcs.show) .axiom { opacity: 0; }
+
+  /* …and so does the controls card, for the same reason and on the same terms.
+     A 390 px-wide frame cannot carry eight verbs, a foundry plate, an interact
+     prompt and a toast in the same 130 px of glass, and of those four the card
+     is the one the cadet is looking at: it is the first thing on screen, it
+     retires a row every time a verb is performed, it closes itself when the
+     last row goes, and GOT IT is one tap away. Nothing is lost — every slot
+     below comes straight back the moment the card does. The alternative was to
+     delete four of the eight verbs on a touch device, and a control nobody
+     names is the door with no handle this card was built to replace. */
+  #ui:has(.fc.show) .hail,
+  #ui:has(.fc.show) .gd-prompt,
+  #ui:has(.fc.show) .toast { opacity: 0; }
+
+  /* =========================================================================
+     6. THE FLOOR — bottom-up, in reserves that add up.
+
+     The thumbs, then the companion, then the one strip the kit chips and the
+     build charge share, then the ledger growing upward out of it. Every one of
+     these was anchored to `--hud-b` plus a number of its own, and two of them
+     picked the same number: `.kit` and `.meta-comms` are both at `--hud-b + 4`
+     on a touch device — the same 386x24 px of glass — which is a price printed
+     under a sentence the moment a cadet buys a second verb.
+     ========================================================================= */
+  #ui .meta-comms {
+    left: var(--pad-l); right: var(--pad-r);
+    bottom: calc(var(--hud-b) + 4px);
+    max-width: none; width: auto;
+    grid-template-columns: 34px 1fr; gap: .7rem;
+    padding: .62rem .8rem .68rem .7rem;
+    /* Her own reserve, and no more — less a gutter, so that a card at its
+       tallest still clears the chip strip above it. Past the reserve the TEXT
+       scrolls, which is a decision; it does not truncate, which is not. */
+    max-height: calc(var(--pt-say) - 12px);
+    z-index: var(--pt-z-comms);
+  }
+  #ui .meta-comms > div:last-child { display: flex; flex-direction: column; min-height: 0; }
+  .meta-face { width: 34px; height: 34px; }
+  .meta-face svg { width: 22px; height: 22px; }
+  /* THE CAP THAT WAS NOT ONE.
+     `max-height` on the card clamps the PLATE. It does not clamp the grid item
+     inside it: the row track is sized to its content, `align-items: start`
+     leaves the item at that height, and the item then draws straight out of
+     the bottom of the plate it is in. Photographed at 390x844 in every locale —
+     the plate ended after "…Sixty motes apiece, and there" and the last two
+     lines of the sentence were printed on the grass, across the INTERACT and
+     GLIDE buttons, with the card's own rectangle reporting no overlap.
+
+     So the bound goes where the text is. The reserve is her card's; this is
+     what is left of it after the plate's own chrome — 21 px of padding, the
+     name row and its margin — and past it the text scrolls, which is a
+     decision. It has never needed to at either size in any of the three
+     languages: `--pt-say` is measured off the longest line she has. */
+  .meta-text {
+    flex: 0 1 auto; min-height: 0;
+    max-height: calc(var(--pt-say) - 52px);
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  /* The subtitle channel is laid out in the same band, on the same terms. */
+  .marlow {
+    left: var(--pad-l); right: var(--pad-r);
+    bottom: calc(var(--hud-b) + 4px);
+    max-width: none; margin-inline: 0;
+  }
+
+  /* ---- the strip ---------------------------------------------------------
+     One row above the companion, shared end to end: the verbs a cadet has
+     bought at the left, and what the build charge is at the right. Both are
+     chips, both are read at a glance, and neither is ever more than one row —
+     a wrapping strip grows upward, into the sentence above it. */
+  :root[data-touch] #ui .kit,
+  #ui .kit {
+    left: var(--pad-l); right: auto;
+    bottom: calc(var(--hud-b) + var(--pt-say));
+    max-width: calc(100% - var(--pad-l) - var(--pad-r) - 150px);
+    flex-wrap: nowrap;
+  }
+  #ui .axiom, .axiom {
+    left: auto; right: var(--pad-r); top: auto;
+    bottom: calc(var(--hud-b) + var(--pt-say));
+    padding: .26rem .46rem; font-size: .52rem; gap: .4rem;
+  }
+  .axiom .gauge { width: 62px; height: 4px; }
+  .axiom .keys { display: none; }              /* there is no keyboard here */
+  /* The wallet's strip grows upward out of the row above the chips, which is
+     where its own comment says it belongs: "a hand's width above the mote
+     prices it is about to change". It keeps a reserve of its own (`--pt-led`)
+     rather than growing into the toast — the two exist as separate elements
+     precisely because they are on screen at the same time, and a strip that
+     grows upward with nothing held for it grows into whatever is there. One
+     row on a phone: the newest movement is the one about the price the chips
+     under it are about to change, and the other two are history on a frame
+     that has to carry a companion and two thumbs as well. */
+  .ledger {
+    left: var(--pad-l); right: auto;
+    bottom: calc(var(--hud-b) + var(--pt-say) + var(--pt-strip));
+    width: min(240px, 62vw);
+  }
+  .ledger .led-row:nth-last-child(n+2) { display: none; }
+  .led-left { display: none; }
+  /* The clear-build button rides the flank under the rack, which is the only
+     column of glass in the lower half of this frame with nothing in it. */
+  .axiom-clear {
+    left: auto; right: var(--pad-r);
+    top: calc(var(--pt-y-band) + var(--pt-rack) + 8px); bottom: auto;
+    width: 52px; height: 52px; font-size: .46rem;
+  }
+
+  /* =========================================================================
+     7. THE THUMBS — usable, and no longer a third of the frame.
+
+     The cluster is 132x150 with 46 px buttons and a 72 px jump, and the resting
+     ring is 104. On a 390 px frame that is a third of the width per side and
+     18% of the height, for four buttons. Everything here is scaled to a thumb
+     rather than to a screenshot: 40 px clears Apple's 36 pt minimum at this
+     density, the jump keeps its emphasis at 62, and the cluster fits in
+     122x134 — which is what buys the companion her lines back.
+     ========================================================================= */
+  :root[data-touch] { --thumb-b: 150px; }
+
+  #touchpad .home {
+    left: max(12px, var(--sa-l)); bottom: calc(14px + var(--sa-b));
+    width: 92px; height: 92px;
+  }
+  #touchpad .home i { width: 40px; height: 40px; }
+  #touchpad .stick { width: 120px; height: 120px; margin: -60px 0 0 -60px; }
+  #touchpad .stick::after { inset: 24px; }
+  #touchpad .knob { width: 52px; height: 52px; margin: -26px 0 0 -26px; }
+
+  #touchpad .pads {
+    right: max(10px, var(--sa-r)); bottom: calc(14px + var(--sa-b));
+    width: 122px; height: 134px;
+  }
+  #touchpad .btn { width: 40px; height: 40px; }
+  #touchpad .btn svg { width: 20px; height: 20px; }
+  /* Each button prints its own name UNDER itself, so this cluster is laid out
+     on eight boxes and not four, and every gap below is the width or the height
+     of a WORD — the longest of the three languages' words, not the English one.
+     `Interactuar` and `Interakcja` are 40% wider than INTERACT and were printed
+     into the jump ring's plate at both portrait sizes. */
+  #touchpad .btn b { font-size: 8.5px; top: calc(100% + 2px); letter-spacing: .04em; }
+  #touchpad .btn[data-a="jump"] { right: 0; bottom: 14px; width: 62px; height: 62px; }
+  #touchpad .btn[data-a="jump"] svg { width: 28px; height: 28px; }
+  #touchpad .btn[data-a="jump"] b { font-size: 10px; }
+  #touchpad .btn[data-a="dash"] { right: 70px; bottom: 18px; }
+  #touchpad .btn[data-a="glide"] { right: 2px; bottom: 92px; }
+  #touchpad .btn[data-a="interact"] { right: 74px; bottom: 86px; }
+
+  /* =========================================================================
+     8. THE PANELS THAT TAKE THE WHOLE FRAME.
+
+     A rift, the report and the foundry are modal: they own the screen, and the
+     only thing they have to be told is that the frame is 390 px wide. All three
+     were already built to scroll their own body; these bound the card to the
+     frame so that they do.
+     ========================================================================= */
+  #ui .fcs { width: min(340px, 88vw); }
+  /* the language pill is a modal's business too: it must not sit on a card */
+  #ui:has(.rift.show) .langs,
+  #ui:has(.rp-scrim.show) .langs,
+  #ui:has(.mnu.show) .langs { opacity: 0; pointer-events: none; }
+}
+
+@media (max-width: 560px) and (orientation: portrait) and (prefers-reduced-motion: reduce) {
+  #ui .meta-comms, #ui .fc, #ui .gd-card, #ui .meta-quest { transition-duration: .01ms; }
+}
