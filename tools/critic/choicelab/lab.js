@@ -28,6 +28,12 @@
 import 'katex/dist/katex.min.css';
 import { RiftPanel } from '../../../src/ui/rift.js';
 import { safeGenerate, SKILLS, FORMS_BY_SKILL } from '../../../src/learn/generators.js';
+// Every unit the manifest ships, not only the one that registers itself at
+// import. Without this the render-level audit covers Level 1 and silently
+// says nothing at all about any other course.
+import { registerPack } from '../../../src/content/registry.js';
+import algebra1L2 from '../../../src/content/packs/algebra1-l2.js';
+registerPack(algebra1L2);
 import { ITEM_BUNDLES } from '../../../src/learn/strings.js';
 import { setLocale, LOCALES } from '../../../src/i18n/index.js';
 import { evaluate, solveLinear, equivalent, parseArrayCells } from '../../../src/learn/parser.js';
@@ -88,7 +94,9 @@ const canon = (s) => String(s)
  * the fraction bar. Immune to how a plus or a times is drawn, which varies by
  * locale on purpose; not immune to anything that would change a value.
  */
-const glyphs = (s) => canon(s).replace(/[^0-9A-Za-zÀ-ɏ\-/()]/g, '');
+// A relation is one of those marks: "x > 5" and "x \\ge 5" are different
+// statements about different sets, so the four of them are kept.
+const glyphs = (s) => canon(s).replace(/[^0-9A-Za-zÀ-ɏ\-/()<>≤≥]/g, '');
 
 /**
  * What the glyphs for a value SHOULD be, derived from the value string itself
@@ -102,6 +110,16 @@ function expectedVisible(value) {
   s = s.replace(/\\left|\\right/g, '')
     .replace(/\\cdot|\\times/g, '*')
     .replace(/\\div|\\mathbin\{:\}/g, ':')
+    // The relations, as KaTeX draws them. Without these a statement option is
+    // compared letter by letter against the control sequence that produced it,
+    // and every inequality in the bank reads as a mismatch.
+    .replace(/\\le(?![a-zA-Z])/g, '≤')
+    .replace(/\\ge(?![a-zA-Z])/g, '≥')
+    .replace(/\\lt(?![a-zA-Z])/g, '<')
+    .replace(/\\gt(?![a-zA-Z])/g, '>')
+    .replace(/\\Rightarrow/g, '⇒')
+    .replace(/\\square/g, '□')
+    .replace(/\\qquad|\\quad/g, '')
     .replace(/\\[,;:! ]/g, '');
   // A stacked fraction is read numerator first — the same convention the DOM
   // reader above puts it back into.

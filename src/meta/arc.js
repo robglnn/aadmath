@@ -165,7 +165,11 @@ export const ACTS = [
   },
   {
     n: 3, id: 'ch3', at: CHAPTER_AT[2],
-    lines: ['story.ch3.b1', 'story.ch3.b2', 'story.ch3.b3'],
+    /* src/ui P1 — b1 used to be one 197-character sentence carrying both the
+       founding proof AND the word "lemma", which this chapter is named after
+       and which nothing in the game ever defined. It is two beats now: the
+       fact, then the definition. Same information, read instead of skipped. */
+    lines: ['story.ch3.b1', 'story.ch3.b1b', 'story.ch3.b2', 'story.ch3.b3'],
   },
   {
     n: 4, id: 'ch4', at: CHAPTER_AT[3],

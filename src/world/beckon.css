@@ -4,7 +4,7 @@
 #ui .beckon-tags { pointer-events: none; }
 /* Above the world, below everything that can hold the frame (src/meta is 12+,
    the boot curtain is 50). A label must never sit on top of a ceremony. */
-.beckon-tags { position: absolute; inset: 0; overflow: hidden; z-index: 6; }
+.beckon-tags { position: absolute; inset: 0; overflow: hidden; z-index: var(--z-beckon); }
 
 .bk-tag {
   position: absolute; transform: translate(-50%, -50%);

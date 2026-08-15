@@ -6,7 +6,7 @@
 #ui .kit .kit-chip { pointer-events: auto; }
 
 .kit {
-  position: absolute; left: var(--pad-l);
+  position: absolute; z-index: var(--z-hud); left: var(--pad-l);
   bottom: calc(52px + var(--safe));
   display: flex; flex-wrap: wrap; gap: .3rem; max-width: min(52vw, 520px);
   opacity: 0; translate: 0 6px; transition: opacity .4s, translate .4s;
@@ -54,8 +54,16 @@
    every other screen — 64% wherever there is room for it, and above the band
    the companion may claim where there is not. 260 px is her worst case at
    desktop plus this plate's own half-height. */
+/* THE LEVEL THIS CARD NEVER HAD.
+   The frame the critic photographed: VAULT PLATE rendering *behind* the rift
+   panel, its words coming up through the translucent number keys and garbling
+   the 5, 6, 1, 2 and 3. It had no `z-index` at all, so it stacked in DOM order
+   against a panel that declared 30 — it was never above or below anything on
+   purpose. It now sits at the top of the HUD band and under everything modal
+   (src/ui/layers.css), and `kit.js` retracts it outright when a tear takes the
+   frame rather than leaving it to shine through the glass. */
 .kit-toast {
-  position: absolute; left: 50%; transform: translate(-50%, -50%);
+  position: absolute; z-index: var(--z-grant); left: 50%; transform: translate(-50%, -50%);
   top: min(64%, calc(100% - var(--hud-b) - 260px));
   display: grid; justify-items: center; gap: .2rem; text-align: center;
   padding: .7rem 1.4rem; border-radius: var(--cut);

@@ -131,13 +131,13 @@
        viewport, and `--hud-b` already carries the safe-area inset. */
     --pt-stop: calc(100% - var(--pt-floor));
 
-    /* The stacking ladder, written down once. Portrait is where these collide,
-       so this is where the order is declared:
-         world labels < left column < the rack < companion < first contact */
-    --pt-z-col: 22;
-    --pt-z-rack: 23;
-    --pt-z-comms: 24;
-    --pt-z-first: 30;
+    /* The stacking ladder is no longer declared here — see the note in
+       src/ui/landscape.css and the scale itself in src/ui/layers.css. These
+       four names are kept so the rules below read as a composition. */
+    --pt-z-col: var(--z-hud);
+    --pt-z-rack: var(--z-launcher);
+    --pt-z-comms: var(--z-comms);
+    --pt-z-first: var(--z-first);
   }
 
   /* The flank is the rack's, and the rack is only on the flank when there are

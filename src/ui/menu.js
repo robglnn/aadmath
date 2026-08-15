@@ -62,9 +62,11 @@ export class Menu {
    * @param {import('../core/input.js').Input} opts.input
    * @param {() => boolean} [opts.isBusy] another surface owns the frame
    */
-  constructor(root, { input, isBusy = () => false } = {}) {
+  constructor(root, { input, isBusy = () => false, onRecover = null, onRestart = null } = {}) {
     this.input = input;
     this.isBusy = isBusy;
+    this.onRecover = onRecover;
+    this.onRestart = onRestart;
     this.open = false;
     this._src = null;
 
@@ -96,6 +98,18 @@ export class Menu {
             </section>
           </div>
         </div>
+        <section class="mnu-sec mnu-out">
+          <h3></h3>
+          <p class="mnu-out-body"></p>
+          <div class="mnu-acts">
+            <button type="button" class="mnu-act mnu-recover"><b></b><span class="mnu-keys"></span></button>
+            <button type="button" class="mnu-act mnu-restart"><b></b></button>
+          </div>
+          <p class="mnu-confirm" hidden><span></span>
+            <button type="button" class="mnu-yes"></button>
+            <button type="button" class="mnu-no"></button>
+          </p>
+        </section>
         <div class="mnu-now"><h3></h3><p></p></div>
       </div>`;
     root.appendChild(this.el);
@@ -118,6 +132,13 @@ export class Menu {
     this.toggle = this.el.querySelector('.mnu-toggle');
     this.nowH = this.el.querySelector('.mnu-now h3');
     this.nowP = this.el.querySelector('.mnu-now p');
+    this.outSec = this.el.querySelector('.mnu-out');
+    this.recoverBtn = this.el.querySelector('.mnu-recover');
+    this.recoverKeys = this.el.querySelector('.mnu-recover .mnu-keys');
+    this.restartBtn = this.el.querySelector('.mnu-restart');
+    this.confirm = this.el.querySelector('.mnu-confirm');
+    this.yesBtn = this.el.querySelector('.mnu-yes');
+    this.noBtn = this.el.querySelector('.mnu-no');
 
     this.verbList.innerHTML = VERBS.map((v) => row(v.id)).join('');
     this.screenList.innerHTML = SCREENS.map((s) => row(s)).join('');
@@ -134,6 +155,26 @@ export class Menu {
       this.input?.setInvertY?.(!this.input.invertY);
       this._paintSettings();
     });
+
+    // --- THE WAY OUT ------------------------------------------------------
+    //
+    // This card listed "Recover · R" among the controls and then offered no way
+    // to press it. A cold player read that line while wedged under the terrain,
+    // pressed R, got nothing, and had no other door: the menu that names the
+    // escape hatch has to *be* one. So the verb is a button here, and under it
+    // is the only other thing a genuinely beaten player wants — start again.
+    //
+    // Recover closes the card first, because the whole value of it is watching
+    // the cadet arrive back on solid ground; landing behind a pause screen is
+    // indistinguishable from a button that did nothing, which is the failure
+    // being fixed. Restart asks once, because it throws a session away.
+    this.recoverBtn.addEventListener('click', () => {
+      this.hide();
+      this.onRecover?.('menu');
+    });
+    this.restartBtn.addEventListener('click', () => { this._askRestart(true); });
+    this.noBtn.addEventListener('click', () => this._askRestart(false));
+    this.yesBtn.addEventListener('click', () => { this._askRestart(false); this.onRestart?.(); });
 
     // CAPTURE PHASE, and that is the whole trick. Every other Escape in this
     // game is a bubble-phase listener on `window`, and they were all bound
@@ -176,6 +217,13 @@ export class Menu {
     this.el.querySelector('.mnu-slider .mnu-verb').textContent = t('menu.sens');
     this.el.querySelector('.mnu-set .mnu-row:last-child .mnu-verb').textContent = t('menu.invert');
     this.nowH.textContent = t('menu.now');
+    this.el.querySelector('.mnu-out h3').textContent = t('menu.out');
+    this.el.querySelector('.mnu-out-body').textContent = t('menu.outBody');
+    this.recoverBtn.querySelector('b').textContent = t('menu.recover');
+    this.restartBtn.querySelector('b').textContent = t('menu.restart');
+    this.confirm.querySelector('span').textContent = t('menu.restartAsk');
+    this.yesBtn.textContent = t('menu.restartYes');
+    this.noBtn.textContent = t('menu.restartNo');
     this.card.setAttribute('aria-label', t('menu.title'));
     this._paintSettings();
     this._bindings(this._hands());
@@ -207,6 +255,9 @@ export class Menu {
     // ever looks at the button — and by nobody who has no keys to press it with.
     this.pill.querySelector('.mnu-keys').innerHTML = keyed ? caps(t('menu.bind.kbm.menu')) : '';
     this.el.querySelector('.mnu-screens').hidden = !keyed;
+    // The button carries the binding, so the key is learned by whoever has one
+    // and the button is still the whole affordance for whoever has not.
+    this.recoverKeys.innerHTML = s === 'touch' ? '' : caps(t(`firstrun.bind.${s}.recover`));
     if (keyed) {
       for (const id of SCREENS) {
         const li = this.screenList.querySelector(`li[data-v="${id}"]`);
@@ -234,6 +285,13 @@ export class Menu {
     this.toggle.querySelector('span').textContent = t(inp.invertY ? 'menu.on' : 'menu.off');
   }
 
+  /** Restart asks once. It is the only control here that cannot be undone. */
+  _askRestart(on) {
+    this.confirm.hidden = !on;
+    this.restartBtn.hidden = !!on;
+    if (on) setTimeout(() => this.noBtn.focus({ preventScroll: true }), 40);
+  }
+
   toggleOpen() { this.open ? this.hide() : this.show(); }
 
   show() {
@@ -244,6 +302,7 @@ export class Menu {
     this.open = true;
     this._bindings(this._hands());
     this._paintSettings();
+    this._askRestart(false);
     this.el.classList.add('show');
     this.pill.classList.add('on');
     if (this.input) this.input.uiOpen = true;

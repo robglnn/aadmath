@@ -64,7 +64,7 @@
   /* Above the world's labels and the companion's line, below the tear panel
      (30) and the session's own cards — the counter never coexists with either,
      because `open()` refuses while anything else owns the frame. */
-  z-index: 28;
+  z-index: var(--z-foundry);
 }
 #ui .fdy.show { opacity: 1; pointer-events: auto; }
 

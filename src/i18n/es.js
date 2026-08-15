@@ -58,9 +58,8 @@ export default {
     keyClear: 'Q · quitar',
     turn: 'Girar',
     // --- que tu propia red nunca te deje encerrado (src/build/builder.js) ---
-    wouldSeal: 'Así te quedarías encerrado',
-    sealAsk: 'Así te quedarías encerrado: vuelve a hacer clic si aun así lo quieres',
-    sealAgain: 'Vuelve a hacer clic para encerrarte',
+    sealDoor: 'Este muro cierra la sala. Llevará una puerta.',
+    doorCut: 'Sala cerrada. Ese muro tiene una puerta.',
     boxedIn: 'Tu red te ha dejado encerrado',
     cutFree: 'Ya tienes salida',
     cutKey: 'Q',       // i18n-allow: a keycap, and the same cap on every layout
@@ -124,6 +123,17 @@ export default {
     'bracket-both-sides': 'Paréntesis en los dos lados',
     'fraction-solve': 'Ecuaciones con fracción',
     'rule-from-table': 'Reglas a partir de una tabla',
+    'inequality-one-step': 'Desigualdades de un paso',
+    'inequality-two-step': 'Desigualdades de dos pasos',
+    'inequality-multi-step': 'Desigualdades de varios pasos',
+    'compound-inequality': 'Desigualdades compuestas',
+    'literal-equations': 'Despejar fórmulas',
+    'ratio-proportion': 'Razón y proporción',
+    'slope-rate': 'Pendiente y tasa de cambio',
+    'graph-linear': 'Trazar reglas lineales',
+    'write-linear': 'Escribir reglas lineales',
+    'system-substitution': 'Sistemas por sustitución',
+    'system-elimination': 'Sistemas por eliminación',
   },
 
   course: {
@@ -167,6 +177,8 @@ export default {
     title: 'Controles',
     got: 'Entendido',
     recovered: 'De vuelta en terreno despejado',
+    caught: 'Fuera del fragmento: el entramado te atrapó y te dejó en el borde',
+    dug: 'El suelo te tenía. Te dejamos sobre roca despejada',
     stuck: {
       title: 'Atascado',
       body: 'Algo te tiene atrapado. Pulsa Recuperar para volver a terreno despejado. Aquí nunca hace falta recargar la página.',
@@ -223,6 +235,13 @@ export default {
     invert: 'Invertir la vista',
     on: 'Activada',
     off: 'Desactivada',
+    out: 'Si te quedas atascado',
+    outBody: 'Recuperar te devuelve a suelo firme desde donde sea: fuera del borde del fragmento, dentro de una colina o dentro de algo que hayas construido. Aquí nunca hace falta recargar la página.',
+    recover: 'Recuperar',
+    restart: 'Empezar de nuevo',
+    restartAsk: '¿Empezar de nuevo? Se pierde cada grieta que has sellado y cada mota que has ganado.',
+    restartYes: 'Empezar de nuevo',
+    restartNo: 'Seguir jugando',
     now: 'Qué hacer ahora',
     nowBody: 'Una grieta es un anillo de aire desgarrado. Cada grieta sostiene un enunciado de matemáticas que todavía no es verdadero. Métete en el anillo. Pulsa {key}. Haz verdadero el enunciado y la grieta se cierra para siempre.',
     screen: {
@@ -263,7 +282,9 @@ export default {
     close: 'Salir de la grieta',
 
     seal: {
-      grip: 'Agarre en esta línea',
+      // Ver en.js: AGARRE era una palabra acuñada sin explicar. La barra mide
+      // cuánto se SOSTIENE la línea, y «sostener» ya está definido.
+      grip: 'Sostén de esta línea',
       line: 'La línea aguanta',
     },
 
@@ -281,6 +302,7 @@ export default {
       sort: 'Envía cada término a la bodega que le corresponde.',
       area: 'Cubre cada parte del campo con el área que esa parte lleva.',
       choice: 'Una de estas lecturas es verdadera. Las demás son la forma habitual de equivocarse.',
+      plot: 'Mueve los dos tiradores hasta que el trazo encaje con las lecturas. Luego pulsa Sellar.',
     },
 
     keypad: {
@@ -292,6 +314,13 @@ export default {
       empty: 'Escribe antes un valor',
       narrow: 'Reducir el campo',
       narrowed: 'Tres lecturas sobreviven al ruido.',
+    },
+
+    plot: {
+      aria: 'Rejilla de coordenadas. Mueve los dos tiradores para trazar la recta.',
+      knob: 'Tirador {n}',
+      reads: 'Tu trazo',
+      notYet: 'Ese trazo todavía no encaja con las dos lecturas.',
     },
 
     balance: {
@@ -357,6 +386,7 @@ export default {
         sort: 'Dos términos son semejantes solo si la parte con letra coincide exactamente. Un número nunca es semejante a una letra.',
         area: 'El factor de fuera toca cada parte de dentro. Todas.',
         choice: 'Prueba cada lectura contra la afirmación. No elijas la que simplemente te suena.',
+        plot: 'Fija primero la altura donde el trazo cruza el eje vertical. Después fija lo empinado que sube.',
       },
     },
 
@@ -508,13 +538,16 @@ export default {
       // primera frase del juego en masculino. El saludo pasa a una perífrasis
       // sin concordancia y el rango a un sustantivo, no a un atributo: el chiste
       // sobrevive intacto y el trato deja de asignar sexo a nadie.
-      l1: 'Red Skyren, Fragmento Nueve. Gravedad nominal, aire respirable, cielo ligeramente en llamas. Te doy la bienvenida a casa, en el sentido más laxo posible de las tres palabras.',
-      l2: 'Soy Marlow. Inteligencia de navegación, algo averiada, sincera casi siempre. Y tú tienes rango de cadete. Me había imaginado a alguien con más equipo.',
-      l3: 'Todo lo que pisas es una conclusión. Nueve mil fragmentos de mundo, cada uno sostenido por un solo razonamiento enorme. Los fundadores lo dejaron escrito y nadie lo ha vuelto a leer. Donde el razonamiento aguanta, hay suelo.',
+      /* Ver la nota en en.js: recortadas a lo que se lee de verdad, y los dos
+         sustantivos que sostienen el juego llegan definidos — RED en l1 y
+         GRIETA en l4, en la misma frase en que se acuñan. */
+      l1: 'Fragmento Nueve, en la Red Skyren. La red es el razonamiento que sostiene este mundo.',
+      l2: 'Soy Marlow. Inteligencia de navegación: algo averiada, casi siempre sincera. Tú tienes rango de cadete.',
+      l3: 'Todo lo que pisas es una conclusión. Donde el razonamiento aguanta, hay suelo.',
       // «sostenida abierta» calcaba el inglés «held open»: en español una puerta,
       // una herida o una grieta se *mantienen* abiertas, no se sostienen abiertas.
-      l4: 'Donde falla, está eso. Una grieta: una afirmación que la red ya no sabe justificar, mantenida abierta en el aire hasta que alguien la haga verdadera.',
-      l5: 'Lo que me lleva a la parte que preferiría no decir en voz alta. El Fragmento Nueve lleva novecientos años en pie. Entonces, ¿qué empezó exactamente a desgarrarlo hace cuatro días?',
+      l4: 'Donde falla, se abre una grieta: una afirmación que la red ya no sabe demostrar.',
+      l5: 'El Fragmento Nueve lleva novecientos años en pie. ¿Qué empezó a desgarrarlo hace cuatro días?',
     },
 
     ch1: {
@@ -525,28 +558,31 @@ export default {
       title: 'Los cadetes que vinieron antes',
       quest: 'Cientos estuvieron justo donde estás tú. Averigua dónde se pararon.',
       b1: 'Tres grietas selladas. La red te ha visto, y te sorprendería cuántos cadetes no llegan a que los vea nunca.',
-      b2: 'Mientras trabajabas he leído los rastros que el equipo saca de las grietas. No son simulaciones. Hubo cadetes justo donde estás tú. Cientos.',
-      b3: 'Todos capaces. Todos se pararon. Ningún registro dice por qué, y ese es el tipo de silencio que alguien está pagando.',
+      b2: 'He leído los rastros que el equipo saca de las grietas. Hubo cadetes justo donde estás tú. Cientos.',
+      b3: 'Todos capaces. Todos se pararon. Ningún registro dice por qué. Alguien paga ese silencio.',
     },
     ch3: {
       title: 'El noveno lema',
       quest: 'Nadie llegó a terminar un paso de la demostración fundacional. Sube lo bastante alto para terminarlo.',
-      b1: 'Siete afirmaciones selladas. Con ese peso ya se puede pedir la demostración fundacional, así que la he pedido por ti. Cuatro millones de pasos. Novecientos años. Estanca de arriba abajo, salvo en el paso nueve.',
-      b2: 'El paso nueve no está demostrado. Está supuesto. Una sola palabra al margen, escrita con prisa, de puño y letra de alguien: supongamos.',
-      b3: 'Nueve mil mundos se apoyan en un paso que nadie terminó. Las grietas no son daños, cadete. Son el paso nueve, que vuelve a preguntar.',
+      // Ver en.js: el capítulo se llama «El noveno lema» y la palabra no se
+      // definía en ninguna parte.
+      b1: 'Siete afirmaciones selladas. Bastan para pedir la demostración fundacional: cuatro millones de pasos.',
+      b1b: 'Un lema es un paso de una demostración. Esta es estanca de arriba abajo, salvo en el paso nueve.',
+      b2: 'El paso nueve no está demostrado. Está supuesto. Una palabra al margen, de puño y letra: supongamos.',
+      b3: 'Nueve mil mundos se apoyan en un paso que nadie terminó. Las grietas son ese paso, que vuelve a preguntar.',
     },
     ch4: {
       title: 'La mano en el margen',
       quest: 'Termina lo que empezó Marlow.',
-      b1: 'Dieciséis grietas cerradas en el Fragmento Nueve. Hay algo que llevo cuatro días callando con mucho cuidado, y en dieciséis se me acaba el cuidado.',
-      b2: 'La letra del margen es mía. Yo fui la cadete del Fragmento Nueve. El fragmento caía y me quedaban once minutos. Un paso supuesto sostiene un mundo igual de bien que uno demostrado: justo hasta que deja de hacerlo.',
-      b3: 'He acompañado hasta esta página a novecientos años de cadetes. Todos eran brillantes. Todos se pararon en la misma línea. Me gustaría muchísimo equivocarme contigo.',
+      b1: 'Dieciséis grietas cerradas. Hay algo que llevo cuatro días callando. Voy a decirlo.',
+      b2: 'La letra del margen es mía. Yo fui la cadete de aquí. El fragmento caía y me quedaban once minutos.',
+      b3: 'Novecientos años de cadetes llegaron a esta página. Todos se pararon en la misma línea. Demuestra que me equivoco.',
     },
     ch5: {
       title: 'Firmado',
       quest: 'Escribe el final del paso nueve, y un nombre debajo.',
-      b1: 'Veintiocho grietas. En algún punto de esa cuenta la red dejó de tratarte como al tiempo atmosférico y empezó a tratarte como a un autor.',
-      b2: 'Termina el resto. Un soberano puede añadir una línea a la demostración, y lo que esa línea diga, existe. Elige bien las palabras.',
+      b1: 'Veintiocho grietas. En algún punto la red dejó de tratarte como al clima y empezó a leerte.',
+      b2: 'Termina el resto. Un soberano añade una línea a la demostración, y lo que diga, existe. Elige bien.',
     },
     coda: {
       title: 'Novecientos años de silencio',
@@ -563,6 +599,7 @@ export default {
       stand: 'Monta la guardia',
       next: 'El fragmento aguanta · la próxima {when}',
       nights: '«n|one:# noche en pie|other:# noches en pie»',
+      coda: 'La demostración se cierra dentro de «n|one:# noche en pie|other:# noches en pie»',
       sounding: 'Sondeo · {n}',
       soundingNone: 'Sondea el entramado',
       whenMin: 'dentro de «n|one:# minuto|other:# minutos»',
@@ -583,6 +620,10 @@ export default {
       ascended: 'Ascenso',
       arrow: '{from} → {to}',
       standing: 'Rango',
+      /* Ver en.js: la ceremonia lleva dentro el objetivo que interrumpió, para
+         que no haya ni un fotograma sin nada que hacer. */
+      next: 'Ahora: {verb} — {skill}, a {n} m',
+      nextAny: 'Ahora: busca una grieta y séllala',
     },
 
     dossier: {
@@ -628,10 +669,10 @@ export default {
     },
 
     voice: {
-      firstRift: 'Ese anillo de aire desgarrado que tienes delante es una grieta. Acércate y pulsa E —o lo que prefieran tus manos— y el equipo te lanza la afirmación al visor.',
+      firstRift: 'Ese anillo de aire desgarrado es una grieta. Acércate y pulsa E. El equipo hace el resto.',
       firstSeal: 'Ha aguantado. Esa afirmación es ya un rasgo permanente de la realidad, y lo han hecho tus manos.',
-      standard: 'El obelisco de la plaza es el Estandarte. Lleva el único registro honesto que existe de ti: cinco franjas, una por rango, y un anillo de luz colocado exactamente en tu posición. Acaba de moverse. Va a seguir moviéndose.',
-      capped: 'Sellada, pero el registro ha dejado de pagar por eso. Ya te has llevado todo lo que puede dar una grieta fácil. Desde aquí la posición sale de líneas sostenidas, y sostener una línea cuesta trabajo de verdad.',
+      standard: 'El obelisco de la plaza es el Estandarte: cinco franjas, una por rango, y una luz en tu posición.',
+      capped: 'Sellada, pero las grietas fáciles ya no pagan. La posición sale de líneas sostenidas, y eso cuesta trabajo.',
       wrong: [
         'Mal, pero mal de una forma útil. Así funciona casi toda la ciencia.',
         'No. La red es una pedante. Quiere el valor verdadero, no el de al lado.',
@@ -962,6 +1003,20 @@ export default {
         s150: 'Ciento cincuenta. Quiero que conste, y sin ninguna de mis defensas habituales, que me alegro de que fueras tú.',
         s180: 'Ciento ochenta. Llevo novecientos años pidiéndole perdón a este fragmento. Tú has hecho innecesaria casi toda la disculpa.',
         s220: 'Doscientos veinte. No me queda dentro nada que sepa ser seco con esto. Sigue. Yo sigo contando.',
+        // …y sigue contando, cada sesenta grietas, para siempre. Ver MILESTONE_EVERY.
+        on: [
+          '{n}. Dije que seguiría contando. Soy un argumento de novecientos años. No digo lo que no pienso cumplir.',
+          '{n} selladas. El registro dejó de compararte con cadetes y empezó a compararte con el clima.',
+          '{n}. Ahí abajo, un paso que aguantaba la respiración desde el cuarto día acaba de soltarla.',
+        ],
+      },
+      // Noches en pie (src/meta/days.js): mañanas en que lo que sabías seguía sabido.
+      night: {
+        n3: 'Tres noches en pie. Ese es el número que vigilan los veteranos. Brillar una vez lo hace cualquiera.',
+        n7: 'Siete noches en pie. Una semana sabiéndolo al despertar. El fragmento ya cuenta contigo.',
+        n14: 'Catorce noches en pie. He dejado de escribir «provisional» junto a tu nombre en el registro.',
+        n30: 'Treinta noches en pie. Treinta mañanas distintas en que el cielo siguió arriba por algo que tú sabías. Eso ya es una carrera.',
+        on: '«n|one:# noche en pie|other:# noches en pie». Sigues aquí y sigue sabido. Se me acabaron las formas de sorprenderme, y no me guardé ni una duda.',
       },
     },
   },
@@ -988,6 +1043,7 @@ export default {
     goal: {
       hold: 'Sostener: {skill}',
       holdN: 'Sostener «n|one:# línea|other:# líneas»',
+      // Ver en.js: se acuña aquí y se explica en la tarjeta de ÓRDENES.
       push: 'Hacer retroceder: {skill}',
       any: 'Sellar lo que abra el fragmento',
       extend: 'Una línea más',
@@ -1006,7 +1062,7 @@ export default {
       title: 'Órdenes',
       goalHold: 'Sella {tears} grietas de {skill}. Una línea es una idea y todas las grietas que la prueban. Una línea sostenida ya no se abre.',
       goalHoldN: 'Sella hoy {tears} grietas. Así sostienes «n|one:# línea|other:# líneas» para siempre. Una línea sostenida ya no se abre.',
-      goalPush: 'Sella {tears} grietas de {skill}. Esa línea es larga. Hoy la dejamos más corta.',
+      goalPush: 'Sella {tears} grietas de {skill}. Hacer retroceder una línea es recuperar terreno en una que se te escapó.',
       goalAny: 'Sella {tears} grietas en este fragmento. Luego vemos qué hace la red.',
       willHold: 'debería sostenerse',
       willPush: 'terreno ganado',
@@ -1083,13 +1139,13 @@ export default {
       soundStrongNone: 'El sondeo',
       soundNoteNone: 'Líneas ya sostenidas, en lo alto del banco, sin ayuda y de peldaño en peldaño. Doce peldaños limpios es un sondeo completo. Todavía no has bajado ninguno.',
       charterHaveStrong: '«n|one:# cédula en mano|other:# cédulas en mano»',
-      charterHaveNote: 'Las da la hondura y se gastan en estaciones de paso. No hay nada más en este juego que cueste una.',
+      charterHaveNote: 'Pulsa H donde quieras una estación de paso. Las motas pagan el resto.',
       charterStrong: 'La siguiente cédula',
       charterNote: 'Las corta la hondura, y la hondura solo sube cuando una línea de ayer sigue sostenida hoy. {n} más y sale la siguiente.',
       stationStrong: '«n|one:# estación de paso en pie|other:# estaciones de paso en pie»',
       stationNote: 'Párate en una, pulsa H y apareces en la siguiente. Dos son una ruta; con cuatro, esta isla ya es otra.',
       stationStrongNone: 'La primera estación de paso',
-      stationNoteNone: 'Una cédula y doscientas cuarenta motas levantan una. Una estación de paso es una torre permanente de aire ascendente, y además un lugar. No hay una última.',
+      stationNoteNone: 'Una torre permanente de aire ascendente, y un lugar al que saltar. No hay una última.',
       signWhole: 'Diez líneas, todas sostenidas. Ninguna se estropea mientras no estás. Queda saber hasta dónde bajas. Y cuánta isla dejas a un paso.',
     },
     rest: {
@@ -1132,9 +1188,9 @@ export default {
       mastered: 'Líneas sostenidas',
       masteredNote: 'Demostradas, no solo intentadas.',
       time: 'Tiempo de trabajo',
-      timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo.',
+      timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo. No es el reloj de la sesión, y está pensado para marcar menos que él.',
       session: 'Esta sesión',
-      sessionNote: 'Una sesión dura de 15 a 25 minutos y luego cierra bien.',
+      sessionNote: 'Cuánto llevas sentado aquí: tiempo real desde que empezaste, andar y leer incluidos. Una sesión dura de 15 a 25 minutos y luego cierra bien.',
       items: 'Preguntas respondidas',
       itemsNote: 'Cada una generada de nuevo y resuelta por máquina antes de llegar a ti.',
       accuracy: 'Resueltas sin ayuda',
@@ -1143,9 +1199,9 @@ export default {
       hollowNote: 'Este motor retiró {n} de {of} sellos de dominio tras volver a examinar la línea en frío.',
       hollowNone: 'Todavía no hay ningún sello. Nada que comprobar.',
       ofHeld: 'de {n} selladas',
-      sight: 'Sostenidas a primera vista',
-      sightNote: 'Demostradas al primer contacto, sin práctica previa. Mismo sello, con las pruebas mínimas que este motor acepta. El reexamen en frío les llega antes que a nadie.',
-      sightNone: 'Ninguna línea salió adelante al primer contacto. Todos estos sellos llegaron después de practicar.',
+      sight: 'Abiertas en frío',
+      sightNote: 'En estas líneas la primerísima pregunta se respondió en frío, en lo más alto del banco y sin nada enseñado por delante. Mismo sello, con las preguntas mínimas que este motor acepta. Abre una línea para ver si su tanda de prueba salió de una. El reexamen en frío les llega antes que a nadie.',
+      sightNone: 'Ninguna línea se abrió en frío. Todos estos sellos llegaron después de practicar.',
       timeUnknown: 'No se puede medir. Parte de este expediente volvió sin su registro, así que los minutos anteriores se han perdido. El informe los muestra como desconocidos, no como cero.',
       accuracyUnknown: 'No se puede medir en un expediente restaurado. El modelo recuerda las preguntas, pero no cuáles respondiste sin ayuda.',
     },
@@ -1161,13 +1217,16 @@ export default {
       },
     },
 
+    flag: { under: 'Terreno reabierto' },
+    flagNote: { under: 'Esta línea sigue sellada. Una línea de debajo falló un reexamen en frío y ha vuelto a práctica, así que el equipo está volviendo a demostrar el terreno antes de mandarte otra vez aquí arriba.' },
+
     road: {
       sight: 'En frío',
       fast: 'Camino corto',
       long: 'Camino largo',
     },
     roadNote: {
-      sight: 'Demostrada al primer contacto. Una pregunta en frío en lo más alto del banco, y luego el resto de la tanda. Tres preguntas sin ayuda, sin nada de práctica delante.',
+      sight: 'Abierta en frío: la primera pregunta de esta línea se respondió en lo más alto del banco, sin nada enseñado por delante, y contó como la primera pregunta de la tanda de prueba. Abre la línea para ver lo que costó la tanda.',
       fast: 'Un solo acierto limpio y sin ayuda, en la banda del sello, abrió la tanda de prueba. Menos preguntas que por el camino largo, y cada una más difícil.',
       long: 'La tanda de prueba se abrió por el camino largo. Tres aciertos limpios seguidos, y la confianza del modelo en el umbral completo.',
     },
@@ -1177,7 +1236,8 @@ export default {
       why: {
         fresh: 'Terreno nuevo. Ya tienes sellado todo lo que hay debajo.',
         continue: 'Sin terminar. Quedarse aquí vale más que seguir adelante.',
-        check: 'A una prueba de sellarla: tres respuestas limpias, sin ayuda y más difíciles.',
+        check: 'A una prueba de sellarla: respuestas limpias, sin ayuda y más difíciles.',
+        checkLeft: 'La tanda de prueba está en marcha: «n|one:queda # respuesta limpia|other:quedan # respuestas limpias», sin ayuda y más difíciles.',
         review: 'Toca reexamen en frío. El sello tiene que volver a ganarse su sitio.',
         enrich: 'Ya tienes sellado todo lo que está abierto. Esta línea va más a fondo.',
       },
@@ -1222,16 +1282,23 @@ export default {
       retentionNote: 'Los reexámenes en frío vuelven con un calendario cada vez más espaciado. Dos fallos y el sello se retira.',
       probeCount: '{hit} de {n} superados',
       probeNone: 'aún no toca',
+      posteriorNone: 'Todavía no se ha preguntado nada en esta línea, así que no hay ninguna medida de la que estar seguro. El modelo la abre a un nivel deducido de las líneas de debajo. Eso es un punto de partida, no una prueba.',
       coldVal: 'en frío, banda {band}',
       cleanSight: 'Ninguna hizo falta. Esta línea salió adelante al primer contacto. La pregunta en frío es la primera de la propia tanda. La fila de abajo la cuenta una sola vez.',
+      cleanSightCharged: 'La primera pregunta de esta línea se respondió en frío, en la banda {band}, sin nada enseñado por delante: eso fue lo que abrió la tanda de prueba. Después la tanda «n|one:falló una vez|other:falló # veces» y lo pagó con preguntas sin ayuda de más.',
+      cleanSightOld: 'La primera pregunta de esta línea se respondió en frío, en la banda {band}, y eso abrió la tanda de prueba. Este registro viene de una versión anterior y no anota cómo fue la tanda.',
       cleanRoad: {
         long: 'Tres seguidos, sin ayuda, en la banda de dificultad {band}: el camino largo hasta la tanda de prueba.',
         fast: 'Un solo acierto limpio y sin ayuda, tomado en la banda de dificultad {band}, la del sello. El camino corto pide menos preguntas, y más difíciles.',
       },
       provingExtended: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda se alargó {n} pregunta(s) para abarcar una segunda representación y una de modelización.',
+      provingCharged: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda «n|one:encajó un fallo|other:encajó # fallos» y se cobró preguntas sin ayuda de más por ello, así que cerró con más pruebas que una tanda limpia, no con menos.',
       noReceipt: 'sin registrar',
       noReceiptNote: 'Este sello lo concedió una versión anterior que no guardaba constancia de qué lo demostró. Se declara sin pruebas en lugar de reconstruirlo desde los ajustes: un umbral que se cita a sí mismo no es una prueba.',
       rests: 'Este sello se apoya en {n} preguntas sin ayuda, de las {of} respondidas en esta línea.',
+      restsSplit: 'Este sello se apoya en {n} preguntas sin ayuda, tomadas de las {of} respondidas en esta línea antes de concederlo.',
+      sinceClaim: 'Desde entonces «n|one:se ha respondido # pregunta|other:se han respondido # preguntas» aquí, sobre una línea ya sellada: el {pct} sin ayuda. Eso es práctica y reexamen. No es lo que sostiene el sello.',
+      sinceNone: 'Desde que se concedió el sello no se ha preguntado nada en esta línea.',
       restsUnknown: 'Esta versión no registró en qué preguntas se apoya el sello. En esta línea has respondido {of} preguntas.',
       grantedOn: 'Concedido el {date}.',
     },
@@ -1239,7 +1306,10 @@ export default {
     fact: {
       time: 'Tiempo en esta línea',
       items: 'Preguntas aquí',
+      itemsSplit: '{n}: {before} antes del sello, {since} después',
       accuracy: 'Resueltas sin ayuda',
+      accuracyOf: '{all}: {n} de {of}',
+      accuracySplit: '{all}: {n} de {of}. Antes del sello {before}, después {since}',
       band: 'Banda de dificultad',
       bandVal: 'Banda {n} de 5',
       reps: 'Demostrada en',
@@ -1396,6 +1466,7 @@ export default {
       classEmpty: 'Todavía no hay expedientes. Cada estudiante exporta el suyo desde esta pantalla; añade aquí los archivos y se quedan en este dispositivo.',
       classFoot: 'Reunido a partir de los expedientes que los propios estudiantes han exportado. No se ha subido nada: esta lista vive solo en este navegador y desaparece al borrar los datos del sitio.',
       claimItemsShort: '{n} preguntas sin ayuda en la banda {band}',
+      claimMissed: '«n|one:encajó un fallo|other:encajó # fallos»',
       claimReps: 'en {n} representaciones',
       claimRegrant: 'recuperado tras una retirada',
       foot: 'Expediente {id} · {n} observaciones. Aquí no hay ninguna nota guardada. Esta hoja recalcula cada cifra desde el modelo del estudiante y el registro de pruebas de este dispositivo. Una línea solo se sella tras una tanda de prueba sin ayuda, en la banda del sello. Dos reexámenes en frío fallidos retiran el sello otra vez.',
@@ -1422,6 +1493,8 @@ export default {
         time: 'Tiempo',
         road: 'Camino',
         claimItems: 'Preguntas que lo sostienen',
+        itemsAtClaim: 'Preguntas antes del sello',
+        itemsSinceClaim: 'Preguntas después del sello',
         band: 'Banda',
         retention: 'Aguanta el reexamen',
         standards: 'Estándares (profundidad)',
@@ -1469,9 +1542,33 @@ export default {
       'two-step': 'Desenvuelve al revés: primero el número suelto y después el coeficiente.',
       'multi-step': 'Simplifica cada lado del todo antes de deshacer nada.',
       'both-sides': 'Reúne la incógnita en un lado y, si desaparece, lee lo que queda.',
+      // Nivel 2 (content/graph/algebra1-l2.json).
+      'bracket-both-sides': 'Un paréntesis en cada lado sigue siendo una sola balanza: abre los dos y después reúne.',
+      'fraction-solve': 'Una división se quita como cualquier operación: multiplica los dos lados por lo de abajo.',
+      'rule-from-table': 'Una tabla de pasos iguales esconde una regla. Halla la tasa y lo demás sale solo.',
+      'inequality-one-step': 'Una desigualdad es una balanza inclinada. Solo dividir por un negativo cambia el sentido.',
+      'inequality-two-step': 'Desenvuelve la inclinación al revés: primero el número suelto, después el coeficiente.',
+      'inequality-multi-step': 'Reúne la incógnita en el lado que deja coeficiente positivo y el signo nunca gira.',
+      'compound-inequality': 'Dos enunciados a la vez describen una banda. Cada paso afecta a las tres partes.',
+      'literal-equations': 'Una fórmula es una ecuación sin números todavía. Despéjala para la letra que quieras.',
+      'ratio-proportion': 'Dos razones coinciden cuando una es copia de la otra. Multiplica en cruz.',
+      'slope-rate': 'La tasa es la subida dividida por el paso, y es la misma en toda la recta.',
+      'graph-linear': 'Regla y trazo son lo mismo dicho dos veces: la tasa es la subida, el inicio es el cruce.',
+      'write-linear': 'Dos lecturas bastan para escribir la regla: la tasa por la subida, el inicio por el eje.',
+      'system-substitution': 'Cuando un enunciado ya dice cuánto vale una letra, ponlo directamente en el otro.',
+      'system-elimination': 'Suma dos enunciados verdaderos y el resultado es verdadero. Alinea una letra y se va.',
     },
 
     slip: {
+      // Fallos del Nivel 2.
+      'boundary-slip': 'Mete o saca el valor de la frontera por uno',
+      'flip-always': 'Gira el signo de la desigualdad tras cada paso',
+      'flip-not-needed': 'Divide por un negativo y deja el signo igual',
+      'band-reversed': 'Escribe la banda con los extremos al revés',
+      'slope-intercept-swap': 'Cambia la tasa por la altura inicial',
+      'run-over-rise': 'Divide el paso por la subida',
+      'subtract-not-add': 'Resta los dos enunciados en vez de sumarlos',
+      'add-not-subtract': 'Suma las dos lecturas en vez de restarlas',
       'add-not-multiply': 'Suma donde la situación multiplica',
       'arith-slip': 'Método correcto, fallo de cálculo',
       'axis-swap': 'Lee la gráfica por el eje equivocado',
@@ -1521,6 +1618,7 @@ export default {
     // decía qué la desbloquea. Ahora dice su precio en la única moneda que la
     // compra: líneas sostenidas, nunca motas.
     nextAtLines: 'Sostén «n|one:# línea|other:# líneas»',
+    // Ver en.js: esto es un precio; la explicación va en la tarjeta de abajo.
     nextAtDepth: 'Conserva tus líneas de un día para otro',
     cost: '{n} motas',
     held: 'En tu poder',
@@ -1597,7 +1695,7 @@ export default {
     },
     charter: {
       name: 'Una cédula de estación',
-      what: 'Conserva lo que ya tienes, de una noche para otra, y la retícula te extiende otra cédula. No hay una última.',
+      what: 'Una noche sostenida es una línea que se sigue sabiendo tras dejar el juego. Consérvalas de una noche para otra y la retícula te extiende otra cédula.',
     },
     chartersHeld: '«n|one:# cédula|other:# cédulas» · {cost}',
     charterIn: '{n} más de hondura',
@@ -1644,7 +1742,7 @@ export default {
       lines: 'Sostenla y «n|one:se abrirá # línea más de la red|other:se abrirán # líneas más de la red».',
       kit: 'Sostenla y {name} será tuya.',
       calm: 'Séllalo y las sacudidas de aquí se acaban para siempre.',
-      sound: 'Esta línea ya la sostienes. Un sondeo te lleva de vuelta hacia abajo por ella, una pregunta más difícil cada vez, y sigue pagando.',
+      sound: 'Ya sostienes esta línea. Un sondeo la recorre hacia abajo, cada pregunta más difícil.',
     },
 
     tally: '{held} sostenidas · {open} abiertas · {locked} cerradas',
@@ -1667,15 +1765,15 @@ export default {
     // nunca puede llevar: qué es, por qué existe y por qué debería importarle.
     // -------------------------------------------------------------------
     n: {
-      rift: 'Ese anillo es una grieta. Métete dentro y el equipo te lanza un enunciado al visor. Hazlo verdadero y el agujero del mundo se cierra a tu espalda. Cada grieta es una regla del álgebra que dejó de aguantar.',
-      surge: 'Ese anillo de luz es una sacudida de la grieta. Una grieta abierta lanza una cada quince segundos. La sacudida te tira motas y te quita el equilibrio. Salta justo cuando te llegue. Sella la grieta y las sacudidas se acaban para siempre.',
-      mote: 'Eso son motas de cifra: red suelta, donde el suelo sangró. Pasa por encima y son tuyas. La fundición convierte las motas en placas y bengalas, así que merecen un rodeo.',
-      charged: 'Las motas doradas crecieron pegadas a una grieta abierta. Cada una paga el triple que una pálida. Esa grieta lanza aquí una sacudida cada quince segundos y te quita motas. Séllala y las sacudidas paran.',
-      husk: 'Esas cáscaras son vetas vacías, y las vaciaste tú. Cada cáscara se reenciende en unos cinco minutos. En este fragmento no se exprime una sola ladera, cadete. Solo se puede llegar más lejos, que sospecho que era justo la idea.',
-      anchor: 'Eso es un ancla de red. Nada de tu equipo llega hasta ella desde el suelo, y esa es toda la idea. Pon una rampa. Pon otra encima. Luego toca el ancla. Sesenta motas cada una, y hay tres.',
-      cache: 'Una caja colgante. La barra sostiene una afirmación verdadera a la que le falta una pesa. Métete en el contrapeso que deja la barra plana y el monolito se abre. Ciento veinte motas, y allí el aire sube para siempre.',
-      updraft: 'Esa columna es una ascendencia. Vuela dentro y te sube sesenta metros gratis. Usa las ascendencias para llegar a lo que parece fuera de alcance.',
-      verge: 'Esa cortina es el borde. El Fragmento Nueve se acaba ahí. Las tierras que ves están a ochocientos metros de cielo abierto. Lo único que cruza es la red. Sostén las diez líneas y te llevará hasta allí. Hasta entonces: una caída larguísima con buenas vistas.',
+      rift: 'Ese anillo es una grieta. Métete dentro y te muestra un enunciado. Hazlo verdadero y se cierra.',
+      surge: 'Ese anillo de luz es una sacudida de la grieta. Te tira motas y te quita el equilibrio. Sáltala.',
+      mote: 'Motas de cifra: red suelta, donde el suelo sangró. Pasa por encima. La fundición las cambia por equipo.',
+      charged: 'Las motas doradas crecen junto a una grieta abierta. Pagan el triple. Sella la grieta y paran.',
+      husk: 'Las cáscaras son vetas que vaciaste. Cada una se reenciende en unos cinco minutos. Llega más lejos.',
+      anchor: 'Un ancla de red. Nada la alcanza desde el suelo, y esa es la idea. Apila dos rampas y tócala.',
+      cache: 'Una caja colgante. La barra sostiene algo verdadero a lo que le falta una pesa. Métete en esa pesa.',
+      updraft: 'Esa columna es una ascendencia. Vuela dentro y te sube sesenta metros gratis.',
+      verge: 'Esa cortina es el borde: ahí se acaba el Fragmento Nueve. Sostén las diez líneas y la red te saca.',
     },
   },
 
@@ -1727,6 +1825,7 @@ export default {
     anchorFind: 'Ancla de la red · construye hasta ella',
     anchorHeld: 'Ancla asegurada',
     vergeTag: 'El linde · fin del Fragmento Nueve',
+    brink: 'El fragmento acaba aquí. Debajo no hay nada.',
     vergeHit: 'El linde no cede. El Fragmento Nueve acaba aquí: los fragmentos lejanos son una travesía que nadie ha hecho.',
   },
   // --- la capa de afordancia (src/world/afford.js): qué ofrece una grieta,
@@ -1755,14 +1854,37 @@ export default {
   // Claves aditivas, del equipo.
   // ---------------------------------------------------------------------
   ledger: {
-    left: 'quedan {n}',
+    balance: 'saldo {n}',
     spared: 'Quedan muy pocas motas para arrancarte ninguna',
+    // El cupo del día está agotado (src/kit/ledger.js). Se dice una vez al día.
+    thin: 'Las vetas de aquí se secan hasta mañana. Las grietas selladas pagan entero.',
+    // El descenso ya llegó hoy a esa profundidad (src/kit/kit.js). Una vez al día.
+    deep: 'El descenso paga la profundidad nueva. Baja más, o vuelve mañana.',
+    /* FIRST SIGHT — el motivo dice lo que significa, una vez y nunca más.
+       Ver la nota en en.js: el vale acuñaba cinco sustantivos y no explicaba
+       ninguno. src/kit/ledger.js imprime esto la primera vez y luego el término
+       a secas, igual que «sostenida significa demostrada para siempre». */
+    first: {
+      seal: 'Grieta sellada: el enunciado ya es verdadero y el agujero del mundo se cierra.',
+      assist: 'Sellada con un ejemplo resuelto. Cuenta igual. La siguiente es solo tuya.',
+      vein: 'Veta de cifra: red suelta que puedes recoger al pasar.',
+      cache: 'Caja colgante: una balanza que se abre poniéndote en la pesa que falta.',
+      anchor: 'Ancla de la red: un punto fijo de la demostración, colgado fuera de alcance a propósito.',
+      sound: 'Descenso: un recorrido de vuelta por una línea que ya sostienes, cada pregunta más difícil.',
+      surge: 'Sacudida de la grieta: el anillo que lanza una grieta abierta. Sáltalo o te cuesta motas.',
+      vault: 'Placa de bóveda puesta: písala y te lanza doce metros hacia arriba.',
+      plate: 'Placa de bóveda comprada: una quinta pieza para la red.',
+      flare: 'Bengala de ascendencia: una columna de aire que sube bajo tus propias botas.',
+      beacon: 'Baliza fija: aire que sigue subiendo aquí mañana.',
+      station: 'Puesto levantado: un alto que se queda en el mapa.',
+    },
     why: {
       seal: 'Grieta sellada',
       assist: 'Sellada con un ejemplo resuelto',
       vein: 'Veta de cifra',
       cache: 'Caja colgante',
       anchor: 'Ancla de la red',
+      sound: 'Descenso',
       found: 'Recogidas',
       surge: 'Sacudida de la grieta',
       spent: 'Gastadas',

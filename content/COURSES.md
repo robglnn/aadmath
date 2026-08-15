@@ -19,7 +19,7 @@ Then run two gates. That is the whole job.
 
 Read one worked example end to end. It is small and it is real:
 
-- graph — `content/graph/algebra1-l2.json` (3 skills)
+- graph — `content/graph/algebra1-l2.json` (14 skills)
 - pack — `src/content/packs/algebra1-l2.js`
 - prose — `content/lang/packs/algebra1-l2.en.js`
 - manifest — the `algebra1-l2` block in `content/courses.json`
@@ -146,9 +146,27 @@ export default {
 ```
 
 `check.kind` is one of `evaluate`, `solve`, `equivalent`, `equationChoice`,
-`table`, `graph`. Each one re-derives the answer from the notation the learner
-actually sees. If your mathematics does not fit one of them, add a kind to
-`verify()` rather than skipping verification.
+`table`, `graph`, `inequality`, `compound`, `rearrange`, `proportion`, `system`,
+`line` and `lineEquation`. Each one re-derives the answer from the notation the
+learner actually sees. If your mathematics does not fit one of them, add a kind
+to `verify()` rather than skipping verification.
+
+| kind | descriptor | what it re-derives |
+|---|---|---|
+| `inequality` | `{math, variable, want?}` | the relation the unknown carries — turned round when the coefficient is negative — and, with `want: 'least'\|'greatest'`, the first whole number on the allowed side |
+| `compound` | `{math, variable, want?}` | the band, written low end first; `want: 'count'` gives the whole numbers inside it |
+| `rearrange` | `{math, variable, vars}` | the formula solved for one letter, by pinning the others to numbers and probing — never by rearranging |
+| `proportion` | `{math, variable}` | the fourth number, by cross-multiplying whichever of the four slots the unknown sits in |
+| `system` | `{eqs, vars, want}` | the meeting point of two statements, by reading their coefficients off the printed equations and solving by determinant; `want: 'pair'` checks both readings |
+| `line` | `{points, want, at?}` | the rate, the crossing, a height or the whole rule, from readings the item is required to have on screen |
+| `lineEquation` | `{math, want}` | the same, from a statement written `Ax + By = C` |
+
+**Answer surfaces.** An item may name one by its figure. `figure.kind === 'plot'`
+mounts the coordinate surface (`src/learn/plot.js`): two knobs on the lattice,
+the trace between them read back in exact rational arithmetic and compared with
+`figure.target = { m, b }`. `balance`, `area`, `line` and `lines` behave as they
+always did, and an item with no figure lands on the keypad or, when its prompt
+carries a `\square`, on the readings.
 
 **Throw to redraw.** A `build` that does not like its own dice throws; the bank
 draws again with the next seed. That is how you keep answers whole, keep numbers

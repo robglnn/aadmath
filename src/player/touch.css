@@ -1,6 +1,6 @@
 /* On-screen controls. Native-feeling: the stick appears under your thumb, the
    buttons sit where a thumb actually reaches, nothing is ever in the way. */
-#touchpad{position:fixed;inset:0;z-index:14;pointer-events:none;display:none;
+#touchpad{position:fixed;inset:0;z-index:var(--z-app-touch);pointer-events:none;display:none;
   font-family:var(--ui);-webkit-user-select:none;user-select:none;touch-action:none}
 #touchpad.on{display:block}
 

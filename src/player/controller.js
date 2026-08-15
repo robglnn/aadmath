@@ -6,7 +6,7 @@ import { Animator } from './animator.js';
 import { CameraRig } from './camera.js';
 import { PlayerFX } from './effects.js';
 import { ScreenFeel } from './screen.js';
-import { heightAt, gradientAt, slopeAt } from './terrain.js';
+import { heightAt, gradientAt, slopeAt, outsideWorld, deck } from './terrain.js';
 import { GrassPush } from './grasspush.js';
 
 const clamp = THREE.MathUtils.clamp;
@@ -90,6 +90,14 @@ export class Player {
     this.onStuck = null;
     /** Fired after a recovery, with the reason, so the interface can say so. */
     this.onRecover = null;
+    /** True while the cadet is over open air with the island above them. */
+    this.falling = false;
+    this._fellT = 0;
+    /** Recoveries the fall-catch has performed. Read by the gate. */
+    this.caught = 0;
+    /** Every recovery, however it was asked for. A key that fires is a key
+     *  that leaves a mark — "nothing visibly moved" is not proof it worked. */
+    this.recoveries = 0;
 
     this.anim.onStep = (foot, power) => this._footstep(foot, power);
 
@@ -123,22 +131,34 @@ export class Player {
   // ---------------------------------------------------------------------------
 
   /**
+   * The one verb that may never be dropped, on its own line.
+   *
+   * Ticked every frame from main.js — including the frames where a panel owns
+   * the screen and `update()` is not running — because a key the controls card
+   * documents and the game then ignores is worse than no key at all.
+   */
+  pumpRecover() {
+    const inp = this.input;
+    if (inp && inp.pressed('recover') && inp.consume('recover')) {
+      this.recover('asked');
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Notice a cadet who is trying to move and going nowhere, and a cadet who is
    * somewhere the world does not have a floor.
    */
   _unstick(dt, wishMag) {
-    const inp = this.input;
-    if (inp && inp.pressed('recover') && inp.consume('recover')) {
-      this.recover('asked');
-      return;
-    }
+    if (this.pumpRecover()) return;
 
     const p = this.pos;
     const h = heightAt(p.x, p.z);
     // Buried: the surface over this column is above the cadet's own head.
     const buried = h !== null && h > p.y + 1.15;
-    // Out of bounds: under the island with nothing to land on, still falling.
-    const outside = p.y < -40;
+    // Out of bounds: past the point where the island can still be reached.
+    const outside = h === null && p.y < deck() + 12;
     // Buried and out of bounds are facts, and are answered fast.
     if (buried || outside) this._stuckT += dt * 3.2;
 
@@ -168,13 +188,20 @@ export class Player {
     // instant the player lets go of the stick to read it, which is the one
     // moment it has to be there. So it latches, and the only things that clear
     // it are recovering, or actually getting somewhere.
+    //
+    // AND IT DOES NOT CLEAR ON MOTION ALONE. Moving two and a half metres used
+    // to be proof that the world had let go, which is true of a rock face and
+    // flatly false of a fall: a cadet dropping at fifty-eight metres a second
+    // clears the threshold every twentieth of a second, so the prompt offering
+    // the way out strobed on and off for the entire descent and read as noise.
+    // Getting somewhere means getting somewhere you can stand.
     if (!this.stuck) {
       if (this._stuckT > 1.7) {
         this.stuck = true;
         this._stuckAt.copy(p);
         this.onStuck?.(true);
       }
-    } else if (p.distanceToSquared(this._stuckAt) > 2.5 * 2.5) {
+    } else if (!buried && !outside && p.distanceToSquared(this._stuckAt) > 2.5 * 2.5) {
       this.stuck = false;
       this._stuckT = 0;
       this.onStuck?.(false);
@@ -184,6 +211,34 @@ export class Player {
     if (buried && this._stuckT > 2.6 && this.time - this._recovered > 2) {
       this.recover('buried');
     }
+  }
+
+  /**
+   * Leaving the playable volume always ends the same way: on solid ground.
+   *
+   * The grace period exists so the catch is a beat rather than a snap — the
+   * player gets long enough to see the island above them and understand what
+   * they did, and not one second longer. It is deliberately short, because the
+   * thing being fixed is a session that ended in a beige void.
+   */
+  _catch(dt) {
+    const why = outsideWorld(this.pos.x, this.pos.y, this.pos.z);
+    if (!why) {
+      this.falling = false;
+      this._fellT = 0;
+      return;
+    }
+    this.falling = true;
+    this._fellT += dt;
+    // Through the terrain, or under the floor, is answered on the frame it is
+    // seen: there is nothing to look at down there and nothing to understand.
+    const grace = why === 'fell' ? 0.9 : 0;
+    if (this._fellT < grace) return;
+    this._fellT = 0;
+    this.falling = false;
+    this.caught++;
+    this.recover(why === 'under' ? 'buried' : 'fell');
+    this.onFall?.(why);
   }
 
   /**
@@ -201,11 +256,24 @@ export class Player {
     // others are here: recovering onto the same square metre, still inside the
     // same four walls, is a button that did nothing.
     const away = this.stuck || this.boxed || reason === 'buried' || reason === 'fell';
-    const spot = this._safeSpot(p.x, p.z, away ? 3.5 : 0)
+    // Off the shard entirely: come back over the lip you left, not to the
+    // landing site. Being set down two hundred metres from what you were doing
+    // is a second punishment on top of the fall, and it is the one that makes a
+    // player stop trusting the edge of the map for the rest of the session.
+    // …and it comes back *inland* of the lip, not onto it. Setting a cadet
+    // down on the outermost metre of ground he just walked off means the key he
+    // is still holding walks him straight off again, which reads as a recovery
+    // that did not work.
+    const off = heightAt(p.x, p.z) === null;
+    const back = off ? this._shoreward(p.x, p.z) : null;
+    const spot = (back && this._safeSpot(back.x, back.z, 0))
+      || this._safeSpot(p.x, p.z, away ? 3.5 : 0)
       || this._safeSpot(this.home.x, this.home.z, 0)
+      || this._safeSpot(0, 0, 0)
       || { x: this.home.x, y: this.home.y, z: this.home.z };
 
     p.set(spot.x, spot.y, spot.z);
+    this.recoveries++;
     this.vel.set(0, 0, 0);
     const L = this.loco;
     L.gliding = false; L.glideOpen = 0; L.jumps = 0;
@@ -218,6 +286,27 @@ export class Player {
     if (this.stuck) { this.stuck = false; this.onStuck?.(false); }
     this.onRecover?.(reason);
     return spot;
+  }
+
+  /**
+   * The first ground on the way home. Walks the bearing the cadet is on back
+   * toward the middle of the island until the heightfield answers, so a fall
+   * off the west cliff comes back on the west cliff.
+   */
+  _shoreward(x, z) {
+    const r = Math.hypot(x, z);
+    if (r < 1) return null;
+    const ux = x / r, uz = z / r;
+    for (let d = r; d > 0; d -= 3) {
+      // Well inside whatever lip answers first. Far enough that the brink
+      // (src/world/verge.js) is in front of the cadet rather than under him,
+      // and that a still-held movement key does not immediately undo this.
+      if (heightAt(ux * d, uz * d) !== null) {
+        const k = Math.max(0, d - 16);
+        return { x: ux * k, z: uz * k };
+      }
+    }
+    return null;
   }
 
   /**
@@ -292,10 +381,9 @@ export class Player {
     const prevVy = this.vel.y;
     const ev = L.update(dt, ctx);
 
-    if (this.pos.y < -180) {
-      this.recover('fell');
-      this.onFall?.();
-    }
+    // THE FALL-CATCH. See the header of src/player/terrain.js for why this is
+    // a volume test and not the `y < -180` depth test it replaces.
+    this._catch(dt);
 
     // Nothing in this game may ever require a page reload. (src/player)
     this._unstick(dt, wishMag);

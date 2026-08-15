@@ -68,7 +68,7 @@ const facts = () => page.evaluate(() => {
   const live = [];
   for (const k of Object.keys(b.lattice.live)) {
     for (const p of b.lattice.live[k]) {
-      if (!p.dead) live.push({ kind: k, x: p.x, y: p.y, z: p.z, base: p.base, turn: p.turn });
+      if (!p.dead) live.push({ kind: p.kind, door: !!p.door, x: p.x, y: p.y, z: p.z, base: p.base, turn: p.turn });
     }
   }
   const tg = b.target();
@@ -134,7 +134,7 @@ const probe = () => page.evaluate(() => {
   return {
     onUI: a.input.pointerOnUI, grace: +(a.input._grace || 0).toFixed(3),
     uiOpen: a.input.uiOpen, panel: !!a.panel?.open, active: b.active,
-    sealArm: +(b._sealArm || 0).toFixed(2), charge: Math.round(b.charge),
+    charge: Math.round(b.charge),
     toast: document.querySelector('.toast.show')?.textContent || '',
   };
 });
@@ -148,6 +148,7 @@ const probe = () => page.evaluate(() => {
  * click a label by mistake and nothing happens.
  */
 const click = async () => {
+  await clearUI();
   const first = await worldPoint();
   const order = first ? [first, ...CANDIDATES.filter((p) => p !== first)] : CANDIDATES;
   for (const pt of order) {
@@ -183,7 +184,30 @@ async function pressUntil(key, want, tries = 4) {
   }
   return { f: await facts(), presses: tries, failed: true };
 }
+/**
+ * Clear anything the interface has put up, with real input.
+ *
+ * The run raises cards on its own clock. While one is up the world takes no
+ * input at all, which is correct — and is also why an unattended script that
+ * runs for three minutes reads "he cannot walk out of the room". A person
+ * dismisses the card and carries on; so does this, with the real button on it
+ * or the real Escape key, and never by writing to `uiOpen`.
+ */
+async function clearUI() {
+  for (let i = 0; i < 4; i++) {
+    if (!(await page.evaluate(() => window.__ascent.input.uiOpen))) return true;
+    const btn = page.locator('button:visible').filter({
+      hasText: /BEGIN THE RUN|GOT IT|CLOSE|CONTINUE|COMENZAR|ENTENDIDO|ZACZNIJ|ROZUMIEM/i,
+    }).first();
+    if (await btn.count().catch(() => 0)) await btn.click().catch(() => {});
+    else await page.keyboard.press('Escape');
+    await page.waitForTimeout(700);
+  }
+  return !(await page.evaluate(() => window.__ascent.input.uiOpen));
+}
+
 const walk = async (key, ms) => {
+  await clearUI();
   await page.keyboard.down(key);
   await page.waitForTimeout(ms);
   await page.keyboard.up(key);
@@ -338,24 +362,24 @@ for (let i = 0; i < 3; i++) {
   console.log(`     F: turn ${f.turn} -> ${r.f.turn} (${r.presses} press)`);
 }
 
-// The fourth is the one that shuts him in. It must say so and refuse once.
+// THE FOURTH WALL. It used to be refused, and then confirmed, and a cold critic
+// spent five minutes and ten walls being told no. Closing a square around
+// yourself is the first thing anybody does with this hand — the shape is not
+// the problem, being stuck in it is. So the fourth wall goes down on the first
+// click like every other, and it goes down with a doorway in it.
 const beforeLast = await facts();
-ok(beforeLast.ghostSeals, 'the preview knows the fourth wall would shut him in',
+ok(beforeLast.ghostSeals, 'the preview knows the fourth wall closes the room',
   `whyChip "${beforeLast.whyChip}"`);
 await shot('06-fourth-wall-warned');
 await click();
-const warned = await facts();
-ok(warned.owned === beforeLast.owned,
-  'the first click on it is refused, and spends itself saying why',
-  `owned ${warned.owned}, chip "${warned.whyRaw}" reason ${warned.reason}`);
-await shot('07-fourth-wall-refused');
-
-const arm = await probe();
-console.log(`  (confirm window left: ${arm.sealArm}s)`);
-await click();
 const closed = await facts();
-ok(closed.owned === beforeLast.owned + 1, 'a second, deliberate click closes the square',
-  `owned ${closed.owned}`);
+ok(closed.owned === beforeLast.owned + 1,
+  'ONE click closes the square — nothing is refused for being a room',
+  `owned ${beforeLast.owned} -> ${closed.owned}, chip "${closed.whyRaw}"`);
+await shot('07-fourth-wall-placed');
+ok(closed.pieces.filter((p) => p.kind === 'wall' && p.door).length === 1,
+  'and the wall that closed it has a doorway cut into it',
+  `${closed.pieces.filter((p) => p.door).length} door(s)`);
 
 const walls = closed.pieces.filter((p) => p.kind === 'wall');
 const faceSet = [...new Set(walls.map((p) => `${p.x},${p.z}`))].sort();
@@ -372,19 +396,21 @@ await shot('08-square-closed');
 
 // --------------------------------------------- 5. and he is not trapped in it
 console.log('\n== and he is not trapped inside it');
-ok(closed.boxed && closed.outPrompt,
-  'the way out is on screen the moment the lattice closes',
-  `boxed ${closed.boxed}, prompt ${closed.outPrompt}`);
-await shot('09-boxed-prompt');
+// …and because the doorway is a real hole in the collider, the flood fill walks
+// out through it: he is standing in a closed square and is not shut in.
+ok(!closed.boxed, 'he is inside a closed square and is not trapped in it',
+  `boxed ${closed.boxed}`);
+await shot('09-doorway');
 
-// Q cuts a hole from inside, whether or not the crosshair is on anything.
+// Q still clears a wall from inside the room — the doorway is the default way
+// out, the clear key is the one you reach for when you want the wall gone.
 const beforeCut = (await facts()).owned;
 const cutR = await pressUntil('KeyQ', (f) => f.owned === beforeCut - 1);
 await page.waitForTimeout(420);          // let the box state settle a frame
 const cut = await facts();
 void cutR;
 ok(cut.pieces.filter((p) => p.kind === 'wall').length === 3 && !cut.boxed,
-  'Q cuts a way out of the box, and the warning goes with it',
+  'Q clears a wall of the room from inside it',
   `${cut.pieces.filter((p) => p.kind === 'wall').length} walls left, boxed ${cut.boxed}`);
 await shot('10-cut-out');
 
@@ -392,31 +418,51 @@ await shot('10-cut-out');
 let refound = false;
 for (let i = 0; i < 5 && !refound; i++) {
   const f = await facts();
+  // The face AND the level: a face that already carries a wall offers the
+  // storey above it, which passed an x/z-only test and put the replacement
+  // wall a floor up instead of back in the gap.
   const here = `${f.ghostAt[0]},${f.ghostAt[1]}`;
-  if (f.ghostValid && !f.pieces.some((p) => `${p.x},${p.z}` === here)) { refound = true; break; }
+  const sameStorey = f.pieces.some((p) => `${p.x},${p.z}` === here
+    && Math.abs(p.base - f.ghostBase) < 0.05);
+  const sameFace = f.pieces.some((p) => `${p.x},${p.z}` === here);
+  if (f.ghostValid && !sameFace && !sameStorey) { refound = true; break; }
   const want = (f.turn + 1) % 4;
   await pressUntil('KeyF', (q) => q.turn === want);
 }
 ok(refound, 'F finds the open face again — the gap you can see is the gap you can aim at');
-await click();          // warned
-await click();          // meant it
+// ONE click. The second one here was the confirmation the old anti-trap rule
+// demanded, and with the rule gone it simply stacked a fifth wall on the fourth.
+await click();
 const reclosed = await facts();
-ok(reclosed.pieces.filter((p) => p.kind === 'wall').length === 4 && reclosed.boxed,
-  'the square closes again by hand',
-  `${reclosed.pieces.filter((p) => p.kind === 'wall').length} walls, boxed ${reclosed.boxed}`);
+const rw = reclosed.pieces.filter((p) => p.kind === 'wall');
+ok(rw.length === 4 && !reclosed.boxed, 'the square closes again by hand, and again he is not shut in',
+  `${rw.length} walls, ${rw.filter((p) => p.door).length} door(s), boxed ${reclosed.boxed}`);
 
-// R must put him OUTSIDE, not back in the middle of the same room.
-const inCell = { x: cx, z: cz };
-const recR = await pressUntil('KeyR',
-  (f) => Math.hypot(f.pos.x - cx, f.pos.z - cz) > 2.4);
-const rec = recR.f;
-const outByR = Math.hypot(rec.pos.x - inCell.x, rec.pos.z - inCell.z) > 2.4;
-ok(outByR, 'R (recover) puts him outside his own walls, not back in the middle',
-  `${Math.hypot(rec.pos.x - inCell.x, rec.pos.z - inCell.z).toFixed(2)}m from the room centre`);
+// THE WAY OUT IS THE DOORWAY, WHICH IS WHY THIS IS A WALK AND NOT A RESCUE.
+// `R` still exists and still throws a genuinely wedged cadet clear; it is no
+// longer what gets you out of a room you built, because a room you built has a
+// door in it. So the thing to prove is that a person can walk through it.
+const doorW = reclosed.pieces.find((p) => p.door);
+const startP = (await facts()).pos;
+// A person sees the doorway and walks at it. So does this — with W/A/S/D and
+// nothing else, aimed the way a pair of eyes aims, through the opening and out
+// the far side of it.
+const outX = doorW.x + (doorW.x - homeX) * 1.4;
+const outZ = doorW.z + (doorW.z - homeZ) * 1.4;
+console.log(`  inside at ${JSON.stringify(startP)}; doorway at ${doorW.x},${doorW.z};`
+  + ` walking to ${outX.toFixed(1)},${outZ.toFixed(1)}`);
+await walkTo(doorW.x, doorW.z, 0.9, 18);
+await walkTo(outX, outZ, 1.2, 18);
+const endP = (await facts()).pos;
+const walkedOut = Math.hypot(endP.x - homeX, endP.z - homeZ) > 3.4;
+ok(walkedOut, 'he walks out of the closed square through the doorway, on W/A/S/D alone',
+  `${Math.hypot(endP.x - homeX, endP.z - homeZ).toFixed(2)} m from the room centre`
+  + ` at ${JSON.stringify(endP)}`);
+const rec = await facts();
 ok(rec.pieces.filter((p) => p.kind === 'wall').length === 4,
   'and the square he built is still standing, all four walls',
   `${rec.pieces.filter((p) => p.kind === 'wall').length}`);
-await shot('10b-recovered-outside');
+await shot('10b-walked-out');
 
 // ------------------------------------------ 6. a wall founded on a deck
 console.log('\n== a wall founded on a deck lands on the deck');

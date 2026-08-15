@@ -1,6 +1,7 @@
 import { P } from '../player/locomotion.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { SHARD_COST, SPEC } from '../build/pieces.js';
+import { dayNumber } from '../meta/days.js';
 import {
   GRANT_LADDER, CHARTER_EVERY, CHARTER_FROM, STATION_PRICE, chartersAt, charterAt,
 } from './ladder.js';
@@ -135,6 +136,30 @@ import './kit.css';
  * passes it, and four permanents is about what one full sweep of the island
  * buys — which is exactly the shape a spend curve is supposed to have.
  *
+ * THE FOURTH COMPLAINT: THE CURRENCY STOPPED MEANING ANYTHING
+ *
+ * Measured, by a critic who played sixty days: **34,782 shards in hand, against
+ * a price list of 6/16/90/410, affordable: 0.** Three separate faults, all of
+ * them here or next door, all of them fixed and all of them measured by
+ * tools/critic/pacing.mjs:
+ *
+ *   1. THE GROUND WAS A FAUCET. About a thousand shards a sweep, paid for
+ *      walking, for ever. There is now a day's assay on ground income and a
+ *      taper past it (src/kit/ledger.js). Answers are never tapered.
+ *   2. THE DESCENT PAID FOR REPETITION. The endgame loop paid the same for the
+ *      twentieth twelve-rung descent of one evening as for the first. Full pay
+ *      is now for depth not reached today; see SOUND_KEY below.
+ *   3. THE WAYSTATION'S PRICE CRAWLED. It went up by 84 a time while income
+ *      went up by hundreds a day. It is geometric now, like the beacon's:
+ *      240 · 310 · 410 · 530 · 690 · 900 · 1170 …
+ *
+ * And `affordable: 0` was the shop lying: it counted only rows the *counter*
+ * would sell, so an endgame cadet who owned every licence and could pay every
+ * price was told there was nothing here. See `reach` in `shelf`.
+ *
+ * Measured after: a cadet who buys every permanent they can afford spends 90%
+ * of sixty days' income and ends day sixty holding less than one waystation.
+ *
  * This module owns no physics of its own. It edits the objects that already
  * hold the numbers — `src/player/locomotion.js`'s exported `P`, the builder's
  * reserve, the piece price table — from the outside, snapshotting all of them
@@ -239,8 +264,25 @@ const STATION_REACH = 9;
  * between you and the surface — a little over a hanging cache, which is the
  * hardest thing in the world outside a rift, and a little over half a
  * waystation. A descent that breaks on rung three pays six.
+ *
+ * AND IT PAYS FOR DEPTH, NOT FOR REPETITION.
+ *
+ * Past the tenth line the descent is the loop, and it is the only unbounded
+ * earner in the game: a critic measured **34,782 shards at day sixty** against
+ * a dearest price of 410, which is a currency that has stopped meaning
+ * anything. Most of that was the same twelve rungs, climbed down again and
+ * again inside one sitting.
+ *
+ * So a rung pays in full the first time it is reached **on a given day**, and a
+ * quarter after that, floored at one shard. The first descent of a morning is
+ * worth exactly what it always was; the fourth in the same hour is worth
+ * pocket change. Nothing is capped, nothing is refused, and the way to be paid
+ * in full again is to go deeper — or to come back tomorrow, which is the thing
+ * this whole game is trying to be worth.
  */
 const SOUND_BASE = 1, SOUND_STEP = 1, SOUND_MAX = 12, SOUND_LAND = 30;
+/** The day's deepest rung, so full pay is for new ground. Persisted. */
+const SOUND_KEY = 'ascent.sound';
 
 export function createKit(opts = {}) {
   const {
@@ -266,6 +308,44 @@ export function createKit(opts = {}) {
   // The descent in progress, mirrored off the engine's own record so the strip
   // and the harness can read it without asking the engine twice a frame.
   let sounding = { rung: 0, best: 0, runs: 0 };
+
+  /* ------------------------------------------------------------------------
+     THE DAY'S DEEPEST RUNG. See SOUND_KEY above: full pay is for ground the
+     descent has not covered today, so the loop that carries the endgame cannot
+     be turned into a shard printer by running it twenty times before bed. The
+     day is the local day the spacing schedule reads, so the same clock that
+     moves the nights moves this.
+     ------------------------------------------------------------------------ */
+  const clockNow = () => (mastery.now ? mastery.now() : Date.now());
+  const sday = { day: 0, best: 0, said: false };
+  try {
+    const raw = JSON.parse(localStorage.getItem(SOUND_KEY) || 'null');
+    if (raw && typeof raw === 'object') {
+      sday.day = raw.day | 0; sday.best = Math.max(0, raw.best | 0); sday.said = !!raw.said;
+    }
+  } catch { /* private mode */ }
+  function soundDay() {
+    const n = dayNumber(clockNow());
+    if (n !== sday.day) { sday.day = n; sday.best = 0; sday.said = false; }
+    return sday;
+  }
+  function saveSound() {
+    try { localStorage.setItem(SOUND_KEY, JSON.stringify(sday)); } catch { /* private mode */ }
+  }
+  /**
+   * What a rung is worth: all of it for new depth, a quarter for ground already
+   * covered today, and never nothing. The rule is said once a day, on the strip
+   * that says everything else about the wallet.
+   */
+  function pay(full, fresh) {
+    if (fresh) return full;
+    if (!sday.said) {
+      sday.said = true;
+      saveSound();
+      setTimeout(() => wallet?.note?.('ledger.deep'), 700);
+    }
+    return Math.max(1, Math.round(full / 4));
+  }
   // Charters spent. Charters *earned* is a function of depth and is therefore
   // not stored anywhere: it is re-derived from the learning record every time,
   // which means it cannot drift away from the mathematics that bought it.
@@ -415,15 +495,20 @@ export function createKit(opts = {}) {
   /**
    * What the next waystation costs.
    *
-   * It goes up. Two hundred and forty, then three hundred and twenty, then four
-   * hundred and ten — because a sink that stays still stops being a sink the
-   * moment the earn rate passes it, and the whole complaint this answers was a
-   * player standing on a three-hundred-shard surplus with nothing left to want.
-   * A network is also worth more the bigger it is: the fourth waystation is a
-   * route to three places, and it is priced like one.
+   * It goes up, and it now goes up the way the beacon does — by a multiple
+   * rather than by a fixed step. 240 · 310 · 410 · 530 · 690 · 900 · 1170 …
+   *
+   * The straight line it replaced added 84 shards a time, which is less than a
+   * tenth of a day's income by the second week: a critic holding 34,782 shards
+   * at day sixty could have bought every waystation they had a charter for and
+   * still had 14,000 spare. A sink that does not climb as fast as the earn rate
+   * is not a sink, it is a formality. A network is also worth more the bigger
+   * it is — the eighth waystation is a road to seven places — so the curve is
+   * the honest shape as well as the useful one.
    */
+  const STATION_STEP = 1.3;
   function stationPrice() {
-    return Math.round(PRICE.station * (1 + 0.35 * stations.length) / 10) * 10;
+    return Math.round(PRICE.station * Math.pow(STATION_STEP, stations.length) / 10) * 10;
   }
 
   /**
@@ -470,6 +555,16 @@ export function createKit(opts = {}) {
     else state = purse >= price ? 'buy' : 'poor';
     return {
       id, price, key, state,
+      /* WITHIN REACH — which is not the same question as `state`.
+         `state` answers "will the counter hand this over", and a licensed verb
+         is not for sale over a counter: you already own the right to make one,
+         out there, for the same price. So a cadet at the endgame, with every
+         row licensed and thousands of shards in hand, read `affordable: 0` —
+         the shop saying it had nothing for somebody who could buy anything.
+         `reach` is the honest question: can this purse pay this price right
+         now, at the counter or in the field. The waystation also wants a
+         charter, and a charter is not something a wallet can produce. */
+      reach: purse >= price && (id !== 'station' || charters() > 0),
       // The plate's rung is called `vault`; everything else names itself.
       nameKey: 'kit.' + (id === 'plate' ? 'vault' : id) + '.name',
       carried: charges[id] || 0,
@@ -503,8 +598,14 @@ export function createKit(opts = {}) {
     ];
   }
 
-  /** How many things on the shelves the wallet can pay for right now. */
-  const affordable = () => stock().filter((s) => s.state === 'buy').length;
+  /**
+   * How many things the wallet can pay for right now — over the counter or out
+   * in the field. See `reach` in `shelf`: a licence changes where a thing can
+   * be made, never whether it is paid for, so a licensed verb is still a price
+   * and still a decision. Counting only unlicensed rows is what made the shop
+   * tell a cadet holding thousands of shards that there was nothing here.
+   */
+  const affordable = () => stock().filter((s) => s.reach).length;
 
   /**
    * What the crucible burns like, read off the wallet: dead when nothing is in
@@ -515,8 +616,10 @@ export function createKit(opts = {}) {
    */
   function tone() {
     const rows = stock();
-    if (rows.some((s) => s.state === 'buy' && s.id === 'beacon')) return 'best';
-    return rows.some((s) => s.state === 'buy') ? 'some' : 'none';
+    // The permanents, whether or not the ladder has licensed them: a waystation
+    // in reach is the warmest thing the wallet can say, and a beacon after it.
+    if (rows.some((s) => s.reach && (s.id === 'station' || s.id === 'beacon'))) return 'best';
+    return rows.some((s) => s.reach) ? 'some' : 'none';
   }
 
   /** Buy one thing at the counter. Returns what was bought, or null. */
@@ -563,14 +666,44 @@ export function createKit(opts = {}) {
 
   const queue = [];
   let toastT = 0;
+  let live = null;              // the grant currently on the plate, if any
+
+  /**
+   * src/ui P1 — A CARD THAT IS ALREADY UP WHEN THE FRAME IS TAKEN.
+   *
+   * `isBusy()` stopped a *new* grant printing over a tear, and that much always
+   * worked. What it never did was retract one that was ALREADY on screen: a
+   * grant lands in the two seconds between two rifts, the cadet walks into the
+   * next ring, and the card is still there for the rest of its 5.2 s — behind a
+   * panel that is translucent by design. That is the frame the cold critic
+   * photographed: VAULT PLATE coming up through the number keypad, garbling the
+   * 5, 6, 1, 2 and 3.
+   *
+   * The stacking order in src/ui/layers.css and the `:has(.rift.show)` rule in
+   * src/meta/meta.css both stop it being *seen*. This stops it being *spent*:
+   * the grant goes back to the head of the queue and plays again, in full, the
+   * moment the frame is free. A capability the player earned and could not read
+   * is worse than one that arrives four seconds late.
+   */
+  function retract() {
+    if (!live) return;
+    clearTimeout(toast._t);
+    toast.classList.remove('show');
+    queue.unshift(live);
+    live = null;
+    toastT = 0;
+  }
+
   function pumpToast(dt) {
     toastT = Math.max(0, toastT - dt);
-    if (toastT > 0 || !queue.length || isBusy()) return;
+    if (isBusy()) { retract(); return; }
+    if (toastT > 0 || !queue.length) return;
     show(queue.shift());
     toastT = 6.2;
   }
 
   function show(g) {
+    live = g;
     toast.innerHTML = '';
     const a = document.createElement('b');
     a.textContent = t(K(g.id, 'name'));
@@ -583,7 +716,7 @@ export function createKit(opts = {}) {
     void toast.offsetWidth;
     toast.classList.add('show');
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => toast.classList.remove('show'), 5200);
+    toast._t = setTimeout(() => { toast.classList.remove('show'); live = null; }, 5200);
     audio?.unlocked?.();
     fx?.impact?.('good');
   }
@@ -628,13 +761,20 @@ export function createKit(opts = {}) {
         if (res.soundingLanded) {
           // The descent touched its floor. Everything a rung pays, plus the
           // bounty for landing it, plus a line worth reading out loud.
-          wallet?.earn?.(SOUND_MAX + SOUND_LAND);
+          const d = soundDay();
+          const fresh = d.best < SOUND_MAX;
+          d.best = SOUND_MAX;
+          saveSound();
+          wallet?.earn?.(pay(SOUND_MAX + SOUND_LAND, fresh), 'sound');
           hud?.flash?.(t('kit.soundLanded', { n: SOUND_MAX }), 'good');
           audio?.unlocked?.();
           fx?.impact?.('good');
           sounding = res.sounding;
         } else if (correct && !meta.assisted && rung > 0) {
-          wallet?.earn?.(Math.min(SOUND_MAX, SOUND_BASE + SOUND_STEP * (rung - 1)));
+          const d = soundDay();
+          const fresh = rung > d.best;
+          if (fresh) { d.best = rung; saveSound(); }
+          wallet?.earn?.(pay(Math.min(SOUND_MAX, SOUND_BASE + SOUND_STEP * (rung - 1)), fresh), 'sound');
           if (rung === res.sounding.best && rung > 2) {
             hud?.flash?.(t('kit.soundDeep', { n: rung }), 'good');
           }
@@ -1111,6 +1251,7 @@ export function createKit(opts = {}) {
       temper = 0;
       spent = 0;
       sounding = { rung: 0, best: 0, runs: 0 };
+      sday.day = 0; sday.best = 0; sday.said = false;
       beacons.length = 0;
       stations.length = 0;
       charges.flare = 0;
@@ -1123,6 +1264,8 @@ export function createKit(opts = {}) {
         localStorage.removeItem(CHARGE_KEY);
         localStorage.removeItem(BEACON_KEY);
         localStorage.removeItem(STATION_KEY);
+        // The descent's day record. A fresh cadet has not been anywhere today.
+        localStorage.removeItem(SOUND_KEY);
         // The old attempt-counted ledger. Nothing reads it any more; it is
         // removed so a save from that build cannot leave a number behind that
         // no longer means anything.

@@ -84,13 +84,16 @@
     --lsc-flank: 356px;    /* width of the right-hand card (see 4) */
     --lsc-step: 4px;       /* the gap between two things in a column */
 
-    /* The stacking ladder, written down once. Landscape is where these
-       actually collide, so this is where the order is declared:
-         world labels < rail < top band < companion < first contact < modals */
-    --lsc-z-rail: 20;
-    --lsc-z-band: 22;
-    --lsc-z-comms: 24;
-    --lsc-z-first: 30;
+    /* The stacking ladder is no longer declared here. It was declared here,
+       and separately in portrait.css, and separately again in eight other
+       modules — which is how the grant card ended up with no level at all and
+       the rift panel ended up tied with the first-contact card. There is one
+       scale now, in src/ui/layers.css, and these four names are kept only so
+       the rules below read as a composition rather than as raw numbers. */
+    --lsc-z-rail: var(--z-hud);
+    --lsc-z-band: var(--z-band);
+    --lsc-z-comms: var(--z-comms);
+    --lsc-z-first: var(--z-first);
   }
 
   /* -------------------------------------------------------------------------

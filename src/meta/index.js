@@ -54,7 +54,8 @@ import {
 } from './arc.js';
 import { blankLedger, standingOf } from './standing.js';
 import {
-  CHAPTER_AT, CHAPTER_NIGHTS, tearsOf, chapterFor, chapterFrac, tearsToNext, chapterGate,
+  CHAPTER_AT, CHAPTER_NIGHTS, CODA_NIGHTS, codaReady, codaIn,
+  tearsOf, chapterFor, chapterFrac, tearsToNext, chapterGate,
 } from './shard.js';
 import {
   blankDays, noteDay, noteNight, seedNights, daysSince, dispatchFor, nightBeat,
@@ -67,7 +68,9 @@ import { Turn } from './turn.js';
 import { Dossier } from './dossier.js';
 import { createStandard } from './standard.js';
 import {
-  STAGES, MILESTONES, stageIndex, registerFor, canTutor, bankKey, milestoneCrossed, milestoneKey,
+  STAGES, MILESTONES, stageIndex, registerFor, canTutor, bankKey,
+  milestoneCrossed, milestoneKey, milestoneMark,
+  nightMarkReached, nightMarkKey, nightMark,
 } from './voice.js';
 import { createGuide } from './guide.js';
 import { t, onLocaleChange } from '../i18n/index.js';
@@ -298,8 +301,34 @@ export function createStory({
     let w = null;
     try { w = mastery.watch?.(); } catch { /* the beat is optional */ }
     const beat = nightBeat({ nights: nightsHeld(), gap: gapDays, held: w?.due || 0 });
-    if (!beat) return;
-    setTimeout(() => comms.sayKey(beat.key, { params: () => beat.params, force: true }), 1400);
+    if (beat) setTimeout(() => comms.sayKey(beat.key, { params: () => beat.params, force: true }), 1400);
+    sayNightMark();
+  }
+
+  /**
+   * THE OTHER LADDER — nights held, counted out loud.
+   *
+   * Seals count answers; nights held count mornings on which something already
+   * known was still known, and that is the number rank, the last two chapters
+   * and the coda are paced against (`days.js`). Marlow now remarks on it, once
+   * per rung, for ever (`NIGHT_MARKS`, and then one every fifteen).
+   *
+   * Said on arrival rather than at the moment the night lands. A night is
+   * credited in the middle of a session by a re-probe, and that same night can
+   * open a chapter — which clears the channel — so a beat pushed there was
+   * racing the ceremony it caused and losing. Arrival is quiet, the number is
+   * already true, and `nightMarkReached` asks what has been *earned and not
+   * heard*, so a cadet who comes back after a fortnight is not owed three
+   * lines nobody will play.
+   */
+  function sayNightMark() {
+    const m = nightMarkReached(nightsHeld());
+    if (!m || seen.has(nightMark(m))) return;
+    mark(nightMark(m));
+    save();
+    setTimeout(() => comms.push(pick(nightMarkKey(m), () => ({ n: m })), {
+      tag: nightMarkKey(m), force: true,
+    }), 5200);
   }
 
   function voiceState() {
@@ -378,10 +407,20 @@ export function createStory({
     // cadet at seal one hundred and thirty heard the same six ambient lines as
     // one at seal four. These are the beats that carry the far end of a save.
     if (live) {
+      /* The written milestones name their own number and the ones above them
+         take it as a parameter, so what is written down is the milestone and
+         never the key — one key carries all of the open-ended ones, and marking
+         that would silence every beat after the first. See `milestoneMark`. */
       const m = milestoneCrossed(beforeTears, tears);
-      if (m && !seen.has(milestoneKey(m))) {
-        mark(milestoneKey(m));
-        setTimeout(() => comms.sayKey(milestoneKey(m), { force: true }), 1500);
+      if (m && !seen.has(milestoneMark(m))) {
+        mark(milestoneMark(m));
+        /* Through `pick`, not `sayKey`: the open-ended milestone key holds a
+           bank of three lines, `t()` hands a bank back as an array, and the
+           channel drops anything that is not a string. `sayKey` would have
+           swallowed every beat above two hundred and twenty in silence. */
+        setTimeout(() => comms.push(pick(milestoneKey(m), () => ({ n: m })), {
+          tag: milestoneKey(m), force: true,
+        }), 1500);
         save();
       }
     }
@@ -414,7 +453,9 @@ export function createStory({
     // The watch prints "nights held", so it prints the third clock's number and
     // not the engine's raw re-probe count — ten held lines re-checked on one
     // morning is one night, not ten. See `days.js`.
-    if (w) { card.setWatch({ ...w, durable: nights }); return; }
+    // …and, while the proof is whole but not yet closed, the number the coda
+    // itself is waiting for. See `codaReady`.
+    if (w) { card.setWatch({ ...w, durable: nights, codaIn: codaIn(nights) }); return; }
     card.setWatch(null);
     card.setSeals({
       tears,
@@ -517,7 +558,9 @@ export function createStory({
   function fireRite(p) {
     // Two centred plates at once is one too many: the promotion takes the frame.
     turn.hide();
-    rite.play(p.to, p.from);
+    // The ceremony carries the objective it interrupted, so the five seconds it
+    // owns the frame still say what to do next (src/meta/rite.js).
+    rite.play(p.to, p.from, guide?.state?.() || null);
     fx?.impact?.('good');
     audio?.unlocked?.();
     setTimeout(() => {
@@ -529,6 +572,15 @@ export function createStory({
 
   function coda() {
     if (seen.has('story.coda.c1')) return;
+    /* THE PAY-OFF IS NOT A SUNDAY AFTERNOON'S WORK.
+       The coda fired on the tenth line held and nothing else, so two hundred
+       and sixty items in one unbroken sitting reached it with zero nights held
+       — the whole of the writing, spent on the session least in need of it.
+       Five nights, each of them a morning on which something already known was
+       still known. Nothing else waits on it: the descent, the charters and the
+       waystations are all open while it does, and the watch card prints the
+       number (`quest.js`). See `codaReady`. */
+    if (!codaReady(true, nights)) return;
     // The seen-marks used to be written inside the timeout, so the 0.4s poll
     // that calls this re-entered it four times before the first mark landed and
     // the pay-off line played twice. Claim the beat on the frame it is decided.
@@ -915,6 +967,9 @@ export function createStory({
       rankGate: rankGate(standing, nights, rank),
       chapterGate: chapterGate(tears, nights, chapter),
       rankNights: RANK_NIGHTS[Math.min(RANKS.length - 1, rank + 1)] || 0,
+      // The pay-off's own gate, so a critic reads the third clock's last rung
+      // rather than inferring it: nights still owed, and what it costs.
+      codaIn: codaIn(nights), codaNights: CODA_NIGHTS,
       chapterNights: CHAPTER_NIGHTS[Math.min(CHAPTER_AT.length - 1, chapter)] || 0,
       dispatches: [...dayMarks],
       seen: [...seen],
@@ -923,7 +978,7 @@ export function createStory({
       // the transcript.
       register: reg(), stage: stg(),
       peak, canTutor: mayTutor(),
-      milestones: MILESTONES.filter((m) => seen.has(milestoneKey(m))),
+      milestones: MILESTONES.filter((m) => seen.has(milestoneMark(m))),
     }),
     /**
      * Critic hook: the key of every ambient bank in the register this state has

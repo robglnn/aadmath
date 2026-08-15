@@ -126,7 +126,13 @@ export class Input {
     if (!on) {
       this._grace = UI_GRACE;
       this.fire = false; this.interact = false;
-      for (const a of ACTIONS) { this._buf[a] = 0; this._down[a] = false; }
+      // …every verb except the way out. A recover pressed while the card was up
+      // is a player asking to be got out of a hole, and it must survive the card
+      // closing rather than be swept up with the leftover jumps.
+      for (const a of ACTIONS) {
+        if (a === 'recover') continue;
+        this._buf[a] = 0; this._down[a] = false;
+      }
     }
   }
 
@@ -188,7 +194,19 @@ export class Input {
       if (!this.uiOpen && this._grace <= 0) { this[a] = true; this.ever[a] = true; }
       return;
     }
-    if (this.uiOpen || this._grace > 0) return;
+    // RECOVER IS NEVER DROPPED. Every other verb here is a world verb, and a
+    // world verb has no business firing behind a card — that gate is correct
+    // and stays. Recover is not a world verb: it is the way out, it is printed
+    // on the controls card and in the pause menu, and the whole point of it is
+    // that it works when everything else has stopped working.
+    //
+    // This is exactly why a cold critic pressed R three times, waited fifteen
+    // seconds, and watched nothing happen. He was out of the world and falling,
+    // and a card had opened over the top of the frame while he fell; `uiOpen`
+    // was therefore true, and the one key that could have saved the session was
+    // being thrown away in this branch before the player ever reached it.
+    // (`Menu._pad` already carries the same reasoning for the pause button.)
+    if (a !== 'recover' && (this.uiOpen || this._grace > 0)) return;
     if (a in this.ever) this.ever[a] = true;
     this._down[a] = true;
     this._buf[a] = buf;
@@ -199,6 +217,12 @@ export class Input {
   _bind() {
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
+      // A hand in a text field is writing, not playing. This matters now that
+      // recover is allowed through while a panel owns the frame: the rift's
+      // keypad is an `<input>`, and typing an answer that contains an "r" must
+      // not pick the cadet up and put him down somewhere else.
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
       this.keys.add(e.code);
       this.source = 'kbm';
       switch (e.code) {

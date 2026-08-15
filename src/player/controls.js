@@ -162,6 +162,11 @@ export class ControlsCard {
     this.open = true;
     this.el.classList.add('show');
     this.pill.classList.remove('show');
+    /* Asked for by hand, three minutes in, to check which key the wing was on.
+       That is a reference lookup, not first contact, so the automatic retreat
+       below does not apply to it: it leaves on GOT IT, Escape or `?`, and not
+       one and a half seconds after it arrives. */
+    if (this._retired) { clearTimeout(this._leave); this._leaving = false; }
   }
 
   hide(byHand = false) {
@@ -204,12 +209,31 @@ export class ControlsCard {
     if (inp.ever.interact) this._tick('interact');
     if (this.builder?.handOut) this._tick('build');
     if (inp.ever.recover) this._tick('recover');
+    // src/ui P1 — DASH printed a row that could never tick. `input.ever.dash`
+    // has always been kept; nothing read it, so the one verb a critic called
+    // "an uncommunicated backward dash" stayed lit on the card after the cadet
+    // had used it. A checklist with a row that cannot be completed is not a
+    // checklist.
+    if (inp.ever.dash) this._tick('dash');
 
-    if (this.done.size >= CORE.length && this.open) {
-      // Every core verb is in their hands. Leave, without being asked.
-      clearTimeout(this._leave);
-      this._leave = setTimeout(() => this.hide(), 1500);
-      this.done.add('_left');
+    /* EVERY CORE VERB IS IN THEIR HANDS. LEAVE, WITHOUT BEING ASKED.
+     *
+     * src/ui P1 — this never once fired. The block ran on EVERY frame for which
+     * the condition held, and its first statement cleared the timeout its last
+     * statement had just set: at 60 fps the 1500 ms retreat was cancelled and
+     * re-armed every 16 ms, so it could not reach 1500 ms while the card was
+     * still open, which was exactly whenever it was allowed to run. The cold
+     * critic measured the result — "the controls card never auto-dismisses even
+     * after every verb is ticked; it holds ~300x200 px of screen for the whole
+     * session."
+     *
+     * `_leaving` is the latch the sentinel in `done` was meant to be and never
+     * was: nothing read it. The timer is armed once and then left alone. */
+    if (this.done.size >= CORE.length && this.open && !this._leaving && !this._retired) {
+      this._leaving = true;
+      this._leave = setTimeout(() => {
+        this._leaving = false; this._retired = true; this.hide();
+      }, 1500);
     }
   }
 

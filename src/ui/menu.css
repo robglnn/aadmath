@@ -9,7 +9,7 @@
 
 #ui .mnu {
   position: absolute; inset: 0;
-  z-index: 46;                 /* over the world's plates, under the way-out card */
+  z-index: var(--z-menu);      /* over the world's plates, under the way-out card */
   display: grid; place-items: center;
   padding: var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l);
   opacity: 0; pointer-events: none;
@@ -139,6 +139,62 @@
 }
 #ui .mnu-toggle:hover, #ui .mnu-toggle:focus-visible { color: var(--ink); }
 
+/* ---------- the way out ----------
+   The card used to list "Recover · R" among the controls and offer no way to
+   press it. This is the door: amber, above the fold of the closing line, and
+   the only place in the interface where a run can be thrown away. */
+#ui .mnu-out {
+  margin-top: 1rem; padding-top: .74rem;
+  border-top: 1px solid rgba(130, 190, 255, .16);
+}
+#ui .mnu-out > h3 { color: var(--amber); }
+#ui .mnu-out-body {
+  margin: 0 0 .5rem; font-size: .78rem; line-height: 1.4; color: var(--ink-dim);
+}
+#ui .mnu-acts { display: flex; flex-wrap: wrap; gap: .5rem; }
+#ui .mnu-act {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .46rem .7rem; cursor: pointer;
+  font: inherit; font-size: .58rem; font-weight: 700;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--ink);
+  background: rgba(255, 186, 96, .12);
+  border: 1px solid rgba(255, 186, 96, .38); border-radius: 6px;
+  transition: background .16s, border-color .16s, color .16s;
+}
+#ui .mnu-act:hover, #ui .mnu-act:focus-visible {
+  background: rgba(255, 196, 110, .26); border-color: rgba(255, 208, 138, .7);
+}
+#ui .mnu-act[hidden] { display: none; }
+#ui .mnu-restart {
+  color: var(--ink-dim);
+  background: rgba(255, 255, 255, .04);
+  border-color: rgba(190, 205, 225, .22);
+}
+#ui .mnu-restart:hover, #ui .mnu-restart:focus-visible {
+  color: #ffd9d0;
+  background: rgba(255, 120, 96, .18); border-color: rgba(255, 140, 116, .55);
+}
+#ui .mnu-confirm {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+  margin: .55rem 0 0; font-size: .78rem; line-height: 1.35; color: var(--ink);
+}
+#ui .mnu-confirm[hidden] { display: none; }
+#ui .mnu-confirm span { flex: 1 1 12rem; min-width: 0; }
+#ui .mnu-yes, #ui .mnu-no {
+  flex: none; padding: .34rem .62rem; cursor: pointer;
+  font: inherit; font-size: .56rem; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  border-radius: 5px; border: 1px solid;
+}
+#ui .mnu-yes {
+  color: #ffd9d0; background: rgba(255, 120, 96, .2); border-color: rgba(255, 140, 116, .5);
+}
+#ui .mnu-no {
+  color: var(--ink); background: rgba(120, 190, 255, .12); border-color: rgba(130, 195, 255, .34);
+}
+#ui .mnu-yes:hover, #ui .mnu-yes:focus-visible { background: rgba(255, 130, 106, .34); }
+#ui .mnu-no:hover, #ui .mnu-no:focus-visible { background: rgba(120, 190, 255, .26); }
+
 /* ---------- the one line a beaten player is looking for ---------- */
 #ui .mnu-now {
   margin-top: 1rem; padding-top: .74rem;
@@ -152,7 +208,7 @@
 
 /* ---------- the door handle ---------- */
 #ui .mnu-pill {
-  position: fixed; z-index: 24;
+  position: fixed; z-index: var(--z-prompt);
   right: calc(var(--pad-r) + var(--thumb-r)); top: calc(var(--pad-t) + 120px);
   min-height: 36px; letter-spacing: .2em; color: var(--ink-dim);
   background: linear-gradient(168deg, rgba(13, 24, 42, .78), rgba(5, 11, 21, .66));

@@ -32,6 +32,97 @@ export function heightAt(x, z) {
 
 export const RIM = () => (typeof World.ISLAND_R === 'number' ? World.ISLAND_R : 130);
 
+// ---------------------------------------------------------------------------
+// THE PLAYABLE VOLUME
+//
+// There was already a fall-catch here — `pos.y < -180` in the controller — and
+// it had never once saved anybody, for a reason that is worth writing down
+// because it is the reason three rounds of "fixes" bounced off it.
+//
+// **It was a depth test on a system that has a mode with no depth budget.**
+// Freefall reaches -180 m in about four seconds. Under the wing the sink rate
+// is two metres a second, and the leash in locomotion.js pins you at
+// `RIM() * 1.62` while you fly — so a cadet who walks off the north gate at
+// nine metres and then does the one thing a panicking player always does (holds
+// jump, which opens the wing) needs **ninety-five seconds** to fall far enough
+// for the catch to notice. That is the whole of the reported failure: not a
+// missing catch, a catch measuring the wrong quantity. A cold critic burned
+// ninety seconds of movement, jumps, dash and glide inside that window and
+// concluded, correctly, that the session was over.
+//
+// So the boundary is not a depth. It is the point of no return, and it is
+// *provable*: nothing in this game manufactures height. The wing trades height
+// for speed and clamps `vel.y` at +0.35 (see `_glide`), every updraft column
+// stands on the island, and there is no ground outside the coastline. Therefore
+// a cadet who is over open air and **below the lowest ground the island has**
+// can never reach the island again, whatever they press.
+//
+// That is the test. It fires within a second or two of a real mistake, it can
+// be reasoned about rather than tuned, and — the reason it is written this way
+// rather than as a timer — it never touches a legitimate flight. Gliding out
+// over the gulf from the Spine or off an updraft is an invited act and stays
+// one, all the way to the verge, because you are still above ground you can
+// still reach.
+// ---------------------------------------------------------------------------
+
+/** Metres below the lowest reachable ground at which return becomes impossible. */
+const DECK_MARGIN = 8;
+/** Absolute backstop, far under everything, for states nobody has thought of. */
+export const FLOOR = -420;
+
+let _low = null;
+let _lowTries = 0;
+
+/**
+ * The lowest ground on the island, measured off the live heightfield rather
+ * than written down. The world team reshapes this island regularly; a number
+ * typed into the player would be wrong the first time they did, and wrong
+ * silently. Sampled once, on the first frame that has a world to sample.
+ */
+export function lowestGround() {
+  if (_low !== null) return _low;
+  // Eight thousand probes is nothing once and a disaster sixty times a second,
+  // so a world that never answers gets a handful of attempts and then a number.
+  if (_lowTries > 8) return (_low = 0);
+  _lowTries++;
+  const R = RIM() + 10;
+  let lo = Infinity;
+  for (let x = -R; x <= R; x += 4) {
+    for (let z = -R; z <= R; z += 4) {
+      const h = World.heightAt?.(x, z);
+      if (typeof h === 'number' && Number.isFinite(h) && h < lo) lo = h;
+    }
+  }
+  // No world yet: answer safely and do NOT cache, so the real island is
+  // measured on a later frame instead of a default being frozen in.
+  if (!Number.isFinite(lo)) return 0;
+  _low = lo;
+  return _low;
+}
+
+/** Below this, over open air, no cadet can ever get back. */
+export function deck() { return lowestGround() - DECK_MARGIN; }
+
+/**
+ * Is this point outside the playable volume?
+ *
+ * Returns the reason, or null. Two facts and a backstop:
+ *   'fell'  — over open air, below the point of no return.
+ *   'under' — inside the island's footprint but below its surface, i.e. through
+ *             the world rather than off it. The critic's "beige void" was this:
+ *             wedged against the untextured underside of the terrain.
+ *   'void'  — under the absolute floor.
+ */
+export function outsideWorld(x, y, z) {
+  if (y < FLOOR) return 'void';
+  const h = heightAt(x, z);
+  if (h === null) return y < deck() ? 'fell' : null;
+  // A whole body-height under the surface of the column you are in is not a
+  // cave — this world has none — it is the inside of the terrain.
+  if (y < h - 2.2) return 'under';
+  return null;
+}
+
 /** Ground height under a capsule of radius r — takes the highest nearby sample
  *  so you stand on top of a ridge instead of sinking into its side. */
 export function groundUnder(x, z, r = 0) {

@@ -21,7 +21,7 @@
  * information.
  */
 import { RANKS, RANK_INK, RANK_GLOW, sigilSVG } from './arc.js';
-import { t } from '../i18n/index.js';
+import { t, num } from '../i18n/index.js';
 
 const SPARKS = 48;
 
@@ -43,12 +43,22 @@ export class Rite {
         <div class="rite-arrow"></div>
         <div class="rite-rule"></div>
         <div class="rite-cite"></div>
+        <div class="rite-next"></div>
       </div>`;
     this.slot = this.el.querySelector('.sig-slot');
     this.kicker = this.el.querySelector('.rite-kicker');
     this.name = this.el.querySelector('.rite-name span');
     this.arrow = this.el.querySelector('.rite-arrow');
     this.cite = this.el.querySelector('.rite-cite');
+    /* src/ui P1 — WHAT TO DO WHEN THE LETTERBOX CLEARS.
+       The rite stands every readout down for five seconds (see meta.css) and
+       used to put nothing in their place: a cold critic measured "the rank-up
+       ceremony blanks the entire HUD for ~5 s with no prompt", and the sampler
+       agreed — at 2.25 s into a promotion the only surfaces painting were the
+       ceremony itself and three things you cannot act on. A ceremony is allowed
+       to take the frame. It is not allowed to leave the player with nothing to
+       do, so it now carries the objective it interrupted, in its own type. */
+    this.next = this.el.querySelector('.rite-next');
     root.appendChild(this.el);
     this._live = null;
   }
@@ -77,10 +87,14 @@ export class Rite {
   /**
    * @param {number} to rank index gained
    * @param {number} from previous index, or -1 for a standing declaration
+   * @param {{verb:string, skill:string, metres:number}|null} [next] what the
+   *   scheduler wants next, so the ceremony can hand the player straight back
+   *   to it. Resolved by the caller off the live objective; `null` is fine and
+   *   falls back to the standing instruction.
    */
-  play(to, from) {
+  play(to, from, next = null) {
     const rank = RANKS[Math.max(0, Math.min(RANKS.length - 1, to))];
-    this._live = { to, from };
+    this._live = { to, from, next };
     // The rite paints itself from the rank it is *awarding*, not from whatever
     // --rank-ink happens to be mid-transition. Sovereign has to read violet.
     this.el.style.setProperty('--rank-ink', RANK_INK[rank]);
@@ -102,10 +116,19 @@ export class Rite {
       ? t('story.rite.arrow', { from: t('rank.' + RANKS[L.from]), to: t('rank.' + rank) })
       : t('story.rite.standing');
     this.cite.textContent = t('story.cite.' + rank);
+    // One clear next action, for the five seconds the instruments are down.
+    const n = L.next;
+    this.next.textContent = n
+      ? t('story.rite.next', {
+        verb: t('guide.verb.' + n.verb), skill: t('skills.' + n.skill), n: num(n.metres),
+      })
+      : t('story.rite.nextAny');
     // Long rank words in ES/PL cannot be allowed to letterspace themselves off
     // the edge of the frame, so the display size is a function of the word.
-    const n = this.name.textContent.length;
-    this.el.style.setProperty('--rite-size', n > 10 ? '4.6vw' : n > 7 ? '5.8vw' : '7.2vw');
+    // (`n` is taken by the next-action object above; this is a local rename only
+    // — the whole module failed to parse otherwise. — report)
+    const len = this.name.textContent.length;
+    this.el.style.setProperty('--rite-size', len > 10 ? '4.6vw' : len > 7 ? '5.8vw' : '7.2vw');
   }
 
   _fire() {

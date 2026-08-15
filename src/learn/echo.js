@@ -328,6 +328,474 @@ function whatBlocks(stateTex, v) {
 // ---------------------------------------------------------------------------
 // Layer one: the learner's own entry, put back into the statement.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Level 2 instruments. Same contract as everything above: each computes an
+// exact fact or returns nothing, and none of them prints the live answer.
+// ---------------------------------------------------------------------------
+/** `\le` and `\ge` must not be read out of `\left` and `\gets`. */
+const REL_TOKENS = /\\le(?![a-zA-Z])|\\ge(?![a-zA-Z])|<|>/g;
+
+/** "a < b \le c" -> { parts: [a, b, c], rels: ['<', '\\le'] }. */
+function relationsOf(src) {
+  const parts = [];
+  const rels = [];
+  let last = 0;
+  let m;
+  REL_TOKENS.lastIndex = 0;
+  while ((m = REL_TOKENS.exec(String(src)))) {
+    rels.push(m[0]);
+    parts.push(String(src).slice(last, m.index));
+    last = m.index + m[0].length;
+  }
+  parts.push(String(src).slice(last));
+  return { parts, rels };
+}
+
+/** Is this statement true when the unknown takes this value? `null` if unreadable. */
+function holdsAt(src, v, t) {
+  const { parts, rels } = relationsOf(src);
+  if (!rels.length) return null;
+  let vals;
+  try { vals = parts.map((p) => evaluate(p, { [v]: R(t) })); } catch { return null; }
+  for (let i = 0; i < rels.length; i++) {
+    const d = toNum(sub(vals[i], vals[i + 1]));
+    const ok = rels[i] === '<' ? d < 0 : rels[i] === '>' ? d > 0 : rels[i] === '\\le' ? d <= 0 : d >= 0;
+    if (!ok) return false;
+  }
+  return true;
+}
+
+/** The whole statement, evaluated part by part: "21 > 25". */
+function relationAt(src, v, t) {
+  const { parts, rels } = relationsOf(src);
+  if (!rels.length) return null;
+  let vals;
+  try { vals = parts.map((p) => evaluate(p, { [v]: R(t) })); } catch { return null; }
+  let out = rstr(vals[0]);
+  for (let i = 0; i < rels.length; i++) out += ` ${rels[i]} ${rstr(vals[i + 1])}`;
+  return out;
+}
+
+/** Whole numbers worth trying: the ones the two statements are written around. */
+function trialValues(...written) {
+  const seen = new Set([0, 1, -1]);
+  for (const src of written) {
+    for (const n of String(src).match(/-?\d+/g) || []) {
+      const k = Number(n);
+      if (!Number.isFinite(k) || Math.abs(k) > 400) continue;
+      for (const d of [-2, -1, 0, 1, 2]) seen.add(k + d);
+    }
+  }
+  // …and a plain sweep, because a band can sit a long way from any number
+  // printed on the page, and a probe that cannot find its own boundary is a
+  // probe that hands the question back.
+  for (let n = -48; n <= 48; n++) seen.add(n);
+  return [...seen].sort((a, b) => Math.abs(a) - Math.abs(b));
+}
+
+/**
+ * A lean, refuted by one number.
+ *
+ * Two shapes of entry arrive here. A *statement* is refuted by a value one of
+ * them admits and the other does not. A *whole number*, handed to "what is the
+ * first value that works?", is refuted either because it does not work at all,
+ * or because the number one step further in also works — which is what makes
+ * it not the first.
+ */
+function leanProbe(item, raw, v, T) {
+  const math = String(item.check.math);
+  const want = item.check.want;
+  const val = fromString(raw);
+
+  if (val && val.d === 1 && (want === 'least' || want === 'greatest')) {
+    const n = val.n;
+    if (holdsAt(math, v, n) === false) {
+      const put = substituteVerified(relationsOf(math).parts[0], v, R(n));
+      const read = relationAt(math, v, n);
+      if (put && read) {
+        return [
+          { cls: 'rf-echo-probe', latex: `${substituteRelation(math, v, n)}`, why: T('echo.tryYourReading', { v, t: n }) },
+          { cls: 'rf-echo-probe verdict', latex: read, why: T('echo.thatIsNotTrue') },
+        ];
+      }
+    }
+    const step = want === 'least' ? n - 1 : n + 1;
+    if (holdsAt(math, v, n) === true && holdsAt(math, v, step) === true) {
+      const read = relationAt(math, v, step);
+      if (read) {
+        return [
+          { cls: 'rf-echo-probe', latex: `${substituteRelation(math, v, step)}`, why: T('echo.tryOneStepFurther', { v, t: step }) },
+          { cls: 'rf-echo-probe verdict', latex: read, why: T(want === 'least' ? 'echo.oneLowerAlsoWorks' : 'echo.oneHigherAlsoWorks') },
+        ];
+      }
+    }
+    return [];
+  }
+
+  // A count. There is no value to argue with, but there is a lesson: the two
+  // whole numbers either side of an end, one in and one out.
+  if (val && want === 'count') {
+    const ins = [];
+    for (const t of trialValues(math)) {
+      if (holdsAt(math, v, t) !== true) continue;
+      ins.push(t);
+    }
+    if (!ins.length) return [];
+    const lo = Math.min(...ins);
+    const outside = lo - 1;
+    const inside = substituteRelation(math, v, lo);
+    const beyond = substituteRelation(math, v, outside);
+    const readIn = relationAt(math, v, lo);
+    const readOut = relationAt(math, v, outside);
+    if (!inside || !beyond || !readIn || !readOut) return [];
+    return [
+      { cls: 'rf-echo-probe', latex: `${beyond} \qquad ${readOut}`, why: T('echo.justOutsideTheBand', { v, t: outside }) },
+      { cls: 'rf-echo-probe verdict', latex: `${inside} \qquad ${readIn}`, why: T('echo.justInsideTheBand', { v, t: lo }) },
+    ];
+  }
+
+  // A statement against a statement.
+  if (!relationsOf(raw).rels.length) return [];
+  for (const t of trialValues(math, raw)) {
+    const mine = holdsAt(raw, v, t);
+    const theirs = holdsAt(math, v, t);
+    if (mine == null || theirs == null || mine === theirs) continue;
+    const read = relationAt(math, v, t);
+    const shown = substituteRelation(math, v, t);
+    if (!read || !shown) continue;
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: shown,
+        why: T(mine ? 'echo.yourSetLetsThrough' : 'echo.yourSetShutsOut', { v, t }),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: read,
+        why: T(mine ? 'echo.thatIsNotTrue' : 'echo.thatIsTrue'),
+      },
+    ];
+  }
+  return [];
+}
+
+/** The statement with a number written in for the unknown, verified part by part. */
+function substituteRelation(src, v, t) {
+  const { parts, rels } = relationsOf(src);
+  const put = parts.map((p) => (varsOf(p).includes(v) ? substituteVerified(p, v, R(t)) : p.trim()));
+  if (put.some((p) => !p)) return null;
+  let out = put[0];
+  for (let i = 0; i < rels.length; i++) out += ` ${rels[i]} ${put[i + 1]}`;
+  return out;
+}
+
+/** Two ratios agree exactly when their cross products do. */
+function proportionProbe(item, raw, v, T) {
+  const val = fromString(raw);
+  if (!val) return [];
+  let left, right;
+  try { ({ left, right } = parseEquation(String(item.check.math))); } catch { return []; }
+  if (left.k !== 'div' || right.k !== 'div') return [];
+  let p, q;
+  try {
+    p = mulR(evalNode(left.a, v, val), evalNode(right.b, v, val));
+    q = mulR(evalNode(left.b, v, val), evalNode(right.a, v, val));
+  } catch { return []; }
+  if (reqq(p, q)) return [];
+  const src = String(item.check.math);
+  const shown = substituteRelationLike(src, v, val);
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: shown || src,
+      why: T('echo.crossProductsMatch'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `${rstr(p)} \\ne ${rstr(q)}`,
+      why: T('echo.yourNumberBreaksTheRatio'),
+    },
+  ];
+}
+
+/** An equation with a value written in for one letter, both sides verified. */
+function substituteRelationLike(src, v, val) {
+  const two = String(src).split('=').map((s) => s.trim());
+  if (two.length !== 2) return null;
+  const put = two.map((s) => (varsOf(s).includes(v) ? substituteVerified(s, v, val) : s));
+  return put.every(Boolean) ? `${put[0]} = ${put[1]}` : null;
+}
+
+const mulR = (a, b) => R(a.n * b.n, a.d * b.d);
+function evalNode(node, v, val) { return evaluate(texOfNode(node), { [v]: val }); }
+/** Print back the part of a fraction the parser gave us, as notation. */
+function texOfNode(node) {
+  switch (node.k) {
+    case 'num': return String(node.v);
+    case 'var': return node.v;
+    case 'neg': return `-\\left(${texOfNode(node.a)}\\right)`;
+    case 'add': return `\\left(${texOfNode(node.a)} + ${texOfNode(node.b)}\\right)`;
+    case 'sub': return `\\left(${texOfNode(node.a)} - ${texOfNode(node.b)}\\right)`;
+    case 'mul': return `\\left(${texOfNode(node.a)}\\right)\\left(${texOfNode(node.b)}\\right)`;
+    case 'div': return `\\frac{${texOfNode(node.a)}}{${texOfNode(node.b)}}`;
+    default: throw new Error('cannot print this node');
+  }
+}
+
+/**
+ * A pair of statements: if one letter were what they said, the first statement
+ * forces the other, and the second statement refuses the pair.
+ */
+function systemProbe(item, raw, T) {
+  const [e1, e2] = item.check.eqs;
+  const [vx, vy] = item.check.vars || ['x', 'y'];
+  const want = item.check.want;
+  let px = null, py = null;
+  const pair = /^\\left\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\\right\)$/.exec(raw);
+  if (pair) { px = R(Number(pair[1])); py = R(Number(pair[2])); }
+  else {
+    const val = fromString(raw);
+    if (!val) return [];
+    const known = want === 'y' ? vy : vx;
+    const other = known === vx ? vy : vx;
+    // What the first statement forces the other letter to be.
+    const f = (t) => {
+      const env = { [known]: val, [other]: R(t) };
+      const two = String(e1).split('=').map((s) => s.trim());
+      return sub(evaluate(two[0], env), evaluate(two[1], env));
+    };
+    let f0, f1;
+    try { f0 = f(0); f1 = f(1); } catch { return []; }
+    const a = sub(f1, f0);
+    if (isZero(a)) return [];
+    const forced = R(-f0.n * a.d, f0.d * a.n);
+    px = known === vx ? val : forced;
+    py = known === vx ? forced : val;
+  }
+  if (!px || !py) return [];
+  for (const eq of [e2, e1]) {
+    const two = String(eq).split('=').map((s) => s.trim());
+    if (two.length !== 2) continue;
+    let l, r;
+    try { l = evaluate(two[0], { [vx]: px, [vy]: py }); r = evaluate(two[1], { [vx]: px, [vy]: py }); } catch { continue; }
+    if (reqq(l, r)) continue;
+    const shown = two.map((s) => {
+      let out = s;
+      for (const [name, val] of [[vx, px], [vy, py]]) {
+        if (!varsOf(out).includes(name)) continue;
+        const next = substituteVerified(out, name, val, { [name === vx ? vy : vx]: name === vx ? py : px });
+        if (!next) return null;
+        out = next;
+      }
+      return out;
+    });
+    if (shown.some((s) => !s)) continue;
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `${shown[0]} = ${shown[1]}`,
+        why: T('echo.putYourPairIn', { x: rstr(px), y: rstr(py) }),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${rstr(l)} \\ne ${rstr(r)}`,
+        why: T('echo.oneStatementRefusesIt'),
+      },
+    ];
+  }
+  return [];
+}
+
+/**
+ * A rearranged formula, checked the way a rearranged formula is checked: pin
+ * every other letter to a number, and the two forms have to agree.
+ */
+function rearrangeProbe(item, raw, T) {
+  const v = item.check.variable;
+  const names = item.check.vars || [];
+  if (!names.length) return [];
+  for (const set of [[2, 3, 5, 7], [3, 5, 2, 11], [5, 2, 7, 3]]) {
+    const env = {};
+    names.forEach((name, i) => { env[name] = R(set[i % set.length]); });
+    let truth, theirs;
+    const two = String(item.check.math).split('=').map((s) => s.trim());
+    if (two.length !== 2) return [];
+    const f = (t) => sub(evaluate(two[0], { ...env, [v]: t }), evaluate(two[1], { ...env, [v]: t }));
+    try {
+      const f0 = f(R(0));
+      const a = sub(f(R(1)), f0);
+      if (isZero(a)) continue;
+      truth = R(-f0.n * a.d, f0.d * a.n);
+      theirs = evaluate(raw, env);
+    } catch { continue; }
+    if (reqq(truth, theirs)) continue;
+    // The formula is an equation, so each side is pinned on its own: an equals
+    // sign is not something `evaluate` can weigh. The letter being solved for
+    // stays a letter — that is the whole point of the picture.
+    const pinned = two.map((side) => pinKnown(side, env, v));
+    const yours = substituteAll(raw, env);
+    if (pinned.some((x) => !x) || !yours) continue;
+    return [
+      { cls: 'rf-echo-probe', latex: `${pinned[0]} = ${pinned[1]}`, why: T('echo.pinTheOtherLetters', { v }) },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${yours} = ${rstr(theirs)}`,
+        why: T('echo.yourFormDisagrees', { v }),
+      },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Write the known letters in and leave one standing.
+ *
+ * `substituteAll` needs every letter bound, because it verifies each rewrite by
+ * evaluating it — and a formula being solved still has one letter in it. So the
+ * free letter is bound to two different probe values for the *check* only, and
+ * a rewrite is accepted only if it carries the same value at both.
+ */
+function pinKnown(latex, env, free) {
+  let out = latex;
+  const rest = { ...env };
+  for (const name of Object.keys(env)) {
+    delete rest[name];
+    let next = null;
+    for (const probe of [R(2), R(5)]) {
+      const candidate = substituteVerified(out, name, env[name], { ...rest, [free]: probe });
+      if (!candidate) { next = null; break; }
+      if (next && next !== candidate) { next = null; break; }
+      next = candidate;
+    }
+    if (!next) return null;
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * A statement in two unknowns, refused by the point their answer implies.
+ *
+ * Every answer this family asks for names a point on the line — an intercept
+ * is a point, a rate is the step from one point to the next, a rule is all of
+ * them. So the probe is always the same: build the point, write it into the
+ * statement on screen, and let the two sides disagree.
+ */
+function statementProbe(item, raw, T) {
+  const c = item.check;
+  const two = String(c.math).split('=').map((x) => x.trim());
+  if (two.length !== 2) return [];
+  const at = (x, y) => {
+    const env = { x, y };
+    return [evaluate(two[0], env), evaluate(two[1], env)];
+  };
+  const point = (() => {
+    const side = String(raw).split('=').slice(1).join('=').trim();
+    if (c.want === 'equation' && side) {
+      // The first reading their rule gives that the statement refuses. A wrong
+      // rule can still be right at one point, and that point proves nothing.
+      for (const px of [1, 2, 0, -1, 3, -2, 4]) {
+        try {
+          const py = evaluate(side, { x: R(px) });
+          const [l, r] = at(R(px), py);
+          if (!reqq(l, r)) return [R(px), py];
+        } catch { /* next */ }
+      }
+      return null;
+    }
+    const val = fromString(raw);
+    if (!val) return null;
+    if (c.want === 'xintercept') return [val, R(0)];
+    if (c.want === 'intercept') return [R(0), val];
+    if (c.want === 'slope') {
+      // Their rate, stepped one across from a point the statement really holds.
+      try {
+        const f = (t) => sub(...at(R(0), R(t)));
+        const f0 = f(0);
+        const a = sub(f(1), f0);
+        if (isZero(a)) return null;
+        const y0 = R(-f0.n * a.d, f0.d * a.n);
+        return [R(1), R(y0.n * val.d + val.n * y0.d, y0.d * val.d)];
+      } catch { return null; }
+    }
+    return null;
+  })();
+  if (!point) return [];
+  let l, r;
+  try { [l, r] = at(point[0], point[1]); } catch { return []; }
+  if (reqq(l, r)) return [];
+  const shown = two.map((side) => {
+    let out = side;
+    for (const [name, val] of [['x', point[0]], ['y', point[1]]]) {
+      if (!varsOf(out).includes(name)) continue;
+      const next = substituteVerified(out, name, val, { [name === 'x' ? 'y' : 'x']: name === 'x' ? point[1] : point[0] });
+      if (!next) return null;
+      out = next;
+    }
+    return out;
+  });
+  if (shown.some((x) => !x)) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `${shown[0]} = ${shown[1]}`,
+      why: T('echo.putYourPairIn', { x: rstr(point[0]), y: rstr(point[1]) }),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `${rstr(l)} \\ne ${rstr(r)}`,
+      why: T('echo.thePointIsNotOnIt'),
+    },
+  ];
+}
+
+/** A rule that has to pass through the readings it was written from. */
+function ruleProbe(item, raw, T) {
+  const c = item.check;
+  if (c.kind === 'lineEquation') return statementProbe(item, raw, T);
+  const side = String(raw).split('=').slice(1).join('=').trim();
+  if (side && Array.isArray(c.points) && c.points.length >= 2) {
+    // Every reading the item shows, not only the two the checker used: a wrong
+    // rule that happens to pass through the first one is still a wrong rule.
+    const shownPts = [...c.points, ...(item.figure?.points || [])];
+    for (const [px, py] of shownPts) {
+      let got;
+      try { got = evaluate(side, { x: R(px) }); } catch { return []; }
+      if (reqq(got, R(py))) continue;
+      const put = substituteVerified(side, 'x', R(px));
+      if (!put) continue;
+      return [
+        { cls: 'rf-echo-probe', latex: `${put} = ${rstr(got)}`, why: T('echo.yourRuleAt', { t: px }) },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(got)} \\ne ${py}`,
+          why: T('echo.yourRuleMissesReading', { t: px }),
+        },
+      ];
+    }
+    return [];
+  }
+  // A rate handed in as a value: the two fractions, side by side, unworked.
+  const val = fromString(raw);
+  if (val && c.want === 'slope' && Array.isArray(c.points) && c.points.length >= 2) {
+    const [p, q] = c.points;
+    if (p[0] === q[0]) return [];
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `\\frac{${q[1]} - ${par(p[1])}}{${q[0]} - ${par(p[0])}}`,
+        why: T('echo.rateBetweenTheReadings'),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${q[1]} - ${par(p[1])} \\ne ${texOf(val)} \\cdot \\left(${q[0]} - ${par(p[0])}\\right)`,
+        why: T('echo.yourRateWouldNeed'),
+      },
+    ];
+  }
+  return [];
+}
+
 /**
  * Build a counterexample from what the cadet actually entered.
  *
@@ -343,6 +811,37 @@ export function counterexample(item, entry, T) {
   const kind = item.check?.kind;
 
   try {
+    // --- LEVEL 2: one number the two statements disagree about -------------
+    //
+    // A lean is a claim about a *set*, so the honest refusal is a member of
+    // one set that the other refuses. The rig finds it by trial, writes it
+    // into the statement on screen, and works nothing out: the arithmetic is
+    // the lesson, exactly as on the beam.
+    if ((kind === 'inequality' || kind === 'compound') && v && item.check.math) {
+      const rows = leanProbe(item, raw, v, T);
+      if (rows.length) return rows;
+    }
+    // --- LEVEL 2: two ratios agree only when the cross products match ------
+    if (kind === 'proportion' && v) {
+      const rows = proportionProbe(item, raw, v, T);
+      if (rows.length) return rows;
+    }
+    // --- LEVEL 2: a pair of statements — one of them refuses their reading -
+    if (kind === 'system' && Array.isArray(item.check.eqs)) {
+      const rows = systemProbe(item, raw, T);
+      if (rows.length) return rows;
+    }
+    // --- LEVEL 2: a rearranged formula, pinned to numbers ------------------
+    if (kind === 'rearrange' && item.check.math) {
+      const rows = rearrangeProbe(item, raw, T);
+      if (rows.length) return rows;
+    }
+    // --- LEVEL 2: a rule that has to pass through the readings -------------
+    if ((kind === 'line' || kind === 'lineEquation') && item.check) {
+      const rows = ruleProbe(item, raw, T);
+      if (rows.length) return rows;
+    }
+
     // --- an equation with no unique answer at all --------------------------
     //
     // "No solution" and "every value works" are not values, so there is no
@@ -587,7 +1086,12 @@ export function counterexample(item, entry, T) {
       const val = fromString(raw);
       const src = item.check.rows;
       const miss = item.check.missing;
-      const solvingForX = item.check.solveFor === 'x';
+      // Which cell burned. A descriptor may say so outright; a table that hands
+      // the verifier a "?" in the input column has already said so, and reading
+      // it off the rows is what stops an input-gap table from falling through
+      // every probe below and being answered with the question restated.
+      const solvingForX = item.check.solveFor === 'x' || String(src[miss]?.[0]) === '?';
+      const known = src.filter((row, i) => i !== miss && row.every((cell) => cell !== '?')).map((row) => [Number(row[0]), Number(row[1])]);
 
       // The rule is written at the head of the column, in full, where the cadet
       // can see it. When the burned cell is an *input*, running their number
@@ -612,17 +1116,17 @@ export function counterexample(item, entry, T) {
         }
       }
 
-      if (val && val.d === 1 && src.length >= 3 && src[miss]) {
+      if (val && val.d === 1 && src.length >= 3 && src[miss] && known.length >= 2) {
         const mine = src.map((row, i) => (i === miss
-          ? (solvingForX ? [val.n, row[1]] : [row[0], val.n])
-          : row));
+          ? (solvingForX ? [val.n, Number(row[1])] : [Number(row[0]), val.n])
+          : [Number(row[0]), Number(row[1])]));
 
         // Their number repeats a reading the log already gives at another
         // input, on a log that plainly does not stand still.
-        const twin = src.findIndex((row, i) => i !== miss && (solvingForX ? row[0] === val.n : row[1] === val.n));
+        const twin = src.findIndex((row, i) => i !== miss && Number(solvingForX ? row[0] : row[1]) === val.n);
         const flat = solvingForX
-          ? src.every((row) => row[0] === src[0][0])
-          : src.every((row) => row[1] === src[0][1]);
+          ? known.every((row) => row[0] === known[0][0])
+          : known.every((row) => row[1] === known[0][1]);
         if (twin >= 0 && !flat) {
           const col = solvingForX ? 0 : 1;
           const other = solvingForX ? 1 : 0;
@@ -639,12 +1143,12 @@ export function counterexample(item, entry, T) {
           if (!dx) return null;
           return { tex: `\\frac{${rows[i + 1][1]} - ${par(rows[i][1])}}{${rows[i + 1][0]} - ${par(rows[i][0])}}`, q: dy / dx };
         };
-        const truth = src.slice(0, -1).map((_, i) => rate(src, i));
+        const truth = known.slice(0, -1).map((_, i) => rate(known, i));
         const ours = mine.slice(0, -1).map((_, i) => rate(mine, i));
         if (truth.every(Boolean) && ours.every(Boolean)
           && truth.every((g) => Math.abs(g.q - truth[0].q) < 1e-9)
           && ours.some((g) => Math.abs(g.q - truth[0].q) > 1e-9)) {
-          const clean = truth.filter((_, i) => i !== miss && i !== miss - 1);
+          const clean = truth.slice(0, Math.max(1, truth.length - 1));
           const dirty = ours.filter((_, i) => i === miss || i === miss - 1);
           return [
             {
@@ -712,8 +1216,14 @@ export function counterexample(item, entry, T) {
 export function invarianceProbe(item, T) {
   const v = varOf(item);
   const src = item?.check?.math || item?.latex;
-  if (!v || !src || /\\square|\\begin|\\Rightarrow|=/.test(String(src))) return [];
-  if (!varsOf(src).includes(v)) return [];
+  // The probe is about an EXPRESSION being rewritten. Anything carrying a
+  // relation — an equals sign, a lean, a band — is a statement, and "put a
+  // number in and it must still come to this" is not what it asserts. The
+  // parser refuses those symbols outright, so the guard has to name them.
+  if (!v || !src || /\\square|\\begin|\\Rightarrow|=|<|>|\\le(?![a-zA-Z])|\\ge(?![a-zA-Z])/.test(String(src))) return [];
+  let vars;
+  try { vars = varsOf(src); } catch { return []; }
+  if (!vars.includes(v)) return [];
   const onScreen = new Set(String(item.latex).match(/\d+/g) || []);
   for (const t of [3, 4, 5, 2, 6, 10, 7]) {
     if (onScreen.has(String(t))) continue;
@@ -833,9 +1343,14 @@ function tracedRows(steps, tier, live) {
     const s = steps[i];
     let level;
     if (live) {
-      // the cadet's own tear: the final line is never handed over, but its
-      // left-hand side is, so the last move is theirs to complete.
-      if (i < last) level = tier >= 3 ? 'full' : (i === 0 ? 'full' : 'hidden');
+      // The cadet's own tear, shown only when the bank held no other rift of
+      // this shape. Every line is opened rather than printed: the left-hand
+      // side and the reason, with the value boxed. A trace of the LIVE item
+      // printed in full is the one scaffold that is guaranteed to contain the
+      // live answer — on a rule written from a table, the first worked line is
+      // the rate, and the rate is half the answer. Opened, the same line is a
+      // completion problem, which is what the ladder is for.
+      if (i < last) level = tier >= 3 ? 'open' : (i === 0 ? 'open' : 'hidden');
       else level = tier >= 4 ? 'open' : 'hidden';
     } else if (tier === 2) {
       level = i === 0 ? 'full' : 'open';

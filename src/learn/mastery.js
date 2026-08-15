@@ -224,12 +224,100 @@ const DEFAULT_MASTERY = {
   gateTol: 0.8,
   gateDebtFree: 2,
   gateDebtCap: 3,
+  // --- what a miss inside an open run costs ---------------------------------
+  // A miss no longer throws the run away; it raises the run's price. Two more
+  // clean unassisted items at the gate band, which is close to what a miss is
+  // actually worth as evidence: at the clean rates this bank produces at the
+  // gate, a miss is about 2.4 clean solves of evidence against. Charging it as
+  // two and letting the banked items stand is strictly more unassisted evidence
+  // behind a claim than the old "three in a row or start again", which paid the
+  // same evidence in discarded work and taught items.
+  gateMissCost: 2,
+  // How many a single run may absorb. One. A second miss inside the same run is
+  // not a slip, and the run ends: the band falls, support returns, and the rift
+  // teaches — the path that keeps a struggler held rather than ground.
+  gateMissLimit: 1,
+  // How many gate items this learner must have answered, anywhere in the
+  // lattice, before `steadyAtGate` will answer at all. Nothing is inferred from
+  // a cold start: below this the slower, supported road is the only road.
+  gateFormMin: 8,
+  // The rate that separates the two readings. It is the same shape as `gateTol`
+  // — how many misses one clean unassisted gate solve pays off — but it is a
+  // different question and it gets its own number: `gateTol` decides how long a
+  // run has to be, and this decides whether the road back to that run is the
+  // supported one. Measured on the shipping bank, a learner at hidden
+  // competence 0.95 arrives here at 0.57 misses per clean solve and one at 0.70
+  // at 1.31, so anything in between separates them; 0.9 sits nearer the
+  // conservative end of that gap.
+  gateFormTol: 0.9,
+  // How many below-gate items answered cold in a row take the ladder straight to
+  // the gate floor. 0 turns it off.
+  climbJump: 2,
   // Whether a clean solve below the gate band buys a whole step of the credit
   // ladder rather than a third of one. See the ladder in `observe` for why.
   fastClimb: true,
   // Nobody is routed around. An unmastered, unlocked skill that has gone this
   // many observations without an item is served next, whatever the scoring says.
   starveLimit: 40,
+  // --- what a held line may cost a sitting ----------------------------------
+  // A line this learner has already proved is the most expensive thing in the
+  // building to serve, because every item spent on it is an item not spent on
+  // the thing they cannot do yet. Three rules bound it, and between them they
+  // are what makes "nobody spends time on what they already know" a property of
+  // the code rather than a claim in the brief:
+  //
+  //   · `heldReserveCap` — the most items one held line may take inside one
+  //     sitting, outside a re-probe the wall clock actually called for. Two.
+  //     The descent that used to be able to ask the same line twelve times now
+  //     has to walk the shard to get its twelve rungs, which is what the
+  //     descent was described as doing in the first place.
+  //   · `heldSpacing`    — items of separation between two of them, so even a
+  //     shard down to its last few held lines cannot serve one back to back.
+  //   · and the router in `taskFor`, which does not ask either question until
+  //     it has first tried to send the learner somewhere with something to
+  //     learn. See `divert`.
+  //
+  // A sitting is the same stretch the belief model already calls one: come back
+  // after `beliefStale` minutes away and the budget is fresh, because a night is
+  // exactly what makes re-asking worth doing.
+  heldReserveCap: 2,
+  heldSpacing: 3,
+  // Interleaved retrieval takes the separation rule above and no count at all,
+  // and that is a measured decision rather than an oversight.
+  //
+  // It is the one way a held line is served that costs a session nothing: it
+  // fires only when practice has gone blocked on a *different*, unmastered
+  // skill, it is drawn from the lattice that skill is built out of, and it is
+  // the mechanism the retention figures rest on. Refusing it does not save the
+  // session an item — it hands the learner a third helping of the skill they
+  // are already stuck on, which is the massed practice this whole file is
+  // arranged to avoid. Graded in tools/simulate.mjs: a hard cap of five per
+  // sitting took true mastery from 100.0% to 99.5% and took end-of-session
+  // hollow claims from 0.1% to 0.4%; a cap of eight took true mastery to 99.1%;
+  // preferring the least-used prerequisite instead of refusing took it to 99.9%
+  // and moved the worst case not at all, because the skills that block are the
+  // ones standing on a single prerequisite. All three bought nothing.
+  // The router itself, as an A/B arm rather than as an option anybody should
+  // turn off: `CFG=divertHeld=0` in tools/simulate.mjs restores the behaviour
+  // where a rift serves its own skill whatever the state of it, which is what
+  // made a proved line answerable nine times in twelve. It exists so the cost
+  // of the fix can be measured instead of asserted.
+  divertHeld: 1,
+  // How many items back the descent refuses to repeat a line over. Widening it
+  // to 4 looks like it ought to spread the descent further and measures
+  // slightly worse (daily all-ten 71.8% -> 70.2% on its own), because the
+  // descent's own scoring already prefers the coldest line and this fights it.
+  // `heldReserveCap` is what actually bounds repetition; this is only a
+  // tie-break, so it stays where it was.
+  soundingRecent: 2,
+  // How many items back the bank remembers a shape for. A form served inside
+  // this window is off the table while any other form can be asked instead, so
+  // "seven of twelve were the same template" cannot be reached from here.
+  shapeWindow: 3,
+  // …and the same rule one level up, on the surface an item is read off. Two
+  // items in a row in the same representation was already refused; this refuses
+  // three in a window of three.
+  repWindow: 2,
 };
 
 export const MASTERY_PL = DEFAULT_MASTERY.pL;
@@ -346,6 +434,25 @@ export class MasteryEngine {
     this.seq = 0;
     this.recent = [];       // skills of the last few items, for interleaving
     this.recentReps = [];   // representations of the last few items, so the surface keeps changing
+    this.recentForms = [];  // item forms of the last few items, so the shape keeps changing
+    /**
+     * THE SITTING — the stretch of play a held line's budget is measured over.
+     *
+     * `beliefStale` minutes of nobody answering anything ends one. That is the
+     * same threshold the belief model uses to decide a posterior has gone cold,
+     * and using one number for both is deliberate: the moment it becomes worth
+     * re-asking a held line is the moment the model stops being sure of it.
+     * Until then, `heldReserveCap` bounds what a proved skill may take.
+     */
+    this.sittingId = 1;
+    this.lastObservedAt = null;
+    // How many items this sitting landed on a line that was already held when
+    // it was served. The number the telemetry that opened this file could not
+    // see, so it is counted here and reported by tools/simulate.mjs.
+    this.heldItems = 0;
+    // Times the router turned a learner away from a rift it had nothing to
+    // teach them at, and sent them to the highest-leverage open line instead.
+    this.diverts = 0;
     this.dry = 0;           // consecutive items that arrived with no situation at all
     this.sceneLog = [];     // did the last dozen items arrive dressed in a situation?
     // 'leverage' is what ships. 'lowest-pL' is the policy this replaced, kept
@@ -424,6 +531,58 @@ export class MasteryEngine {
   isDue(s, now = this.now()) {
     if (!s || !s.mastered || s.dueTime == null) return false;
     return now >= s.dueTime && (s.dueAt == null || this.clock >= s.dueAt);
+  }
+
+  // --- the sitting, and what a held line may take out of it -----------------
+
+  /**
+   * Roll the per-sitting budgets if the learner has actually been away.
+   *
+   * Called at the top of every routing decision rather than on a timer, so a
+   * tab left open over lunch and a genuine return are the same event to it: the
+   * gap is measured off the last answer, not off the last frame.
+   */
+  newSitting(now = this.now()) {
+    if (this.lastObservedAt == null) return false;
+    if (now - this.lastObservedAt < this.cfg.beliefStale * MINUTE) return false;
+    this.sittingId += 1;
+    this.lastObservedAt = now;
+    for (const s of this.state.values()) { s.heldServed = 0; s.heldServedClock = null; }
+    this.heldItems = 0;
+    this.diverts = 0;
+    return true;
+  }
+
+  /**
+   * A line that is held and has nothing to offer right now: proved, no proving
+   * run in flight, no sight-read outstanding, and its spaced re-probe has not
+   * come round on the wall clock. This is the exact condition under which a
+   * rift is not allowed to drill its own skill.
+   */
+  heldQuietly(s) {
+    return !!s && s.mastered && !s.check && !s.probe && !this.isDue(s);
+  }
+
+  /**
+   * May this held line be asked again inside this sitting?
+   *
+   * Two gates, both cheap and both hard: a count, so no line can take more than
+   * `heldReserveCap` of a sitting's items; and a separation in items, so the two
+   * it may take cannot be served back to back. Neither applies to a re-probe the
+   * wall clock called for — `isDue` has already made that argument on stronger
+   * evidence than either of these.
+   */
+  mayReserve(s, spacing = this.cfg.heldSpacing, cap = this.cfg.heldReserveCap) {
+    if (!s) return false;
+    if ((s.heldServed || 0) >= cap) return false;
+    if (s.heldServedClock != null && this.clock - s.heldServedClock < spacing) return false;
+    return true;
+  }
+
+  /** Book one item of this sitting's held-line budget against a skill. */
+  reserve(s) {
+    s.heldServed = (s.heldServed || 0) + 1;
+    s.heldServedClock = this.clock;
   }
 
   /** Skills whose spaced re-probe has come round, soonest-due first. */
@@ -578,6 +737,10 @@ export class MasteryEngine {
    * about the weights.
    */
   next() {
+    // Same roll as `taskFor`, because a caller may ask this first — every
+    // harness in tools/ does — and a held-line budget read from the sitting
+    // before this one would spend a lap of the descent on the first item back.
+    this.newSitting();
     if (this.policy === 'lowest-pL') return this.nextByLowestPL();
     const open = this.unlockedSkills().map((id) => this.state.get(id));
     if (!open.length) return null;
@@ -613,12 +776,44 @@ export class MasteryEngine {
    * rather than asking one skill ten times. Nothing just asked is asked again,
    * and a line that has gone longest untouched wins the tie.
    */
-  soundingPick() {
-    const pool = this.unlockedSkills()
+  soundingPick({ relax = false } = {}) {
+    let pool = this.unlockedSkills()
       .map((id) => this.state.get(id))
-      .filter((s) => s.mastered);
+      .filter((s) => s.mastered && !s.check);
     if (!pool.length) return null;
-    const last = this.recent.slice(-2);
+    // --- the budget ---------------------------------------------------------
+    // A descent of twelve rungs across ten held lines never needs more than two
+    // from any one of them, so this is not a restriction on the descent — it is
+    // the difference between a descent and a drill.
+    //
+    // Note where this method can be reached from. `next()` falls through to it
+    // only when nothing unlocked scores above zero, and `divert` reaches it only
+    // after tier 1 found no open line: both mean *there is nothing left in this
+    // shard to learn*. So the budget here is never rationing a held line against
+    // an open one — that argument was already won upstairs. It is pacing, and
+    // pacing must never be able to leave the engine with nothing to say.
+    //
+    // Hence the lap. When every held line has spent its budget the descent has
+    // walked the whole shard, and walking it again is the correct next thing to
+    // do — so `relax` starts a new lap rather than returning null. Returning
+    // null here is what took `next()` to null, which took tools/simulate.mjs's
+    // loop to `break`, which is a 500-item session silently becoming a 250-item
+    // one. The separation in items is what survives a lap, and it is the rule
+    // that actually bounds repetition inside any one stretch of play.
+    let afford = pool.filter((s) => this.mayReserve(s));
+    if (!afford.length && relax) {
+      for (const s of pool) s.heldServed = 0;
+      this.sounding.laps = (this.sounding.laps || 0) + 1;
+      afford = pool.filter((s) => this.mayReserve(s));
+      // A shard with very few held lines cannot always honour the separation.
+      // It can always honour "not the one just asked", and that is the floor.
+      if (!afford.length) afford = pool.filter((s) => this.recent[this.recent.length - 1] !== s.id);
+      if (!afford.length) afford = pool;
+    }
+    if (!afford.length) return null;
+    pool = afford;
+    // Nothing just asked is asked again.
+    const last = this.recent.slice(-(this.cfg.soundingRecent | 0));
     const want = Math.min(1, this.sounding.rung / 6);
     let best = null, bestV = -Infinity;
     for (const s of pool) {
@@ -639,7 +834,10 @@ export class MasteryEngine {
   }
 
   nextSounding() {
-    const s = this.soundingPick();
+    // The budget first, then the same pick with the count dropped. A shard
+    // whose every held line has spent its two still owes the learner an item;
+    // what it does not owe them is the same line twice running.
+    const s = this.soundingPick() || this.soundingPick({ relax: true });
     return s ? { id: s.id, kind: 'deep', reason: 'sounding' } : null;
   }
 
@@ -664,12 +862,11 @@ export class MasteryEngine {
       const modelling = chosen.filter((f) => MODELLING_REPS.has(f.rep));
       if (modelling.length) chosen = modelling;
     }
-    const lastRep = this.recentReps[this.recentReps.length - 1];
-    if (lastRep && chosen.length > 1) {
-      const other = chosen.filter((f) => f.rep !== lastRep);
-      if (other.length) chosen = other;
-    }
+    chosen = this.varyShape(chosen);
     s.lastServed = { difficulty: d, kind: 'deep' };
+    // One rung of this sitting's budget for held lines, booked here because
+    // this is the only place a rung is actually handed out.
+    this.reserve(s);
     return {
       skill: s.id,
       kind: 'deep',
@@ -679,9 +876,49 @@ export class MasteryEngine {
       reps: null,
       avoidScenes: Object.keys(s.scenesSeen),
       check: null,
+      // This item is on a line this learner has already proved, and the surface
+      // is entitled to say so rather than letting it read as new work. It is
+      // the deliberate, spaced, labelled re-probe the brief asks for, and
+      // `heldServed` is how many of this sitting's two it has now taken.
+      reprobe: { held: true, of: this.cfg.heldReserveCap, taken: s.heldServed },
       // How deep the descent already is, so the surface can say so.
       sounding: { rung: this.sounding.rung + 1, best: this.sounding.best },
     };
+  }
+
+  /**
+   * Drop the shapes this learner has just seen.
+   *
+   * "Seven of twelve were the identical template" is its own failure, separate
+   * from which skill was served, and it survived every existing preference in
+   * this file because they are all *per skill*: `task` prefers the form seen
+   * least on this skill, `soundingTask` prefers one whose situations are not all
+   * worked — and a form with fifty situations in its bank stays novel by that
+   * test for ever, so it can be served five times in nine items and never once
+   * be the wrong answer. This is the missing rule, and it is global: a form
+   * served inside the last `shapeWindow` items is off the table while any other
+   * form can be asked, and the same for the surface it is read off.
+   *
+   * It is the last preference applied, so it can only ever break a tie that the
+   * pedagogical rules above it have already left open.
+   */
+  varyShape(pool, { forms: useForms = true, reps: repWindow = this.cfg.repWindow } = {}) {
+    if (!pool || pool.length < 2) return pool || [];
+    let out = pool;
+    const w = this.cfg.shapeWindow | 0;
+    const shapes = new Set(useForms && w > 0 ? this.recentForms.slice(-w) : []);
+    if (shapes.size) {
+      const other = out.filter((f) => !shapes.has(f.id));
+      if (other.length) out = other;
+    }
+    if (out.length < 2) return out;
+    const rw = repWindow | 0;
+    const reps = new Set(rw > 0 ? this.recentReps.slice(-rw) : []);
+    if (reps.size) {
+      const other = out.filter((f) => !reps.has(f.rep));
+      if (other.length) out = other;
+    }
+    return out;
   }
 
   /** The policy this replaced: due review first, then the lowest posterior. */
@@ -782,13 +1019,54 @@ export class MasteryEngine {
     if (this.cfg.sightRead) s.probe = { band: this.sightReadBandFor(s.id) };
   }
 
-  taskFor(skillId) {
+  /**
+   * Turn "the learner walked into the rift for `skillId`" into a concrete task.
+   *
+   * The rift *names* a skill. It does not get to insist on it.
+   *
+   * This method used to obey the rift: whatever line the player was standing in
+   * front of, that is the line it served, and when that line was already held it
+   * fell through to a rung of the sounding **on the same skill** — with no cap,
+   * no spacing and no label. A player who solved an item chained straight back
+   * into the same rift (src/main.js), so standing still was enough to be asked
+   * one proved skill nine times running while an unmastered skill next door was
+   * never served at all. Every part of the engine that could have caught it was
+   * looking the other way: `next()` scores a held, not-due line at -1 and would
+   * never have picked it, and tools/simulate.mjs drives `next()`, so the whole
+   * failure lived in the one path only a real player takes.
+   *
+   * So the rift is now an *entry point* and this is a router. In order:
+   *
+   *   1. a proving run in flight, a sight-read outstanding, a re-probe the wall
+   *      clock called for, or a line not yet held — serve it. This is the
+   *      "we stay on the topic until it is mastered" half of the promise, and
+   *      nothing below may pre-empt it;
+   *   2. otherwise the line is held and quiet, and there is nothing here worth a
+   *      minute of anybody's session — so `divert` sends the learner to the
+   *      highest-leverage OPEN line instead, and says so in the task;
+   *   3. and only when there is genuinely nothing open anywhere does the lattice
+   *      sound — across the whole shard, under a per-sitting budget, labelled.
+   */
+  taskFor(skillId, opts = {}) {
     const s = this.state.get(skillId);
     if (!s) return null;
     this.place(s);
+    // Has the learner been away long enough that the held-line budgets should
+    // start again? Asked here because this is where every routing decision
+    // begins, for the game and for every harness that drives it.
+    this.newSitting();
 
     // A proving run in progress always continues, uninterrupted.
     if (s.check) return this.checkTask(s);
+
+    // --- the rift has nothing to teach this learner -------------------------
+    // Held, no run, no sight-read, and the schedule has not called for it. Ten
+    // more items here would move nothing the model does not already know. The
+    // one caller that pins is `divert` itself, so the router cannot loop.
+    if (!opts.pinned && this.cfg.divertHeld && this.heldQuietly(s)) {
+      const away = this.divert(skillId);
+      if (away) return away;
+    }
 
     // The sight-read. One item, gate band, no support, before anything is
     // taught — because if the learner can already do this, everything the rift
@@ -815,15 +1093,72 @@ export class MasteryEngine {
       // Due means due on the clock a night is measured on. If it is, this is a
       // re-probe on the terms a re-probe is judged on: the schedule advances, a
       // miss opens the lapse path, and a pass across a real gap is durable
-      // retention. If it is not, no amount of dressing makes it one, so the
-      // rift hands back a rung of the sounding instead — the top of the bank,
-      // for the descent, for the shards, and for no standing at all.
+      // retention.
       if (this.isDue(s)) {
         return this.task(s, 'review', { difficulty: Math.min(4, Math.max(3, s.difficulty)), scaffold: 'none' });
       }
+      // Not due. This is only reachable with `pinned` — the router above has
+      // already tried everywhere else and the descent has chosen this line on
+      // purpose — so it is a rung of the sounding, and it is booked against
+      // this sitting's budget for held lines.
       return this.soundingTask(s);
     }
     return this.task(s, 'learn', { difficulty: s.difficulty, scaffold: this.scaffoldFor(skillId) });
+  }
+
+  /**
+   * Where to send a learner standing at a rift that has nothing to teach them.
+   *
+   * Three tiers, in order of how much they are worth to a session:
+   *
+   *   1. the highest-leverage OPEN line — something unmastered, or a re-probe
+   *      the clock has actually called for. This is the answer nearly every
+   *      time, and it is the whole of "every minute goes to the highest-leverage
+   *      topic": `next()` already computes it and already scores a held, quiet
+   *      line at -1, it simply was never asked;
+   *   2. a rung of the descent, chosen across the whole shard by `soundingPick`
+   *      and paid for out of this sitting's held-line budget;
+   *   3. and, when every held line has spent its budget, the one that has gone
+   *      longest untouched — still spaced, still labelled, and reached only in
+   *      an endgame where all ten lines are proved and none is due.
+   *
+   * It never returns the line it was called about unless that line wins tier 3
+   * on its own merits, and it never returns null, because the caller's caller
+   * (src/main.js) treats null as "band-1 practice on the rift's own skill",
+   * which is the failure this whole method exists to prevent.
+   */
+  divert(from) {
+    const pick = this.next();
+    // Tier 1 is only tier 1 if the line it names is genuinely open. Asking the
+    // state rather than inspecting the task that comes back is what keeps the
+    // pinned call below unable to reach `soundingTask` — and therefore unable
+    // to spend a rung of the held-line budget on a task this method then
+    // throws away.
+    if (pick && pick.reason !== 'sounding' && pick.id !== from
+      && !this.heldQuietly(this.state.get(pick.id))) {
+      const t = this.taskFor(pick.id, { pinned: true });
+      if (t) {
+        this.diverts += 1;
+        t.divertedFrom = from;
+        t.reason = pick.reason || 'leverage';
+        return t;
+      }
+    }
+    // Tier 2 and 3 are both `next()`'s own answer, taken as given.
+    //
+    // It is deliberate that this does not re-run `soundingPick` with `from`
+    // excluded. `next()` has already asked it, across the whole shard, with the
+    // budget and the recency spread applied; asking again with one skill
+    // removed would quietly hand back the *second* best rung and defeat the
+    // scoring that makes a descent a descent. If the shard's best rung really is
+    // the line the learner is standing at, they get it — once, labelled, and no
+    // more than `heldReserveCap` times in a sitting, which is the whole of what
+    // this router was asked to guarantee.
+    const s = pick && pick.reason === 'sounding' ? this.state.get(pick.id) : null;
+    if (!s) return null;
+    const t = this.soundingTask(s);
+    if (t && s.id !== from) t.divertedFrom = from;
+    return t;
   }
 
   blocked(skillId) {
@@ -831,13 +1166,28 @@ export class MasteryEngine {
     return r.length >= 2 && r[r.length - 1] === skillId && r[r.length - 2] === skillId;
   }
 
-  /** A mastered prerequisite that has gone longest without being touched. */
+  /**
+   * A mastered prerequisite that has gone longest without being touched.
+   *
+   * This is the one place a held line is served that is *not* a cost to the
+   * session, and it must not be confused with the defect this router was
+   * written for. It fires only when practice has gone blocked — two items in a
+   * row on the same skill — it serves a *different* skill from the one being
+   * drilled, and it is retrieval practice on the lattice the current skill is
+   * built out of. Measured, it is worth several points of retention in the
+   * lowest ability quintile, and capping it by count cost exactly that.
+   *
+   * So it takes the separation rule and not the count: a held prerequisite is
+   * never the retrieval target twice inside `heldSpacing` items, and the sort
+   * already prefers whichever has gone longest untouched.
+   */
   retrievalCandidate(skillId) {
     const n = this.nodes.get(skillId);
     if (!n) return null;
     const pool = [...allPrereqs(this.graph, skillId)]
       .map((id) => this.state.get(id))
-      .filter((x) => x && x.mastered)
+      .filter((x) => x && x.mastered && !x.check
+        && this.mayReserve(x, this.cfg.heldSpacing, Infinity))
       .sort((a, b) => (a.lastSeenAt ?? -1) - (b.lastSeenAt ?? -1));
     return pool[0] || null;
   }
@@ -874,14 +1224,38 @@ export class MasteryEngine {
       const modelling = chosen.filter((f) => MODELLING_REPS.has(f.rep));
       if (modelling.length) chosen = modelling;
     }
-    // Two items in the same representation back to back is how a mastery game
-    // turns into a worksheet. Where the pool allows it, change the surface.
-    const lastRep = this.recentReps[this.recentReps.length - 1];
-    if (lastRep && chosen.length > 1) {
-      const other = chosen.filter((f) => f.rep !== lastRep);
-      if (other.length) chosen = other;
-    }
+    // Two items in the same shape or the same surface back to back is how a
+    // mastery game turns into a worksheet. Where the pool allows it, change it.
+    //
+    // How hard depends on what this item is for, and the difference is worth
+    // stating because getting it wrong is expensive in both directions.
+    //
+    // On an item served to *teach*, the strong preference three lines above —
+    // the form this learner has met least on this skill — is already what stops
+    // a skill collapsing into one template, and it is the right rule, because it
+    // is measured per skill against what that learner has actually practised.
+    // Layering the global "not a shape from the last three items" rule on top of
+    // it costs real retention: graded in tools/simulate.mjs it took the lowest
+    // ability quintile from 6.7% to 3.3% and true mastery of the level from
+    // 28.5% to 21.5% among weekly returners, because it keeps moving a
+    // struggling learner onto a different shape exactly when repetition is what
+    // they need. So teaching, the sight-read and the retention probe keep the
+    // baseline rule and nothing more: do not repeat the surface just used.
+    //
+    // On an item served on a line this learner has already *proved*, there is no
+    // per-skill "met least" rule in play at all — every form has been met — and
+    // that is exactly where twelve items collapsed into one template. So those
+    // get the global rule. See `varyShape` and `soundingTask`.
+    const heldItem = kind === 'retrieval';
+    chosen = this.varyShape(chosen, {
+      forms: heldItem,
+      reps: heldItem ? this.cfg.repWindow : 1,
+    });
     const fresh = chosen.map((f) => f.id);
+    // An interleaved retrieval item is a held line taking one of this sitting's
+    // items: spaced by the same rule, counted against its own looser ceiling.
+    // See `retrievalCandidate` for why the two ceilings are not the same number.
+    if (s.mastered && kind === 'retrieval') s.heldServedClock = this.clock;
     const requiredReps = (this.nodes.get(s.id)?.requiredReps || []).filter((rep) => !(s.repsCorrect[rep] > 0));
     // What band this skill was actually asked at, so `observe` can judge the
     // answer against the demand it was given rather than against wherever the
@@ -936,10 +1310,24 @@ export class MasteryEngine {
    * hardest skill, it lowers that skill no further than the second-hardest, and
    * it never goes below the gate floor.
    */
-  sightReadBandFor(id) {
-    const c = this.cfg;
-    const floor = c.checkMinDifficulty;
-    const want = Math.max(floor, c.sightReadBand);
+  /**
+   * The cross-skill demand cap, applied to any band a *gate* is asked at.
+   *
+   * A band is an ordinal inside one skill's own ladder. Measured on the shipping
+   * bank, band 5 runs from demandOf 6.8 to 10.2 across this level, so pinning a
+   * gate to the ordinal asks a very different question of a multi-step equation
+   * than of a one-step one. This caps it: no skill's gate may be harder than the
+   * hardest gate the rest of the level can offer at the same ordinal.
+   *
+   * It is a one-sided outlier rule. The ceiling is the maximum over the *other*
+   * skills, so the hardest skill in a level is the only one that can ever be
+   * capped — every other skill has that outlier sitting in its own ceiling and
+   * is therefore never bound. It lowers the outlier no further than the
+   * second-hardest gate in the level and never below the gate floor.
+   */
+  capBand(id, want) {
+    const floor = this.cfg.checkMinDifficulty;
+    if (want <= floor) return want;
     const lad = demandLadder();
     const row = lad[id];
     const others = this.graph.nodes.map((n) => n.id).filter((x) => x !== id && lad[x]);
@@ -948,6 +1336,34 @@ export class MasteryEngine {
     let d = want;
     while (d > floor && row[d - 1] > ceiling) d--;
     return d;
+  }
+
+  /** What band the sight-read is asked at on this skill. */
+  sightReadBandFor(id) {
+    return this.capBand(id, Math.max(this.cfg.checkMinDifficulty, this.cfg.sightReadBand));
+  }
+
+  /**
+   * What band a proving run is served at.
+   *
+   * The claim a run makes is "mastered", and it is the same claim on the first
+   * run and on the fourth. The band used to be read straight off the credit
+   * ladder, which meant a *failed* run raised the bar for the next one: the
+   * ladder climbs back on clean solves, so a learner who lost a run at band 4
+   * came back to a run at band 5. On the hardest skill in the level that is a
+   * spiral — its band-5 demand measures 10.2 against a level-wide gate ceiling
+   * of 8.4, and a learner who genuinely knows the skill answers it cold 58% of
+   * the time against 71% at band 4, so each failure made the next attempt
+   * likelier to fail as well. Measured, that one skill owned 23% of the whole
+   * test-out tail and carried a 43-minute p90.
+   *
+   * A gate that gets harder every time it is attempted is not a stricter gate,
+   * it is a moving one. So the run opens at the ladder's band, capped by the
+   * cross-skill rule above — the same cap the sight-read has always used, and
+   * for the same reason.
+   */
+  gateBandFor(id, band) {
+    return this.capBand(id, Math.min(5, Math.max(this.cfg.checkMinDifficulty, band)));
   }
 
   /** The highest band this learner has already solved cleanly on this skill. */
@@ -973,6 +1389,36 @@ export class MasteryEngine {
     const missed = (s.gateSeen || 0) - (s.gateClean || 0);
     const debt = Math.floor(missed - this.cfg.gateTol * (s.gateClean || 0) - this.cfg.gateDebtFree);
     return base + Math.min(this.cfg.gateDebtCap, Math.max(0, debt));
+  }
+
+  /**
+   * Is this learner slipping, or struggling?
+   *
+   * One miss on one skill cannot tell the two apart, and the engine used to
+   * charge every miss as though it were the second: the band fell, a completion
+   * problem came back, and the road to the gate was three or four taught items.
+   * For a learner who is struggling that is exactly right and it is why they
+   * reach mastery at all. For a learner who already knew the skill and blinked,
+   * it is the single most expensive event in the system, and it is charged on
+   * no evidence — because the evidence that settles it is not on this skill.
+   *
+   * So the question is asked of the **whole lattice**: across every gate item
+   * this learner has ever been served, on every skill, does their record read
+   * like a slip or like a pattern? It is the same running balance the run
+   * length uses (`gateTol` misses paid off per clean solve), and it needs
+   * `gateFormMin` gate items before it will answer at all, so nothing is
+   * inferred from a cold start.
+   *
+   * Measured on the bank this ships with, a learner at hidden competence 0.95
+   * answers 81% of gate items cold and reads steady; one at 0.70 answers 66%
+   * and does not. That is a real discriminator and it is one the per-skill
+   * record cannot see, which is the whole reason it is here.
+   */
+  steadyAtGate() {
+    let seen = 0, clean = 0;
+    for (const s of this.state.values()) { seen += s.gateSeen || 0; clean += s.gateClean || 0; }
+    if (seen < this.cfg.gateFormMin) return false;
+    return (seen - clean) <= this.cfg.gateFormTol * clean;
   }
 
   /**
@@ -1010,8 +1456,7 @@ export class MasteryEngine {
     // raising its own bar on the last item is not a stricter test, it is a
     // moving one, and it threw away runs that had already met the standard they
     // opened on.
-    const floor = this.cfg.checkMinDifficulty;
-    const d = Math.min(5, Math.max(floor, s.check.band ?? s.difficulty));
+    const d = this.gateBandFor(s.id, s.check.band ?? s.difficulty);
     const eligible = forms.filter((f) => d >= f.dMin && d <= f.dMax);
     const seen = (f) => (s.formsSeen[f.id]?.seen || 0);
     const unused = eligible.filter((f) => !s.check.forms.includes(f.id));
@@ -1095,7 +1540,13 @@ export class MasteryEngine {
     // right level of support and the full example is redundant load.
     if (s.attempts < 2) return this.priorCompetence(id) >= 0.9 ? 'partial' : 'full';
     if (s.pL < 0.35 || s.consecutiveWrong >= 2) return 'full';
-    if (s.pL < 0.7 || recentMiss) return 'partial';
+    // A completion problem after one miss is the right answer for a learner who
+    // is struggling and the wrong one for a learner who blinked: it is assisted
+    // by construction, so it cannot count towards anything, and it is therefore
+    // an item that costs a minute and settles nothing. A learner whose record
+    // across the lattice reads steady at the gate is offered the item cold, and
+    // a second consecutive miss puts the support back for everybody.
+    if (s.pL < 0.7 || (recentMiss && !this.steadyAtGate())) return 'partial';
     return 'none';
   }
 
@@ -1118,6 +1569,14 @@ export class MasteryEngine {
     this.clock += 1;
     this.seq += 1;
     const now = this.now();
+    // How many items of this sitting landed on a line that was already held when
+    // it was served. This is the figure the session telemetry that opened this
+    // defect had to be read by hand to discover, so the engine now counts it and
+    // tools/simulate.mjs prints it. `heldQuietly` is deliberately not used here:
+    // a due re-probe is an item on a held line too, and hiding it inside a
+    // category called "legitimate" is how the original nine hid.
+    if (s.mastered) this.heldItems += 1;
+    this.lastObservedAt = now;
     // --- the belief goes stale before the answer is folded in ---------------
     // How long since this skill was last put in front of this learner, in real
     // time. See `beliefHalfLife`: a posterior nobody has tested since Friday is
@@ -1135,6 +1594,12 @@ export class MasteryEngine {
     const wasNovel = (!!meta.form && !(s.formsSeen[meta.form]?.seen))
       || (!!meta.scene && !(meta.scene in s.scenesSeen));
     if (meta.rep) { this.recentReps.push(meta.rep); if (this.recentReps.length > 8) this.recentReps.shift(); }
+    // The shapes the last few items actually arrived in, across every skill.
+    // Per-skill form counts cannot see "the same template five times in nine
+    // items" when the templates belong to different skills, and cannot see it
+    // even within one skill when the form's own bank of situations keeps it
+    // looking novel. See `varyShape`.
+    if (meta.form) { this.recentForms.push(meta.form); if (this.recentForms.length > 8) this.recentForms.shift(); }
     this.dry = meta.scene ? 0 : this.dry + 1;
     this.sceneLog.push(meta.scene ? 1 : 0);
     if (this.sceneLog.length > 12) this.sceneLog.shift();
@@ -1219,8 +1684,23 @@ export class MasteryEngine {
       || s.difficulty < this.provenBand(s))) {
       s.credit = Math.max(s.credit, 3);
     }
+    // How many below-gate items in a row this learner has answered cold. The
+    // ladder's own target is four in five, and a learner running at five in five
+    // two bands under the gate is not being measured by the wait — they are only
+    // being charged for it, one item per band. Once the run reaches `climbJump`
+    // the ladder stops stepping and goes straight to the gate floor, which is
+    // the highest band it is allowed to conclude anything about from below-gate
+    // work. A single miss ends the run and the ladder steps down as it always
+    // did, so this shortens the road up and leaves the road down alone.
+    if (band < this.cfg.checkMinDifficulty) s.climbRun = clean ? (s.climbRun || 0) + 1 : 0;
+    else if (!clean) s.climbRun = 0;
     if (s.credit >= 3) { s.difficulty = Math.min(5, s.difficulty + 1); s.credit = 0; }
     else if (s.credit <= -2) { s.difficulty = Math.max(1, s.difficulty - 1); s.credit = 0; }
+    if (this.cfg.climbJump && (s.climbRun || 0) >= this.cfg.climbJump
+      && s.difficulty < this.cfg.checkMinDifficulty) {
+      s.difficulty = this.cfg.checkMinDifficulty;
+      s.credit = 0;
+    }
 
     const wasMastered = s.mastered;
     let checkEvent = null;
@@ -1244,6 +1724,11 @@ export class MasteryEngine {
           done: 1,
           need,
           base: need,
+          // Misses this run has absorbed, and how far it has been extended to
+          // meet its own closing conditions. They are counted apart because the
+          // extension bound must not be payable in misses.
+          missed: 0,
+          ext: 0,
           forms: meta.form ? [meta.form] : [],
           reps: meta.rep ? [meta.rep] : [],
           nonSymbolic: !!meta.rep && meta.rep !== 'symbolic',
@@ -1311,25 +1796,109 @@ export class MasteryEngine {
           // stricter gate silently dropping the transfer requirement, which is
           // the exact opposite of what the debt is for.
           const spans = s.check.nonSymbolic && s.check.reps.length >= 2 && s.check.modelled;
-          if (spans || s.check.need >= (s.check.base ?? this.cfg.checkItems) + 2) {
+          if (spans || (s.check.ext || 0) >= 2) {
             this.promote(s);
             checkEvent = 'passed';
           } else {
             s.check.need += 1;
+            s.check.ext = (s.check.ext || 0) + 1;
           }
         }
       } else {
-        // The band is deliberately *not* pinned here. Holding a learner who has
-        // just failed a gate item at the gate band reads like rigour and
-        // measures like abandonment: tools/simulate.mjs puts true mastery 8.4
-        // points lower and the bottom ability quintile 18 points lower when the
-        // band is held, because a learner who cannot yet do band 4 is then
-        // served nothing but band 4. The credit ladder takes them down a step,
-        // support comes back, and they climb again.
-        s.check = null;
-        s.cleanRun = 0;
-        s.pL = Math.min(s.pL, 0.88);
-        checkEvent = 'failed';
+        // --- a miss inside the run ------------------------------------------
+        // A miss used to throw the whole run away. That is the single most
+        // expensive event in the system for a learner who already knows this,
+        // and it is expensive twice over: the clean unassisted gate items
+        // already banked are discarded, *and* the credit ladder drops the band
+        // so the road back to the gate is three or four taught items that teach
+        // a knower nothing. Measured, one slip cost a knower about nine items.
+        //
+        // It was also the wrong statistic. "Three in a row, or start again" is
+        // a memoryless repeated trial, and a repeated trial is the shape that
+        // lets a learner who is genuinely below the bar arrive often enough to
+        // pass on luck. Evidence does not work that way: a clean unassisted
+        // band-4 solve is evidence whether or not the next item is missed, and
+        // a miss is evidence against, worth — at the accuracies this bank
+        // actually produces at the gate — a little over two clean solves.
+        //
+        // So the run now **charges** the miss instead of discarding the run.
+        // The claim already banked stands, and the price of the miss is that
+        // the run must now produce `gateMissCost` more clean unassisted items
+        // at the gate band than it otherwise would. A run that absorbs a miss
+        // therefore ends on *more* unassisted evidence than a clean one, never
+        // less, so nothing here lowers the bar — it only stops the bar from
+        // being re-set to zero.
+        //
+        // A run absorbs a miss only for a learner whose record **across the
+        // whole lattice** reads like a slip rather than a pattern, and only
+        // `gateMissLimit` times. That condition is what pays for it. Absorbing
+        // a miss unconditionally is a real concession — measured, it takes a
+        // learner frozen at competence 0.70 from clearing 65.5% of the time
+        // inside a sitting to 73.5% — because it is exactly the concession a
+        // learner who is guessing needs. Read across the lattice it is not a
+        // concession at all: a learner at 0.70 answers 66% of gate items cold
+        // everywhere and never qualifies, and a learner who knows this level
+        // answers 81% and qualifies from their second skill onwards. The
+        // evidence that separates a slip from a pattern was never on this skill.
+        //
+        // For everybody else the old path is exactly right: the run ends, the
+        // band falls, support comes back, and the rift teaches. The band is
+        // deliberately not pinned there — holding a learner who has just failed
+        // a gate item at the gate band reads like rigour and measures like
+        // abandonment (true mastery 8.4 points lower, the bottom ability
+        // quintile 18 points lower, when the band is held).
+        //
+        // The charge is per *item*, not per observation. A gate item that is
+        // missed and then re-tried with the answer on screen reports twice —
+        // once wrong, once assisted-correct — and both land here. Charging the
+        // same item twice would make `gateMissLimit` mean half what it says, so
+        // the served item is stamped when it is charged and its retries are
+        // free. They are not free evidence: an assisted solve satisfies nothing
+        // and `done` does not move for it.
+        if (s.check.chargedFor !== s.lastServed) {
+          s.check.chargedFor = s.lastServed;
+          s.check.missed = (s.check.missed || 0) + 1;
+          if (s.check.missed <= this.cfg.gateMissLimit && this.steadyAtGate()) {
+            s.check.need += this.cfg.gateMissCost;
+            s.cleanRun = 0;
+            // A miss still costs standing — just not the run. The clip is
+            // gentler than the one below because the run is still open and is
+            // still being paid for in extra unassisted items.
+            s.pL = Math.min(s.pL, 0.93);
+            checkEvent = 'charged';
+          } else {
+            // The run ends. What that costs depends on which learner this is,
+            // and the answer is read off the whole lattice rather than off this
+            // one skill — see `steadyAtGate`.
+            //
+            // A learner who is struggling gets the road that gets them there:
+            // the band falls, support comes back, and the rift teaches. The
+            // band is deliberately not pinned for them — holding a learner who
+            // has just failed a gate item at the gate band reads like rigour
+            // and measures like abandonment (true mastery 8.4 points lower, the
+            // bottom ability quintile 18 points lower, when the band is held).
+            //
+            // A learner whose record across the lattice is knower-level keeps
+            // the band and keeps the standing that lets the gate re-open on one
+            // clean unassisted item. They are not let off the run: they still
+            // have to produce the whole thing again, and every gate item they
+            // have missed is already lengthening it through `runLength`. What
+            // they are let off is the three or four taught items in between,
+            // which were never evidence about anything.
+            const steady = this.steadyAtGate();
+            const held = Math.min(5, Math.max(this.cfg.checkMinDifficulty, s.check.band ?? s.difficulty));
+            s.check = null;
+            s.cleanRun = 0;
+            if (steady) {
+              s.difficulty = Math.max(s.difficulty, held);
+              s.credit = 0;
+              s.pL = Math.min(s.pL, this.cfg.fastPL);
+            } else {
+              s.pL = Math.min(s.pL, 0.88);
+            }
+            checkEvent = 'failed';
+          }
+        }
       }
     } else if (!s.mastered) {
       // Two roads to the same run. The long one is unchanged: a posterior at
@@ -1344,9 +1913,9 @@ export class MasteryEngine {
       if (classic || fast) {
         const need = this.runLength(s, this.regrantItems(s));
         s.check = {
-          done: 0, need, base: need,
+          done: 0, need, base: need, missed: 0, ext: 0,
           forms: [], reps: [], nonSymbolic: false, modelled: false, novel: false,
-          band: Math.min(5, Math.max(c.checkMinDifficulty, s.difficulty)),
+          band: this.gateBandFor(s.id, s.difficulty),
           // Which road opened it, and on how many clean unassisted solves. The
           // long road and the short one ask for different things and the two
           // are not interchangeable evidence, so the report is given both the
@@ -1566,11 +2135,34 @@ export class MasteryEngine {
     // It is deliberately a snapshot and not a live read: `cleanRun` keeps
     // moving after promotion (a missed re-probe zeroes it), so a live read of
     // it is a number about last Tuesday, not about the claim.
+    //
+    // WHAT WAS ADDED AFTER A COLD READER CAUGHT THE REPORT LYING
+    //
+    // The receipt recorded the road and the items and stopped, so the report had
+    // no way to tell a run that went straight through from a run that absorbed
+    // two misses and paid for them — and printed "this line proved out on first
+    // contact" over both. On the sight road that sentence was appearing above
+    // "questions here: 7" and "solved unaided: 71%", which is the report
+    // contradicting itself on one card.
+    //
+    //   missed     misses this run absorbed and charged itself extra items for
+    //   ext        items the run added to itself to span a second surface
+    //   attemptsAt every question asked on this line when the claim was granted,
+    //              including assisted ones and the misses — the denominator the
+    //              report has to be able to lay `items` beside
+    //   firstContact  the *only* condition under which a card may say this line
+    //              proved out cold: the sight-read opened the run, the run never
+    //              stumbled, and no question was asked here that is not in the
+    //              claim. A road is not a story; this is the story.
     const c = s.check || {};
     const entryRun = c.entryRun ?? 0;
     const checkDone = c.done ?? 0;
+    const road = c.road || (c.viaSightRead ? 'sight' : 'long');
+    const items = entryRun + checkDone;
+    const missed = c.missed || 0;
+    const attemptsAt = s.attempts || items;
     s.provenBy = {
-      road: c.road || (c.viaSightRead ? 'sight' : 'long'),
+      road,
       entryRun,
       entryNeed: c.entryNeed ?? this.cfg.cleanRun,
       entryBand: c.entryBand ?? c.band ?? this.cfg.checkMinDifficulty,
@@ -1581,7 +2173,11 @@ export class MasteryEngine {
       reps: [...(c.reps || [])],
       forms: [...(c.forms || [])],
       novel: !!c.novel,
-      items: entryRun + checkDone,
+      items,
+      missed,
+      ext: c.ext || 0,
+      attemptsAt,
+      firstContact: road === 'sight' && missed === 0 && attemptsAt === items,
       pL: s.pL,
       regrant,
       clock: this.clock,
@@ -1640,6 +2236,7 @@ export class MasteryEngine {
       sounding: { ...this.sounding },
       recent: this.recent.slice(-12),
       recentReps: this.recentReps.slice(-8),
+      recentForms: this.recentForms.slice(-8),
       skills: Object.fromEntries([...this.state].map(([k, v]) => [k, v])),
     };
   }
@@ -1657,6 +2254,13 @@ export class MasteryEngine {
     this.clock = saved.clock || 0;
     this.recent = Array.isArray(saved.recent) ? saved.recent.slice(-12) : [];
     this.recentReps = Array.isArray(saved.recentReps) ? saved.recentReps.slice(-8) : [];
+    this.recentForms = Array.isArray(saved.recentForms) ? saved.recentForms.slice(-8) : [];
+    // A reload is not a sitting. Whatever budget the last one had spent, the
+    // gap that reload crossed is measured off `savedAt` by `newSitting`, so the
+    // counters come back to zero and the wall clock decides whether they stay
+    // there. Loading a save is the one moment the engine knows for certain that
+    // it is not mid-sitting.
+    this.lastObservedAt = sane(saved.savedAt, this.now()) ?? null;
     // The descent's record survives; the descent itself does not. Coming back
     // tomorrow standing eight rungs down is not where a run left off, it is a
     // run that was never finished.
@@ -1689,6 +2293,10 @@ export class MasteryEngine {
         // null and the report says the evidence predates the record.
         provenBy: v.provenBy ? { ...v.provenBy } : null,
         durable: v.durable || 0,
+        // A save written before held lines had a budget has spent none of it.
+        heldServed: v.heldServed || 0,
+        heldServedClock: v.heldServedClock ?? null,
+        soundings: v.soundings || 0,
         // --- the wall clock, carried across the break ------------------------
         // A save written before the schedule was measured in time has attempt
         // counts and nothing else. Its lines have, by definition, been away
@@ -1781,6 +2389,8 @@ function blank(n) {
     difficulty: 1,
     // Where practice restarts if the sight-read does not land.
     baseBand: 1,
+    // Below-gate items answered cold in a row. See the credit ladder.
+    climbRun: 0,
     // The pending sight-read, and how it went once it is spent.
     probe: null,
     sightRead: null,
@@ -1790,6 +2400,13 @@ function blank(n) {
     provenBy: null,
     lastServed: null,
     openedAt: null,
+    // This sitting's budget for a line that is already held: how many items it
+    // has taken outside a re-probe the clock called for, and when the last one
+    // was. Both reset when the learner comes back after a real break, because
+    // that break is the entire reason re-asking is worth an item at all.
+    heldServed: 0,
+    heldServedClock: null,
+    soundings: 0,
   };
 }
 

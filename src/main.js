@@ -1,4 +1,7 @@
 import 'katex/dist/katex.min.css';
+/* The stacking order, before any surface that uses it. src/ui/layers.css is the
+   only place a level is chosen; every module reads its own from a token there. */
+import './ui/layers.css';
 import './ui/style.css';
 import * as THREE from 'three';
 import { Engine } from './core/engine.js';
@@ -7,6 +10,7 @@ import { createWorld, heightAt as groundHeight } from './world/world.js';
 import { Rifts } from './world/rifts.js';
 import { Player } from './player/controller.js';
 import { setSolids } from './player/terrain.js';
+import { setCamSolids } from './build/camclip.js';
 import { ControlsCard } from './player/controls.js';
 import { Builder } from './build/builder.js';
 import { createFX } from './fx/index.js';
@@ -94,6 +98,9 @@ const builder = new Builder(engine.scene, player, {
   input, hud, uiRoot, groundAt: groundHeight,
 });
 setSolids(builder.solids);
+// The same registry, for the lens. (src/build/camclip.js — the camera must not
+// be able to sit inside a wall the player just raised.)
+setCamSolids(builder.solids);
 builder.man.setRifts(rifts.list);
 rifts.sync(mastery);
 
@@ -117,7 +124,13 @@ const controls = new ControlsCard(uiRoot, {
   onRecover: () => player.recover('asked'),
 });
 player.onStuck = (on) => controls.setStuck(on);
-player.onRecover = () => hud.flash(t('firstrun.recovered'), 'good');
+// The recovery says which recovery it was. "Back on open ground" is right for
+// a player who asked; it is not what the game should say when it has just
+// picked somebody up off its own edge without being asked. (src/player)
+player.onRecover = (why) => hud.flash(
+  t(why === 'fell' ? 'firstrun.caught' : why === 'buried' ? 'firstrun.dug' : 'firstrun.recovered'),
+  why === 'asked' || why === 'menu' ? 'good' : 'bad',
+);
 
 hud.onSlot = (i) => { builder.setSlot(i); };
 // THE HOTBAR FOLLOWS THE HAND, ALWAYS. (build)
@@ -139,7 +152,9 @@ hud.bindInput(input, engine);
 // BUILD is as deliberate an act as picking a piece off the rack — so it draws
 // the lattice hand too. (src/build gating)
 hud.onPlace = () => { builder.drawHand(); input._press('fire'); };
-player.onFall = () => hud.flash(t('build.denied'), 'bad');
+// The fall itself is announced by onRecover above, which knows why it fired.
+// This hook stays for src/meta, which counts falls into the arc.
+player.onFall = () => {};
 builder.onAnchor = (n, total) => {
   // Three of these exist and each is secured once. It is the second-largest
   // single payment in the game, behind a hanging cache, and it is meant to be:
@@ -167,6 +182,9 @@ const wallet = createLedger({
   root: uiRoot,
   initial: saved?.shards,
   onChange: () => { hud.render(hudState()); save(); },
+  // The day's yield turns over on the clock the spacing schedule reads, so a
+  // harness that moves the clock moves the seam with it (src/kit/ledger.js).
+  clock: () => mastery.now(),
 });
 builder.wallet = wallet;
 
@@ -192,7 +210,14 @@ const caches = createCaches({
 
 const kit = createKit({
   root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, fx,
-  wallet, isBusy: () => panel.open,
+  // src/ui P1 — the grant card's own header has always said it queues behind
+  // the rank rite and the session's close card, but `isBusy` only ever asked
+  // about the tear, so neither of those two actually held it back. It now asks
+  // every surface that can take the middle of the frame. Evaluated lazily:
+  // `story` and `session` are built further down this file.
+  wallet,
+  isBusy: () => panel.open || session?.blocking?.() || story?.rite?.playing
+    || story?.turn?.playing || false,
   // reward economy: the kit owns a place in the world now — the foundry, where
   // shards are quoted, explained and spent before one is spent (src/kit/foundry.js).
   // The only thing it needs from here is the scene it stands in.
@@ -250,13 +275,19 @@ let chainTimer = 0;
  * the line. It also decides how much worked example to show, which is why the
  * teaching never has to be announced.
  */
-function openRift(rift) {
+function openRift(rift, override) {
   if (panel.open) return;
   const locale = getLocale();
-  const task = mastery.taskFor(rift.id)
-    || { skill: rift.id, kind: 'learn', difficulty: 1, scaffold: 'none', formCandidates: [], reps: null, check: null };
+  // `override` is the critic hook only: a harness that has to photograph a
+  // named form at a named band drives the SAME path a player does, rather than
+  // building an item of its own beside it. Nothing in the game passes it.
+  const task = {
+    ...(mastery.taskFor(rift.id)
+      || { skill: rift.id, kind: 'learn', difficulty: 1, scaffold: 'none', formCandidates: [], reps: null, check: null }),
+    ...(override || {}),
+  };
   const seed = (Math.random() * 1e9) | 0;
-  const pool = task.formCandidates || [];
+  const pool = override && override.form ? [override.form] : (task.formCandidates || []);
   const form = pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined;
 
   let item;
@@ -303,6 +334,11 @@ function openRift(rift) {
     // endgame (src/kit, src/learn): how deep the sounding in progress is, so
     // the surface can say "sounding · 4 down" instead of naming no kind at all.
     sounding: task.sounding || null,
+    // pedagogy (src/learn): set when this item is on a line the learner has
+    // already proved — how many of this sitting's allowance for a held line it
+    // has now taken. The surface is entitled to say so; nothing may serve one
+    // of these silently.
+    reprobe: task.reprobe || null,
     scaffold: task.scaffold,
     example,
     streak,
@@ -406,6 +442,11 @@ engine.add((dt, t2) => {
     player.update(dt, t2);
     // the wheel moves `input.slot`; the builder answers and repaints the bar
     if (input.slot !== builder.slot) builder.setSlot(input.slot);
+  } else {
+    // player: the way out is the one verb that is never not listening. Every
+    // other frame in this game is allowed to belong to a panel; this key is
+    // not, because a documented key that does nothing is how a session ends.
+    player.pumpRecover();
   }
   // The builder owns the whole verb — aim, preview, commit, edit, charge — so
   // that a click and a held button behave the same way in one place.
@@ -503,6 +544,12 @@ const menu = new Menu(uiRoot, {
   // panel, and a player who presses Escape while it is up wants the menu — not
   // to have thrown the card away for the rest of the run.
   isBusy: () => panel.open || report.open || session.blocking(),
+  // player/ui: the card advertised Recover and offered no way to press it, and
+  // it offered no way to start over either. Both are buttons now, and both go
+  // through the same code a key does — the menu owns no recovery logic of its
+  // own, so there is exactly one way back onto solid ground in this game.
+  onRecover: () => player.recover('menu'),
+  onRestart: () => restartRun(),
 });
 engine.add(() => menu.update());
 
@@ -612,9 +659,9 @@ window.__ascent = {
     player.vel.set(0, 0, 0);
     return true;
   },
-  openRiftById(id) {
+  openRiftById(id, override) {
     const r = rifts.list.find((x) => x.id === id);
-    if (r) openRift(r);
+    if (r) openRift(r, override);
     return !!r;
   },
   // --- pedagogy hooks: critics drive the real scheduler and the real bank ---
@@ -637,6 +684,40 @@ window.__ascent = {
   },
   /** The engine's own cost model, so a critic reports the clock it plans with. */
   itemSeconds,
+  /**
+   * pedagogy — READ ONLY. What is on the card right now, and nothing else.
+   *
+   * Nothing here can answer an item, open a tear, or move the learner model:
+   * every field is a getter. It exists so a harness can play the game with real
+   * key and mouse input — walk with WASD, open with E, click the reading or
+   * type the number — and still be able to say afterwards which skill each item
+   * was on and whether that skill was **already mastered when it was served**.
+   *
+   * That last figure is the whole reason this hook exists. A scheduler defect
+   * that re-serves a proved skill is invisible to every harness that answers
+   * through `enter()` or `panel.demo()`, because those bypass the input surface
+   * and, with it, the chain condition in `openRift` that a standing player
+   * actually triggers. See tools/critic/realsession.mjs.
+   */
+  panelInfo() {
+    if (!panel.open || !panel.item) return { open: false };
+    const id = panel.opts?.skillId || panel.item.skill;
+    const s = mastery.state.get(id) || null;
+    return {
+      open: true,
+      settled: !!panel._settled,
+      mode: panel.mode,
+      kind: panel.opts?.kind || null,
+      skill: id,
+      form: panel.item.form,
+      rep: panel.item.rep,
+      answer: panel.item.answer,
+      masteredWhenServed: !!(s && s.mastered),
+      attempts: s ? s.attempts : null,
+      // What the engine called this item if it was served on a held line.
+      reprobe: panel.opts?.reprobe || null,
+    };
+  },
   /**
    * Type a value into the open rift exactly as a hand would, and report what
    * the rig concluded about the learner from it. `misconception: null` means
@@ -713,6 +794,14 @@ window.__ascent = {
    * stepping around it.
    */
   levy: (n) => wallet.take(n, 'surge'),
+  /**
+   * Pay the wallet exactly the way the island pays it — the same `wallet.earn`
+   * call src/world/drift.js and src/world/caches.js make, with the same reason
+   * on it. tools/critic/pacing.mjs credits sixty days of ground income through
+   * this, so the earn curve it measures is the shipping curve and not a copy of
+   * it. It grants nothing the world does not grant on its own.
+   */
+  earn: (n, why = 'vein') => wallet.earn(n, why),
   /** Ground truth for the collider: what the boots find at a column, right now. */
   surfaceAt: (x, z) => builder.solids.top(x, z),
   /** The island alone, with nothing built on it — for measuring height gained. */
@@ -726,13 +815,24 @@ window.__ascent = {
   /** Screen quiet (src/ui/quiet.js): what yielded on the last pass. */
   quiet: () => quiet.state(),
 
-  reset() {
-    localStorage.removeItem('ascent.save');
-    report.tracker.reset(); story.reset(); session.reset();
-    caches.reset(); kit.reset(); wallet.reset();
-    location.reload();
-  },
+  reset: restartRun,
 };
+
+/**
+ * Start over: throw the save away and boot clean.
+ *
+ * This used to live only inside `window.__ascent`, which made it a critic hook
+ * rather than a feature — there was no way for a *player* to reach it. It is a
+ * named function now because the pause menu's own button calls it (src/ui/menu.js),
+ * and a control the player can press must not be routed through the debug
+ * surface.
+ */
+function restartRun() {
+  localStorage.removeItem('ascent.save');
+  report.tracker.reset(); story.reset(); session.reset();
+  caches.reset(); kit.reset(); wallet.reset();
+  location.reload();
+}
 
 // The screen's own budget. Started last, so every panel it governs exists.
 const quiet = startQuiet();

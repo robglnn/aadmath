@@ -34,7 +34,13 @@ export function analogueFor(item, opts = {}) {
   const locale = opts.locale || 'en';
   const d = opts.difficulty || item.difficulty || 1;
   const base = ((opts.seed ?? item.seed ?? 1) + 8117) >>> 0;
-  const tries = opts.tries || 32;
+  // How many candidates to audition. A prompt that shows one number is easy to
+  // find an analogue for; a four-row table beside a rule shows nine, and every
+  // one of them has to miss the live answer's numerals. Measured over the whole
+  // bank, thirty-two draws left one table item in twenty with no example at all
+  // — and an item with no example falls back on the learner's own trace, which
+  // is the one trace that cannot help but contain the live answer.
+  const tries = opts.tries || 96;
 
   // Every numeral in the live answer — those are the digits that must not be
   // copyable off the example.
@@ -60,9 +66,21 @@ export function analogueFor(item, opts = {}) {
 
   // Pass one: the same form — structurally aligned, which is what makes a
   // completion problem a completion problem. Pass two: any form of the same
-  // skill at the same band, which is a weaker alignment but still an analogue,
-  // and is preferred over showing nothing.
-  for (const sameForm of [true, false]) {
+  // skill at the same band, which is a weaker alignment but still an analogue.
+  // Pass three: the band below, which is where the search has to go for the
+  // prompts that show a lot of numbers at once — a four-row table beside a
+  // rule prints nine, and every one of them has to miss the live answer's
+  // numerals. An analogue one band easier is still an analogue, and it is what
+  // a teacher reaches for anyway when the cadet is struggling; showing nothing
+  // means falling back on the learner's own trace, which is the one trace that
+  // cannot avoid containing the live answer.
+  const passes = [
+    { sameForm: true, band: d },
+    { sameForm: false, band: d },
+    { sameForm: false, band: Math.max(1, d - 1) },
+  ];
+  for (const pass of passes) {
+    const sameForm = pass.sameForm;
     for (let i = 0; i < tries; i++) {
       let cand;
       try {
@@ -71,7 +89,7 @@ export function analogueFor(item, opts = {}) {
         // nobody ever saw would burn through a deck without a learner reading a
         // word of it, and the survivor would then be the one that repeats. Only
         // the analogue actually returned is reported, at the bottom.
-        cand = safeGenerate(item.skill, d, (base + i * 6131 + (sameForm ? 0 : 977)) >>> 0,
+        cand = safeGenerate(item.skill, pass.band, (base + i * 6131 + (sameForm ? 0 : 977) + pass.band * 31) >>> 0,
           { locale, record: false, avoidScenes: avoid, ...(sameForm ? { form: item.form } : {}) });
       } catch { continue; }
       if (!cand) continue;

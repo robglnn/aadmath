@@ -50,7 +50,7 @@
           "graph": "graph/algebra1-l2.json",
           "pack": "algebra1-l2",
           "requires": ["algebra1-l1"],
-          "status": "preview"
+          "status": "shipped"
         }
       ]
     },

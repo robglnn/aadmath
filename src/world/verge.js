@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { ISLAND_R } from './world.js';
+import { ISLAND_R, heightAt } from './world.js';
+import { coastRadius } from './terrain.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -41,6 +42,155 @@ export const VERGE_R = ISLAND_R * 1.62;
 const FADE = 190;            // metres out from the curtain where it starts to show
 const HEIGHT = 460;          // …and it has a top edge, because a wall you cannot
 const BASE = -170;           //    see the end of is weather, not a boundary
+
+// ---------------------------------------------------------------------------
+// THE BRINK — the coastline, made visible from the inside.
+//
+// The verge above is the far wall, three hundred metres out over open air, and
+// it works. The thing that actually ends sessions is two hundred metres closer
+// and had nothing on it at all: the *coastline*. Shard Nine simply stops, on
+// grass, at walking pace, with no lip, no lighting change and no sound — and a
+// cold player following the game's own "to your left" prompt walked over it at
+// a jog and never came back.
+//
+// A fall-catch (src/player/terrain.js) makes that survivable. It does not make
+// it good. An edge you only learn about by falling off it teaches the player
+// that the ground cannot be trusted, and a player who does not trust the ground
+// stops exploring — which costs this game the only thing it has that Fortnite
+// also has. So the boundary is a *place* on this side of it too: a rank of
+// lattice light standing along the last few metres of ground, lit only where
+// you are, visible from forty metres out, brightest at the lip.
+//
+// It is drawn from `coastRadius`, the same function the heightfield cuts the
+// coast with, so the light is on the edge rather than near it — and it costs
+// one draw call that is skipped outright while the cadet is inland.
+// ---------------------------------------------------------------------------
+
+/** How far out the cadet has to be before it is drawn at all. */
+const BRINK_SHOW = 95;
+/**
+ * Where the standing rank is planted, in metres inside the coastline.
+ *
+ * NOT on the lip. The first cut of this stood the light at the coast radius
+ * itself, which is where the ground has already rolled over into the drop — so
+ * the rank was planted down the far side of its own crest and was invisible
+ * from four metres back, which is the only place it needed to be visible from.
+ * Planted here it stands on the last flat ground, and the two metres of grass
+ * past it are the margin a running cadet gets.
+ */
+const BRINK_AT = 3.2;
+
+function createBrink(scene) {
+  const N = 384;                       // segments around the coast
+  const pos = [];
+  const uvs = [];
+  // Three rings: a feathered edge inland, the hot line on the last flat
+  // ground, and a standing rank of light above it that fades into the air.
+  const rows = [
+    { inset: 11.0, lift: 0.16, v: 0.0 },
+    { inset: BRINK_AT, lift: 0.22, v: 0.42 },
+    { inset: BRINK_AT, lift: 6.2, v: 1.0 },
+  ];
+  const ring = rows.map((row) => {
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const ang = (i / N) * Math.PI * 2;
+      const r = Math.max(2, coastRadius(ang) - row.inset);
+      const x = Math.cos(ang) * r, z = Math.sin(ang) * r;
+      // The ground under the lip, so the band lies on the land instead of
+      // hovering over a cove or sinking into a headland.
+      const h = heightAt(x, z);
+      pts.push([x, (h === null ? 0 : h) + row.lift, z]);
+    }
+    return pts;
+  });
+  for (let k = 0; k < rows.length - 1; k++) {
+    for (let i = 0; i < N; i++) {
+      const a = ring[k][i], b = ring[k][i + 1];
+      const c = ring[k + 1][i], d = ring[k + 1][i + 1];
+      const u0 = i / N, u1 = (i + 1) / N;
+      const v0 = rows[k].v, v1 = rows[k + 1].v;
+      pos.push(...a, ...b, ...c, ...b, ...d, ...c);
+      uvs.push(u0, v0, u1, v0, u0, v1, u1, v0, u1, v1, u0, v1);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    blending: THREE.NormalBlending, fog: false,
+    uniforms: { uTime: { value: 0 }, uNear: { value: 0 } },
+    vertexShader: /* glsl */`
+      varying vec2 vUv;
+      varying vec3 vW;
+      void main(){
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vW = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }`,
+    fragmentShader: /* glsl */`
+      precision highp float;
+      varying vec2 vUv;
+      varying vec3 vW;
+      uniform float uTime, uNear;
+      void main(){
+        // RIBS. Same language as the verge: a rank of light, not a gradient.
+        // Their pitch is set in metres of arc rather than in UV, so a headland
+        // and a cove carry the same spacing.
+        float ribX = fract(vUv.x * 300.0 + 0.5) - 0.5;
+        float rib = exp(-ribX * ribX * 46.0);
+        rib *= 0.62 + 0.38 * sin(uTime * 1.5 + floor(vUv.x * 300.0) * 2.1);
+
+        // The line on the ground is the message; the rank above it is what
+        // makes the line visible from forty metres and from a low camera.
+        float lip = exp(-pow((vUv.y - 0.42) * 13.0, 2.0));
+        float deck = smoothstep(0.0, 0.42, vUv.y) * step(vUv.y, 0.42);
+        float wall = pow(smoothstep(1.0, 0.42, vUv.y), 1.15) * step(0.42, vUv.y);
+        float body = max(deck * 0.70, wall);
+
+        // Only the stretch of coast you are actually at lights up.
+        float prox = 1.0 - smoothstep(30.0, 120.0, distance(vW, cameraPosition));
+        // The floor of this is deliberately high. The first cut spent almost all
+        // of its alpha on the ribs, and a rank that is only solid on a third of
+        // its width disappears entirely against a sunlit cloud deck — which is
+        // the same mistake, in the same file, that made the verge invisible
+        // when it was additive. A boundary has to be able to occlude.
+        float a = clamp(body * (0.58 + rib * 0.42) + lip * (0.55 + rib * 0.45), 0.0, 0.94)
+                  * uNear * prox;
+        vec3 col = mix(vec3(1.0, 0.55, 0.20), vec3(1.0, 0.95, 0.86), clamp(lip * 0.8 + rib * 0.55, 0.0, 1.0));
+        gl_FragColor = vec4(col, a);
+      }`,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 3;
+  mesh.userData.noCamBlock = true;
+  mesh.visible = false;
+  scene.add(mesh);
+
+  let near = 0;
+  return {
+    mesh,
+    /** How far the cadet is from the coast on their own bearing. Metres. */
+    gap(p) {
+      const r = Math.hypot(p.x, p.z);
+      return coastRadius(Math.atan2(p.z, p.x)) - r;
+    },
+    update(dt, time, p) {
+      mat.uniforms.uTime.value = time;
+      const gap = this.gap(p);
+      const want = gap > BRINK_SHOW ? 0 : Math.min(1, Math.max(0, (BRINK_SHOW - gap) / 55));
+      near += (want - near) * Math.min(1, dt * 3.0);
+      mat.uniforms.uNear.value = near;
+      mesh.visible = near > 0.02;
+      return gap;
+    },
+  };
+}
 
 export function createVerge(scene) {
   const geo = new THREE.CylinderGeometry(VERGE_R, VERGE_R, HEIGHT, 128, 1, true);
@@ -117,12 +267,16 @@ export function createVerge(scene) {
   mesh.visible = false;
   scene.add(mesh);
 
+  const brink = createBrink(scene);
+
   let near = 0;
   let saidT = 0;
+  let brinkT = 0;
   const _m = new THREE.Vector3();
 
   return {
     mesh,
+    brink,
     /** Where the curtain stands, from where the cadet is — or null, if far. */
     mark(p) {
       const r = Math.hypot(p.x, p.z) || 1;
@@ -131,6 +285,18 @@ export function createVerge(scene) {
     },
     update(dt, time, player, hud) {
       mat.uniforms.uTime.value = time;
+
+      // The near edge, first: it is the one a walking player meets.
+      const gap = brink.update(dt, time, player.pos);
+      if (brinkT > 0) brinkT -= dt;
+      // Said once, at the distance where a running cadet can still stop —
+      // and only while the boots are on the ground, so it never talks over a
+      // glide that is deliberately crossing the coast with height to spare.
+      if (gap < 11 && gap > -2 && brinkT <= 0 && player.grounded) {
+        brinkT = 25;
+        hud?.flash?.(t('field.brink'), 'bad');
+      }
+
       const r = Math.hypot(player.pos.x, player.pos.z);
       // Full strength well before you reach it. The point is to be *seen
       // coming*: a boundary you only notice on impact has already failed.

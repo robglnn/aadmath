@@ -83,6 +83,7 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
     const s = mastery.get(n.id);
     const pv = s.mastered ? s.provenBy : null;
     const probes = tracker.probesFor(n.id);
+    const split = tracker.claimSplit(n.id);
     return {
       id: n.id,
       title: t('skills.' + n.id),
@@ -90,8 +91,16 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
       pL: round(s.pL, 3),
       difficulty: s.difficulty,
       items: tracker.itemsFor(n.id),
+      // Questions on this line before the claim was granted, and after it.
+      // Filed separately for the same reason the screen prints them
+      // separately: a lifetime total under a claim reads two opposite ways, and
+      // a CSV in a gradebook has no tooltip to say which one was meant.
+      itemsAtClaim: split?.before ?? null,
+      itemsSinceClaim: split?.since ?? null,
+      unaidedAtClaim: round(split?.unaidedBefore ?? null, 3),
       timeMs: trust.msTrusted ? tracker.msFor(n.id) : null,
       accuracy: round(tracker.accuracyFor(n.id), 3),
+      unaidedRight: tracker.unaidedRightFor(n.id),
       // The receipt, or an honest null. Never the configured thresholds.
       claim: pv
         ? {
@@ -102,6 +111,12 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
           checkNeed: pv.checkNeed,
           band: pv.band,
           items: pv.items,
+          // What the run cost, which is what separates a claim that went
+          // straight through from one that stumbled and paid for it. Without
+          // these two the record could only print the road, and the road was
+          // being read as the story.
+          missed: pv.missed ?? null,
+          firstContact: pv.firstContact ?? null,
           reps: pv.reps,
           forms: pv.forms.length,
           novel: pv.novel,
@@ -188,7 +203,11 @@ export function recordToCsv(rec) {
     t('report.record.col.student'), t('report.record.col.group'), t('report.record.col.generated'),
     t('report.record.col.skill'), t('report.record.col.state'), t('report.record.col.confidence'),
     t('report.record.col.items'), t('report.record.col.unaided'), t('report.record.col.time'),
-    t('report.record.col.road'), t('report.record.col.claimItems'), t('report.record.col.band'),
+    t('report.record.col.road'), t('report.record.col.claimItems'),
+    // A claim beside a lifetime question count is two readings of one figure.
+    // These two say which, in a file that will be read with no game in sight.
+    t('report.record.col.itemsAtClaim'), t('report.record.col.itemsSinceClaim'),
+    t('report.record.col.band'),
     t('report.record.col.retention'),
     // One standards column, in the framework this record was drawn in. Two
     // columns made a Texas gradebook carry Common Core codes it will never
@@ -205,6 +224,8 @@ export function recordToCsv(rec) {
     s.timeMs == null ? '' : Math.round(s.timeMs / 1000),
     s.claim ? t('report.road.' + s.claim.road) : '',
     s.claim ? s.claim.items : '',
+    s.itemsAtClaim == null ? '' : s.itemsAtClaim,
+    s.itemsSinceClaim == null ? '' : s.itemsSinceClaim,
     s.claim ? s.claim.band : '',
     s.probes.hit + s.probes.miss ? `${s.probes.hit}/${s.probes.hit + s.probes.miss}` : '',
     frame,

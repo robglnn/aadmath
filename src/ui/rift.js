@@ -6,6 +6,7 @@ import { equivalent } from '../learn/parser.js';
 import { diagnose } from '../learn/diagnose.js';
 import { analogueFor } from '../learn/scaffold.js';
 import { echoScript, MAX_TIER } from '../learn/echo.js';
+import { mountPlot } from '../learn/plot.js';   // the coordinate surface, owned with its mathematics
 
 /**
  * The rift stabiliser — where the learning actually happens.
@@ -849,10 +850,20 @@ export class RiftPanel {
       // endgame (one branch, additive): a rung of a sounding. Carries its own
       // number because the depth of the descent is the whole point of it.
       kindEl.textContent = t('rift.kind.deep', { n: opts.sounding?.rung ?? 1 });
-    } else if (kind === 'review' || kind === 'interleave' || kind === 'probe') {
+    } else if (kind === 'review' || kind === 'interleave' || kind === 'probe' || kind === 'retrieval') {
       // pedagogy (one line, additive): 'probe' is the sight-read — the item a
       // new skill opens with, before it teaches anything.
-      kindEl.textContent = t('rift.kind.' + kind);
+      //
+      // 'retrieval' is the scheduler's name for the interleaved item it draws
+      // from a mastered prerequisite when practice has gone blocked. The string
+      // for it has existed in all three locales as `interleave` ("From memory")
+      // since it was written, and never once reached the screen, because the
+      // engine has always called that kind `retrieval` and this line did not.
+      // So an item on a line the learner had already proved arrived wearing no
+      // label at all — which is exactly the thing a re-served held skill must
+      // never do. Mapped rather than renamed: the kind name is read by
+      // tools/simulate.mjs, src/report and src/session too.
+      kindEl.textContent = t('rift.kind.' + (kind === 'retrieval' ? 'interleave' : kind));
     } else {
       kindEl.textContent = '';
     }
@@ -1398,6 +1409,10 @@ export class RiftPanel {
 
     let built = null;
     if (item.type === 'special' || /\\square/.test(item.latex)) built = this._choice(work);
+    // A coordinate surface, for the items whose answer is a line. Owned with
+    // the mathematics that needs it (src/learn/plot.js); returns null for
+    // anything it cannot draw, and the rig falls through as usual.
+    if (!built && item.figure?.kind === 'plot') built = this._plot(work);
     if (!built && (item.figure?.kind === 'balance' || item.check?.kind === 'solve')) built = this._balance(work);
     if (!built && (item.figure?.kind === 'area' || item.skill === 'distribute')) built = this._area(work);
     if (!built && item.type === 'expression') built = this._sort(work);
@@ -1439,6 +1454,21 @@ export class RiftPanel {
       try { return equivalent(v, item.answer, variable) === true; } catch { return false; }
     }
     return false;
+  }
+
+  // -------------------------------------------------------- modality: plot
+  /** The coordinate surface. Same contract as every other modality. */
+  _plot(work) {
+    const self = this;
+    return mountPlot(work, {
+      item: this.item,
+      tex: (src) => texFirst([src]) || '',
+      t,
+      settled: () => !!self._settled,
+      solve: () => self._solve(),
+      miss: (mis, msg, entry) => self._miss(mis, msg, entry),
+      pressure: (p) => self.setPressure(p),
+    });
   }
 
   // ------------------------------------------------------- modality: keypad
@@ -2372,6 +2402,12 @@ export class RiftPanel {
       const bad = btns.find((b) => b.dataset.value !== String(this.item.answer));
       bad?.click();
       return !!bad;
+    }
+    if (this.mode === 'plot') {
+      // The surface places a trace with the right rate through the wrong start
+      // and seals it — a real slip, not a random line.
+      this._modality.pickBad?.();
+      return true;
     }
     if (this.mode === 'balance') {
       const btns = [...this.el.querySelectorAll('.rf-move')];

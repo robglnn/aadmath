@@ -181,11 +181,48 @@ export function toLocal(p, x, z, out) {
 
 const _l = { lx: 0, lz: 0 };
 
+/**
+ * THE DOORWAY.
+ *
+ * A wall carrying `door` has an opening cut through the middle of it. It is the
+ * whole answer to being shut in: the last wall of a room you are standing in is
+ * still placed — the square closes, the corners meet, the shape is the shape you
+ * asked for — and it arrives with a way out already in it.
+ *
+ * The opening is the full height of the wall to the collider, not just to head
+ * height. A lintel you can stand on is a ledge eighteen centimetres deep at the
+ * top of a doorway, which nobody has ever wanted and which would need its own
+ * step-up rule; the header above the opening is therefore drawn and not
+ * collided. From inside the room, the only thing that changes is that you can
+ * walk out.
+ */
+/**
+ * Half-width of the opening. The cadet's capsule is 0.42 m in radius, so a
+ * 0.90 m half-width leaves him 0.96 m of clear floor to thread — under a metre,
+ * for a door he is walking at under pressure, having just closed the room. He
+ * gets shoved back out by the jamb as often as he gets through. 1.15 leaves
+ * 1.46 m, which is a doorway rather than a gap between two pieces of furniture,
+ * and still leaves a 0.59 m panel each side so it reads as a wall with a door
+ * in it rather than as two posts.
+ */
+export const DOOR_HX = 1.15;
+/** Where the drawn header starts, measured up from the wall's own base. */
+export const DOOR_H = 2.60;
+
+/** Is this column inside the doorway of a door wall? */
+export function inDoor(p, lx) {
+  return !!p.door && Math.abs(lx) <= DOOR_HX;
+}
+
 /** Does this column fall inside the piece's footprint? */
 export function covers(p, x, z, pad = 0) {
   const sp = SPEC[p.kind];
   toLocal(p, x, z, _l);
-  return Math.abs(_l.lx) <= sp.hx + pad && Math.abs(_l.lz) <= sp.hz + pad;
+  if (Math.abs(_l.lx) > sp.hx + pad || Math.abs(_l.lz) > sp.hz + pad) return false;
+  // The doorway is a hole, so the piece does not cover the column at all. `pad`
+  // grows the footprint, and the same growth has to shrink the opening, or a
+  // capsule half inside the jamb would report itself clear and walk through it.
+  return !inDoor(p, _l.lx + (_l.lx < 0 ? -pad : pad));
 }
 
 /**
@@ -199,6 +236,7 @@ export function surfaceAt(p, x, z) {
   const sp = SPEC[p.kind];
   toLocal(p, x, z, _l);
   if (Math.abs(_l.lx) > sp.hx || Math.abs(_l.lz) > sp.hz) return null;
+  if (inDoor(p, _l.lx)) return null;
   if (p.kind === 'ramp') {
     const t = p.y + clamp(_l.lz + sp.hz, 0, sp.hi);
     return { top: t, bottom: t - 0.48 };

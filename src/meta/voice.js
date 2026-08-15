@@ -88,6 +88,33 @@ export const BANKS = [
 export const MILESTONES = [32, 40, 50, 64, 80, 100, 120, 150, 180, 220];
 
 /**
+ * AND THEN HE KEEPS COUNTING, BECAUSE HE SAID HE WOULD.
+ *
+ * The last written milestone ends "Keep going. I will keep counting." — and the
+ * ladder then stopped, so a cadet at five hundred seals heard nothing new ever
+ * again. That is the original complaint at a higher number.
+ *
+ * Past the last named one there is a beat every `MILESTONE_EVERY` seals, for
+ * ever, drawn from a small bank that takes the count as a parameter. It is
+ * deliberately sparse — one line every sixty tears is roughly one a fortnight
+ * for somebody who plays daily — and it never pretends to be a chapter.
+ */
+export const MILESTONE_EVERY = 60;
+
+/**
+ * NIGHTS HELD, WHICH IS THE NUMBER HE SHOULD ACTUALLY BE IMPRESSED BY.
+ *
+ * Seals count answers. Nights held count mornings on which something already
+ * known was still known (`days.js`) — the one number in the game a long sitting
+ * cannot move, and the thing rank, the last chapters and the coda are now paced
+ * against. Marlow had nothing to say about it beyond "welcome back".
+ *
+ * Four beats, then one every fifteen nights, for ever.
+ */
+export const NIGHT_MARKS = [3, 7, 14, 30];
+export const NIGHT_EVERY = 15;
+
+/**
  * Which stage a state has reached, as an index into STAGES.
  * @param {{tears?:number, lines?:number, rankIndex?:number, integrity?:number}} s
  */
@@ -151,11 +178,55 @@ export function bankKey(bank, register) {
   return `story.v.${bank}.${register}`;
 }
 
-/** The milestone (if any) crossed by going from `before` to `after` tears. */
+/**
+ * The milestone (if any) crossed by going from `before` to `after` tears —
+ * including the open-ended ones above the last written number.
+ */
 export function milestoneCrossed(before, after) {
-  for (const m of MILESTONES) if ((before || 0) < m && (after || 0) >= m) return m;
-  return 0;
+  const a = before || 0, b = after || 0;
+  for (const m of MILESTONES) if (a < m && b >= m) return m;
+  const last = MILESTONES[MILESTONES.length - 1];
+  if (b <= last) return 0;
+  const step = (n) => Math.floor((Math.max(n, last) - last) / MILESTONE_EVERY);
+  return step(b) > step(a) ? last + step(b) * MILESTONE_EVERY : 0;
 }
 
-/** The i18n key for a milestone beat. */
-export function milestoneKey(m) { return `story.v.mile.s${m}`; }
+/**
+ * The i18n key for a milestone beat. The written ones name their own number;
+ * the open-ended ones take it as a parameter.
+ */
+export function milestoneKey(m) {
+  return MILESTONES.includes(m) ? `story.v.mile.s${m}` : 'story.v.mile.on';
+}
+
+/**
+ * What is written down when a milestone is played, so a beat fires once and
+ * once only. It cannot be the i18n key: every open-ended milestone shares one
+ * key, and marking that would silence every one after the first.
+ */
+export function milestoneMark(m) { return `mile.${m}`; }
+
+/**
+ * The highest nights-held beat this count has reached, or 0.
+ *
+ * Reached, not crossed. A night is credited in the middle of a session, and the
+ * beat is said on the *next* arrival (`sayNightBeat` in index.js) — because a
+ * line pushed at the moment the night lands is racing the chapter that the same
+ * night just opened, and a chapter turn clears the channel. Asking "what is the
+ * highest one you have earned and not heard" also survives a cadet who comes
+ * back after a fortnight and jumps three rungs at once.
+ */
+export function nightMarkReached(nights) {
+  const n = nights || 0;
+  let best = 0;
+  for (const m of NIGHT_MARKS) if (n >= m) best = m;
+  const last = NIGHT_MARKS[NIGHT_MARKS.length - 1];
+  if (n > last) best = last + Math.floor((n - last) / NIGHT_EVERY) * NIGHT_EVERY;
+  return best;
+}
+
+/** The i18n key for a nights-held beat, and the mark that spends it. */
+export function nightMarkKey(n) {
+  return NIGHT_MARKS.includes(n) ? `story.v.night.n${n}` : 'story.v.night.on';
+}
+export function nightMark(n) { return `night.${n}`; }

@@ -381,13 +381,18 @@ export function createDrift(opts = {}) {
           m.z += (m.hz - m.z) * k;
         }
         if (flat < MOTE_R && Math.abs(dy) < 3.4) {
+          // What the crystal is worth, and what the wallet actually paid for
+          // it. Those are the same number until the day's assay runs thin
+          // (src/kit/ledger.js), and the floating "+n" has to be the one that
+          // arrived — a world that says +6 while the strip says +2 is a world
+          // the player stops believing.
           const worth = m.rich ? RICH_VALUE : MOTE_VALUE;
           m.live = false;
           m.pop = 1;
-          wallet?.earn?.(worth, 'vein');
+          const paid = wallet?.earn?.(worth, 'vein') ?? worth;
           if (stats.motes === 0) onFirstTake();
           stats.motes++; stats.events++;
-          took += worth;
+          took += paid;
           tookT = 1.6;
           // The vein, not the crystal, is the thing that runs out.
           if (--m.v.left <= 0) {

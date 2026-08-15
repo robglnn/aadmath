@@ -53,6 +53,39 @@ export const CHAPTER_AT = [0, 3, 7, 16, 28];
  */
 export const CHAPTER_NIGHTS = [0, 0, 0, 1, 3];
 
+/**
+ * NIGHTS HELD BEFORE THE PROOF CLOSES.
+ *
+ * The coda is not a chapter and never was: it fires on `integrity() >= 0.999`,
+ * which is the tenth line held, and nothing else. That left one hole in the
+ * third clock big enough to drive the whole complaint through — a cadet who
+ * mastered all ten lines in one long afternoon reached **Chapter 6, the coda,
+ * with zero nights held**, measured. The pay-off of the entire game, and the
+ * line about nine thousand shards that have stopped arguing, arrived on a
+ * Sunday to somebody who had not yet held a single line overnight.
+ *
+ * Five nights. Five separate mornings on which something this cadet already
+ * knew came back round and was still known. It is the highest count in the
+ * game after Sovereign's nine, and it is the right one: the coda's claim is
+ * that the proof is *closed*, and a proof that has not survived a night is a
+ * claim about today.
+ *
+ * It is not a wall. Everything stays open while it waits — the descent, the
+ * charters, the waystations, every line in the lattice — and the watch card
+ * prints the number it is waiting for (`src/meta/quest.js`).
+ */
+export const CODA_NIGHTS = 5;
+
+/** Is the pay-off earned? Whole lattice, and nights that a sitting cannot buy. */
+export function codaReady(whole, nights) {
+  return !!whole && (nights || 0) >= CODA_NIGHTS;
+}
+
+/** How many nights the coda is still waiting for. Zero once it is due. */
+export function codaIn(nights) {
+  return Math.max(0, CODA_NIGHTS - (nights || 0));
+}
+
 /** Tears closed = statements sealed, assisted or not. One answer, one tear. */
 export function tearsOf(led) {
   return (led?.clean || 0) + (led?.assisted || 0);

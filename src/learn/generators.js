@@ -2833,12 +2833,353 @@ export function verify(item) {
       if (!want || !reqq(got, want)) throw new Error(`graph reading is ${rstr(got)} but answer says ${item.answer}`);
       break;
     }
+    // -----------------------------------------------------------------------
+    // LEVEL 2 KINDS.
+    //
+    // Every one of them re-derives its answer from the notation the learner is
+    // actually shown, in exact rational arithmetic, using nothing the generator
+    // computed. A generator that is wrong about its own item cannot make any of
+    // these agree with it.
+    // -----------------------------------------------------------------------
+    case 'inequality': {
+      const sol = solveInequality(c.math, c.variable);
+      if (c.want === 'least' || c.want === 'greatest') {
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        const got = edgeInteger(sol, c.want);
+        if (!reqq(got, want)) throw new Error(`the ${c.want} whole number is ${rstr(got)}, not ${item.answer}`);
+      } else {
+        const canon = statementTex(c.variable, sol.rel, sol.value);
+        if (normalise(item.answer) !== normalise(canon)) {
+          throw new Error(`solving gives "${canon}" but the answer says "${item.answer}"`);
+        }
+      }
+      checkStepsInequality(item.steps, c.variable, sol);
+      break;
+    }
+    case 'compound': {
+      const band = solveCompound(c.math, c.variable);
+      if (c.want === 'count') {
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        const lo = edgeInteger({ rel: band.lower.rel, value: band.lower.value }, 'least');
+        const hi = edgeInteger({ rel: band.upper.rel, value: band.upper.value }, 'greatest');
+        const got = R(Math.max(0, toNum(hi) - toNum(lo) + 1));
+        if (!reqq(got, want)) throw new Error(`the band holds ${rstr(got)} whole numbers, not ${item.answer}`);
+      } else {
+        const canon = bandTex(c.variable, band);
+        if (normalise(item.answer) !== normalise(canon)) {
+          throw new Error(`the band is "${canon}" but the answer says "${item.answer}"`);
+        }
+      }
+      // Each worked line must describe the same band as the one before it.
+      for (const s of item.steps) {
+        if (/\\Rightarrow|\\square/.test(s.latex)) continue;
+        let got;
+        try { got = solveCompound(s.latex, c.variable); } catch { continue; }
+        if (bandTex(c.variable, got) !== bandTex(c.variable, band)) {
+          throw new Error(`worked line changes the band: ${s.latex}`);
+        }
+      }
+      break;
+    }
+    case 'rearrange': {
+      const v = c.variable;
+      if (new RegExp(`(^|[^a-zA-Z])${v}([^a-zA-Z]|$)`).test(item.answer)) {
+        throw new Error(`the rearranged form still mentions ${v}`);
+      }
+      let proved = 0;
+      for (let s = 0; s < SAMPLE_SETS.length && proved < 4; s++) {
+        const env = {};
+        (c.vars || []).forEach((name, i) => { env[name] = R(SAMPLE_SETS[s][i % SAMPLE_SETS[s].length]); });
+        let sol, got;
+        try { sol = isolate(c.math, v, env); } catch { continue; }
+        try { got = evaluate(item.answer, env); } catch { continue; }
+        if (!reqq(sol, got)) {
+          throw new Error(`rearranged form gives ${rstr(got)} where the formula gives ${rstr(sol)}`);
+        }
+        for (const st of item.steps) {
+          let sv;
+          try { sv = isolate(st.latex, v, env); } catch { continue; }
+          if (!reqq(sv, sol)) throw new Error(`worked line changes the rearrangement: ${st.latex}`);
+        }
+        proved += 1;
+      }
+      if (proved < 3) throw new Error('the rearrangement could not be checked at enough values');
+      break;
+    }
+    case 'proportion': {
+      const value = solveProportion(c.math, c.variable);
+      const want = fromString(item.answer);
+      if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+      if (!reqq(value, want)) throw new Error(`the proportion gives ${rstr(value)} but the answer says ${item.answer}`);
+      checkStepsEqual(item.steps, { [c.variable]: value });
+      break;
+    }
+    case 'system': {
+      for (const eq of c.eqs) {
+        if (!targetIsThePrompt(item.latex, eq)) throw new Error(`"${eq}" is not one of the statements on screen`);
+      }
+      const sol = solveSystem(c.eqs, c.vars);
+      if (c.want === 'pair') {
+        // "\left(3, -4\right)" — both readings at once, read back off the answer.
+        const m = /^\\left\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\\right\)$/.exec(String(item.answer).trim());
+        if (!m) throw new Error(`answer "${item.answer}" is not a pair of readings`);
+        c.vars.forEach((name, i) => {
+          if (!reqq(sol[name], R(Number(m[i + 1])))) {
+            throw new Error(`the pair meets at ${name} = ${rstr(sol[name])}, not ${m[i + 1]}`);
+          }
+        });
+      } else {
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        const got = sol[c.want];
+        if (!reqq(got, want)) throw new Error(`the pair solves to ${c.want} = ${rstr(got)}, not ${item.answer}`);
+      }
+      // A worked line in a system is a statement that must be TRUE at the
+      // solution — substitution, elimination and back-substitution all are.
+      checkStepsEqual(item.steps, sol);
+      break;
+    }
+    // A line handed over as a statement in two unknowns rather than as two
+    // readings: Ax + By = C. The coefficients are probed off the printed
+    // equation, never taken from the generator.
+    case 'lineEquation': {
+      const { a, b, c: rhs } = coeffs2(c.math, 'x', 'y');
+      if (isZero(b)) throw new Error('this statement draws an upright line, which has no rate');
+      const m = neg(div(a, b));
+      const yInt = div(rhs, b);
+      if (c.want === 'equation') {
+        const side = String(item.answer).split('=').slice(1).join('=').trim();
+        if (!side) throw new Error('a rule has to be written as an equation');
+        if (!equivalent(side, texLine(m, yInt), 'x')) {
+          throw new Error(`the rule "${item.answer}" is not the same line as the statement`);
+        }
+      } else {
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        if (c.want === 'xintercept' && isZero(a)) throw new Error('this statement never crosses the upright axis');
+        const got = c.want === 'slope' ? m
+          : c.want === 'intercept' ? yInt
+            : div(rhs, a);
+        if (!reqq(got, want)) throw new Error(`the statement gives ${rstr(got)} but the answer says ${item.answer}`);
+      }
+      checkStepsEqual(item.steps, {});
+      break;
+    }
+    case 'line': {
+      for (const [px, py] of c.points) {
+        if (!pointIsOnScreen(item, px, py)) throw new Error(`the point (${px}, ${py}) is nowhere on screen`);
+      }
+      const [[x1, y1], [x2, y2]] = c.points;
+      if (x1 === x2) throw new Error('two readings at the same input describe no rate');
+      const m = div(sub(R(y2), R(y1)), sub(R(x2), R(x1)));
+      const b = sub(R(y1), mul(m, R(x1)));
+      if (c.want === 'equation') {
+        const rhs = String(item.answer).split('=').slice(1).join('=').trim();
+        if (!rhs) throw new Error('a rule has to be written as an equation');
+        if (!equivalent(rhs, texLine(m, b), 'x')) {
+          throw new Error(`the rule "${item.answer}" is not the line through the readings`);
+        }
+      } else {
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        const got = c.want === 'slope' ? m
+          : c.want === 'intercept' ? b
+            : c.want === 'y' ? add(mul(m, R(c.at)), b)
+              : div(sub(R(c.at), b), m);
+        if (!reqq(got, want)) throw new Error(`the line gives ${rstr(got)} but the answer says ${item.answer}`);
+      }
+      checkStepsEqual(item.steps, {});
+      break;
+    }
     case 'literal':
       break;
     default:
       throw new Error(`unknown verification kind ${c.kind}`);
   }
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Level 2 re-derivation machinery.
+//
+// Nothing below trusts a generator. Each routine reads a LaTeX string, parses
+// it with `./parser.js`, and works the answer out in exact rational arithmetic.
+// ---------------------------------------------------------------------------
+
+/** `\le` and `\ge` must not be read out of `\left` and `\gets`. */
+const REL_RE = /\\le(?![a-zA-Z])|\\ge(?![a-zA-Z])|<|>/g;
+const FLIP = { '<': '>', '>': '<', '\\le': '\\ge', '\\ge': '\\le' };
+const OPEN_REL = { '<': true, '>': true, '\\le': false, '\\ge': false };
+
+/** "a < b \le c" -> { parts: [a, b, c], rels: ['<', '\\le'] }. */
+function splitRel(src) {
+  const parts = [];
+  const rels = [];
+  let last = 0;
+  let m;
+  REL_RE.lastIndex = 0;
+  while ((m = REL_RE.exec(String(src)))) {
+    rels.push(m[0]);
+    parts.push(String(src).slice(last, m.index));
+    last = m.index + m[0].length;
+  }
+  parts.push(String(src).slice(last));
+  return { parts, rels };
+}
+
+/**
+ * Solve one linear inequality. Returns the relation the UNKNOWN carries, which
+ * is the relation on the page turned round whenever the coefficient is
+ * negative — the single move this whole family of skills exists to teach.
+ */
+function solveInequality(src, v) {
+  const { parts, rels } = splitRel(src);
+  if (rels.length !== 1) throw new Error('not a single inequality');
+  const L = linearize(parse(parts[0]), v);
+  const Rt = linearize(parse(parts[1]), v);
+  const a = sub(L.a, Rt.a);
+  const b = sub(L.b, Rt.b);
+  if (isZero(a)) throw new Error(`the unknown cancels: this says nothing about ${v}`);
+  return { rel: a.n < 0 ? FLIP[rels[0]] : rels[0], value: div(neg(b), a) };
+}
+
+/** "x > 5", "x \le -3". The one spelling every option in the set uses. */
+function statementTex(v, rel, value) { return `${v} ${rel} ${texOf(value)}`; }
+
+/** The first whole number on the allowed side of a boundary. */
+function edgeInteger({ rel, value }, want) {
+  const x = toNum(value);
+  const open = OPEN_REL[rel];
+  if (want === 'least') {
+    if (rel !== '>' && rel !== '\\ge') throw new Error('this inequality has no least whole number');
+    return R(open ? Math.floor(x) + 1 : Math.ceil(x));
+  }
+  if (rel !== '<' && rel !== '\\le') throw new Error('this inequality has no greatest whole number');
+  return R(open ? Math.ceil(x) - 1 : Math.floor(x));
+}
+
+/** "-4 < 2x + 6 \le 10" -> the band the unknown lives in. */
+function solveCompound(src, v) {
+  const { parts, rels } = splitRel(src);
+  if (rels.length !== 2) throw new Error('not a compound inequality');
+  const a = solveInequality(`${parts[0]}${rels[0]}${parts[1]}`, v);
+  const b = solveInequality(`${parts[1]}${rels[1]}${parts[2]}`, v);
+  const lower = a.rel === '>' || a.rel === '\\ge' ? a : b;
+  const upper = a.rel === '<' || a.rel === '\\le' ? a : b;
+  if (lower === upper) throw new Error('both ends of the band point the same way');
+  if (toNum(lower.value) >= toNum(upper.value)) throw new Error('the band is empty');
+  return { lower, upper };
+}
+
+/** "-5 < x \le 2" — the band written the way it is read, left to right. */
+function bandTex(v, { lower, upper }) {
+  return `${texOf(lower.value)} ${FLIP[lower.rel]} ${v} ${upper.rel} ${texOf(upper.value)}`;
+}
+
+/**
+ * Solve a formula for one of its letters, with every other letter pinned to a
+ * number. The equation is probed at three values rather than rearranged, so a
+ * generator cannot get credit for an algebraic move the checker also made.
+ */
+function isolate(eqSrc, v, env) {
+  const { left, right } = parseEquation(eqSrc);
+  const f = (t) => sub(evalAst(left, { ...env, [v]: t }), evalAst(right, { ...env, [v]: t }));
+  const f0 = f(R(0));
+  const a = sub(f(R(1)), f0);
+  if (isZero(a)) throw new Error(`not linear in ${v}`);
+  if (!reqq(f(R(2)), add(f0, mul(a, R(2))))) throw new Error(`not linear in ${v}`);
+  return div(neg(f0), a);
+}
+
+/** Values the other letters take while a rearrangement is checked. */
+const SAMPLE_SETS = [
+  [2, 3, 5, 7], [11, 4, 3, 13], [-3, 5, 2, 9], [6, -7, 11, 4],
+  [13, 2, 7, 3], [4, 9, 13, 5], [-5, 3, 4, 11], [7, 11, 2, 6],
+];
+
+/** Cross-multiply a proportion and solve, wherever the unknown happens to sit. */
+function solveProportion(src, v) {
+  const { left, right } = parseEquation(src);
+  if (left.k !== 'div' || right.k !== 'div') throw new Error('a proportion is two fractions');
+  const g = (t) => sub(
+    mul(evalAst(left.a, { [v]: t }), evalAst(right.b, { [v]: t })),
+    mul(evalAst(left.b, { [v]: t }), evalAst(right.a, { [v]: t })),
+  );
+  const g0 = g(R(0));
+  const a = sub(g(R(1)), g0);
+  if (isZero(a)) throw new Error(`the unknown cancels: this says nothing about ${v}`);
+  if (!reqq(g(R(2)), add(g0, mul(a, R(2))))) throw new Error('not a linear proportion');
+  const value = div(neg(g0), a);
+  for (const den of [left.b, right.b]) {
+    if (isZero(evalAst(den, { [v]: value }))) throw new Error('the answer empties a denominator');
+  }
+  return value;
+}
+
+/** a·x + b·y = c, read off an equation by probing it. Exact, never rearranged. */
+function coeffs2(eqSrc, vx, vy) {
+  const { left, right } = parseEquation(eqSrc);
+  const F = (x, y) => sub(evalAst(left, { [vx]: x, [vy]: y }), evalAst(right, { [vx]: x, [vy]: y }));
+  const f00 = F(R(0), R(0));
+  const a = sub(F(R(1), R(0)), f00);
+  const b = sub(F(R(0), R(1)), f00);
+  const probe = add(f00, add(mul(a, R(2)), mul(b, R(3))));
+  if (!reqq(F(R(2), R(3)), probe)) throw new Error('a statement in the pair is not linear');
+  return { a, b, c: neg(f00) };
+}
+
+/** Solve a pair of linear statements in two unknowns. */
+function solveSystem(eqs, vars) {
+  if (eqs.length !== 2 || vars.length !== 2) throw new Error('a system here is two statements in two unknowns');
+  const [vx, vy] = vars;
+  const [p, q] = eqs.map((e) => coeffs2(e, vx, vy));
+  const det = sub(mul(p.a, q.b), mul(q.a, p.b));
+  if (isZero(det)) throw new Error('the pair does not meet at one point');
+  return {
+    [vx]: div(sub(mul(p.c, q.b), mul(q.c, p.b)), det),
+    [vy]: div(sub(mul(p.a, q.c), mul(q.a, p.c)), det),
+  };
+}
+
+/** "2x + 3" for a line, so a written rule can be compared with the real one. */
+function texLine(m, b) {
+  const mt = m.d === 1 ? co(m.n, 'x') : `\\frac{${m.n}}{${m.d}}x`;
+  if (isZero(m)) return texOf(b);
+  if (isZero(b)) return mt;
+  return `${mt} ${b.n < 0 ? '-' : '+'} ${texOf(b.n < 0 ? neg(b) : b)}`;
+}
+
+/**
+ * Is the reading the checker used really printed somewhere the learner can see
+ * it? A rule derived from numbers that are not on the page is a rule about a
+ * different question.
+ */
+function pointIsOnScreen(item, x, y) {
+  const fig = item.figure;
+  if (fig && Array.isArray(fig.points) && fig.points.some((p) => p[0] === x && p[1] === y)) return true;
+  const hay = normalise(`${item.latex} ${item.stem || ''}`);
+  if (hay.includes(normalise(`\\left(${x},${y}\\right)`))) return true;
+  try {
+    const cells = parseArrayCells(item.latex);
+    for (const row of cells.slice(1)) {
+      if (row.length >= 2 && Number(row[0]) === x && Number(row[1]) === y) return true;
+    }
+  } catch { /* no table on screen */ }
+  return false;
+}
+
+/** Every worked line of an inequality must describe the same solution set. */
+function checkStepsInequality(steps, v, sol) {
+  for (const s of steps) {
+    if (/\\Rightarrow|\\square/.test(s.latex)) continue;
+    let got;
+    try { got = solveInequality(s.latex, v); } catch { continue; }
+    if (got.rel !== sol.rel || !reqq(got.value, sol.value)) {
+      throw new Error(`worked line changes the solution set: ${s.latex}`);
+    }
+  }
 }
 
 const normalise = (s) => String(s).replace(/\s+/g, '');
@@ -2904,6 +3245,23 @@ export function literalsOf(latex) {
 }
 
 /**
+ * Every distinct letter standing for a quantity in the notation the learner
+ * sees — control sequences, environment names and column specifications
+ * removed, because `\frac`, `array` and `c|c` are typography and not algebra.
+ */
+export function lettersOf(latex) {
+  const bare = String(latex)
+    // Prose inside notation is prose. "\text{no solution}" is one answer, not
+    // seven quantities called n, o, s, l, u, t and i.
+    .replace(/\\text\s*\{[^}]*\}/g, ' ')
+    .replace(/\\begin\{[a-zA-Z]*\}(\s*\{[^}]*\})?/g, ' ')
+    .replace(/\\end\{[a-zA-Z]*\}/g, ' ')
+    .replace(/\\[a-zA-Z]+/g, ' ')
+    .replace(/[{}]/g, ' ');
+  return new Set(bare.match(/[a-zA-Z]/g) || []);
+}
+
+/**
  * How much this item actually asks of a learner.
  *
  * Deliberately crude and deliberately mechanical: chain length, the size of the
@@ -2920,7 +3278,17 @@ export function demandOf(item) {
   const ansNeg = String(item.answer).trim().startsWith('-') ? 0.5 : 0;
   const ansFrac = /\//.test(item.answer) || /\\frac/.test(item.answer) ? 0.75 : 0;
   const terms = (String(item.latex).match(/[+]|(?<=[0-9a-zA-Z}])\s-/g) || []).length;
-  return (item.steps.length * 0.6) + Math.log2(1 + maxAbs) + neg + ansNeg + ansFrac + terms * 0.25;
+  // Quantities are quantities whether they are written as numbers or as
+  // letters. Without this term a literal equation — `P = 2l + 2w`, solved for
+  // w — measures as one of the easiest items in the bank, because it contains
+  // almost no digits, when in fact the learner is holding three unknowns at
+  // once and cannot check the answer by arithmetic. One letter is the ordinary
+  // case and costs nothing; every letter after it is another quantity to keep
+  // hold of. Algebra I Level 1 is single-unknown throughout, so this leaves its
+  // measured ladder where it was.
+  const held = Math.max(0, lettersOf(`${item.latex} ${item.answer}`).size - 1);
+  return (item.steps.length * 0.6) + Math.log2(1 + maxAbs) + neg + ansNeg + ansFrac
+    + terms * 0.25 + held * 0.9;
 }
 
 // ---------------------------------------------------------------------------
@@ -3183,11 +3551,24 @@ export const REPS = ['symbolic', 'context', 'table', 'graph', 'verbal'];
  * pack can add mathematics but cannot add a way past the content gate.
  */
 export const kit = {
-  rng, pick, int, nz, nzc,
+  rng, pick, int, nz, nzc, chance, gcd,
   band, Bcoef, Bkonst, Broot, Bval, Pcoef, Pkonst, Proot, Pgroups,
   co, sg, sgc, term, lin, paren, distinct, arrayTex,
+  // Level 2 writes rules, rates and rearrangements, so it needs to print an
+  // exact rational and a straight line the same way the checker reads them.
+  ratio, texLine, statementTex, bandTex, pointTex, ptsTex,
   VARS,
 };
+
+/** An exact fraction in lowest terms, as strict KaTeX. "3", "-\frac{3}{4}". */
+function ratio(n, d) {
+  if (d === 0) throw new Error('retry: a rate with no run');
+  return texOf(R(n, d));
+}
+/** "\left(3, -4\right)" — the one spelling `pointIsOnScreen` looks for. */
+function pointTex(x, y) { return `\\left(${x}, ${y}\\right)`; }
+/** Two readings, side by side, as they appear in a prompt. */
+function ptsTex(p, q) { return `${pointTex(p[0], p[1])} \\quad ${pointTex(q[0], q[1])}`; }
 
 /**
  * Generate one verified item.

@@ -9,6 +9,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { auditReport } from './_repassert.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -21,6 +22,8 @@ const browser = await chromium.launch({
 });
 const logs = [];
 const shots = [];
+/** Pairs of figures on the report that cannot both be true. Blocking. */
+const contradictions = [];
 
 async function session(w, h, tag, work) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
@@ -101,6 +104,48 @@ const summary = await session(1600, 900, 'desktop', async (page) => {
   shots.push('rep-1600-en.png');
   await page.screenshot({ path: path.join(OUT, 'rep-1600-en-full.png'), fullPage: false });
 
+  // THE CONTRADICTION ASSERTIONS.
+  //
+  // Everything above this line photographs the report. This reads it. A screen
+  // where each figure is individually correct can still print four figures that
+  // cannot all be true of the same learner, and that is what a cold reader
+  // found — so the same rules tools/critic/repcheck.mjs applies to a real driven
+  // session are applied here to the scripted one, and this tool now fails on
+  // them. See tools/critic/_repassert.mjs for what each pair is and which bug
+  // it is named after.
+  //
+  // The session clock is not checked here: this harness plays a hundred and
+  // seventy items in a few seconds, so its wall clock is not a session's.
+  // repcheck.mjs owns that one, because only a real drive can own it.
+  await page.evaluate(() => {
+    for (const r of document.querySelectorAll('.rp-skill .rp-row')) {
+      if (r.getAttribute('aria-expanded') !== 'true') r.click();
+    }
+  });
+  await page.waitForTimeout(500);
+  const audit = await page.evaluate(() => ({
+    snapshot: window.__ascent.report.snapshot(),
+    model: window.__ascent.mastery.save().skills,
+    next: (document.querySelector('.rp-nx-why')?.innerText || '').replace(/\s+/g, ' ').trim(),
+    rows: [...document.querySelectorAll('.rp-skill')].map((art) => ({
+      name: art.querySelector('.rp-name')?.textContent || '',
+      pct: art.querySelector('.rp-pct')?.textContent || '',
+      facts: [...art.querySelectorAll('.rp-detail .rp-facts dt')].map((dt, i) => ({
+        k: dt.textContent,
+        v: art.querySelectorAll('.rp-detail .rp-facts dd')[i]?.textContent || '',
+      })),
+      evidence: [...art.querySelectorAll('.rp-ev-row')].map((li) => ({
+        note: li.querySelector('.rp-ev-note')?.textContent || '',
+      })),
+      sum: art.querySelector('.rp-ev-sum')?.textContent || '',
+    })),
+  }));
+  contradictions.push(...auditReport(audit));
+  await page.evaluate(() => {
+    for (const r of document.querySelectorAll('.rp-skill .rp-row[aria-expanded="true"]')) r.click();
+  });
+  await page.waitForTimeout(300);
+
   // expand first two skills to show evidence
   await page.evaluate(() => {
     const rows = [...document.querySelectorAll('.rp-skill .rp-row')];
@@ -176,11 +221,13 @@ await session(414, 896, 'phone', async (page, ctx) => {
 });
 
 const errors = logs.filter((l) => l.type === 'error' || l.type === 'pageerror');
-await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ shots, errors, logs }, null, 2));
+await writeFile(path.join(OUT, 'report.json'), JSON.stringify({ shots, errors, logs, contradictions }, null, 2));
 console.log('items played:', summary.played.items, 'rifts opened:', summary.played.opened);
 console.log('fps:', summary.played.fps, 'perf:', JSON.stringify(summary.played.perf));
 console.log('errors:', errors.length);
 for (const e of errors.slice(0, 10)) console.log('  !', e.tag, e.type, e.text.slice(0, 200));
+console.log('contradictions:', contradictions.length);
+for (const c of contradictions) console.log('  X', c);
 console.log('--- report text (EN) ---\n' + summary.dump.text.slice(0, 4000));
 await browser.close();
-process.exit(errors.length ? 1 : 0);
+process.exit(errors.length || contradictions.length ? 1 : 0);

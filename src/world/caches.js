@@ -373,12 +373,15 @@ export function createCaches(opts = {}) {
     openNow(c, false);
     c.opened = true;
     save();
-    wallet?.earn?.(REWARD, 'cache');
+    // What the wallet actually took, which is REWARD until the day's assay runs
+    // thin (src/kit/ledger.js). The caption prints the paid number, never the
+    // sticker price: the ledger strip is right beside it.
+    const paid = wallet?.earn?.(REWARD, 'cache') ?? REWARD;
     // the reward that changes the map: a standing updraft, here, for ever
     drift?.addColumn?.(c.x, c.z, 78, 8.4, true);
     audio?.unlocked?.();
     fx?.impact?.('good');
-    hud?.flash?.(t('field.cacheOpen', { n: REWARD }), 'good');
+    hud?.flash?.(t('field.cacheOpen', { n: paid }), 'good');
   }
 
   function openNow(c, silent) {

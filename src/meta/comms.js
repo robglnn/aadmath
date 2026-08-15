@@ -28,8 +28,39 @@
 import { t } from '../i18n/index.js';
 
 const CPS = 88;                       // characters revealed per second
-const HOLD_MIN = 1.35, HOLD_MAX = 2.9;
+
+/* HOW LONG A LINE STAYS UP, AND WHY IT IS NOT 2.9 SECONDS ANY MORE.
+ *
+ * src/ui P1 — a cold critic read the arrival speech and reported "two lines of
+ * typewriter prose, clipped mid-word, fired twice inside the first 100 seconds.
+ * No 15-year-old reads that." Nothing was clipping it. It was being taken away.
+ *
+ * The old hold was `min(2.9, max(1.35, 1.1 + len * 0.011))`, which saturates at
+ * 2.9 s for anything over 164 characters — so the LONGER a line was, the less
+ * time per word it got. Measured against the bundle: `story.open.l3` is 216
+ * characters, took 2.45 s to type and held 2.90 s, giving 5.35 s on screen. A
+ * fifteen-year-old reading at 200 wpm needs 11.8 s for it. It was removed with
+ * six and a half seconds of reading still to do, every single time, which from
+ * the reader's seat is a sentence cut off in the middle of a word.
+ *
+ * The hold is now the reading time the words actually cost, less the time the
+ * typewriter already spent revealing them, plus a beat to finish the last word.
+ * READ_CPS is 17 characters per second — about 185 wpm, which is a comfortable
+ * teenage silent-reading rate rather than an adult skimming one.
+ *
+ * The ceiling is the backstop, not the design: the lines themselves were cut to
+ * length in src/i18n (nothing Marlow says on arrival is over ~110 characters in
+ * any of the three locales), and `tools/critic/marlow-length.mjs` fails the
+ * build if one grows back.
+ */
+const READ_CPS = 17;
+const HOLD_MIN = 1.5, HOLD_MAX = 6.2;
 const MEMORY = 8;                     // lines of "do not say that again"
+
+/** Seconds a fully-typed line stays on screen. */
+function holdFor(len) {
+  return Math.min(HOLD_MAX, Math.max(HOLD_MIN, len / READ_CPS - len / CPS + 0.8));
+}
 
 export class Comms {
   constructor(root) {
@@ -182,7 +213,7 @@ export class Comms {
   _start(item) {
     this.cur = item;
     this.shown = 0;
-    this.hold = Math.min(HOLD_MAX, Math.max(HOLD_MIN, 1.1 + item.text.length * 0.011));
+    this.hold = holdFor(item.text.length);
     this.body.textContent = '';
     this.caret.style.display = '';
     this.el.classList.add('show', 'talk');

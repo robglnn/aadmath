@@ -1,0 +1,335 @@
+# Standards alignment — Algebra I, Level 2: Lean, Rate and Pair
+
+Generated from `content/graph/algebra1-l2.json`, which is the source of truth. Every
+claim below is made by a node and is read through `src/content/standards.js`.
+
+**How to read a depth.** `core` means the mastery gate for that node really tests the
+expectation: three unassisted items at band 4 or above, at least one of them outside
+notation, in a form or a situation the learner has not practised. `supporting` and
+`introduced` mean part of the expectation is met and the row says which part is not.
+
+**Authority.** CCSS-M citations are the Common Core State Standards for Mathematics.
+TEKS citations are 19 Texas Administrative Code, Part 2 (Texas Education Agency),
+Chapter 111 (Mathematics): §111.26 Grade 6, §111.27 Grade 7, §111.28 Grade 8 and
+§111.39 Algebra I, all Adopted 2012 — the version STAAR Algebra I is built on.
+
+## `bracket-both-sides`
+
+> A bracket on each side is still one balance. Open both brackets first, then gather the letters on one side — the order is what keeps the statement true.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | core | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.SSE.A.1.B` | — | supporting | Interpret complicated expressions by viewing one or more of their parts as a single entity. |
+| TEKS | `A.5(A)` | `19 TAC §111.39(c)(5)(A)` | core | solve linear equations in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; |
+
+- **CCSS.MATH.CONTENT.HSA.SSE.A.1.B — what is NOT claimed.** The learner has to read a(x + b) as one quantity before opening it. The full expectation also covers non-linear structure, which this unit does not reach.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.B.3 is proved by the gate itself: three unassisted items at band 4 or above, at least one of them in a situation rather than in notation. HSA.SSE.A.1.B is supported by the symbolic form, where the two brackets must be seen as single quantities before either is opened.
+- *TEKS* — A.5(A) names both hard cases in one sentence — the distributive property, and variables on both sides. This node is the only place where a learner meets both in the same statement, so the citation is core rather than supporting.
+
+**Process standards.** CCSS-M MP.7, MP.6 · TEKS A.1(D), A.1(G)
+
+**Misconceptions this node declares.** `partial-distribute`, `neg-distribute`, `collect-wrong-side`, `one-side-only`
+
+## `fraction-solve`
+
+> A division is an operation like any other, so it comes off like any other: multiply both sides by the number underneath before anything else moves.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | core | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| CCSS-M | `CCSS.MATH.CONTENT.7.EE.B.4.A` | — | supporting | Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently. Compare an algebraic solution to an arithmetic solution, identifying the sequence of the operations used in each approach. |
+| TEKS | `A.5(A)` | `19 TAC §111.39(c)(5)(A)` | supporting | solve linear equations in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; |
+
+- **CCSS.MATH.CONTENT.7.EE.B.4.A — what is NOT claimed.** Covered in the (x + q)/p framing, which is the same equation written with the division shown rather than a bracket.
+- **A.5(A) — what is NOT claimed.** The rational-coefficient case is inside A.5(A) but is not one of the two cases the expectation names, so the claim is supporting.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.B.3 is proved by the gate. 7.EE.B.4.A is supported by the situation form, where a total is shared before a fixed amount is added.
+- *TEKS* — A.5(A) is claimed at supporting depth. A Texas Algebra I student meets rational coefficients under A.5(A), but the expectation names the distributive and both-sides cases explicitly and this node tests neither.
+
+**Process standards.** CCSS-M MP.7, MP.8 · TEKS A.1(A), A.1(D)
+
+**Misconceptions this node declares.** `divide-not-multiply`, `wrong-unwrap-order`, `partial-rule`
+
+## `rule-from-table`
+
+> A table with even steps hides one rule. Find how much the output moves for one step of the input, and the rest of the table follows.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.8.F.B.4` | — | core | Construct a function to model a linear relationship between two quantities. Determine the rate of change and initial value of the function from a description of a relationship or from two (x, y) values, including reading these from a table or from a graph. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSF.LE.A.2` | — | supporting | Construct linear and exponential functions, including arithmetic and geometric sequences, given a graph, a description of a relationship, or two input-output pairs (include reading these from a table). |
+| TEKS | `A.3(B)` | `19 TAC §111.39(c)(3)(B)` | core | calculate the rate of change of a linear function represented tabularly, graphically, or algebraically in context of mathematical and real-world problems; |
+| TEKS | `A.2(C)` | `19 TAC §111.39(c)(2)(C)` | supporting | write linear equations in two variables given a table of values, a graph, and a verbal description; |
+
+- **CCSS.MATH.CONTENT.HSF.LE.A.2 — what is NOT claimed.** Linear only. Nothing in this unit constructs an exponential function.
+- **A.2(C) — what is NOT claimed.** The learner reads the rule and uses it. Writing the equation down in y = mx + b form is Level 3.
+
+**What the gate proves.**
+
+- *CCSS-M* — 8.F.B.4 is core: the table never states its rule, so the learner has to derive the rate of change and the initial value before any row can be filled. HSF.LE.A.2 is the same act stated at high-school level and is claimed as supporting because only the linear half is tested.
+- *TEKS* — A.3(B) is core — rate of change from a table is exactly what the gate tests. A.2(C) is supporting: the rule is used, not written.
+
+**Process standards.** CCSS-M MP.7, MP.8 · TEKS A.1(D), A.1(G)
+
+**Misconceptions this node declares.** `off-by-one-row`, `add-not-multiply`, `partial-rule`
+
+## `inequality-one-step`
+
+> An inequality is a balance that leans. Free the unknown exactly as you would in an equation. One move is different: divide by a negative and the lean turns round.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | core | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| CCSS-M | `CCSS.MATH.CONTENT.6.EE.B.8` | — | supporting | Write an inequality of the form x > c or x < c to represent a constraint or condition in a real-world or mathematical problem. Recognize that inequalities of the form x > c or x < c have infinitely many solutions; represent solutions of such inequalities on number line diagrams. |
+| TEKS | `6.10(A)` | `19 TAC §111.26(b)(10)(A)` | core | model and solve one-variable, one-step equations and inequalities that represent problems, including geometric concepts; and |
+| TEKS | `A.5(B)` | `19 TAC §111.39(c)(5)(B)` | supporting | solve linear inequalities in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; and |
+
+- **CCSS.MATH.CONTENT.6.EE.B.8 — what is NOT claimed.** The learner reads and chooses statements of the form x > c. Number-line diagrams are not drawn anywhere in this unit.
+- **A.5(B) — what is NOT claimed.** A.5(B) names two hard cases: the distributive property, and variables on both sides. This node tests neither. Both arrive at inequality-multi-step.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.B.3 is core in its inequality half: the gate is three unassisted items at band 4 or above, at least one of them in a situation, and every one of them is a one-variable linear inequality. 6.EE.B.8 is supporting — the learner reads and writes x > c but never draws it.
+- *TEKS* — 6.10(A) is core and is the readiness expectation Level 1 left half-claimed: Level 1 modelled and solved one-step equations, and this node closes the inequality half of the same sentence. A.5(B) is supporting because the Algebra I expectation names the distributive and both-sides cases, and neither is tested here.
+
+**Process standards.** CCSS-M MP.2, MP.6 · TEKS A.1(D), A.1(G)
+
+**Misconceptions this node declares.** `flip-always`, `flip-not-needed`, `boundary-slip`, `same-op-both`, `sign-on-constant`
+
+## `inequality-two-step`
+
+> Unwrap a lean in reverse, exactly as you unwrap an equation: the loose number first, then the coefficient. Only the division can turn the sign.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | core | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| CCSS-M | `CCSS.MATH.CONTENT.7.EE.B.4.B` | — | supporting | Solve word problems leading to inequalities of the form px + q > r or px + q < r, where p, q, and r are specific rational numbers. Graph the solution set of the inequality and interpret it in the context of the problem. |
+| TEKS | `7.11(A)` | `19 TAC §111.27(b)(11)(A)` | core | model and solve one-variable, two-step equations and inequalities; |
+| TEKS | `A.5(B)` | `19 TAC §111.39(c)(5)(B)` | supporting | solve linear inequalities in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; and |
+
+- **CCSS.MATH.CONTENT.7.EE.B.4.B — what is NOT claimed.** The word-problem and solving halves are core here. Graphing the solution set is not: this unit never draws a solution set on a number line.
+- **A.5(B) — what is NOT claimed.** The two cases A.5(B) names by name are still absent. They are tested at inequality-multi-step, which claims A.5(B) as core.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.B.3 is core. 7.EE.B.4.B is supporting and the caveat is exact: the px + q > r form is the whole of this node, and the graphing clause of that expectation is not met anywhere in Level 2.
+- *TEKS* — 7.11(A) is core — one-variable two-step inequalities, modelled and solved, is a word-for-word description of this node. The limit forms answer the question the expectation is really for: the largest whole load a hoist will lift.
+
+**Process standards.** CCSS-M MP.7, MP.8 · TEKS A.1(B), A.1(D)
+
+**Misconceptions this node declares.** `flip-always`, `flip-not-needed`, `boundary-slip`, `sign-on-constant`, `partial-rule`
+
+## `inequality-multi-step`
+
+> A bracket opens the same way and the unknown gathers the same way. Gather it on the side that leaves a positive coefficient, and you never have to turn the sign at all.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | core | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.CED.A.1` | — | supporting | Create equations and inequalities in one variable and use them to solve problems. Include equations arising from linear and quadratic functions, and simple rational and exponential functions. |
+| TEKS | `A.5(B)` | `19 TAC §111.39(c)(5)(B)` | core | solve linear inequalities in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; and |
+| TEKS | `A.1(F)` | `19 TAC §111.39(c)(1)(F)` | supporting | analyze mathematical relationships to connect and communicate mathematical ideas; |
+
+- **CCSS.MATH.CONTENT.HSA.CED.A.1 — what is NOT claimed.** Linear only. Quadratic, rational and exponential equations are named by the expectation and are outside Algebra I Level 2.
+- **A.1(F) — what is NOT claimed.** Claimed for the dispute form only, where the learner has to judge two finished readings rather than produce one.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.B.3 is core and is proved at full strength here: brackets, unknowns on both sides, and a negative coefficient that turns the relation. Nothing above this node is needed to claim the inequality half of REI.B.3 for linear cases.
+- *TEKS* — A.5(B) is core, and this is the only node in the course where both cases the expectation names by name — the distributive property, and variables on both sides — are met inside one inequality. That is why the claim moves from supporting to core here and nowhere earlier.
+
+**Process standards.** CCSS-M MP.3, MP.7 · TEKS A.1(F), A.1(G)
+
+**Misconceptions this node declares.** `flip-not-needed`, `flip-always`, `partial-distribute`, `collect-wrong-side`, `boundary-slip`
+
+## `compound-inequality`
+
+> Two statements at once describe a band, not a ray. Every move happens to all three parts together, and a negative coefficient turns the whole band inside out.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | core | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.CED.A.3` | — | supporting | Represent constraints by equations or inequalities, and by systems of equations and/or inequalities, and interpret solutions as viable or nonviable options in a modeling context. |
+| TEKS | `A.5(B)` | `19 TAC §111.39(c)(5)(B)` | core | solve linear inequalities in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; and |
+| TEKS | `A.2(A)` | `19 TAC §111.39(c)(2)(A)` | supporting | determine the domain and range of a linear function in mathematical problems; determine reasonable domain and range values for real-world situations, both continuous and discrete; and represent domain and range using inequalities; |
+
+- **CCSS.MATH.CONTENT.HSA.CED.A.3 — what is NOT claimed.** Constraints are represented and read back as a band. Systems of inequalities, and judging an option viable or nonviable, are not tested.
+- **A.2(A) — what is NOT claimed.** Only the last clause is claimed: representing a set of allowed values using inequalities. Domain and range of a function are not treated in Level 2.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.B.3 is core: a compound statement is two linear inequalities in one variable held at once, and the gate proves both ends. HSA.CED.A.3 is supporting, for the situations where a machine runs only inside a band.
+- *TEKS* — A.5(B) is core again, at its hardest reading. A.2(A) is supporting and narrowly claimed: the expectation ends with "represent domain and range using inequalities", and a band is exactly that representation, but nothing here is called a domain.
+
+**Process standards.** CCSS-M MP.2, MP.6 · TEKS A.1(D), A.1(E)
+
+**Misconceptions this node declares.** `band-reversed`, `boundary-slip`, `flip-not-needed`, `partial-rule`
+
+## `literal-equations`
+
+> A formula is an equation whose numbers have not arrived yet. Solve it for any letter you like, using the same moves, in the same order.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.CED.A.4` | — | core | Rearrange formulas to highlight a quantity of interest, using the same reasoning as in solving equations. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.B.3` | — | supporting | Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters. |
+| TEKS | `A.12(E)` | `19 TAC §111.39(c)(12)(E)` | core | solve mathematic and scientific formulas, and other literal equations, for a specified variable. |
+| TEKS | `A.5(A)` | `19 TAC §111.39(c)(5)(A)` | supporting | solve linear equations in one variable, including those for which the application of the distributive property is necessary and those for which variables are included on both sides; |
+
+- **CCSS.MATH.CONTENT.HSA.REI.B.3 — what is NOT claimed.** This node meets the clause "including equations with coefficients represented by letters". The numeric-solution half of REI.B.3 belongs to Level 1 and to the equation nodes here.
+- **A.5(A) — what is NOT claimed.** The moves are the moves of A.5(A), but the statement being solved carries letters and not numbers, so the claim is supporting rather than core.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.CED.A.4 is core and is what the gate tests directly: a formula is handed over and a named quantity has to be brought out on its own. The checker re-derives the rearrangement by pinning every other letter to numbers and solving the original formula from scratch, so a right-looking rearrangement that is false at some value never reaches a learner.
+- *TEKS* — A.12(E) is core — "solve mathematic and scientific formulas, and other literal equations, for a specified variable" is a sentence-for-sentence description of this node, and the formulas used are scientific ones: distance, force, area, volume and the arithmetic sequence term.
+
+**Process standards.** CCSS-M MP.2, MP.7 · TEKS A.1(D), A.1(F)
+
+**Misconceptions this node declares.** `div-direction`, `same-op-both`, `divide-not-multiply`, `partial-rule`, `sign-on-constant`, `partial-distribute`
+
+## `ratio-proportion`
+
+> Two ratios agree when one is a whole-number copy of the other. Multiply across the two bars and the fourth number falls out of an ordinary equation.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.7.RP.A.2.C` | — | core | Represent proportional relationships by equations. |
+| CCSS-M | `CCSS.MATH.CONTENT.6.RP.A.3` | — | supporting | Use ratio and rate reasoning to solve real-world and mathematical problems, e.g., by reasoning about tables of equivalent ratios, tape diagrams, double number line diagrams, or equations. |
+| TEKS | `6.5(A)` | `19 TAC §111.26(b)(5)(A)` | core | represent mathematical and real-world problems involving ratios and rates using scale factors, tables, graphs, and proportions; |
+| TEKS | `A.2(D)` | `19 TAC §111.39(c)(2)(D)` | supporting | write and solve equations involving direct variation; |
+
+- **CCSS.MATH.CONTENT.6.RP.A.3 — what is NOT claimed.** Tables of equivalent ratios and equations are tested. Tape diagrams and double number lines are not drawn anywhere in this unit.
+- **A.2(D) — what is NOT claimed.** The proportional relationship is written and solved, but it is never named as direct variation and the constant is never written as k.
+
+**What the gate proves.**
+
+- *CCSS-M* — 7.RP.A.2.C is core: every item either represents a proportional relationship as an equation or solves the one it is handed. 6.RP.A.3 is supporting, met through tables of equivalent ratios and through the scale, mixture and rate situations.
+- *TEKS* — 6.5(A) is core and is claimed on three of its four named tools — scale factors, tables and proportions. Graphs of a proportional relationship belong to slope-rate and graph-linear, which cite the graphing expectations directly rather than borrowing this one.
+
+**Process standards.** CCSS-M MP.2, MP.8 · TEKS A.1(A), A.1(E)
+
+**Misconceptions this node declares.** `add-not-multiply`, `div-direction`, `swapped-roles`, `partial-rule`
+
+## `slope-rate`
+
+> Rate is the climb divided by the step across. On one straight rule it is the same number wherever you measure it, so any two readings will do.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.8.EE.B.6` | — | core | Use similar triangles to explain why the slope m is the same between any two distinct points on a non-vertical line in the coordinate plane; derive the equation y = mx for a line through the origin and the equation y = mx + b for a line intercepting the vertical axis at b. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSF.IF.B.6` | — | supporting | Calculate and interpret the average rate of change of a function (presented symbolically or as a table) over a specified interval. Estimate the rate of change from a graph. |
+| TEKS | `A.3(A)` | `19 TAC §111.39(c)(3)(A)` | core | determine the slope of a line given a table of values, a graph, two points on the line, and an equation written in various forms, including y = mx + b, Ax + By = C, and y - y1 = m(x - x1); |
+| TEKS | `8.4(A)` | `19 TAC §111.28(b)(4)(A)` | supporting | use similar right triangles to develop an understanding that slope, m, given as the rate comparing the change in y-values to the change in x-values, (y2 - y1)/ (x2 - x1), is the same for any two points (x1, y1) and (x2, y2) on the same line; |
+
+- **CCSS.MATH.CONTENT.HSF.IF.B.6 — what is NOT claimed.** Linear only, so the average rate of change over an interval is the rate of the whole rule. Non-linear functions, where the two differ, are not reached.
+- **8.4(A) — what is NOT claimed.** The learner uses the fact that the rate is the same between any two points and meets it on tables, points and traces. The similar-triangles argument for why it is the same is not made.
+
+**What the gate proves.**
+
+- *CCSS-M* — 8.EE.B.6 is core in its first half: the rate is the same between any two distinct points, and the gate proves it by asking for the same rate off points, off a table and off a drawn trace. Deriving y = mx + b from it is the next node.
+- *TEKS* — A.3(A) is core and is claimed on three of the four sources it names — a table of values, a graph, and two points on the line. The fourth, reading the slope off an equation written in various forms, belongs to graph-linear and write-linear.
+
+**Process standards.** CCSS-M MP.7, MP.8 · TEKS A.1(D), A.1(F)
+
+**Misconceptions this node declares.** `run-over-rise`, `add-not-subtract`, `slope-intercept-swap`, `axis-swap`, `partial-rule`
+
+## `graph-linear`
+
+> A straight rule and a straight trace are the same thing said twice. The rate is how steeply it climbs, and the start is where it crosses the upright axis.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSF.IF.C.7.A` | — | core | Graph linear and quadratic functions and show intercepts, maxima, and minima. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.D.10` | — | supporting | Understand that the graph of an equation in two variables is the set of all its solutions plotted in the coordinate plane, often forming a curve (which could be a line). |
+| TEKS | `A.3(C)` | `19 TAC §111.39(c)(3)(C)` | core | graph linear functions on the coordinate plane and identify key features, including x-intercept, y-intercept, zeros, and slope, in mathematical and real-world problems; |
+| TEKS | `8.5(B)` | `19 TAC §111.28(b)(5)(B)` | supporting | represent linear non-proportional situations with tables, graphs, and equations in the form of y = mx + b, where b ≠ 0; |
+
+- **CCSS.MATH.CONTENT.HSA.REI.D.10 — what is NOT claimed.** Lines only. The learner never plots a curve, so the general statement about equations in two variables is met in its linear case alone.
+- **8.5(B) — what is NOT claimed.** Tables and graphs are both used and the rule is read in y = mx + b form. Writing that equation down is write-linear, which claims the expectation as core.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSF.IF.C.7.A is core in its linear half and is tested on a working coordinate surface: the learner drags the trace onto the grid and the rig accepts it only when the line it drew is the line the readings describe. Reading a value off a trace, and finding where a trace reaches a level, cover the intercept clause.
+- *TEKS* — A.3(C) is core. Three of its four named key features are tested — the y-intercept, the slope, and the x-intercept, which is asked as "where does the trace reach this level". Zeros are the x-intercept under another name and are not asked separately.
+
+**Process standards.** CCSS-M MP.4, MP.5 · TEKS A.1(C), A.1(E)
+
+**Misconceptions this node declares.** `slope-intercept-swap`, `axis-swap`, `partial-rule`, `sign-slip`, `div-direction`
+
+## `write-linear`
+
+> Two readings are enough to write a rule down. The rate comes from the climb, and the start comes from stepping back to the upright axis.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.8.F.B.4` | — | core | Construct a function to model a linear relationship between two quantities. Determine the rate of change and initial value of the function from a description of a relationship or from two (x, y) values, including reading these from a table or from a graph. Interpret the rate of change and initial value of a linear function in terms of the situation it models, and in terms of its graph or a table of values. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSF.LE.A.2` | — | supporting | Construct linear and exponential functions, including arithmetic and geometric sequences, given a graph, a description of a relationship, or two input-output pairs (include reading these from a table). |
+| TEKS | `A.2(C)` | `19 TAC §111.39(c)(2)(C)` | core | write linear equations in two variables given a table of values, a graph, and a verbal description; |
+| TEKS | `A.2(B)` | `19 TAC §111.39(c)(2)(B)` | supporting | write linear equations in two variables in various forms, including y = mx + b, Ax + By = C, and y - y1 = m(x - x1), given one point and the slope and given two points; |
+
+- **CCSS.MATH.CONTENT.HSF.LE.A.2 — what is NOT claimed.** Linear only. Nothing in this unit constructs an exponential function or a geometric sequence.
+- **A.2(B) — what is NOT claimed.** The two-points case is core here, but only the y = mx + b form is written. The standard form and the point-slope form are not produced.
+
+**What the gate proves.**
+
+- *CCSS-M* — 8.F.B.4 is core and is met in full: the rate of change and the initial value are both determined, from a description, from two values, from a table and from a graph, and the situations ask the learner to interpret them. rule-from-table claimed the same expectation for reading a rule; this node claims it for writing one down.
+- *TEKS* — A.2(C) moves from supporting at rule-from-table to core here, because the learner now produces the equation rather than using it. All three sources the expectation names are tested: a table of values, a graph, and a verbal description.
+
+**Process standards.** CCSS-M MP.4, MP.7 · TEKS A.1(D), A.1(E)
+
+**Misconceptions this node declares.** `slope-intercept-swap`, `sign-on-constant`, `sign-slip`, `partial-rule`
+
+## `system-substitution`
+
+> Two statements pin a point down. When one of them already says what a letter is, put that straight into the other and only one letter is left.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.C.6` | — | core | Solve systems of linear equations exactly and approximately (e.g., with graphs), focusing on pairs of linear equations in two variables. |
+| CCSS-M | `CCSS.MATH.CONTENT.8.EE.C.8.B` | — | supporting | Solve systems of two linear equations in two variables algebraically, and estimate solutions by graphing the equations. Solve simple cases by inspection. |
+| TEKS | `A.5(C)` | `19 TAC §111.39(c)(5)(C)` | core | solve systems of two linear equations with two variables for mathematical and real-world problems. |
+| TEKS | `8.9(A)` | `19 TAC §111.28(b)(9)(A)` | supporting | identify and verify the values of x and y that simultaneously satisfy two linear equations in the form y = mx + b from the intersections of the graphed equations. |
+
+- **CCSS.MATH.CONTENT.8.EE.C.8.B — what is NOT claimed.** Solved algebraically and read off a drawn pair of traces. Estimating a solution by graphing is not asked, because every pair here meets at whole numbers.
+- **8.9(A) — what is NOT claimed.** Verifying a pair against both statements is tested directly. Reading the pair off an intersection on a drawn graph is offered but is not what the gate proves.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.C.6 is core for the substitution method. The checker reads both statements back off the screen, extracts their coefficients by probing them, and solves the pair by determinant — so no item can be right about a pair the learner is not looking at.
+- *TEKS* — A.5(C) is core. Both halves of the expectation are met: mathematical problems in the symbolic forms, and real-world problems in the manifest and ledger situations, where the two totals are the two statements.
+
+**Process standards.** CCSS-M MP.1, MP.7 · TEKS A.1(B), A.1(F)
+
+**Misconceptions this node declares.** `axis-swap`, `partial-rule`, `sign-slip`
+
+## `system-elimination`
+
+> Add two true statements and the result is true as well. Line one letter up so its two terms are opposite, add, and that letter leaves.
+
+| Framework | Code | 19 TAC | Depth | Expectation |
+|---|---|---|---|---|
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.C.5` | — | core | Prove that, given a system of two equations in two variables, replacing one equation by the sum of that equation and a multiple of the other produces a system with the same solutions. |
+| CCSS-M | `CCSS.MATH.CONTENT.HSA.REI.C.6` | — | core | Solve systems of linear equations exactly and approximately (e.g., with graphs), focusing on pairs of linear equations in two variables. |
+| CCSS-M | `CCSS.MATH.CONTENT.8.EE.C.8.C` | — | supporting | Solve real-world and mathematical problems leading to two linear equations in two variables. |
+| TEKS | `A.5(C)` | `19 TAC §111.39(c)(5)(C)` | core | solve systems of two linear equations with two variables for mathematical and real-world problems. |
+| TEKS | `A.3(F)` | `19 TAC §111.39(c)(3)(F)` | supporting | graph systems of two linear equations in two variables on the coordinate plane and determine the solutions if they exist; |
+
+- **CCSS.MATH.CONTENT.8.EE.C.8.C — what is NOT claimed.** The situations lead to two linear equations in two variables and are solved. The expectation also expects the learner to write the pair from scratch, which system-substitution and write-linear cover.
+- **A.3(F) — what is NOT claimed.** The solution of a pair is determined and is the point where two traces would meet. This node does not ask the learner to draw the two traces first.
+
+**What the gate proves.**
+
+- *CCSS-M* — HSA.REI.C.5 is core and is the whole idea of this node: replacing one statement by a multiple of itself added to the other leaves the same solution. The scaled form makes the multiple explicit. HSA.REI.C.6 is core for the elimination method.
+- *TEKS* — A.5(C) is core for the second time in the course, because TEKS names the method-free outcome and this node reaches it by a different route from system-substitution. A learner who clears both has met A.5(C) by substitution and by elimination.
+
+**Process standards.** CCSS-M MP.3, MP.8 · TEKS A.1(F), A.1(G)
+
+**Misconceptions this node declares.** `subtract-not-add`, `axis-swap`, `partial-rule`, `sign-slip`
+

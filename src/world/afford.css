@@ -12,7 +12,7 @@
 #ui .afd-layer { pointer-events: none; }
 /* Above the world's own name tags (z 6) and below anything that can hold the
    whole frame (src/meta is 12+, the boot curtain 50). */
-.afd-layer { position: absolute; inset: 0; overflow: hidden; z-index: 8; }
+.afd-layer { position: absolute; inset: 0; overflow: hidden; z-index: var(--z-afford); }
 
 /* ---------------------------------------------------------------------------
    THE CALL — a keycap and a verb, pinned to the ring.
@@ -186,7 +186,7 @@ html[data-touch="1"] .afd-call.here .afd-key { min-width: 3rem; height: 2.3rem; 
   backdrop-filter: blur(10px);
   font-family: var(--ui);
   opacity: 0; transition: opacity .35s ease;
-  pointer-events: none; z-index: 9;
+  pointer-events: none; z-index: var(--z-afford-head);
 }
 #ui .afd-head.show { opacity: 1; }
 

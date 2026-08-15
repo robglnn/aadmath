@@ -59,7 +59,7 @@
   opacity: 0; translate: 0 14px; visibility: hidden;
   transition: opacity .38s ease, translate .38s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .38s;
   pointer-events: none;
-  z-index: 24;
+  z-index: var(--z-comms);
 }
 #ui .meta-comms.show { opacity: 1; translate: 0 0; visibility: visible; transition-delay: 0s; }
 /* The rite prints its citation across the bottom third, which is where the
@@ -134,7 +134,7 @@
   border-left: 2px solid var(--rank-ink);
   border-radius: 9px; backdrop-filter: blur(12px);
   opacity: 0; translate: -8px 0; transition: opacity .5s ease, translate .5s ease;
-  cursor: pointer; pointer-events: auto; z-index: 22;
+  cursor: pointer; pointer-events: auto; z-index: var(--z-chapter);
   text-align: left; appearance: none; font: inherit; color: inherit;
   display: block;
 }
@@ -268,7 +268,7 @@
    you would not mind seeing five times. */
 #ui .meta-turn {
   position: absolute; inset: 0; display: grid; place-items: center;
-  pointer-events: none; z-index: 23; opacity: 0; visibility: hidden;
+  pointer-events: none; z-index: var(--z-turn); opacity: 0; visibility: hidden;
 }
 /* The layer's own fade is a transition driven by a timer in turn.js, not an
    animation with a fill: the global reduced-motion reset collapses every
@@ -334,7 +334,7 @@
 }
 
 /* ------------------------------------------------------------ cold open -- */
-#ui .meta-open { position: absolute; inset: 0; pointer-events: none; z-index: 12; }
+#ui .meta-open { position: absolute; inset: 0; pointer-events: none; z-index: var(--z-cine); }
 /* Scrims, not film bars. A solid letterbox would have to cover the HUD to look
    deliberate; a gradient lifts the contrast under the stamp and the channel and
    leaves every readout where the player expects it. */
@@ -496,7 +496,7 @@
    The rite never takes the controls: you can walk through your own promotion. */
 #ui .meta-rite {
   position: absolute; inset: 0;
-  pointer-events: none; opacity: 0; visibility: hidden; z-index: 40;
+  pointer-events: none; opacity: 0; visibility: hidden; z-index: var(--z-rite);
   transition: opacity .45s ease, visibility 0s linear .45s;
   contain: layout paint;
 }
@@ -528,6 +528,21 @@
 #ui:has(.meta-rite.show) .axiom,
 #ui:has(.meta-rite.show) .langs,
 #ui:has(.meta-rite.show) .sound,
+/* src/ui P1 — photographed at the ceremony's readable peak, the first-contact
+   card was still printing a 300x200 checklist over a letterboxed frame. It
+   stands down like everything else.
+
+   TWO SURFACES ARE DELIBERATELY NOT IN THIS LIST.
+   `.fcs`, the way-out card, is the surface you need precisely when something
+   has gone wrong; a promotion is not a reason to take the escape hatch off the
+   screen.
+   `.ledger` stays because it is the only place a term ever defines itself —
+   src/kit/ledger.js prints "Descent — a run back down a line you already hold"
+   once, EVER, and then marks it taught. A seal can buy a rank, so the ceremony
+   and the first sighting of a word can land in the same second; hiding the
+   strip here would consume the one showing of a definition behind a letterbox
+   and the player would never be told what the word meant. */
+#ui:has(.meta-rite.show) .fc,
 #ui:has(.meta-rite.show) .toast {
   opacity: 0; pointer-events: none; transition: opacity .4s ease;
 }
@@ -545,12 +560,32 @@
    Marlow's channel is deliberately NOT in this list: she answers answers, and
    she does it while the tear is open. Her overlap with the panel's footer is a
    placement problem for src/ui/rift.css, and it is named in
-   tools/critic/_frame.mjs rather than papered over here. */
+   tools/critic/_frame.mjs rather than papered over here.
+
+   src/ui P1 — FIVE SURFACES WERE MISSING FROM THIS LIST, and one of them is the
+   frame the cold critic photographed. Driven with real keys from a cleared save
+   and sampled ten times a second, a tear was open for 555 frames, and in those
+   frames the progress launcher painted at full opacity in 554 of them, the kit
+   strip in 552, the hotbar in 550, the toast in 58 — and the grant card in 13,
+   which is the "VAULT PLATE renders behind the rift panel and its text bleeds
+   through the number keypad" report, exactly. None of them is opaque, the panel
+   is not opaque either, so every one of them printed *through* the mathematics.
+
+   The rite's own list below has had all five in it for months. The tear — the
+   most modal surface in the game — was the one still letting the HUD talk over
+   it. The grant card is additionally *retracted and re-queued* by src/kit/kit.js
+   rather than merely faded, because a capability the player has earned and
+   cannot read is worse than one that arrives four seconds late. */
 #ui:has(.rift.show) .meta-quest,
 #ui:has(.rift.show) .gd-card,
 #ui:has(.rift.show) .gd-layer,
 #ui:has(.rift.show) .gd-prompt,
-#ui:has(.rift.show) .hud-top {
+#ui:has(.rift.show) .hud-top,
+#ui:has(.rift.show) .rp-launch,
+#ui:has(.rift.show) .kit,
+#ui:has(.rift.show) .kit-toast,
+#ui:has(.rift.show) .buildbar,
+#ui:has(.rift.show) .toast {
   opacity: 0; pointer-events: none; transition: opacity .3s ease;
 }
 
@@ -705,9 +740,30 @@
 .meta-rite.show .rite-cite { animation: metaUp .7s ease forwards .95s; }
 @keyframes metaUp { from { opacity: 0; translate: 0 12px } to { opacity: 1; translate: 0 0 } }
 
+/* WHAT TO DO WHEN THE BARS CLEAR.
+   src/ui P1 — the rite stands every readout in the game down for five seconds
+   (the list above) and used to put nothing in their place. Sampled ten times a
+   second through a real promotion, the frame at 2.25 s carried the ceremony and
+   three things that cannot be acted on, and nothing else: "the rank-up ceremony
+   blanks the entire HUD for ~5 s with no prompt."
+
+   So the objective the ceremony interrupted is printed inside it, last, in the
+   quietest voice on the plate — under the citation, after it has been read,
+   arriving at 1.5 s and staying until the bars go. It is the same sentence the
+   objective card was carrying, so nothing new has to be learnt at the one
+   moment the player is being congratulated. */
+.rite-next {
+  margin-top: 1.15rem;
+  font-size: clamp(.62rem, .82vw, .74rem); letter-spacing: .2em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--rank-ink) 78%, #dce9fb);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .9);
+  opacity: 0;
+}
+.meta-rite.show .rite-next { animation: metaUp .7s ease forwards 1.5s; }
+
 /* ---------------------------------------------------------- the dossier -- */
 #ui .meta-dossier {
-  position: absolute; inset: 0; z-index: 45;
+  position: absolute; inset: 0; z-index: var(--z-dossier);
   display: grid; place-items: center;
   background: rgba(3, 7, 15, .72); backdrop-filter: blur(9px);
   opacity: 0; visibility: hidden; pointer-events: none;

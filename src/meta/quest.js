@@ -187,9 +187,17 @@ export class QuestCard {
     this.sfill.style.width = `${Math.round(100 * (w.held ? Math.min(1, w.due / w.held) : 0))}%`;
     this.seal.classList.toggle('full', w.due === 0);
     this.rnow.textContent = t('story.watch.nights', { n: w.durable });
-    this.rnext.textContent = w.sounding?.best
-      ? t('story.watch.sounding', { n: w.sounding.best })
-      : t('story.watch.soundingNone');
+    /* WHAT THE NIGHTS ARE FOR, WHILE THEY ARE STILL FOR SOMETHING.
+       The coda — the last thing the writing has to say — now costs five nights
+       held (src/meta/shard.js), because it used to arrive on the afternoon the
+       tenth line closed. A number that gates something must name what it gates,
+       or it is a wall; so until the proof closes this row says so, and after it
+       goes back to the descent. */
+    this.rnext.textContent = w.codaIn > 0
+      ? t('story.watch.coda', { n: w.codaIn })
+      : (w.sounding?.best
+        ? t('story.watch.sounding', { n: w.sounding.best })
+        : t('story.watch.soundingNone'));
     this.rfill.style.width = `${Math.round(100 * Math.min(1, (w.sounding?.rung || 0) / 8))}%`;
     this.rung.classList.remove('full');
   }

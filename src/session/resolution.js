@@ -17,7 +17,10 @@
  *   NEXT    — the first move of the next run, named and costed. This is the
  *             hook, and it is the one block that must never be vague: "Two-step
  *             equations, about eleven minutes" is a thing a fifteen-year-old can
- *             decide to come back for.
+ *             decide to come back for. It also names the things that keep going
+ *             when they are what is next — the charter, the waystation, the
+ *             descent, the nights — on every close and not only the last one.
+ *             See `continuing`.
  *
  * THE BIG NUMBER. It used to be the tear count, always — and on a run that
  * sealed nothing that meant a screen-height **0**, under the words ENOUGH FOR
@@ -385,6 +388,10 @@ function openedNoneRow(r, held) {
  */
 function nextRows(r) {
   if (r.next) {
+    // The line comes first — it is the mathematics, and the mathematics is the
+    // point — and then at most two of the things that keep going. Three rows is
+    // the most this block may ever hold with a line still open: a list nobody
+    // finishes reading is a list that named nothing.
     return [
       {
         strong: t('skills.' + r.next.id),
@@ -392,46 +399,74 @@ function nextRows(r) {
           ? t('session.close.nextNote', { n: r.next.minutes })
           : t('session.close.nextNoteUnknown'),
       },
-      nightsRow(r),
+      ...continuing(r).slice(0, 2),
     ];
   }
+  return [
+    { strong: t('session.close.nextDoneStrong'), note: t('session.close.nextDone') },
+    ...continuing(r, true).slice(0, 3),
+  ];
+}
+
+/**
+ * THE THINGS THAT KEEP GOING, IN THE ORDER THEY ARE ACTUALLY NEXT.
+ *
+ * A blind critic: *"the three things that actually keep going — the next
+ * charter, the waystation, the sounding — are never named by the screen that
+ * ends a session."* They were named, and only on the card a learner sees after
+ * the tenth line is held, which is the one sitting that needs the hook least.
+ *
+ * They are named here whenever they are true, on every close, most concrete
+ * first. Every row is a thing to go and do, with the number it costs:
+ *
+ *   DUE          lines the schedule wants re-checked tonight. The only row that
+ *                is about work already owed, so it outranks everything.
+ *   CHARTER      one in hand is a waystation waiting to be placed — a key press
+ *                and a price, so it is named as one.
+ *   SOUNDING     how deep the descent has gone. A spare minute has an answer.
+ *   WAYSTATION   what is standing, once anything is.
+ *   NIGHTS       the number a long sitting cannot move, and the reason tomorrow
+ *                is not more of today. Always last, and dropped only when two
+ *                more concrete rows have already taken the space — a learner
+ *                with re-probes due and a charter in hand does not need to be
+ *                told in the abstract why tomorrow is different.
+ *
+ * `full` is the whole-lattice card, which has the room to say what the descent
+ * and the charter *are* to somebody who has not met them yet. With a line still
+ * open the card says nothing about a thing that has not happened.
+ */
+function continuing(r, full = false) {
   const e = r.endgame || {};
-  const rows = [{
-    strong: t('session.close.nextDoneStrong'),
-    note: t('session.close.nextDone'),
-  }];
-  rows.push(e.sounding > 0
-    ? {
-      strong: t('session.close.soundStrong', { n: e.sounding }),
-      note: t('session.close.soundNote'),
-    }
-    : {
-      strong: t('session.close.soundStrongNone'),
-      note: t('session.close.soundNoteNone'),
-    });
-  // The kit is optional to this module, and a row about a thing that is not
-  // wired is worse than no row.
-  if (e.charters != null) {
-    rows.push(e.charters > 0
-      ? {
-        strong: t('session.close.charterHaveStrong', { n: e.charters }),
-        note: t('session.close.charterHaveNote'),
-      }
-      : {
-        strong: t('session.close.charterStrong'),
-        note: t('session.close.charterNote', { n: Math.max(1, e.toCharter || 1) }),
-      });
+  const rows = [];
+  if ((r.due || 0) > 0) {
+    rows.push({ strong: t('session.close.dueStrong', { n: r.due }), note: t('session.close.dueNote') });
   }
-  if (e.stations != null) {
-    rows.push(e.stations > 0
-      ? {
-        strong: t('session.close.stationStrong', { n: e.stations }),
-        note: t('session.close.stationNote'),
-      }
-      : {
-        strong: t('session.close.stationStrongNone'),
-        note: t('session.close.stationNoteNone'),
-      });
+  if (e.charters > 0) {
+    rows.push({
+      strong: t('session.close.charterHaveStrong', { n: e.charters }),
+      note: t('session.close.charterHaveNote'),
+    });
+  } else if (full && e.charters != null) {
+    rows.push({
+      strong: t('session.close.charterStrong'),
+      note: t('session.close.charterNote', { n: Math.max(1, e.toCharter || 1) }),
+    });
+  }
+  /* THE DESCENT OR THE WAYSTATION, NEVER BOTH ON ONE CARD.
+     Four rows is what this block can hold above the fold on a 1280x720
+     Chromebook, and a row nobody scrolls to has not been named. A charter in
+     hand makes the waystation the live decision — it is the thing the charter
+     is *for*, and it is one keypress away — and every other state makes the
+     descent the thing a spare minute is for. */
+  const wants = e.charters > 0 && e.stations === 0;
+  if (wants) {
+    rows.push({ strong: t('session.close.stationStrongNone'), note: t('session.close.stationNoteNone') });
+  } else if (e.sounding > 0) {
+    rows.push({ strong: t('session.close.soundStrong', { n: e.sounding }), note: t('session.close.soundNote') });
+  } else if (e.stations > 0) {
+    rows.push({ strong: t('session.close.stationStrong', { n: e.stations }), note: t('session.close.stationNote') });
+  } else if (full) {
+    rows.push({ strong: t('session.close.soundStrongNone'), note: t('session.close.soundNoteNone') });
   }
   rows.push(nightsRow(r));
   return rows;
@@ -447,16 +482,11 @@ function nextRows(r) {
  * above Silver and what the last two chapters wait for, and it is the one
  * number in the game that a long sitting cannot move.
  *
- * When something has actually fallen due, that comes first — it is the concrete
- * next action, and a concrete next action beats a definition.
+ * What has actually fallen due is a more concrete thing to come back to, so
+ * `continuing` prints that above this one and this row stays what it is: the
+ * definition, and the count.
  */
 function nightsRow(r) {
-  if ((r.due || 0) > 0) {
-    return {
-      strong: t('session.close.dueStrong', { n: r.due }),
-      note: t('session.close.dueNote'),
-    };
-  }
   if ((r.nights || 0) > 0) {
     return {
       strong: t('session.close.nightsStrong', { n: r.nights }),

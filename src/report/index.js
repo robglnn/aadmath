@@ -40,6 +40,33 @@
  *    sentence, how many unassisted items the claim rests on and how many
  *    questions have been answered on that line — because that is the comparison
  *    a teacher was doing in their head when they caught us.
+ *
+ * 3. NO TWO FIGURES ON THIS SCREEN MAY BE TRUE OF DIFFERENT WORLDS. Rules one
+ *    and two got every number honest one at a time, and the screen still
+ *    contradicted itself, because honesty one number at a time is not
+ *    consistency. A cold reader found four of them in a single sitting:
+ *
+ *      · "4 min THIS SESSION" at wall-clock minute sixteen — the session strip
+ *        was printing *time on task*, which is measured between answers and
+ *        capped, under the session's label. Two clocks, one name. `track.js`
+ *        now keeps them apart and this screen prints each under its own.
+ *      · "TESTED OUT · this line proved out on first contact" over "QUESTIONS
+ *        HERE 12" and "SOLVED UNAIDED 83%". The road was right and the sentence
+ *        was wrong: a sight-read opens the run, and the run may then absorb a
+ *        miss and pay for it. The receipt records that now, and the sentence is
+ *        chosen by `firstContact` rather than by the road.
+ *      · A confidence percentage on a line with zero attempts. The model's
+ *        opening belief is read off the lines underneath — a starting point, not
+ *        a measurement — and printing it as `80%` beside `OPEN` made it one.
+ *        Every unmeasured figure on this screen now reads `—`.
+ *      · A posterior of 0.996 printed as `100%`. A belief rounded into a fact.
+ *        `conf()` below will not print certainty for anything short of it.
+ *
+ *    A lifetime total under a claim is the general shape of all four: two
+ *    readings of one number, opposite in meaning, with nothing to say which.
+ *    So every count on a held line is split at the instant the claim was
+ *    granted — what proved it, and what happened afterwards — and
+ *    `tools/critic/_repassert.mjs` fails the build if any pair stops agreeing.
  */
 import './report.css';
 import { t, pct, num, getLocale, onLocaleChange } from '../i18n/index.js';
@@ -55,6 +82,26 @@ import {
 const REPS = ['symbolic', 'context', 'verbal', 'table', 'graph'];
 const DEPTHS = ['core', 'supporting', 'introduced'];
 const COVERS = ['held', 'part', 'indirect', 'working', 'none'];
+
+/**
+ * What this screen prints where a figure was never measured.
+ *
+ * One mark, everywhere, and never a zero and never a plausible-looking
+ * percentage: `0%` and `—` are different claims, and only one of them is true
+ * of a line nobody has asked a question about.
+ */
+const UNMEASURED = '—';
+
+/**
+ * A belief, printed as a belief.
+ *
+ * `pct()` rounds, so a posterior of 0.996 came out as `100%` — and 100% is not
+ * a thing this model can mean. Bayesian knowledge tracing approaches one and
+ * never arrives; a slip probability alone puts a ceiling under it. So certainty
+ * is reserved for an actual one, which nothing in `src/learn` produces, and
+ * everything else tops out one point short of it.
+ */
+const conf = (x) => pct(x >= 1 ? 1 : Math.min(x, 0.99));
 
 /**
  * Coverage depth, for both frameworks, from the same working data the build is
@@ -208,16 +255,41 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
    * and then lost the claim is not the same as a skill that has never been
    * proved, and collapsing the two is exactly how a progress screen stops being
    * evidence.
+   *
+   * A HELD CLAIM OUTRANKS THE LOCK, and this order used to be the other way up.
+   *
+   * `isUnlocked()` answers *"may we serve this line next?"* — it is a routing
+   * decision, and it goes false the moment any line underneath loses its claim
+   * on a cold re-probe. It is not, and was being read as, a statement about
+   * what this learner has proved. So a seventeen-minute session ended with the
+   * strip reading "5 of 10 LINES HELD" over a list in which only four rows said
+   * HELD: `two-step` was proved, carried a receipt for five unassisted items at
+   * band 5, and was drawn greyed out, labelled LOCKED, with a dash where its
+   * confidence should be — because `one-step-mul` under it had lapsed. The
+   * standards coverage read it as unheld at the same time.
+   *
+   * Erasing a proof because a different line lapsed is the worst direction this
+   * screen can fail in: it deletes evidence the learner earned, over an event
+   * that happened somewhere else. The claim is reported. That a line underneath
+   * has reopened is reported too — as its own flag on the row, which is what it
+   * is — and the router goes on doing exactly what it did before.
    */
   function stateOf(id) {
     const s = mastery.get(id);
-    if (!mastery.isUnlocked(id)) return 'locked';
     if (s.mastered) return s.lapsePending ? 'provisional' : 'mastered';
     if (s.check) return 'proving';
     if (s.everMastered) return 'withdrawn';
+    if (!mastery.isUnlocked(id)) return 'locked';
     if (s.attempts > 0) return 'practising';
     return 'open';
   }
+
+  /**
+   * Held, but standing on a line that has since been reopened. Not a state —
+   * the claim is unaffected — but a teacher reading "held" is owed the fact
+   * that the ground under it is being re-proved.
+   */
+  const underReopened = (id) => mastery.get(id).mastered && !mastery.isUnlocked(id);
 
   /**
    * The five things a mastery claim in this system is made of.
@@ -241,13 +313,25 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     const parents = n.prereqs;
     const parentsMet = parents.every((p) => mastery.get(p)?.mastered);
     const probes = tracker.probesFor(id);
+    // Nothing has been asked here. The model still holds an opening belief —
+    // seeded off the lines underneath this one — and that belief is a plan for
+    // where to start, not a measurement of this learner on this line. Printed as
+    // a percentage it is indistinguishable from one, so it is not printed.
+    const measured = s.attempts > 0;
     return [
-      {
-        id: 'posterior',
-        met: s.pL >= cfg.pL ? 'met' : 'part',
-        value: pct(s.pL),
-        detail: t('report.evidence.posteriorNote', { need: pct(cfg.pL) }),
-      },
+      measured
+        ? {
+          id: 'posterior',
+          met: s.pL >= cfg.pL ? 'met' : 'part',
+          value: conf(s.pL),
+          detail: t('report.evidence.posteriorNote', { need: pct(cfg.pL) }),
+        }
+        : {
+          id: 'posterior',
+          met: 'no',
+          value: UNMEASURED,
+          detail: t('report.evidence.posteriorNone'),
+        },
       cleanRow(),
       provingRow(),
       {
@@ -278,16 +362,31 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
      * items, and the card says which. On the sight-read road it is *none*,
      * because the cold item is the run's own first item and is counted once,
      * inside the run. Printing "3/3 ✓" over any of those three was the bug.
+     *
+     * The sight-read road then split in two, because it always had been and the
+     * card could not see it. Passing the cold item opens the run; it does not
+     * finish it. A run that goes straight through proved out on first contact
+     * and the card says so. A run that stumbled, absorbed the miss and paid for
+     * it in extra unassisted items did *not* prove out on first contact — and
+     * that is exactly the card a reader found printing that sentence over
+     * "questions here: 7" and "solved unaided: 71%". `firstContact` is written
+     * on the receipt at the moment of the grant; a receipt from a build that
+     * did not write it says which road it took and makes no claim about the run.
      */
     function cleanRow() {
       if (orphan) return unevidenced('clean');
       if (pv) {
         if (pv.road === 'sight') {
+          const clean = pv.firstContact === true;
+          const stumbled = pv.firstContact === false;
           return {
             id: 'clean',
             met: 'met',
             value: t('report.evidence.coldVal', { band: num(pv.band) }),
-            detail: t('report.evidence.cleanSight'),
+            detail: clean ? t('report.evidence.cleanSight')
+              : stumbled
+                ? t('report.evidence.cleanSightCharged', { band: num(pv.band), n: pv.missed || 0 })
+                : t('report.evidence.cleanSightOld', { band: num(pv.band) }),
           };
         }
         return {
@@ -307,7 +406,12 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       };
     }
 
-    /** The run itself, including every item it extended itself by. */
+    /**
+     * The run itself, including every item it extended itself by — and every
+     * miss it absorbed. A run that stumbled ends on *more* unassisted evidence
+     * than a clean one, never less, so saying so costs the claim nothing and
+     * is the difference between a receipt and a slogan.
+     */
     function provingRow() {
       if (orphan) return unevidenced('proving');
       if (pv) {
@@ -315,9 +419,11 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
           id: 'proving',
           met: 'met',
           value: `${num(pv.checkDone)}/${num(pv.checkNeed)}`,
-          detail: pv.checkNeed > pv.checkBase
-            ? t('report.evidence.provingExtended', { band: num(pv.band), n: pv.checkNeed - pv.checkBase })
-            : t('report.evidence.provingNote', { band: num(pv.band) }),
+          detail: pv.missed
+            ? t('report.evidence.provingCharged', { band: num(pv.band), n: pv.missed })
+            : pv.checkNeed > pv.checkBase
+              ? t('report.evidence.provingExtended', { band: num(pv.band), n: pv.checkNeed - pv.checkBase })
+              : t('report.evidence.provingNote', { band: num(pv.band) }),
         };
       }
       return {
@@ -340,16 +446,36 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
 
   /**
    * The sentence that closes the argument: how many unassisted items this claim
-   * rests on, beside how many questions have been answered on this line. Six
-   * over four is what a curriculum director noticed; three over three is what
-   * the sight-read road actually does.
+   * rests on, beside how many questions were asked on this line *before it was
+   * granted*. Six over four is what a curriculum director noticed; three over
+   * three is what a clean sight-read actually does.
+   *
+   * The denominator used to be the lifetime total, which is the wrong number in
+   * a way that always flattered the wrong side: nine enrichment items answered
+   * on a line already held made a three-item claim read as though twelve
+   * questions had gone into it. A claim can only rest on what came before it.
+   * What came after is on the next line, named as what it is.
    */
   function claimSum(id) {
     const s = mastery.get(id);
     const asked = tracker.itemsFor(id);
     if (!s.mastered) return null;
     if (!s.provenBy) return t('report.evidence.restsUnknown', { of: num(asked) });
-    return t('report.evidence.rests', { n: num(s.provenBy.items), of: num(asked) });
+    const split = tracker.claimSplit(id);
+    if (!split) return t('report.evidence.rests', { n: num(s.provenBy.items), of: num(asked) });
+    return t('report.evidence.restsSplit', { n: num(s.provenBy.items), of: num(split.before) });
+  }
+
+  /** What has happened on this line since the claim, which is not evidence for it. */
+  function sinceClaim(id) {
+    const split = tracker.claimSplit(id);
+    if (!split) return null;
+    return split.since
+      ? t('report.evidence.sinceClaim', {
+        n: split.since,
+        pct: split.unaidedSince == null ? UNMEASURED : pct(split.unaidedSince),
+      })
+      : t('report.evidence.sinceNone');
   }
 
   function repsOf(id) {
@@ -365,7 +491,13 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       : nx.kind === 'check' ? 'check'
         : nx.kind === 'enrich' ? 'enrich'
           : s.attempts === 0 ? 'fresh' : 'continue';
-    return { id: nx.id, kind: nx.kind, why };
+    // How many unassisted items this learner's run actually has left. The card
+    // used to say "three clean answers" in every case, which is the gate's
+    // default quoting itself: a run that has absorbed a miss, or extended
+    // itself to span a second surface, needs more than three and the same
+    // screen said so two inches lower. One number, read off the live run.
+    const left = s.check ? Math.max(0, (s.check.need || 0) - (s.check.done || 0)) : null;
+    return { id: nx.id, kind: nx.kind, why, left };
   }
 
   // -------------------------------------------------------------------------
@@ -611,10 +743,14 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     host.innerHTML = '';
     const total = graph.nodes.length;
     const done = graph.nodes.filter((n) => mastery.get(n.id).mastered).length;
+    // Wall clock, from the moment this learner sat down — the number they can
+    // check against the clock on the wall, and the number the 15–25 minute
+    // session shape is planned in. The capped, answer-to-answer figure is
+    // "time on task" in the record below and is deliberately a different tile.
     const sess = duration(tracker.sessionMs());
-    for (const [big, small, lab, tone] of [
-      [num(done), t('report.stat.ofN', { n: total }), t('report.stat.mastered'), 'good'],
-      [sess.big, sess.small, t('report.stat.session'), ''],
+    for (const [big, small, lab, tone, tip] of [
+      [num(done), t('report.stat.ofN', { n: total }), t('report.stat.mastered'), 'good', t('report.stat.masteredNote')],
+      [sess.big, sess.small, t('report.stat.session'), '', t('report.stat.sessionNote')],
     ]) {
       const d = document.createElement('div');
       d.className = `rp-strip-i${tone ? ' t-' + tone : ''}`;
@@ -622,6 +758,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       d.querySelector('b').textContent = big;
       d.querySelector('i').textContent = small;
       d.querySelector('span').textContent = lab;
+      d.title = tip;
       host.appendChild(d);
     }
   }
@@ -673,7 +810,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       },
       {
         id: 'time',
-        big: msOk ? duration(tracker.totalMs()).big : '—',
+        big: msOk ? duration(tracker.totalMs()).big : UNMEASURED,
         small: msOk ? duration(tracker.totalMs()).small : '',
         lab: t('report.stat.time'),
         note: msOk ? t('report.stat.timeNote') : t('report.stat.timeUnknown'),
@@ -686,7 +823,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       },
       {
         id: 'accuracy',
-        big: acc == null ? '—' : pct(acc), small: '',
+        big: acc == null ? UNMEASURED : pct(acc), small: '',
         lab: t('report.stat.accuracy'),
         note: acc == null ? t('report.stat.accuracyUnknown') : t('report.stat.accuracyNote'),
       },
@@ -700,7 +837,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       },
       {
         id: 'hollow', tone: hollow == null ? '' : hollow > 0 ? 'warn' : 'good',
-        big: hollow == null ? '—' : pct(hollow), small: '',
+        big: hollow == null ? UNMEASURED : pct(hollow), small: '',
         lab: t('report.stat.hollow'),
         note: hollow == null
           ? t('report.stat.hollowNone')
@@ -741,7 +878,9 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       + '<p class="rp-nx-why"></p><p class="rp-nx-path"></p>';
     card.querySelector('.rp-nx-lab').textContent = t('report.next.head');
     card.querySelector('.rp-nx-name').textContent = t('skills.' + nx.id);
-    card.querySelector('.rp-nx-why').textContent = t('report.next.why.' + nx.why);
+    card.querySelector('.rp-nx-why').textContent = nx.why === 'check' && nx.left
+      ? t('report.next.why.checkLeft', { n: nx.left })
+      : t('report.next.why.' + nx.why);
     card.querySelector('.rp-nx-path').textContent = locked
       ? t('report.next.built', { n: locked })
       : t('report.next.start');
@@ -782,11 +921,29 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         road.title = t('report.roadNote.' + s.provenBy.road);
         art.querySelector('.rp-flags').appendChild(road);
       }
-      const p = st === 'locked' ? 0 : s.pL;
-      art.querySelector('.rp-bar i').style.width = `${Math.round(p * 100)}%`;
-      art.querySelector('.rp-pct').textContent = st === 'locked' ? '—' : pct(s.pL);
+      // Held, on ground that has reopened underneath. See `underReopened`.
+      if (underReopened(n.id)) {
+        const flag = document.createElement('span');
+        flag.className = 'rp-road r-under';
+        flag.textContent = t('report.flag.under');
+        flag.title = t('report.flagNote.under');
+        art.querySelector('.rp-flags').appendChild(flag);
+      }
+      // THE BAR AND THE NUMBER ONLY EXIST IF SOMETHING WAS MEASURED.
+      //
+      // A locked line has always read `—`. An *unlocked and untouched* line read
+      // the model's opening belief — seeded from the lines underneath it — as a
+      // percentage, so the report printed "Evaluating expressions · OPEN · 80%"
+      // for a skill with zero attempts, on the same screen as the card naming it
+      // as new ground. Eighty per cent of nothing was measured. It is a plan for
+      // which band to open at, and it is not this learner's standing on this
+      // line, so it does not get this learner's bar.
+      const measured = st !== 'locked' && s.attempts > 0;
+      art.dataset.measured = String(measured);
+      art.querySelector('.rp-bar i').style.width = measured ? `${Math.round(s.pL * 100)}%` : '0%';
+      art.querySelector('.rp-pct').textContent = measured ? conf(s.pL) : UNMEASURED;
       const row = art.querySelector('.rp-row');
-      row.title = t('report.stateNote.' + st);
+      row.title = measured ? t('report.stateNote.' + st) : t('report.evidence.posteriorNone');
       row.addEventListener('click', () => {
         const nowOpen = !expanded.has(n.id);
         if (nowOpen) expanded.add(n.id); else expanded.delete(n.id);
@@ -846,6 +1003,16 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         p.appendChild(when);
       }
       host.appendChild(p);
+      // …and what happened here afterwards, in its own sentence, so that a
+      // lifetime question count can never again be read as evidence for a claim
+      // that was granted before most of it existed.
+      const since = sinceClaim(n.id);
+      if (since) {
+        const p2 = document.createElement('p');
+        p2.className = 'rp-ev-since';
+        p2.textContent = since;
+        host.appendChild(p2);
+      }
     }
 
     // --- the working numbers ---------------------------------------------
@@ -857,12 +1024,36 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     // On a record that was restored without its ledger these two were measured
     // by nobody, and "0 sec / not yet" would read as a fact about the learner.
     const measured = tracker.msTrusted();
+    // Nothing has been asked on this line. Every row below that describes the
+    // learner has to say so rather than print the setting it would have used —
+    // "Band 1 of 5" on an untouched line is where practice *would* open, and it
+    // reads as where this learner *is*.
+    const asked = tracker.itemsFor(n.id);
+    const touched = s.attempts > 0;
+    const split = tracker.claimSplit(n.id);
+    const right = tracker.unaidedRightFor(n.id);
     const rows = [
       [t('report.fact.time'), measured ? duration(tracker.msFor(n.id)).full : t('report.record.notMeasured')],
-      [t('report.fact.items'), num(tracker.itemsFor(n.id))],
-      [t('report.fact.accuracy'), acc != null ? pct(acc)
-        : measured ? t('report.fact.noneYet') : t('report.record.notMeasured')],
-      [t('report.fact.band'), t('report.fact.bandVal', { n: s.difficulty })],
+      // The one number a reader was laying beside the claim, now carrying the
+      // only thing that made it readable: which side of the claim it fell on.
+      // The split is only printed when there are two sides to it — a claim with
+      // nothing after it reads "3", not "3 — 3 before the claim, 0 since",
+      // which is a sentence about a distinction that does not exist here.
+      [t('report.fact.items'), split && split.since
+        ? t('report.fact.itemsSplit', { n: num(asked), before: num(split.before), since: num(split.since) })
+        : num(asked)],
+      [t('report.fact.accuracy'), acc == null
+        ? (measured ? t('report.fact.noneYet') : t('report.record.notMeasured'))
+        : split && split.since && split.unaidedSince != null
+          ? t('report.fact.accuracySplit', {
+            all: pct(acc),
+            n: num(right),
+            of: num(asked),
+            before: split.unaidedBefore == null ? UNMEASURED : pct(split.unaidedBefore),
+            since: pct(split.unaidedSince),
+          })
+          : t('report.fact.accuracyOf', { all: pct(acc), n: num(right), of: num(asked) })],
+      [t('report.fact.band'), touched ? t('report.fact.bandVal', { n: s.difficulty }) : UNMEASURED],
       [t('report.fact.reps'), reps.length
         ? reps.map((r) => t('report.rep.' + r)).join(', ')
         : t('report.fact.noneYet')],
@@ -990,7 +1181,10 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         mastered: graph.nodes.filter((n) => mastery.get(n.id).mastered).length,
         total: graph.nodes.length,
         totalMs: tracker.totalMs(),
+        // The two session clocks, apart and named — so a critic can check that
+        // the one on the strip is the wall clock and not the other one.
         sessionMs: tracker.sessionMs(),
+        sessionTaskMs: tracker.sessionTaskMs(),
         items: tracker.items(),
         accuracy: tracker.accuracy(),
         granted: tracker.granted(),
@@ -1000,16 +1194,40 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         next: nextObjective(),
         skills: graph.nodes.map((n) => ({
           id: n.id,
+          title: t('skills.' + n.id),
           state: stateOf(n.id),
+          // Held, with a line underneath it reopened. Reported beside the state
+          // rather than folded into it: the claim did not change.
+          underReopened: underReopened(n.id),
+          unlocked: mastery.isUnlocked(n.id),
           pL: mastery.get(n.id).pL,
+          // Whether anything on this line was measured at all. Every figure
+          // below is null or a mark when this is false, and the row prints no
+          // percentage — see the note on the bar in renderSkills.
+          measured: mastery.get(n.id).attempts > 0,
+          attempts: mastery.get(n.id).attempts,
           ms: tracker.msFor(n.id),
           items: tracker.itemsFor(n.id),
           accuracy: tracker.accuracyFor(n.id),
+          // The numerator behind that share, so the two can be checked against
+          // each other rather than believed one at a time.
+          unaidedRight: tracker.unaidedRightFor(n.id),
+          // Questions asked on this line after the claim was granted. They are
+          // practice on a held line, and they are not evidence for the claim.
+          itemsSinceClaim: tracker.claimSplit(n.id)?.since ?? null,
           reps: repsOf(n.id),
           // The receipt, verbatim, so a critic can check the rendered card
-          // against what the engine actually granted the claim on.
-          claim: mastery.get(n.id).mastered ? (mastery.get(n.id).provenBy || null) : null,
+          // against what the engine actually granted the claim on. `itemsAtClaim`
+          // is the ledger's count at that instant, beside the model's own
+          // `attemptsAt` — two stores answering the same question, which is the
+          // only way either can be caught being wrong.
+          claim: mastery.get(n.id).mastered
+            ? (mastery.get(n.id).provenBy
+              ? { ...mastery.get(n.id).provenBy, itemsAtClaim: tracker.claimSplit(n.id)?.before ?? null }
+              : null)
+            : null,
           claimSum: claimSum(n.id),
+          sinceClaim: sinceClaim(n.id),
           evidence: evidenceOf(n.id).map((e) => ({ id: e.id, met: e.met, value: e.value })),
           ccss: (n.standards || []).map((x) => ({ code: x.code, depth: depthOf('ccss', n.id, x.code) })),
           teks: (n.teks || []).map((x) => ({ code: x.code, citation: x.citation, depth: x.depth })),

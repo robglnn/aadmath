@@ -216,18 +216,32 @@ export function buildCoverage({ graph, mastery, framework, stateOf }) {
     const nodeIds = (s.nodes || []).filter((id) => titles.has(id));
 
     // --- evidence, read out of the learner model ---------------------------
-    let formsMet = 0, formsSolved = 0, answers = 0, unaided = 0;
+    //
+    // The forms are counted as a SET, not as a tally.
+    //
+    // Two lines can both carry one expectation and both be asked the same item
+    // form, and this loop used to add one to `formsMet` for each pair — so a
+    // learner who had met one of the two declared forms, on two lines, read
+    // "Question types met: 2 of 1". The screen prints that as `{n} of {of}` and
+    // the record files it as `formsMet/formsDeclared`, and a share above one is
+    // not a share. `answers` and `unaided` are genuine tallies and stay tallies:
+    // two lines' worth of questions really are two lines' worth of questions.
+    const metForms = new Set();
+    const solvedForms = new Set();
+    let answers = 0, unaided = 0;
     for (const id of nodeIds) {
       const seen = mastery.get(id)?.formsSeen || {};
       for (const f of forms) {
         const row = seen[f];
         if (!row || !row.seen) continue;
-        formsMet += 1;
+        metForms.add(f);
         answers += row.seen;
         unaided += row.correct;
-        if (row.correct > 0) formsSolved += 1;
+        if (row.correct > 0) solvedForms.add(f);
       }
     }
+    const formsMet = metForms.size;
+    const formsSolved = solvedForms.size;
 
     const lines = nodeIds.map((id) => {
       const st = stateOf(id);

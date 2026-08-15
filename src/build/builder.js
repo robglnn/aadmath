@@ -3,7 +3,7 @@ import './build.css';
 import { t } from '../i18n/index.js';
 import {
   CELL, LEVEL, KINDS, BASE_KINDS, SHARD_COST, SPEC, TURNS, isEdge, cellIndex,
-  originY, surfaceAt, snapTurn, qLevel, clamp, covers,
+  originY, surfaceAt, snapTurn, qLevel, clamp, covers, turnOf,
 } from './pieces.js';
 import { Solids } from './solids.js';
 import { Lattice } from './lattice.js';
@@ -65,8 +65,6 @@ const REPEAT = 0.135;
 const EYE = 1.62;
 /** How often a click on a stowed hand is allowed to explain itself. Seconds. */
 const NUDGE_EVERY = 5;
-/** How long "click again to shut yourself in anyway" stays claimable. Seconds. */
-const SEAL_CONFIRM = 5.0;
 
 export class Builder {
   constructor(scene, player, opts = {}) {
@@ -141,6 +139,8 @@ export class Builder {
       nodes: [0, 0, 0, 0],
     };
     this._sealCache = { key: '', seal: false };
+    /** Scratch for the sideways shove out of a wall. Allocation free. */
+    this._out = { x: 0, y: 0, z: 0 };
     this._boxed = false;
     this._boxT = 0;
     this._ray = new THREE.Vector3();
@@ -148,6 +148,9 @@ export class Builder {
     this._aimed = null;
     this._repeat = 0;
     this._held = false;
+    /** Which columns the trigger currently down has already answered. */
+    this._sweptCols = new Set();
+    this._sweptSlot = '';
     this._removeReq = false;
     this._padPrev = [];
     this._chargeShown = -1;
@@ -242,9 +245,8 @@ export class Builder {
       : reason === 'shards' ? 'build.noShards'
         : reason === 'occupied' ? 'build.alreadyThere'
           : reason === 'full' ? 'build.latticeFull'
-            : reason === 'sealWarn' ? 'build.wouldSeal'
-              : reason === 'sealAgain' ? 'build.sealAgain'
-                : 'build.denied';
+            : reason === 'sealDoor' ? 'build.sealDoor'
+              : 'build.denied';
   }
 
   _bind() {
@@ -329,7 +331,21 @@ export class Builder {
     this.drawHand();
     const ok = this.allowed.has(KINDS[n]);
     if (ok) {
-      if (n !== this.slot) this.arm();
+      if (n !== this.slot) {
+        this.arm();
+        // A ROTATE BELONGS TO THE PIECE IT WAS AIMED AT.
+        //
+        // The turn used to survive a change of piece, and that made it a mode
+        // with nothing on screen to say it was on. Turn a wall three quarter
+        // turns to close the last side of a room, reach for a ramp, and the
+        // ramp comes out climbing sideways across your path instead of away
+        // from you — which is exactly what a stopwatch run caught it doing.
+        // Picking a new piece off the rack is a fresh intention, so the new
+        // piece starts square to where the cadet is looking. Stacking a turn
+        // back on is one tap of F, and the preview shows the face before the
+        // click either way.
+        if (this.turn) { this.turn = 0; this.onTurn?.(0); }
+      }
       this.slot = n;
     }
     this.onSlot?.(this.slot);
@@ -445,12 +461,32 @@ export class Builder {
       // is standing in, on the side he is building toward. Anywhere in the
       // cell, four quarter turns give the four sides of that one cell — which
       // is what makes the rotate below worth having.
+      //
+      // AND THE OTHER AXIS IS NAMED TOO, WHICH IS THE HALF THAT WAS MISSING.
+      //
+      // A face has two coordinates. The one across the line of sight used to be
+      // sampled off the aim and clamped a cell either way — so a wall could
+      // slide sideways onto the neighbouring cell's face whenever the crosshair
+      // strayed off the cardinal. Aim forty-five degrees, which is precisely
+      // where a hand on a mouse ends up between two walls of a square, and the
+      // aim ray crosses the cell boundary: the wall goes up one cell over.
+      //
+      // Photographed. Four walls, four correct facings, four different cells —
+      // a staircase of panels, not a room, and no two of them sharing a corner.
+      // The turn was never the unreliable part. *This* was.
+      //
+      // So a face piece takes both of its coordinates from the cell he is
+      // standing in. Where he aims still chooses which of the four faces (the
+      // snapped turn, above) and which level (the pitch and the magnet, below);
+      // it no longer chooses which cell. The cell is where his boots are, which
+      // is the one thing a player always knows without looking. Wanting the
+      // next cell's wall is one step sideways, not a steady hand.
       gz = (pcz + (turn === 0 ? 0.5 : -0.5)) * CELL;
-      gx = (pcx + clamp(cellIndex(ax) - pcx, -1, 1)) * CELL;
+      gx = pcx * CELL;
       gturn = 0;
     } else if (edge) {
       gx = (pcx + (turn === 1 ? 0.5 : -0.5)) * CELL;
-      gz = (pcz + clamp(cellIndex(az) - pcz, -1, 1)) * CELL;
+      gz = pcz * CELL;
       gturn = 1;
     } else {
       gx = (pcx + clamp(cellIndex(ax) - pcx, -1, 1)) * CELL;
@@ -478,18 +514,18 @@ export class Builder {
     //    pieces this one will actually share a corner post with pulling hardest
     this.solids.slotLevels(gx, gz, cands, ranks, nodes);
     for (let i = 0; i < cands.length; i++) {
-      weight.push(ranks[i] ? -NODE_MAGNET : -SLOT_MAGNET);
+      weight.push(ranks[i] > 1 ? -CARRY_MAGNET : ranks[i] ? -NODE_MAGNET : -SLOT_MAGNET);
     }
     // 2. the top of whatever he is standing on, so stairs and rooms chain
     const stood = cands.length;
     this._standLevels(cands);
-    for (let i = stood; i < cands.length; i++) weight.push(-STAND_MAGNET);
+    for (let i = stood; i < cands.length; i++) { weight.push(-STAND_MAGNET); ranks.push(0); }
     // 3. the island under the slot
     const ground = this._groundBase(kind, gx, gz, gturn);
-    if (ground !== null) { cands.push(ground); weight.push(0); }
+    if (ground !== null) { cands.push(ground); weight.push(0); ranks.push(0); }
     // 4. his own boots — the bridge move, and the only unquantised level in the
     //    game, so it is the last thing considered rather than the first
-    cands.push(qLevel(p.pos.y)); weight.push(ground === null ? 0.2 : 1.1);
+    cands.push(qLevel(p.pos.y)); weight.push(ground === null ? 0.2 : 1.1); ranks.push(0);
 
     const cost = SPEC[kind].cost;
     let base = ground ?? qLevel(p.pos.y);
@@ -499,8 +535,19 @@ export class Builder {
     for (let i = 0; i < cands.length; i++) {
       const c = qLevel(cands[i]);
       let s = Math.abs(c - aimY) + weight[i];
-      // levels well above the eye line are not what you meant
-      if (c > aimY + 2.6) s += 8;
+      // Levels well above the eye line are not what you meant — unless the
+      // level IS the head of the ramp you are standing on, which is the one
+      // case where a storey up is exactly what you meant.
+      //
+      // THE KNIFE EDGE THIS SAT ON. A storey is four metres and the eye is at
+      // 1.62, so a cadet at the foot of a ramp has its head 2.38 m above his
+      // aim — inside this 2.6 m guard by a quarter of a metre. Tip the gaze
+      // three degrees down, which running does, and the guard fired on the very
+      // level the climb needed: the next ramp came out level with the last one
+      // instead of on top of it, and the staircase became a sawtooth with a
+      // four-metre step to fall down at every second joint. The magnet was
+      // right the whole time and this was overruling it.
+      if (c > aimY + 2.6 && ranks[i] < 2) s += 8;
       const clash = this.solids.blocked(kind, gx, gz, c);
       if (clash) s += 100;
       const ok = this._founded(gx, gz, c, ground);
@@ -731,14 +778,109 @@ export class Builder {
       base: tg.base, onGround: g !== null && Math.abs(tg.base - g) < 1.4,
       grow: 0, fade: 0, sel: 0, want: 0, tone: 0, dead: false,
       id: ++this.placedCount,
+      // When this piece became real, on the page's own clock. One number, so
+      // that "how long does it take to throw up four walls" is a measurement
+      // taken inside the running game rather than a stopwatch held against a
+      // test harness that is itself the slowest thing in the room.
+      tms: (typeof performance !== 'undefined' ? performance.now() : Date.now()),
     };
     if (!this.lattice.add(piece)) return { ok: false, reason: 'full' };
     this.solids.add(piece);
+    // THE WALL THAT CLOSES THE ROOM COMES WITH A DOOR IN IT.
+    //
+    // This is the piece of the verb the whole report turned on. Closing a
+    // square around yourself is the first thing anybody does in a game with
+    // this hand, and the game used to answer it with the word NO — twice, since
+    // the refusal needed confirming. A refusal is the one response that cannot
+    // be right here: the shape is legitimate, the corners are built to meet,
+    // and a player who wants a room is asking for exactly what the lattice is
+    // for.
+    //
+    // So the piece goes down. If the fill then says the cadet is inside it with
+    // no way out, the wall he just set is a doorway instead of a panel — same
+    // slot, same corner posts, same square from the outside, with an opening
+    // through it he can walk out of. `wallCrosses` stops counting it, so he is
+    // by construction no longer shut in, and nothing was refused.
+    if (piece.kind === 'wall' && this._shutIn()) {
+      piece.door = true;
+      this.lattice.reface(piece);
+      this._sealCache.key = '';
+      this._boxT = 0;
+      this.hud?.flash(t('build.doorCut'), 'good');
+    }
     this.charge = Math.max(0, this.charge - tg.cost);
     this._chargeHold = 0.18;
     this.man?.onPlaced(piece);
     this._feel(0.05, 0.28, 40);
+    // …and if it landed through him, it shoves him out of its face rather than
+    // lifting him onto its head. See `_shove`.
+    this._shove(piece);
     return { ok: true, piece, kind: piece.kind };
+  }
+
+  /**
+   * NOBODY IS EVER STANDING INSIDE A WALL.
+   *
+   * A built piece reaches the cadet's boots as a *heightfield* and nothing else
+   * (src/player/terrain.js): `Solids.top()` names a surface, the controller
+   * stands on it. For a deck that is the whole truth. For a wall it left out
+   * the only interesting case — a wall is four metres tall, so a wall that
+   * appears around a person makes the ground under his own feet four metres up,
+   * and he rides it into the air.
+   *
+   * That is not a cosmetic bug, it is the reported one. Lifted onto his own
+   * wall he is standing *on the face he just built on*, so the next wall picks
+   * that same face one storey up; the ninety-degree turn appears to do nothing
+   * because from up there every quarter turn still names the same plane; four
+   * walls make a two-by-two slab; and the room he was trying to build gets
+   * called a trap. One missing sideways push, five symptoms.
+   *
+   * So a face piece pushes sideways. `Solids.pushOut` finds the smallest
+   * translation that puts the capsule outside every wall it is inside, which
+   * for a wall is always straight out of its face. The velocity component
+   * driving him back in is dropped with it, or he vibrates against the panel.
+   *
+   * When the piece has just been placed *through* him the side is not left to
+   * the arithmetic: he goes to the middle of the cell he was building from,
+   * which is the room he meant to be standing in.
+   */
+  _shove(placed = null) {
+    const p = this.player;
+    if (!p?.pos) return false;
+    const r = 0.42;
+    if (placed && covers(placed, p.pos.x, p.pos.z, r)) {
+      const sp = SPEC[placed.kind];
+      const [c, s] = TURNS[turnOf(placed)];
+      // his position in the piece's own frame: lx along the panel, lz across it
+      const dx = p.pos.x - placed.x, dz = p.pos.z - placed.z;
+      const lx = c * dx - s * dz;
+      // which side of the panel the cell he was building from lies on
+      const cx = cellIndex(p.pos.x) * CELL - placed.x;
+      const cz = cellIndex(p.pos.z) * CELL - placed.z;
+      const side = (s * cx + c * cz) < 0 ? -1 : 1;
+      const lz = side * (sp.hz + r + 0.05);
+      // and back to the world, exactly — a quarter turn's inverse is its
+      // transpose, so nothing here accumulates a rounding error
+      p.pos.x = placed.x + c * lx + s * lz;
+      p.pos.z = placed.z - s * lx + c * lz;
+      if (p.vel) {
+        const nx = s * side, nz = c * side;
+        const into = p.vel.x * nx + p.vel.z * nz;
+        if (into < 0) { p.vel.x -= nx * into; p.vel.z -= nz * into; }
+      }
+      this._sealCache.key = '';
+      return true;
+    }
+    if (!this.solids.pushOut(p.pos.x, p.pos.y, p.pos.z, r, this._out)) return false;
+    p.pos.x += this._out.x;
+    p.pos.z += this._out.z;
+    const m = Math.hypot(this._out.x, this._out.z);
+    if (m > 1e-4 && p.vel) {
+      const nx = this._out.x / m, nz = this._out.z / m;
+      const into = p.vel.x * nx + p.vel.z * nz;
+      if (into < 0) { p.vel.x -= nx * into; p.vel.z -= nz * into; }
+    }
+    return true;
   }
 
   remove(piece) {
@@ -763,8 +905,11 @@ export class Builder {
 
   /** Clear everything — used by the reset hook and by the anchors' fail-safe. */
   clearAll() {
-    for (const kind of KINDS) {
-      for (const p of [...this.lattice.live[kind]]) if (!p.dead) this.remove(p);
+    // Every batch the renderer keeps, not every kind the cadet can pick: a wall
+    // with a doorway in it lives in its own batch, and a reset that walked
+    // `KINDS` left one standing on the plaza of a brand new save.
+    for (const list of Object.values(this.lattice.live)) {
+      for (const p of [...list]) if (!p.dead) this.remove(p);
     }
   }
 
@@ -813,6 +958,11 @@ export class Builder {
       // A cadet shut inside his own lattice is checked for four times a second,
       // not sixty: it is a flood fill, and nothing about being in a box changes
       // between frames.
+      // …and he is never left standing inside one of his own panels, on any
+      // frame, however he got there — placed through him, walked into by a
+      // controller that only knows heightfields, or dropped onto by a fall.
+      this._shove();
+
       this._boxT -= dt;
       if (this._boxT <= 0) { this._boxT = 0.25; this._boxed = this._shutIn(); }
       // The player's own recovery reads this: a recovery that puts you back on
@@ -822,10 +972,19 @@ export class Builder {
 
       if (this._removeReq) {
         this._removeReq = false;
-        // Boxed in, the crosshair is thirty centimetres from a wall and may be
-        // inside it. The clear key opens a hole either way.
+        // Inside a room of his own the crosshair is thirty centimetres from a
+        // wall and may be inside it, so the clear key falls back to the nearest
+        // wall on a face of his own cell.
+        //
+        // That fallback used to be gated on being *shut in* — and now that a
+        // closed room arrives with a doorway in it, nobody is shut in, so the
+        // one case it existed for stopped happening. Standing in the middle of
+        // his own four walls, pressing the clear key, a cadet was told "nothing
+        // in the crosshair" while a wall filled the frame. The gate was never
+        // the point: the point is that a wall at arm's length is not a thing
+        // you can aim at. It applies whenever the crosshair is empty.
         let victim = this._aimed && !this._aimed.fixed ? this._aimed : null;
-        if (this._boxed && !victim) victim = this._cutOut();
+        if (!victim) victim = this._cutOut();
         if (victim) {
           this.remove(victim);
           if (this._boxed) this.hud?.flash(t('build.cutFree'), 'good');
@@ -837,30 +996,59 @@ export class Builder {
 
       if (padFire) this.arm();
       this._repeat = Math.max(0, this._repeat - dt);
+      // THE SWEEP, AND THE CHIMNEY IT USED TO BUILD.
+      //
+      // A held trigger is how anybody throws up structure fast: the mouse goes
+      // down once and stays down while the piece is turned and the body moves.
+      // It was doing two things wrong, and a stopwatch found both.
+      //
+      //  - **It charged you for moving.** The repeat ran on a flat timer, so
+      //    crossing the crosshair onto the next face of a corner cost up to a
+      //    seventh of a second before the wall appeared. That is the whole
+      //    difference between a verb that paints and one that stutters.
+      //  - **It climbed.** Leaning on the mouse over one face placed a wall,
+      //    then found the top of that wall as the next level up and placed
+      //    another on it, and another: nine walls in 570 ms and the entire
+      //    reserve gone into a chimney nobody asked for. Photographed.
+      //
+      // Both come from the same missing idea: the thing a held trigger is
+      // pointing at is a **column** — a kind, a slot on the lattice, a facing —
+      // and *not* a level, because the level is chosen by the magnet rather
+      // than by the player. So one hold answers each column exactly once, and
+      // a column it has not answered yet skips the throttle entirely. Sweeping
+      // a bridge of decks out over a drop, or running a stair up a slope, is
+      // untouched: every one of those is a new column. Stacking a second storey
+      // on the same face is a second click, which is how it reads on the hand.
+      const colId = tg ? `${tg.kind}|${tg.x}|${tg.z}|${tg.turn}` : '';
+      const holding = this._held || padFire;
+      if (!holding) { this._sweptSlot = ''; this._sweptCols.clear(); }
+      else if (colId !== this._sweptSlot) { this._sweptSlot = colId; this._repeat = 0; }
       // The gate. A stowed hand answers a click with a sentence, not a wall.
       if (!this.handOut) {
         if (pressed) this._nudge(time);
         this._held = false;
-      } else if (tg && tg.seals && !(this._sealArm > 0)) {
-        // NOBODY GETS SHUT IN BY ACCIDENT. The first click on the wall that
-        // closes the room around you buys a sentence instead of a wall; the
-        // next one, inside the window, buys the wall. A held trigger never
-        // spends the confirmation — you have to mean it twice.
-        if (pressed) {
-          this._sealArm = SEAL_CONFIRM;
-          this.hud?.flash(t('build.sealAsk'), 'bad');
-          this._refused = 0.5;
-        }
-      } else if (pressed || (held && this._repeat <= 0)) {
+      } else if (pressed || (held && this._repeat <= 0 && !this._sweptCols.has(colId))) {
+        // NOTHING IS REFUSED FOR BEING A ROOM.
+        //
+        // This branch used to be guarded by `tg.seals` — the wall that closed a
+        // square around the cadet cost one click to be told no and a second to
+        // be allowed. A cold critic spent ten walls and five minutes here and
+        // wrote down that the game forbids the task. It was right: a
+        // confirmation is still a refusal, it lands on the single most natural
+        // thing anybody does with this hand, and it arrives at the fourth wall
+        // — after the work, never before it.
+        //
+        // The wall goes down. `place()` cuts a doorway into it if it turns out
+        // to close the room, which answers the actual problem (being stuck)
+        // instead of the shape.
         const r = this.place();
         this._repeat = REPEAT;
-        if (r.ok) this._sealArm = 0;
+        if (r.ok && holding) this._sweptCols.add(colId);
         if (!r.ok && pressed) {
           this.hud?.flash(t(Builder.reasonKey(r.reason)), 'bad');
           this._refused = 0.5;    // and the ghost kicks, so the refusal is felt
         }
       }
-      this._sealArm = Math.max(0, (this._sealArm || 0) - dt);
     } else {
       if (this._aimed) { this._aimed.want = 0; this._aimed = null; }
       this._boxed = false;
@@ -873,11 +1061,11 @@ export class Builder {
     this.ghostView.update(dt, time, armed ? tg : null, camera);
     this.lattice.update(dt, time);
     this._reason = armed && tg && !tg.valid ? tg.reason : '';
-    // A refusal chip has priority; otherwise the warning that this one shuts
-    // you in, which is a thing to know before the click and not after it.
-    if (!this._reason && armed && tg && tg.seals) {
-      this._reason = this._sealArm > 0 ? 'sealAgain' : 'sealWarn';
-    }
+    // A refusal chip has priority; otherwise the one useful thing to know
+    // before this click rather than after it — that this wall closes the room,
+    // and that it will therefore arrive with a doorway in it. A statement about
+    // what is about to happen, not a question to be answered.
+    if (!this._reason && armed && tg && tg.seals) this._reason = 'sealDoor';
     this.man?.update(dt, time, camera, this.solids);
     if (this.anchors) {
       const got = this.anchors.update(dt, time, this.player.pos);
@@ -971,6 +1159,18 @@ const REACH = { wall: 2.6, beam: 2.6, floor: 4.6, vault: 4.6, ramp: 5.0 };
  * it has no opinion about the piece next door. So when they disagree, the joint
  * wins, by enough that the disagreement can be most of a metre.
  */
+/**
+ * And the strongest of the three: the level that **carries a ramp's climb
+ * onward** (src/build/solids.js, `slotLevels`). A ramp is the one piece whose
+ * two ends are a storey apart, so "the level of the piece next door" is an
+ * ambiguous thing to say about it and the other two magnets said it anyway.
+ * The result was a staircase that gained four metres and then dropped four, on
+ * repeat: half a climb, and a four-metre step to fall down at every second
+ * joint. Which end of the ramp the slot is off is a fact about the structure,
+ * so it beats a level inferred from where the cadet's eyes happen to be by
+ * enough that his eyes cannot overrule it.
+ */
+const CARRY_MAGNET = 9.6;
 const NODE_MAGNET = 6.0;
 const SLOT_MAGNET = 3.4;
 const STAND_MAGNET = 1.9;

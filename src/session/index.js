@@ -424,9 +424,15 @@ export function createSession({
       chapter: run.chapterAt != null && s.chapter > run.chapterAt ? s.chapter : null,
       rank: run.rankAt && s.rank && s.rank !== run.rankAt ? t('rank.' + s.rank) : null,
       next,
-      // What keeps going once there is no `next` left. Never read unless the
-      // lattice is whole, and never null then. See `endgame()`.
-      endgame: next ? null : endgame(),
+      /* WHAT KEEPS GOING — and it is read on every close now, not only on the
+         last one. This used to be `next ? null : endgame()`, so the descent,
+         the charter and the waystation were named by the card only after the
+         tenth line was held. A cadet who cut a charter with a line still open
+         — depth is lines plus durable re-probes, so that happens — closed the
+         session with a charter in hand and nothing on screen that said so.
+         The card decides which of these rows are worth printing; this decides
+         nothing except whether the numbers exist. See `nextRows`. */
+      endgame: endgame(),
       /* THE RETURNING LOOP, NAMED ON EVERY CLOSE.
          The endgame rows above only exist once the lattice is whole, so a
          learner three lines in read a card that said nothing at all about why

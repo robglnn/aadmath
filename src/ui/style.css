@@ -89,7 +89,7 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
 /* ---------- boot ---------- */
 #boot{position:absolute;inset:0;display:grid;place-content:center;gap:.6rem;
   text-align:center;background:radial-gradient(120% 90% at 50% 40%,#0b1830 0%,#050a14 70%);
-  z-index:50;transition:opacity .8s ease}
+  z-index:var(--z-app-boot);transition:opacity .8s ease}
 #boot.gone{opacity:0;pointer-events:none}
 .boot-mark{font-size:clamp(2.6rem,9vw,5.5rem);letter-spacing:.34em;font-weight:700;
   text-indent:.34em;background:linear-gradient(180deg,#fff,var(--cyan));
@@ -108,7 +108,7 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
 
    Height budget: the chapter card is pinned 78px below the top inset (116px on
    a phone), so this panel must finish above that line. It comes in at ~66px. */
-.hud-top{position:absolute;top:var(--pad-t);left:var(--pad-l);
+.hud-top{position:absolute;z-index:var(--z-hud);top:var(--pad-t);left:var(--pad-l);
   right:calc(var(--pad-r) + 124px);display:flex;align-items:flex-start}
 
 /* ---- the plate ----
@@ -269,7 +269,7 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
    A dot with four ticks and a hole in the middle. The old plus sign put a 14px
    cross over the cadet's head in every screenshot; this sits *around* what you
    are aiming at instead of on top of it. */
-.crosshair{position:absolute;left:50%;top:50%;width:20px;height:20px;
+.crosshair{position:absolute;z-index:var(--z-hud);left:50%;top:50%;width:20px;height:20px;
   transform:translate(-50%,-50%);pointer-events:none}
 .crosshair b{position:absolute;left:50%;top:50%;width:2.5px;height:2.5px;margin:-1.25px 0 0 -1.25px;
   border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.9),0 0 8px rgba(120,215,255,.7)}
@@ -334,7 +334,7 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
    own binding is a hotbar nobody ever uses the keyboard for — and on a pad it
    prints the shoulder button instead, because a phone and a controller have no
    number row. */
-.buildbar{position:absolute;left:50%;bottom:calc(var(--sa-b) + 18px);transform:translateX(-50%);
+.buildbar{position:absolute;z-index:var(--z-hud);left:50%;bottom:calc(var(--sa-b) + 18px);transform:translateX(-50%);
   display:flex;gap:.3rem;padding:.32rem;--cut:9px}
 .slot{position:relative;appearance:none;font:inherit;
   width:56px;height:54px;display:grid;place-items:center;border-radius:7px;
@@ -360,7 +360,7 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
 @keyframes slotHit{0%{transform:scale(1)}40%{transform:scale(.9);
   box-shadow:0 0 26px -2px rgba(95,230,255,.9)}100%{transform:scale(1)}}
 
-.toast{position:absolute;left:50%;top:calc(var(--pad-t) + 84px);transform:translateX(-50%);
+.toast{position:absolute;z-index:var(--z-toast);left:50%;top:calc(var(--pad-t) + 84px);transform:translateX(-50%);
   padding:.6rem 1.1rem;--cut:14px;
   font-size:.85rem;letter-spacing:.06em;white-space:nowrap;
   opacity:0;transition:opacity .3s,translate .3s;translate:0 -8px}
@@ -369,7 +369,7 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
 .toast.bad{color:var(--rose);--plate-line:color-mix(in srgb,var(--rose) 46%,transparent)}
 
 /* ---------- lang switch ---------- */
-.langs{position:absolute;top:var(--pad-t);right:var(--pad-r);
+.langs{position:absolute;z-index:var(--z-hud);top:var(--pad-t);right:var(--pad-r);
   display:flex;gap:.22rem;padding:.26rem;--cut:9px}
 .langs button{appearance:none;background:none;border:0;color:var(--ink-mute);font:inherit;
   font-size:.68rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;

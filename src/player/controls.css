@@ -7,7 +7,7 @@
 #ui .fc {
   position: absolute;
   right: var(--pad-r); bottom: calc(var(--hud-b) + 14px);
-  z-index: 30;
+  z-index: var(--z-first);
   width: min(310px, 78vw);
   pointer-events: none;
   opacity: 0; translate: 0 14px;
@@ -103,7 +103,7 @@
 #ui .fc-pill {
   position: absolute;
   right: var(--pad-r); bottom: calc(var(--hud-b) + 14px);
-  z-index: 29; cursor: pointer;
+  z-index: var(--z-prompt); cursor: pointer;
   width: 26px; height: 26px; padding: 0;
   display: grid; place-items: center;
   font: inherit; font-size: .72rem; font-weight: 700;
@@ -129,7 +129,7 @@
   /* Above everything that can be on screen while the player is out in the
      world. This is the one panel that has to be reachable when things have
      gone wrong, so it does not queue behind another module's z-index. */
-  z-index: 60;
+  z-index: var(--z-rescue);
   width: min(340px, 84vw);
   text-align: center;
   opacity: 0; pointer-events: none;

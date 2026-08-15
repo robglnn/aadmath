@@ -20,7 +20,7 @@
   left:var(--pad-l);
   width:min(304px,42vw);
   display:flex;flex-direction:column;gap:.26rem;
-  pointer-events:none;z-index:6;
+  pointer-events:none;z-index:var(--z-ledger);
 }
 
 .led-row{
@@ -41,6 +41,35 @@
 .led-row.up{--led-ink:#78e0a8}
 .led-row.down{--led-ink:#ff9a5c}
 .led-row.safe{--led-ink:#8aa4c2}
+/* A rule, not a movement: the day's assay is spent. Said once a day, in the
+   strip's own quiet ink, because it is information and not an event. */
+/* …and it stops short of the companion's card. The strip is 304 px wide and
+   the comms panel starts at 260 on a 1280 frame, which the ordinary rows never
+   notice because "+2 CIPHER VEIN" is four words. A sentence does notice, so the
+   note keeps its text inside the part of the strip nothing else is standing on. */
+.led-row.note{--led-ink:#c7a86a;max-width:min(236px,100%)}
+.led-row.note .led-why{text-transform:none;font-size:.6rem;letter-spacing:.02em}
+
+/* FIRST SIGHT — the one printing of a reason that also says what it means.
+   src/ui P1: "+5 DESCENT is printed as a reward reason and defined nowhere",
+   and the same was true of CIPHER VEIN, LATTICE ANCHOR, HANGING CACHE and RIFT
+   SURGE. src/kit/ledger.js prints the glossed form once, ever, and this is what
+   that row looks like: a sentence, so it drops the letterspaced upper case that
+   suits a two-word label and reads as prose, and it is allowed the width and
+   the lines a sentence needs. It holds for longer than an ordinary row, because
+   it is the only time these words are explained.
+
+   It WRAPS. It does not clip, it does not ellipsise, and it has no max-height:
+   a definition with its last word cut off has taught nobody anything, which is
+   the fault the same critic filed against Marlow's card. */
+.led-row.taught{--led-ink:#c7a86a;max-width:min(268px,100%);align-items:flex-start}
+.led-row.taught .led-why{
+  text-transform:none;font-size:.62rem;letter-spacing:.01em;line-height:1.34;
+  overflow:visible;text-overflow:clip;white-space:normal;
+}
+/* The balance tail is dropped on a taught row: the sentence is the point, and
+   the number is on the next line the strip prints anyway. */
+.led-row.taught .led-left{display:none}
 
 .led-n{
   font-size:.86rem;font-weight:800;line-height:1;

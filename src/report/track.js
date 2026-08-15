@@ -65,7 +65,37 @@ const IDLE_CAP_MS = 90_000;
 /** A gap this long ends a session; the next answer starts a fresh one. */
 const SESSION_GAP_MS = 10 * 60_000;
 
-export function createTracker(mastery) {
+/**
+ * TWO CLOCKS, AND THE DAY THEY WERE CONFUSED FOR ONE
+ *
+ * A cold reader opened the report at wall-clock minute sixteen and read
+ * "4 min THIS SESSION". Nothing was broken; the wrong clock was on the label.
+ *
+ *   TIME ON TASK is measured *between answers* and capped at `IDLE_CAP_MS`, so a
+ *   learner who walks away mid-rift has not spent forty minutes on two-step
+ *   equations. It is deliberately smaller than the wall clock. It is the right
+ *   number for "how much work happened", and it is the wrong number for
+ *   anything a learner can check against their own watch.
+ *
+ *   THIS SESSION is how long this sitting has been going: wall clock, from the
+ *   moment the learner sat down to now. Walking to a rift is part of a session.
+ *   Reading a worked echo is part of a session. A Pomodoro shape is 15–25
+ *   minutes of *sitting*, so the figure the session is judged against has to be
+ *   the one the session is planned in.
+ *
+ * The old `sessionMs` summed the credited gaps — time on task, wearing the
+ * session's label — so it could only ever read low, and read lower the more the
+ * learner explored. Both clocks are kept below, separately, and the report
+ * prints each under its own name.
+ *
+ * A session opens when the tracker is built, which is the page loading, which
+ * is the learner sitting down. It closes when it has real work in it and ten
+ * minutes pass with no answer; the next answer opens the next one. A session
+ * with no answers in it yet is never closed by the gap rule — somebody who
+ * spent their first twelve minutes in the world has been in a session for
+ * twelve minutes, and telling them it was zero is the same lie in reverse.
+ */
+export function createTracker(mastery, { now = () => Date.now() } = {}) {
   const state = load();
 
   const skillRow = (id) => (state.skills[id] ||= { ms: 0, items: 0, unassisted: 0, unassistedRight: 0 });
@@ -75,28 +105,66 @@ export function createTracker(mastery) {
   // Before a single number is read out of this ledger, prove it describes the
   // save that is actually loaded.
   reconcile(state, mastery);
+  openSitting();
   save(state);
 
   /**
-   * Fold the clock forward. Returns the milliseconds credited, which is zero
-   * for the first answer of a session — there is nothing before it to measure
-   * against, and inventing a number there is how "time on task" starts lying.
+   * The sitting this learner is in.
+   *
+   * On load the previous one is resumed if it was still warm — a reload, a
+   * dropped tab, a Chromebook lid — because a session that restarts its clock
+   * every time the page does is not a session, it is a page load.
+   */
+  function openSitting() {
+    const at = now();
+    const last = state.sessions[state.sessions.length - 1];
+    if (last && at - (last.last ?? last.start ?? 0) < SESSION_GAP_MS) {
+      last.start ??= at;
+      last.last ??= at;
+      // The sitting's WALL CLOCK carries across the reload. TIME ON TASK does
+      // not: `lastAt` stays zero, so the first answer after a load credits
+      // nothing. There is nothing before it on this page to measure against,
+      // and the gap it would otherwise be charged is the game loading.
+      lastAt = 0;
+      return;
+    }
+    state.sessions.push({ start: at, last: at, ms: 0, items: 0 });
+    if (state.sessions.length > 60) state.sessions.shift();
+  }
+
+  /** The sitting in progress, and whether its clock is still running. */
+  function sitting() {
+    const s = state.sessions[state.sessions.length - 1];
+    if (!s) return null;
+    // Only a sitting that has real work in it can go stale. See above.
+    const stale = s.items > 0 && now() - (s.last ?? s.start) >= SESSION_GAP_MS;
+    return { ...s, live: !stale };
+  }
+
+  /**
+   * Fold the clock forward. Returns the milliseconds credited to TIME ON TASK,
+   * which is zero for the first answer of a session — there is nothing before
+   * it to measure against, and inventing a number there is how time on task
+   * starts lying. The session's own wall clock is not affected either way: it
+   * has been running since the learner sat down.
    */
   function tick(skillId) {
-    const now = Date.now();
-    const gap = lastAt ? now - lastAt : Infinity;
-    if (gap >= SESSION_GAP_MS) {
-      state.sessions.push({ start: now, ms: 0, items: 0 });
+    const at = now();
+    const gap = lastAt ? at - lastAt : Infinity;
+    let s = state.sessions[state.sessions.length - 1];
+    if (!s || (s.items > 0 && at - (s.last ?? s.start) >= SESSION_GAP_MS)) {
+      state.sessions.push({ start: at, last: at, ms: 0, items: 0 });
       if (state.sessions.length > 60) state.sessions.shift();
-      lastAt = now;
+      lastAt = at;
       return 0;
     }
+    s.last = at;
+    if (gap >= SESSION_GAP_MS) { lastAt = at; return 0; }
     const credited = Math.min(gap, IDLE_CAP_MS);
-    lastAt = now;
+    lastAt = at;
     state.totalMs += credited;
     skillRow(skillId).ms += credited;
-    const s = state.sessions[state.sessions.length - 1];
-    if (s) s.ms += credited;
+    s.ms += credited;
     return credited;
   }
 
@@ -136,6 +204,17 @@ export function createTracker(mastery) {
     if (!wasMastered && now?.mastered) {
       state.claims.push({ id, at: Date.now(), regrant: wasEver });
       if (state.claims.length > 400) state.claims.shift();
+      // WHERE THE COUNTERS STOOD WHEN THE CLAIM WAS MADE.
+      //
+      // Without this the card printed one lifetime total — "questions here: 12"
+      // — under a claim that rested on three items, and a reader had no way to
+      // tell whether the other nine came before the claim (in which case the
+      // claim is thin) or after it (in which case they are practice on a line
+      // already held). Those are opposite readings of the same figure, so the
+      // figure was worthless. Frozen here, at the instant of the grant, for the
+      // same reason the receipt in `promote()` is: it is a fact about the claim,
+      // and a live read of it is a fact about last Tuesday.
+      row.atClaim = { items: row.items, unassistedRight: row.unassistedRight, unassisted: row.unassisted };
     }
     if (wasMastered && !now?.mastered) {
       state.withdrawn.push({ id, at: Date.now() });
@@ -156,6 +235,12 @@ export function createTracker(mastery) {
     msFor: (id) => state.skills[id]?.ms || 0,
     itemsFor: (id) => state.skills[id]?.items || 0,
     /**
+     * Solved first time with no support, as a count rather than a share — so a
+     * reader (and tools/critic/_repassert.mjs) can check the percentage beside
+     * it against the two numbers it was made from.
+     */
+    unaidedRightFor: (id) => (state.skills[id]?.rebuilt ? null : state.skills[id]?.unassistedRight || 0),
+    /**
      * The share of questions on one skill solved first time with no support.
      *
      * The denominator is every question answered, not every *unassisted*
@@ -170,8 +255,40 @@ export function createTracker(mastery) {
       return r && r.items ? r.unassistedRight / r.items : null;
     },
     probesFor: (id) => state.probes[id] || { hit: 0, miss: 0 },
-    /** Wall-clock milliseconds in the session currently open. */
-    sessionMs: () => state.sessions[state.sessions.length - 1]?.ms || 0,
+    /**
+     * The two counts on one line, split at the instant the claim was granted.
+     *
+     * `before` is what the claim was made on the strength of; `since` is
+     * practice, enrichment and cold re-tests on a line already held. Null when
+     * the line holds no claim, or when the claim predates this split — an
+     * unknown is reported as an unknown, never folded into the other half.
+     */
+    claimSplit(id) {
+      const r = state.skills[id];
+      const s = mastery.get(id);
+      if (!r || !s?.mastered || r.rebuilt) return null;
+      const at = r.atClaim;
+      if (!at || at.items == null) return null;
+      const since = Math.max(0, r.items - at.items);
+      return {
+        before: at.items,
+        since,
+        unaidedBefore: at.items ? at.unassistedRight / at.items : null,
+        unaidedSince: since ? (r.unassistedRight - at.unassistedRight) / since : null,
+      };
+    },
+    /**
+     * How long this sitting has been going: wall clock, from the moment the
+     * learner sat down. See the note at the top of this file — this is not time
+     * on task and must never be printed under that label, or under this one.
+     */
+    sessionMs() {
+      const s = sitting();
+      if (!s) return 0;
+      return Math.max(0, (s.live ? now() : (s.last ?? s.start)) - s.start);
+    },
+    /** Time on task inside this sitting: measured between answers, capped. */
+    sessionTaskMs: () => state.sessions[state.sessions.length - 1]?.ms || 0,
     sessionItems: () => state.sessions[state.sessions.length - 1]?.items || 0,
     sessions: () => state.sessions.length,
     totalMs: () => state.totalMs,
@@ -201,6 +318,9 @@ export function createTracker(mastery) {
       const stamp = mastery.stamp?.();
       if (stamp) { state.recordId = stamp.recordId; state.seq = stamp.seq; }
       lastAt = 0;
+      // A fresh cadet is still sitting in the chair. The sitting restarts here
+      // rather than reading zero until the first answer lands.
+      openSitting();
       save(state);
     },
   };

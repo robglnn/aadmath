@@ -5,14 +5,15 @@
   "wave": 9,
   "summary": "Live and playable at robglnn.github.io/aadmath. Mobile clean in both orientations. A teacher can switch the progress record between TEKS and Common Core, and a department head passed it for adoption at 8/10. The cold-player gate — real key input, debug API forbidden — passes 6/6 against the production URL.",
   "metrics": {
-    "fps": 108.4,
+    "fps": 106,
     "consoleErrors": 0,
     "itemsValidated": 12180,
     "i18nKeys": 1072,
     "trueMasteryPct": 99.8,
     "lowestQuintilePct": 89.3,
     "portraitFrames": "80/80",
-    "landscapeFrames": "160/160"
+    "landscapeFrames": "160/160",
+    "buildBoxMs": 1229
   },
   "pieces": [
     {
@@ -32,9 +33,9 @@
     {
       "id": "build",
       "name": "Axiom building system",
-      "status": "building",
-      "score": 6,
-      "note": "Geometry was always right; the controls were not. Hotbar, rotate and grid fixed."
+      "status": "passed",
+      "score": 8,
+      "note": "Hand-built square, wall/deck and ramp/floor joints all close exactly; box in 1.2s, piece real 3ms after the button"
     },
     {
       "id": "learn-ux",
@@ -318,6 +319,46 @@
     {
       "t": "layout",
       "m": "portrait-shaped safe-area model added to the shared gate; full matrix 576/576 clean in EN/ES/PL x flat/notch/island"
+    },
+    {
+      "t": "pacing",
+      "m": "day-gated rank/story/coda, flattened the earn curve, close card names charter+waystation+sounding"
+    },
+    {
+      "t": "wave L2",
+      "m": "Algebra I Level 2: 14 skills, 6 new verification kinds, a coordinate answer surface"
+    },
+    {
+      "t": "pacing",
+      "m": "rank/story/coda night-gated; earn curve flattened and measured d1/d10/d60; close card names charter, waystation, sounding"
+    },
+    {
+      "t": "build",
+      "m": "held trigger no longer builds a chimney or a sawtooth stair; one hold + W now climbs 16m"
+    },
+    {
+      "t": "wave L2",
+      "m": "Algebra I Level 2 shipped: 14 skills, 6 new verification kinds, coordinate answer surface"
+    },
+    {
+      "t": "P0 fall-catch",
+      "m": "off-edge recovery: real cause was a depth test the wing defeats; volume test + R ungated + menu way out + coast brink; new coldplay gate"
+    },
+    {
+      "t": "P0 fall-catch",
+      "m": "shipped: volume fall-catch, R ungated, menu way out, coast brink, new coldplay gate 8/8"
+    },
+    {
+      "t": "P1 build",
+      "m": "square closes by hand; corners mitre; camera clears own walls; the sealing wall gets a door"
+    },
+    {
+      "t": "wave P0",
+      "m": "scheduler: rift no longer dictates a held skill; router diverts to highest-leverage open line"
+    },
+    {
+      "t": "P1 src/ui",
+      "m": "layers.css: one stacking scale (30 levels, none shared); grant card no longer bleeds through the tear; ceremony carries a next action; controls card retires; 14 terms gloss themselves in EN/ES/PL"
     }
   ]
 }

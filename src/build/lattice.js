@@ -2,7 +2,23 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   KINDS, SPEC, LEVEL, WALL_T, DECK_T, NODE_T, endNodes, baseOf,
+  DOOR_HX, DOOR_H,
 } from './pieces.js';
+
+/**
+ * The batches the renderer keeps, which is the five kinds plus one.
+ *
+ * `door` is not a kind the cadet can pick and it is not a class the collider
+ * knows: it is a *wall*, everywhere except here. A wall that has had a doorway
+ * cut into it draws from its own instanced batch because instancing draws one
+ * geometry many times and a hole is a different geometry — `bin()` is the only
+ * place in the system that has to care.
+ */
+const RENDER_KINDS = [...KINDS, 'door'];
+/** Which batch a piece draws from. */
+const bin = (p) => (p.kind === 'wall' && p.door ? 'door' : p.kind);
+/** Which kind's dimensions a batch uses. */
+const specOf = (k) => SPEC[k === 'door' ? 'wall' : k];
 
 /**
  * WHAT A SET AXIOM IS MADE OF.
@@ -70,7 +86,7 @@ export class Lattice {
     this.frameMat = makeFrameMaterial();
     this.glazeMat = makeGlazeMaterial();
 
-    for (const kind of KINDS) {
+    for (const kind of RENDER_KINDS) {
       const g = buildGeometry(kind);
       this.geo[kind] = g;
 
@@ -148,11 +164,35 @@ export class Lattice {
     p.fade = 0;
     p.sel = 0;
     p.dead = false;
-    const list = this.live[p.kind];
+    const list = this.live[bin(p)];
     if (list.length >= MAX) return false;
     list.push(p);
     this._dirty = true;
     return true;
+  }
+
+  /**
+   * A wall has just had a doorway cut into it. Same piece, same slot, same
+   * collider entry — a different geometry, so it changes batch.
+   *
+   * Its grow-in is carried across rather than restarted: the door is decided in
+   * the same frame the wall is placed, and a piece that visibly re-materialised
+   * would read as two pieces where the player set one.
+   */
+  reface(p) {
+    for (const k of RENDER_KINDS) {
+      const list = this.live[k];
+      const i = list.indexOf(p);
+      if (i < 0) continue;
+      if (k === bin(p)) return true;
+      list.splice(i, 1);
+      const next = this.live[bin(p)];
+      if (next.length >= MAX) { list.push(p); return false; }
+      next.push(p);
+      this._dirty = true;
+      return true;
+    }
+    return false;
   }
 
   /** Start the dissolve. The piece stops being solid immediately. */
@@ -169,7 +209,7 @@ export class Lattice {
   _nodePass() {
     const map = this._nodeMap;
     map.clear();
-    for (const p of this.live.wall) {
+    for (const p of [...this.live.wall, ...this.live.door]) {
       const u = p.dead ? p.fade : p.grow;
       if (u <= 0.001) continue;
       endNodes(p, this._ends);
@@ -214,11 +254,11 @@ export class Lattice {
     this.glazeMat.uniforms.uTime.value = time;
     let nodesMoved = this._dirty;
 
-    for (const kind of KINDS) {
+    for (const kind of RENDER_KINDS) {
       let moving = false;
       const list = this.live[kind];
       const b = this.batches[kind];
-      const lo = SPEC[kind].lo;
+      const lo = specOf(kind).lo;
 
       for (let i = list.length - 1; i >= 0; i--) {
         const p = list[i];
@@ -238,7 +278,7 @@ export class Lattice {
         }
       }
 
-      if (kind === 'wall' && moving) nodesMoved = true;
+      if ((kind === 'wall' || kind === 'door') && moving) nodesMoved = true;
       if (!moving && !this._dirty) continue;
 
       const n = list.length;
@@ -695,39 +735,121 @@ function nodeGeometry() {
  *  - a **beam** is a rail whose top is its level, at half a storey;
  *  - a **vault** is a floor with a coil sunk into it, tiling with floors exactly.
  */
-function buildGeometry(kind) {
-  if (kind === 'wall') {
-    const D = WALL_T;              // 0.44 — the frame's full thickness
-    const F = 0.30;                // the closed face is a little thinner
-    const parts = [
+/**
+ * A WALL, AND WHY EVERY MEMBER OF IT NOW STOPS AT 1.74.
+ *
+ * A wall spans a whole cell edge, so where two of them meet at a right angle
+ * their volumes overlap in the last quarter-metre of each. The kit's answer to
+ * that has always been the node post: `NODE_T` square, drawn once per lattice
+ * node, straddling the corner from 1.74 to 2.26 out along both edges.
+ *
+ * The wall was built to 2.00. Every horizontal rail, every end stile and — the
+ * loud one — the four dark 0.52 corner blocks at local y = ±1.74 therefore ran
+ * a clear 0.15 m *past* the plane of the perpendicular wall's face plate, which
+ * starts at 1.85. From outside a corner you saw the far wall's frame poking
+ * through the near wall's panel as two black stubs, one high, one low. That is
+ * the butt joint a cold critic photographed, and it is arithmetic, not shading.
+ *
+ * So the panel now ends where the post begins: **nothing on a wall reaches past
+ * ±1.74.** The post covers 1.74 → 2.26 on both edges, which is more than the
+ * 0.22 half-thickness a neighbour needs, so a straight run has no seam and a
+ * corner is a mitre closed by a stanchion — with no member of either wall ever
+ * entering the other's volume.
+ *
+ * The lit inlay stops at ±1.45 and the panel glaze at ±1.70, so neither the
+ * accent nor the hard light can run off the end of the wall into open air. The
+ * only lit thing at a node is the post's own strip, which is on the post.
+ *
+ * `door` cuts the opening the anti-trap rule needs (see `pieces.js`): the two
+ * jambs and a header, same frame, same light, with the middle taken out.
+ */
+function wallGeometry(door) {
+  const D = WALL_T;              // 0.44 — the frame's full thickness
+  const F = 0.30;                // the closed face is a little thinner
+  const E = 1.74;                // where the wall stops and the node post starts
+  const S = 0.28;                // frame member
+  const parts = [
+    // frame: the head, stopping at the post
+    bar(E * 2, S, D, 0, 1.86, 0),
+    // end stiles, inboard of the post rather than buried in it
+    bar(S, 3.44, D, -(E - S / 2), 0, 0),
+    bar(S, 3.44, D, E - S / 2, 0, 0),
+  ];
+  // THE SILL, AND WHY A DOOR DOES NOT GET ONE ACROSS ITS OPENING.
+  //
+  // The collider takes the whole opening out of the wall, floor to header, so a
+  // full-width sill would be a lit twenty-eight centimetre bar lying across the
+  // threshold that the cadet's boots pass straight through. A drawn thing you
+  // walk through is worse than no doorway at all: it says the hole is a texture.
+  // So on a door the sill is two pieces, each running from its jamb to its post.
+  if (!door) parts.push(bar(E * 2, S, D, 0, -1.86, 0));
+  else {
+    const w = E - DOOR_HX;
+    for (const sx of [-1, 1]) parts.push(bar(w, S, D, sx * (E + DOOR_HX) / 2, -1.86, 0));
+  }
+  if (!door) {
+    parts.push(
       // the closed face — this is the difference between a wall and a window
-      bar(3.86, 3.86, F, 0, 0, 0, 0, PLATE),
-      // frame: exactly 4.00 across and 4.00 tall, so the panel IS the cell edge
-      bar(4.00, 0.28, D, 0, 1.86, 0),
-      bar(4.00, 0.28, D, 0, -1.86, 0),
-      bar(0.28, 3.44, D, -1.86, 0, 0),
-      bar(0.28, 3.44, D, 1.86, 0, 0),
+      bar(E * 2 - 0.10, 3.86, F, 0, 0, 0, 0, PLATE),
       // mullions
-      bar(3.44, 0.18, D - 0.03, 0, 0, 0, 0, DARK),
+      bar(E * 2 - S, 0.18, D - 0.03, 0, 0, 0, 0, DARK),
       bar(0.18, 3.44, D - 0.03, 0, 0, 0, 0, DARK),
-      // the inlay square: the piece's own light
+      // the inlay square: the piece's own light, kept well inboard of the joint
       bar(2.90, 0.07, D + 0.02, 0, 1.30, 0, 0, GLOW, 1),
       bar(2.90, 0.07, D + 0.02, 0, -1.30, 0, 0, GLOW, 1),
       bar(0.07, 2.54, D + 0.02, -1.30, 0, 0, 0, GLOW, 1),
       bar(0.07, 2.54, D + 0.02, 1.30, 0, 0, 0, GLOW, 1),
-    ];
+    );
     for (const sx of [-1, 1]) {
       for (const sy of [-1, 1]) {
-        parts.push(bar(0.52, 0.52, D + 0.01, sx * 1.74, sy * 1.74, 0, 0, DARK));
+        parts.push(bar(0.48, 0.48, D + 0.01, sx * (E - 0.24), sy * 1.50, 0, 0, DARK));
       }
     }
-    const a = new THREE.PlaneGeometry(3.4, 3.4);
-    a.translate(0, 0, F / 2 + 0.01);
-    const b = new THREE.PlaneGeometry(3.4, 3.4);
-    b.rotateY(Math.PI);
-    b.translate(0, 0, -F / 2 - 0.01);
-    return { frame: frameOf(parts), panel: mergeGeometries([a, b], false) };
+  } else {
+    // THE DOORWAY. Local y runs -2 … +2 about the wall's middle, so the opening
+    // reaches from the sill to `DOOR_H` above the base — local y = DOOR_H - 2.
+    const head = DOOR_H - 2.0;
+    const jamb = (E - DOOR_HX);           // width of the panel each side
+    const jx = (E + DOOR_HX) / 2;         // its centre
+    for (const sx of [-1, 1]) {
+      parts.push(
+        bar(jamb - 0.10, 3.86, F, sx * jx, 0, 0, 0, PLATE),
+        // the reveal: a lit edge down the opening, so a door reads as a door
+        // from across the plaza rather than as a wall somebody failed to finish
+        bar(0.07, DOOR_H - 0.24, D + 0.02, sx * (DOOR_HX + 0.06),
+          (head + (-2 + 0.12)) / 2, 0, 0, GLOW, 1),
+        bar(S, DOOR_H - 0.10, D + 0.005, sx * (DOOR_HX + S / 2), (head - 2) / 2, 0, 0, DARK),
+      );
+    }
+    parts.push(
+      // header over the opening, and its own lit line under it
+      bar(DOOR_HX * 2, 2.0 - head - 0.14, F, 0, (head + 1.86) / 2, 0, 0, PLATE),
+      bar(DOOR_HX * 2 + 0.4, 0.20, D + 0.005, 0, head, 0, 0, DARK),
+      bar(DOOR_HX * 2 - 0.10, 0.07, D + 0.02, 0, head - 0.16, 0, 0, GLOW, 1),
+    );
   }
+
+  // The hard-light glaze. On a door it is the two side panels only — a glaze
+  // across the opening would be a pane of light in a hole you walk through.
+  const glaze = [];
+  const pane = (w, h, x, y) => {
+    for (const s of [1, -1]) {
+      const g = new THREE.PlaneGeometry(w, h);
+      if (s < 0) g.rotateY(Math.PI);
+      g.translate(x, y, s * (F / 2 + 0.01));
+      glaze.push(g);
+    }
+  };
+  if (!door) pane(3.40, 3.40, 0, 0);
+  else {
+    const jw = (E - DOOR_HX) - 0.22;
+    if (jw > 0.05) for (const sx of [-1, 1]) pane(jw, 3.40, sx * (E + DOOR_HX) / 2, 0);
+  }
+  return { frame: frameOf(parts), panel: mergeGeometries(glaze, false) };
+}
+
+function buildGeometry(kind) {
+  if (kind === 'wall' || kind === 'door') return wallGeometry(kind === 'door');
 
   if (kind === 'floor') {
     const T = DECK_T;              // the deck hangs entirely below y = 0

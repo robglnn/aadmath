@@ -66,9 +66,10 @@ export default {
     keyClear: 'Q · clear',
     turn: 'Turn',
     // --- never be trapped by your own lattice (src/build/builder.js) ---
-    wouldSeal: 'That would shut you in',
-    sealAsk: 'That would shut you in — click again to do it anyway',
-    sealAgain: 'Click again to shut yourself in',
+    // The room is never refused. It is closed, and the wall that closes it
+    // arrives with a door in it. (src/build/builder.js, src/build/pieces.js)
+    sealDoor: 'This wall closes the room. It gets a door.',
+    doorCut: 'Room closed. That wall has a door in it.',
     boxedIn: 'Your lattice has you shut in',
     cutFree: 'A way out is open',
     cutKey: 'Q',       // i18n-allow: a keycap, and the same cap on every layout
@@ -137,6 +138,17 @@ export default {
     'bracket-both-sides': 'Brackets on both sides',
     'fraction-solve': 'Equations with a fraction',
     'rule-from-table': 'Rules from a table',
+    'inequality-one-step': 'One-step inequalities',
+    'inequality-two-step': 'Two-step inequalities',
+    'inequality-multi-step': 'Multi-step inequalities',
+    'compound-inequality': 'Compound inequalities',
+    'literal-equations': 'Rearranging formulas',
+    'ratio-proportion': 'Ratio and proportion',
+    'slope-rate': 'Slope and rate of change',
+    'graph-linear': 'Graphing linear rules',
+    'write-linear': 'Writing linear rules',
+    'system-substitution': 'Systems by substitution',
+    'system-elimination': 'Systems by elimination',
   },
 
   // The course manifest (content/courses.json) names its courses and units
@@ -183,6 +195,11 @@ export default {
     title: 'Controls',
     got: 'Got it',
     recovered: 'Back on open ground',
+    // What the world says when it picks you up off its own edge. It says what
+    // happened and where you are, because a player who has just been moved
+    // without asking needs both.
+    caught: 'Off the shard — the lattice caught you and set you down on the rim',
+    dug: 'The ground had you. Set down on open rock',
     stuck: {
       title: 'Wedged',
       body: 'Something has hold of you. Press Recover to get back onto open ground. Nothing here ever needs a reload.',
@@ -240,6 +257,14 @@ export default {
     invert: 'Invert look',
     on: 'On',
     off: 'Off',
+    // The way out. Named plainly, because the player reading it is stuck.
+    out: 'If you are stuck',
+    outBody: 'Recover puts you back on solid ground from anywhere — off the edge of the shard, inside a hill, or inside something you built. Nothing here ever needs the page reloaded.',
+    recover: 'Recover',
+    restart: 'Start over',
+    restartAsk: 'Start over? Every rift you have sealed and every mote you have earned goes.',
+    restartYes: 'Start over',
+    restartNo: 'Keep playing',
     now: 'What to do next',
     nowBody: 'A rift is a ring of torn air. Each rift holds a maths statement that is not true yet. Walk into the ring. Press {key}. Make the statement true, and the rift closes for good.',
     screen: {
@@ -281,7 +306,12 @@ export default {
 
     // The resolution beat. What the rig stamps on a line it now trusts.
     seal: {
-      grip: 'Grip on this line',
+      // src/ui P1 — this read GRIP, a word the seal beat coined and never
+      // explained, in a flex row beside a fixed 104px bar with no room for a
+      // definition. The meter measures how firmly the line is HELD, and held is
+      // already defined on the objective card. The cure for an unglossed term
+      // is not always a gloss; here it was not needing the word.
+      grip: 'Hold on this line',
       line: 'The line holds',
     },
 
@@ -303,6 +333,7 @@ export default {
       sort: 'Send every term to the bay it belongs in.',
       area: 'Cover each part of the field with the area that part carries.',
       choice: 'One of these readings is true. The rest are how people get it wrong.',
+      plot: 'Move the two knobs until the trace fits the readings. Then press Seal.',
     },
 
     keypad: {
@@ -314,6 +345,13 @@ export default {
       empty: 'Type a value first',
       narrow: 'Narrow the field',
       narrowed: 'Three readings survive the noise.',
+    },
+
+    plot: {
+      aria: 'Coordinate grid. Move the two knobs to draw the trace.',
+      knob: 'Knob {n}',
+      reads: 'Your trace',
+      notYet: 'That trace does not fit both readings yet.',
     },
 
     balance: {
@@ -382,6 +420,7 @@ export default {
         sort: 'Two terms are alike only when the letter part matches exactly. A number is never like a letter.',
         area: 'The factor outside touches every part inside. Every part.',
         choice: 'Test each reading against the statement. Do not pick the one that merely looks familiar.',
+        plot: 'Set the height where the trace crosses the upright axis first. Then set how steeply it climbs.',
       },
     },
 
@@ -545,11 +584,24 @@ export default {
     },
 
     open: {
-      l1: 'The Skyren Lattice, Shard Nine. Gravity nominal, air breathable, sky mildly on fire. Welcome home, in the loosest possible sense of all three words.',
-      l2: 'I am Marlow. Navigational intelligence, lightly damaged, mostly honest. And you are the cadet. I had pictured someone with more equipment.',
-      l3: 'Everything under your boots is a conclusion. Nine thousand shards of world, each one held up by a single enormous argument the founders wrote down and nobody has read since. Where the argument holds, there is ground.',
-      l4: 'Where it fails, there is that. A rift: a statement the lattice can no longer justify, held open in the air until somebody makes it true.',
-      l5: 'Which brings me to the part I would rather not say out loud. Shard Nine has stood for nine hundred years. So what, exactly, began pulling it apart four days ago?',
+      /* src/ui P1 — CUT TO A LENGTH A FIFTEEN-YEAR-OLD ACTUALLY READS.
+         l3 was 216 characters. The channel typed it in 2.45 s and held it 2.90 s,
+         so it was on screen 5.35 s for a line that needs 11.8 s at 200 wpm — it
+         was removed with six and a half seconds of reading still to do, every
+         time, which is why a cold critic filed it as "two lines of typewriter
+         prose, clipped mid-word". Nothing was clipping. It was being taken away.
+         Nothing here is over ~105 characters in any locale now, and the hold in
+         src/meta/comms.js is the reading time the words actually cost.
+
+         And the two nouns the whole game stands on now arrive DEFINED, in the
+         same breath they are coined: LATTICE in l1 and RIFT in l4. The word
+         "rift" is on the objective card from the fourth second, and its only
+         definition used to reach the player somewhere past the seventieth. */
+      l1: 'Shard Nine, in the Skyren Lattice. The lattice is the argument that holds this world up.',
+      l2: 'I am Marlow. Navigational intelligence — lightly damaged, mostly honest. You are the cadet.',
+      l3: 'Everything under your boots is a conclusion. Where the argument holds, there is ground.',
+      l4: 'Where it fails, you get a rift: a statement the lattice can no longer prove.',
+      l5: 'Shard Nine has stood nine hundred years. So what began pulling it apart four days ago?',
     },
 
     ch1: {
@@ -560,27 +612,31 @@ export default {
       title: 'The cadets before you',
       quest: 'Hundreds stood exactly where you are. Find out where they stopped.',
       b1: 'Three rifts sealed. The lattice has noticed you — you would be surprised how many cadets it never notices at all.',
-      b2: 'While you worked I read the traces the rig digs out of the rifts. They are not simulations. Cadets stood exactly where you are standing. Hundreds of them.',
+      b2: 'I read the traces the rig digs out of the rifts. Cadets stood exactly where you are standing. Hundreds.',
       b3: 'All capable. All stopped. No record says why, and that is the kind of silence somebody is paying for.',
     },
     ch3: {
       title: 'The ninth lemma',
       quest: 'Nobody ever finished one step of the founding proof. Climb high enough to finish it.',
-      b1: 'Seven sealed statements. That is weight enough to call up the founding proof, so I called it up for you. Four million steps. Nine hundred years. Watertight the whole way down — except at step nine.',
-      b2: 'Step nine is not proved. It is assumed. One word in the margin, written in a hurry, in somebody’s own hand: suppose.',
-      b3: 'Nine thousand worlds stand on a step nobody finished. The rifts are not damage, cadet. They are step nine coming back to ask.',
+      // src/ui P1 — the chapter is called "The ninth lemma" and the word was
+      // never defined. A lemma is one step of a proof; b1 now says so, and is
+      // cut to a length that is read rather than skipped.
+      b1: 'Seven sealed statements. Enough to call up the founding proof: four million steps, nine hundred years.',
+      b1b: 'A lemma is one step of a proof. This one is watertight the whole way down — except at step nine.',
+      b2: 'Step nine is not proved. It is assumed. One word in the margin, in somebody’s own hand: suppose.',
+      b3: 'Nine thousand worlds stand on a step nobody finished. The rifts are step nine coming back to ask.',
     },
     ch4: {
       title: 'The hand in the margin',
       quest: 'Finish what Marlow started.',
-      b1: 'Sixteen rifts closed on Shard Nine. There is something I have been carefully not saying for four days, and sixteen is where I stop being careful.',
-      b2: 'The handwriting in the margin is mine. I was the cadet on Shard Nine. The shard was falling and I had eleven minutes. An assumed step holds a world up exactly as well as a proved one — right up until it does not.',
-      b3: 'I have walked nine hundred years of cadets to this page. Every one of them was brilliant. Every one stopped on the same line. I would very much like to be wrong about you.',
+      b1: 'Sixteen rifts closed. There is something I have not been saying for four days. I am going to say it.',
+      b2: 'The handwriting in the margin is mine. I was the cadet here. The shard was falling and I had eleven minutes.',
+      b3: 'Nine hundred years of cadets reached this page. Every one stopped on the same line. Prove me wrong.',
     },
     ch5: {
       title: 'Signed',
       quest: 'Write the end of step nine, and a name underneath it.',
-      b1: 'Twenty-eight rifts. Somewhere in that count the lattice stopped treating you as weather and started treating you as an author.',
+      b1: 'Twenty-eight rifts. Somewhere in there the lattice stopped treating you as weather, and started reading you.',
       b2: 'Finish the rest. A sovereign may add a line to the proof, and whatever that line says, exists. Choose your words.',
     },
     coda: {
@@ -604,6 +660,9 @@ export default {
       stand: 'Stand the watch',
       next: 'The shard holds · next {when}',
       nights: '«n|one:# night held|other:# nights held»',
+      // The proof closes at five nights held (src/meta/shard.js). The row
+      // that would name the descent names this instead, until it is done.
+      coda: 'The proof closes in «n|one:# night held|other:# nights held»',
       sounding: 'Deepest sounding · {n}',
       soundingNone: 'Sound the lattice',
       whenMin: 'in «n|one:# minute|other:# minutes»',
@@ -624,6 +683,12 @@ export default {
       ascended: 'Ascended',
       arrow: '{from} → {to}',
       standing: 'Standing',
+      /* src/ui P1 — the five seconds this ceremony owns the frame used to carry
+         no action at all: "the rank-up ceremony blanks the entire HUD for ~5 s
+         with no prompt". This is the objective it interrupted, printed inside
+         it, so there is never a frame with nothing to do on it. */
+      next: 'Next: {verb} — {skill}, {n} m away',
+      nextAny: 'Next: find a rift and seal it',
     },
 
     dossier: {
@@ -670,10 +735,10 @@ export default {
     },
 
     voice: {
-      firstRift: 'That ring of torn air ahead of you is a rift. Walk up to it and press E — or whatever your hands prefer — and the rig throws the statement onto your visor.',
+      firstRift: 'That ring of torn air ahead is a rift. Walk up to it and press E. The rig does the rest.',
       firstSeal: 'It held. That statement is now a permanent feature of reality, and your hands did it.',
-      standard: 'The obelisk in the plaza is the Standard. It keeps the only honest record of you there is — five bands, one per rank, and a ring of light sitting at exactly your standing. It just moved. It will keep moving.',
-      capped: 'Sealed, but the ledger has stopped paying for those. You have taken everything an easy rift can give. Standing comes out of held lines now, and held lines cost real work.',
+      standard: 'The obelisk in the plaza is the Standard: five bands, one per rank, and a light at your standing.',
+      capped: 'Sealed, but easy rifts have stopped paying. Standing comes out of held lines now, and those cost work.',
       wrong: [
         'Wrong, but usefully wrong. That is most of science.',
         'No. The lattice is a pedant. It wants the true value, not the one next to it.',
@@ -1000,6 +1065,28 @@ export default {
         s150: 'One hundred and fifty. I should like to state, for the record and without any of my usual defences, that I am glad it was you.',
         s180: 'One hundred and eighty. Nine hundred years I have been apologising to this shard. You have made most of the apology unnecessary.',
         s220: 'Two hundred and twenty. There is nothing left in me that knows how to be dry about this. Keep going. I will keep counting.',
+        /**
+         * …and then he keeps counting, every sixty tears, for ever. The number
+         * is a parameter, so this bank never has a last line in it.
+         * See MILESTONE_EVERY in src/meta/voice.js.
+         */
+        on: [
+          '{n}. I said I would keep counting. I am a nine-hundred-year-old argument. I do not say things I will not do.',
+          '{n} sealed. The record has stopped comparing you to cadets and started comparing you to weather.',
+          '{n}. Somewhere under us a step that has held its breath since the fourth day has just let it out.',
+        ],
+      },
+      /**
+       * NIGHTS HELD (src/meta/days.js) — mornings on which something you knew
+       * was still known. Rank, the last chapters and the coda are all paced
+       * against this number, and Marlow now counts it out loud.
+       */
+      night: {
+        n3: 'Three nights held. That is the number the old hands watch for. Anybody can be brilliant once.',
+        n7: 'Seven nights held. A week of knowing it on waking. The shard has started to plan around you.',
+        n14: 'Fourteen nights held. I have stopped writing "provisional" beside your name in the record.',
+        n30: 'Thirty nights held. Thirty separate mornings the sky stayed up because of something you knew. I would call that a career.',
+        on: '«n|one:# night held|other:# nights held». Still here, and still known. I have run out of ways to be surprised, and kept none of my doubts.',
       },
     },
   },
@@ -1029,6 +1116,10 @@ export default {
     goal: {
       hold: 'Hold: {skill}',
       holdN: 'Hold «n|one:# line|other:# lines»',
+      // src/ui P1 — "drive back" is coined here and glossed on the ORDERS
+      // card (session.charter.goalPush). It cannot be glossed HERE: this string
+      // is printed into `.sb-goal`, which ellipsises, and a definition with its
+      // tail cut off teaches nobody anything.
       push: 'Drive back: {skill}',
       any: 'Seal whatever the shard opens',
       extend: 'One more line',
@@ -1051,7 +1142,7 @@ export default {
       // same breath, because this card is the first surface that uses them.
       goalHold: 'Seal {tears} rifts on {skill}. A line is one idea and every rift that tests it. A held line never opens again.',
       goalHoldN: 'Seal {tears} rifts today. You then hold «n|one:# line|other:# lines» for good. A held line never opens again.',
-      goalPush: 'Seal {tears} rifts on {skill}. That line is a long one. Today we make it shorter.',
+      goalPush: 'Seal {tears} rifts on {skill}. To drive a line back is to win back ground on one that slipped.',
       goalAny: 'Seal {tears} rifts on this shard. Then we see what the lattice does about it.',
       willHold: 'should hold',
       willPush: 'ground gained',
@@ -1143,13 +1234,19 @@ export default {
       soundStrongNone: 'The sounding',
       soundNoteNone: 'Held lines, top of the bank, unassisted, one rung at a time. Twelve clean rungs is a descent that lands. You have not taken one down yet.',
       charterHaveStrong: '«n|one:# charter in hand|other:# charters in hand»',
-      charterHaveNote: 'Earned by depth, spent on waystations. Nothing else in this game costs one.',
+      // A charter in hand is a thing to go and do, so this row says the key
+      // rather than the definition. It is the one place the card can name an
+      // action the learner can take in the next ten seconds.
+      charterHaveNote: 'Press H where you want a waystation. Motes pay the rest.',
       charterStrong: 'The next charter',
       charterNote: 'Cut by depth, and depth only moves when a line held yesterday still holds today. {n} deeper cuts the next.',
       stationStrong: '«n|one:# waystation standing|other:# waystations standing»',
       stationNote: 'Stand at one, press H, and you are at the next. Two is a route; four is a different island.',
       stationStrongNone: 'The first waystation',
-      stationNoteNone: 'A charter and two hundred and forty motes raise one. A waystation is a permanent tower of rising air, and also a place. There is no last one.',
+      // The charter row above already says what to press and what it costs, so
+      // this row says what the thing IS. Two short sentences: the card holds
+      // four rows above the fold and this one used to eat three lines.
+      stationNoteNone: 'A permanent tower of rising air, and a place you can step to. There is no last one.',
       signWhole: 'Ten lines, all held. None of them rots while you are gone. What is left is how deep you can go. And how much of this island you can make one step wide.',
     },
     rest: {
@@ -1193,9 +1290,10 @@ export default {
       mastered: 'Lines held',
       masteredNote: 'Proved, not merely attempted.',
       time: 'Time on task',
-      timeNote: 'Measured between answers and capped, so idling never counts as work.',
+      // Two clocks, and they are meant to differ. This is the smaller one.
+      timeNote: 'Measured between answers and capped, so idling never counts as work. It is not the session clock, and it is meant to read lower than it.',
       session: 'This session',
-      sessionNote: 'A session runs 15–25 minutes, then stops cleanly.',
+      sessionNote: 'How long you have been sitting here: real time, from when you started, including walking and reading. A session runs 15–25 minutes, then stops cleanly.',
       items: 'Questions answered',
       itemsNote: 'Each one generated fresh and re-solved by machine before you saw it.',
       accuracy: 'Solved unaided',
@@ -1204,9 +1302,13 @@ export default {
       hollowNote: 'This engine took back {n} of {of} mastery claims after a cold re-test.',
       hollowNone: 'No mastery claimed yet. Nothing to check.',
       ofHeld: 'of {n} held',
-      sight: 'Held on first sight',
-      sightNote: 'Proved on first contact, with no practice in front of it. Same claim, least evidence this engine accepts. Cold re-tests come soonest for these.',
-      sightNone: 'No line proved out on first contact. Every claim here came after practice.',
+      sight: 'Opened cold',
+      // What this tile counts is the ROAD, not the run. The first question on
+      // the line was answered cold and that opened the proving run; whether the
+      // run then went straight through is on the line's own card. Counting the
+      // road and describing the run was one of the contradictions.
+      sightNote: 'On these lines the very first question was answered cold, at the top of the bank, with nothing taught in front of it. Same claim, fewest questions this engine accepts. Open a line to see whether its proving run went straight through. Cold re-tests come soonest for these.',
+      sightNone: 'No line was opened cold. Every claim here came after practice.',
       timeUnknown: 'Not measurable. Part of this record came back without its ledger, so the minutes before that are gone. The report shows them as unknown, not as zero.',
       accuracyUnknown: 'Not measurable on a restored record. The model remembers the questions, but not which ones you answered without help.',
     },
@@ -1222,13 +1324,23 @@ export default {
       },
     },
 
+    // A flag, not a state. See `underReopened` in src/report/index.js: the
+    // claim on this line stands, and a line it was built on has gone back to
+    // being practised after a missed cold re-test.
+    flag: { under: 'Ground reopened' },
+    flagNote: { under: 'You still hold this line. A line underneath it missed a cold re-test and has gone back to practice, so the rig is re-proving the ground before it sends you back up here.' },
+
     road: {
       sight: 'Tested out',
       fast: 'Short road',
       long: 'Long road',
     },
     roadNote: {
-      sight: 'Proved on first contact: one cold item at the top of the bank, then the rest of the proving run. Three unassisted items, no practice in front of them.',
+      // It used to end "Three unassisted items, no practice in front of them",
+      // which is the gate's setting quoting itself and was untrue of every run
+      // that absorbed a miss. The count lives on the card, where it is read off
+      // the receipt.
+      sight: 'Opened cold: the first question on this line was answered at the top of the bank, with nothing taught in front of it, and it counted as the proving run’s first question. Open the line for what the run then cost.',
       fast: 'One clean solve with no help, at the gate band, opened the proving run. Fewer items than the long road, and each one harder.',
       long: 'Opened the proving run the long way: three clean unassisted solves and a posterior at the full threshold.',
     },
@@ -1238,7 +1350,11 @@ export default {
       why: {
         fresh: 'New ground. You already hold everything under it.',
         continue: 'Unfinished. Staying here is worth more than moving on.',
-        check: 'One proving run away — three clean answers, no help, harder than usual.',
+        check: 'One proving run away — clean answers, no help, harder than usual.',
+        // Read off the live run, not off the gate's default. A run that absorbed
+        // a miss or extended itself needs more than three, and this card said
+        // three while the evidence rows below it said five.
+        checkLeft: 'The proving run is live: «n|one:# clean answer to go|other:# clean answers to go», no help, harder than usual.',
         review: 'Due for a cold re-test. The claim has to earn its place again.',
         enrich: 'You hold everything that is open. This line goes deeper instead.',
       },
@@ -1283,16 +1399,34 @@ export default {
       retentionNote: 'Cold re-tests come round on an expanding schedule. Miss two and the claim is withdrawn.',
       probeCount: '{hit} of {n} held',
       probeNone: 'none due yet',
+      // A line nobody has asked a question about. The model still holds an
+      // opening belief, read off the lines underneath — a plan for where to
+      // start, not a reading of this learner. It is not printed as a
+      // percentage, because a percentage is what a measurement looks like.
+      posteriorNone: 'Nothing has been asked on this line yet, so there is nothing measured to be sure about. The model opens it at a level read off the lines underneath. That is a starting point, not evidence.',
       coldVal: 'cold, band {band}',
       cleanSight: 'None needed. This line proved out on first contact. The cold item is the proving run’s own first item, and the row below counts it once.',
+      // The same road, and a different story. Passing the cold item opens the
+      // run; it does not finish it. A run that then stumbled and paid for it is
+      // still a claim — on more unassisted evidence, not less — but it did not
+      // prove out on first contact, and the card said it did.
+      cleanSightCharged: 'The first question on this line was answered cold, at band {band}, with nothing taught in front of it — that is what opened the proving run. The run then «n|one:missed once|other:missed # times» and paid for it in extra unassisted questions.',
+      cleanSightOld: 'The first question on this line was answered cold, at band {band}, and that opened the proving run. This receipt is from an earlier build and does not record how the run itself went.',
       cleanRoad: {
         long: 'Three in a row, unassisted, at difficulty band {band} — the long road to the proving run.',
         fast: 'One clean solve with no help, taken at difficulty band {band} — the gate band itself. The short road asks for fewer items, and harder ones.',
       },
       provingExtended: 'Unassisted, support off, band {band} or above. The run extended itself by {n} to span a second surface and a modelling item.',
+      provingCharged: 'Unassisted, support off, band {band} or above. The run «n|one:absorbed one miss|other:absorbed # misses» and charged itself extra unassisted questions for it, so it closed on more evidence than a clean run, not less.',
       noReceipt: 'not recorded',
       noReceiptNote: 'This claim was granted by an earlier build that kept no record of what proved it. It is reported as unevidenced rather than reconstructed from the settings — a threshold quoting itself is not evidence.',
       rests: 'This claim rests on {n} unassisted items, out of {of} questions answered on this line.',
+      // The denominator a claim is allowed to be measured against: what was
+      // asked before it was granted. Anything asked afterwards is on the next
+      // line, because a claim cannot rest on a question it never saw.
+      restsSplit: 'This claim rests on {n} unassisted questions, taken across the {of} questions asked on this line before it was granted.',
+      sinceClaim: '«n|one:# question has|other:# questions have» been answered here since, on a line already held: {pct} of them unaided. That is practice and re-testing. It is not what the claim was granted on.',
+      sinceNone: 'No question has been asked on this line since the claim was granted.',
       restsUnknown: 'This build did not record the items behind the claim. You have answered {of} questions on this line.',
       grantedOn: 'Granted {date}.',
     },
@@ -1300,7 +1434,13 @@ export default {
     fact: {
       time: 'Time on this line',
       items: 'Questions here',
+      // The split that makes the figure readable. A lifetime total under a
+      // claim can be read two opposite ways — thin claim, or practice on a held
+      // line — and printing it without the split let a reader pick either.
+      itemsSplit: '{n} — {before} before the claim, {since} since',
       accuracy: 'Solved unaided',
+      accuracyOf: '{all} — {n} of {of}',
+      accuracySplit: '{all} — {n} of {of}. Before the claim {before}, since {since}',
       band: 'Difficulty band',
       bandVal: 'Band {n} of 5',
       reps: 'Proved in',
@@ -1458,6 +1598,7 @@ export default {
       classEmpty: 'No student records yet. Each student exports their own record from this screen; add the files here and they stay on this device.',
       classFoot: 'Assembled from records the students exported themselves. Nothing was uploaded, and this list lives only in this browser — clearing site data clears it.',
       claimItemsShort: '{n} unassisted items at band {band}',
+      claimMissed: '«n|one:absorbed one miss|other:absorbed # misses»',
       claimReps: 'across {n} representations',
       claimRegrant: 're-earned after a withdrawal',
       foot: 'Record {id} · {n} observations. None of this is a stored grade. This sheet recomputes every figure from the learner model and the evidence ledger on this device. A line is held only after a proving run with no help, at the gate band. Two failed cold re-tests withdraw the claim again.',
@@ -1484,6 +1625,11 @@ export default {
         time: 'Time',
         road: 'Road',
         claimItems: 'Items behind the claim',
+        // The two denominators that make the column beside it readable in a
+        // gradebook, where there is no tooltip to say which side of the claim
+        // a question fell on.
+        itemsAtClaim: 'Questions before the claim',
+        itemsSinceClaim: 'Questions since the claim',
         band: 'Band',
         retention: 'Held on re-test',
         standards: 'Standards (depth)',
@@ -1531,9 +1677,33 @@ export default {
       'two-step': 'Unwrap in reverse: the loose number first, then the coefficient.',
       'multi-step': 'Simplify each side completely before you undo anything.',
       'both-sides': 'Gather the unknown on one side — and if it vanishes, read what is left.',
+      // Level 2 (content/graph/algebra1-l2.json).
+      'bracket-both-sides': 'A bracket on each side is still one balance: open both, then gather.',
+      'fraction-solve': 'A division comes off like any other operation: multiply both sides by what is underneath.',
+      'rule-from-table': 'A table with even steps hides one rule. Find the rate and the rest follows.',
+      'inequality-one-step': 'An inequality is a balance that leans. Only a negative divide turns the lean round.',
+      'inequality-two-step': 'Unwrap a lean in reverse: the loose number first, then the coefficient.',
+      'inequality-multi-step': 'Gather the unknown on the side that leaves a positive coefficient, and the sign never turns.',
+      'compound-inequality': 'Two statements at once describe a band. Every move happens to all three parts.',
+      'literal-equations': 'A formula is an equation whose numbers have not arrived. Solve it for any letter.',
+      'ratio-proportion': 'Two ratios agree when one is a copy of the other. Multiply across the bars.',
+      'slope-rate': 'Rate is the climb divided by the step across, and it is the same everywhere on one rule.',
+      'graph-linear': 'A rule and a trace are one thing said twice: the rate is the climb, the start is the crossing.',
+      'write-linear': 'Two readings are enough to write a rule: the rate from the climb, the start from the axis.',
+      'system-substitution': 'When one statement says what a letter is, put it straight into the other.',
+      'system-elimination': 'Add two true statements and the result is true. Line one letter up so it leaves.',
     },
 
     slip: {
+      // Level 2 slips.
+      'boundary-slip': 'Gets the boundary value in or out by one',
+      'flip-always': 'Turns the inequality sign after every move',
+      'flip-not-needed': 'Divides by a negative and leaves the sign alone',
+      'band-reversed': 'Writes the band with its ends the wrong way round',
+      'slope-intercept-swap': 'Swaps the rate with the starting height',
+      'run-over-rise': 'Divides the step across by the climb',
+      'subtract-not-add': 'Subtracts the two statements instead of adding',
+      'add-not-subtract': 'Adds the two readings instead of subtracting',
       'add-not-multiply': 'Adds where the situation multiplies',
       'arith-slip': 'Right method, slipped arithmetic',
       'axis-swap': 'Reads the graph along the wrong axis',
@@ -1582,6 +1752,9 @@ export default {
     // it is not clickable yet, and nothing on screen said what would make it
     // clickable. These say the price in the only currency that buys it.
     nextAtLines: 'Hold «n|one:# line|other:# lines»',
+    // src/ui P1 — this is a PRICE, printed into `.kit-chip em` in a strip that
+    // does not wrap on a phone. "A night held" is glossed on the charter card
+    // below, which is prose and has the room for it.
     nextAtDepth: 'Hold lines across a night',
     cost: '{n} motes',
     held: 'Held',
@@ -1662,7 +1835,7 @@ export default {
     },
     charter: {
       name: 'A waystation charter',
-      what: 'Hold what you already hold, across a night, and the lattice cuts you another charter. There is no last one.',
+      what: 'A night held is a line you still knew after you walked away. Hold what you hold across one and the lattice cuts you another charter.',
     },
     chartersHeld: '«n|one:# charter|other:# charters» · {cost}',
     charterIn: '{n} deeper',
@@ -1715,7 +1888,7 @@ export default {
       lines: 'Hold it and «n|one:# more line of the lattice opens|other:# more lines of the lattice open».',
       kit: 'Hold it and {name} is yours.',
       calm: 'Seal it and the surges here stop for good.',
-      sound: 'You hold this line already. A sounding takes you back down it, one harder question at a time, and it still pays.',
+      sound: 'You hold this line. A sounding walks back down it, one harder question at a time.',
     },
 
     // "held" is coined on the orders card. The objective card is where a
@@ -1743,15 +1916,15 @@ export default {
     // exists, and why he should care. Marlow, not a tooltip.
     // -------------------------------------------------------------------
     n: {
-      rift: 'That ring is a rift. Walk into it and the rig throws a statement onto your visor. Make the statement true, and the hole in the world closes behind you. Every rift is one rule of algebra that stopped holding.',
-      surge: 'That ring of light is a rift surge. An open rift throws one out every fifteen seconds. A surge knocks motes loose and takes your footing. Jump as it reaches you. Seal the rift and the surges stop for good.',
-      mote: 'Those are cipher motes: loose lattice, where the ground bled. Run through them and they are yours. The foundry turns motes into vault plates and flares, so they are worth a detour.',
-      charged: 'The gold motes grew beside an open rift. Each one pays three times what a pale one pays. That rift throws a surge out here every fifteen seconds and takes motes back. Seal it and the surges stop.',
-      husk: 'Those husks are empty veins, and you emptied them. Each husk lights up again in about five minutes. You cannot farm one hillside here, cadet. You can only range further out — which I suspect was the point.',
-      anchor: 'That is a lattice anchor. Nothing in your kit reaches one from flat ground, and that is the point. Place a ramp. Place another off the top of it. Then touch the anchor. Sixty motes each, and there are three.',
-      cache: 'A hanging cache. The beam holds a true statement with one weight missing. Walk into the weight that levels the beam, and the monolith opens. A hundred and twenty motes, and the air rises there for good.',
-      updraft: 'That column is an updraft. Fly into it and it lifts you sixty metres for free. Use updrafts to reach what looks out of reach.',
-      verge: 'That curtain is the verge. Shard Nine stops there. The next lands are eight hundred metres of open sky away. Only the lattice crosses. Hold all ten lines and it carries you out. Until then: a long fall with a view.',
+      rift: 'That ring is a rift. Walk in and it shows you a statement. Make it true and the hole closes.',
+      surge: 'That ring of light is a rift surge. It knocks motes loose and takes your footing. Jump it.',
+      mote: 'Cipher motes: loose lattice, where the ground bled. Run through them. The foundry buys kit with them.',
+      charged: 'Gold motes grew beside an open rift. Each pays three times a pale one. Seal it and the surges stop.',
+      husk: 'Husks are veins you emptied. Each lights up again in about five minutes. Range further out.',
+      anchor: 'A lattice anchor. Nothing reaches one from flat ground, on purpose. Stack two ramps, then touch it.',
+      cache: 'A hanging cache. The beam holds a true statement with one weight missing. Stand on the missing weight.',
+      updraft: 'That column is an updraft. Fly into it and it lifts you sixty metres, free.',
+      verge: 'That curtain is the verge, where Shard Nine stops. Hold all ten lines and the lattice carries you out.',
     },
   },
 
@@ -1803,6 +1976,7 @@ export default {
     anchorFind: 'Lattice anchor · build up to it',
     anchorHeld: 'Anchor secured',
     vergeTag: 'The verge · edge of Shard Nine',
+    brink: 'The shard ends here. There is nothing under it.',
     vergeHit: 'The verge holds. Shard Nine ends here — the far shards are a crossing nobody has made.',
   },
   // --- the affordance layer (src/world/afford.js): what a rift says it will
@@ -1831,10 +2005,61 @@ export default {
   // Additive namespace, owned by the kit.
   // ---------------------------------------------------------------------
   ledger: {
-    /** What is left afterwards. Printed on every line, so the sum is never a guess. */
-    left: '{n} left',
+    /**
+     * THE BALANCE AFTER THE MOVEMENT. Printed on every line, so the sum is
+     * never a guess.
+     *
+     * This key was `left`, and the strip read `+4 · Rift sealed · 39 left`. A
+     * cold player watched it go 2 left, 6 left, 10 left, 13 left, 39 left and
+     * wrote: *"a number called 'left' that only goes up is not a number."* They
+     * were right. The figure was always the wallet balance — correct, useful,
+     * and wearing the name of a countdown. In English "left" means what remains
+     * of something being used up, so a wallet that grows contradicts its own
+     * label on every line it prints. The number did not change. The noun did.
+     */
+    balance: 'balance {n}',
     /** A levy that found too little to be worth taking. See LEVY_SHARE. */
     spared: 'Too few motes to knock loose',
+    /**
+     * The day's assay is spent (src/kit/ledger.js). Said once a day, and only
+     * to somebody who has worked the ground past a full sitting's worth. Point
+     * first, then the one thing to do about it.
+     */
+    thin: 'The seams here run dry until tomorrow. Sealed rifts still pay in full.',
+    /**
+     * The descent has already been this deep today (src/kit/kit.js). Said once
+     * a day. It names the one action that pays in full again.
+     */
+    deep: 'The descent pays for new depth. Go deeper, or come back tomorrow.',
+    /**
+     * FIRST SIGHT — a reason that says what it means, once, ever.
+     *
+     * src/ui P1. The cold critic's list of words this game uses and never
+     * defines ended with the sharpest one: "+5 DESCENT is printed as a reward
+     * reason and defined nowhere." CIPHER VEIN, LATTICE ANCHOR, HANGING CACHE
+     * and RIFT SURGE were in exactly the same position — five nouns coined by a
+     * receipt, at 0.54rem, to somebody ninety seconds into their first session.
+     *
+     * The critic also named the fix, because the game already did it once and
+     * did it well: "held means proved for good" on the objective card. Term and
+     * meaning in one breath the first time; the bare term every time after.
+     * src/kit/ledger.js prints one of these the first time each reason appears
+     * and never again, and remembers it across the session break.
+     */
+    first: {
+      seal: 'Rift sealed — the statement is true now, and the hole in the world closes.',
+      assist: 'Sealed with a worked example. It counts. The next one is yours alone.',
+      vein: 'Cipher vein — loose lattice you can run through and keep.',
+      cache: 'Hanging cache — a balance you open by standing on the missing weight.',
+      anchor: 'Lattice anchor — a fixed point of the proof, hung out of reach on purpose.',
+      sound: 'Descent — a run back down a line you already hold, one harder question at a time.',
+      surge: 'Rift surge — the ring an open rift throws out. Jump it, or it costs you motes.',
+      vault: 'Vault plate set — stand on it and it throws you twelve metres straight up.',
+      plate: 'Vault plate bought — a fifth piece for the lattice.',
+      flare: 'Updraft flare — a column of rising air under your own boots.',
+      beacon: 'Standing beacon — rising air that is still here tomorrow.',
+      station: 'Waystation raised — a stop that stays on the map.',
+    },
     why: {
       // earned
       seal: 'Rift sealed',
@@ -1842,6 +2067,7 @@ export default {
       vein: 'Cipher vein',
       cache: 'Hanging cache',
       anchor: 'Lattice anchor',
+      sound: 'Descent',
       found: 'Picked up',
       // lost
       surge: 'Rift surge',

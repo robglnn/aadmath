@@ -1,0 +1,140 @@
+/* ===========================================================================
+   THE STACKING ORDER. One scale, for every surface in the game.
+
+   WHY THIS FILE EXISTS.
+
+   A cold critic photographed the VAULT PLATE grant card rendering *behind* the
+   rift panel, its words bleeding up through the translucent number keys and
+   garbling the 5, 6, 1, 2 and 3. That was not one wrong number in one
+   stylesheet. It was that there was no scale at all: twenty-two `z-index`
+   values had been picked one at a time in ten different modules. Four surfaces
+   shared 24. The rift panel and the first-contact card were both 30. Eight
+   surfaces — including the rig, the hotbar, the kit strip and the grant card
+   itself — declared no level whatever and stacked in DOM order, which is to say
+   in whatever order `main.js` happens to construct them.
+
+   Two surfaces that overlap in space with no ordering between them do not
+   acquire a bug on the day somebody photographs one. They have the bug every
+   frame; it only becomes visible when their pixels meet.
+
+   THE RULES.
+
+     1. Every surface that can overlap another one takes its level from a token
+        in this file. A bare `z-index: 24` never appears in this codebase again,
+        and `tools/critic/layercheck.mjs` fails the build if one comes back.
+     2. No two tokens share a value. If two surfaces can be on screen together
+        and their order is undefined, one of them is going to be wrong.
+     3. `#ui` is a stacking context (`isolation: isolate`), so a level written
+        *inside* a surface — the rift's own 60, its 999 drag ghost — stacks
+        within that surface and can never climb out over the Esc menu.
+     4. Ordering decides who wins when two surfaces meet. It is not a licence
+        for both to be on screen at once: anything that must be *hidden* rather
+        than merely ordered is hidden by a `:has()` rule in the module that owns
+        it. See "A TEAR OWNS THE FRAME" in src/meta/meta.css.
+
+   THE ORDER, and why it is this order.
+
+      6  BECKON      the world's own name tags, pinned to things out there.
+      7  LEDGER      the lattice reserve readout.
+      8  AFFORD      the call: a keycap and a verb on the ring you are near.
+      9  AFFORD-HEAD its header.
+     12  CINE        the cold open's letterbox scrims. Deliberately *below* the
+                     readouts: it fades them with `.meta-cine` rather than
+                     covering them, and a scrim painted over a readout it has
+                     already faded is only a slower way of hiding it.
+     18  WAYPOINT    the objective diamond and the off-screen compass arrow.
+     20  HUD         the instruments: rig, hotbar, crosshair, kit strip,
+                     language switcher, sound.
+     21  BAND        the run band — the frame the session happens inside, so it
+                     takes the top line from everything else in that column.
+     22  LAUNCHER    the progress launcher. A button, so it beats a readout.
+     23  CHAPTER     the chapter card.
+     24  CARD        the objective card. One sentence, and it wins over a
+                     readout, because it is the only thing on screen that says
+                     what to do next.
+     26  COMMS       Marlow. She talks over the cards; that is the point.
+     28  GRANT       what mastery just bought. The loudest thing in the HUD
+                     band — and still under everything modal, which is the
+                     entire fix for the VAULT PLATE frame.
+     30  PROMPT      the interact prompt, the help pill, the menu pill. Always
+                     reachable: a prompt under a card is a dead verb.
+     32  TOAST       transient confirmations.
+     36  FIRST       the first-contact controls card.
+
+     ---- surfaces that own the frame -------------------------------------
+     40  MODAL       the rift.
+     41  FOUNDRY     the counter.
+     42  DOSSIER     the dossier.
+     43  RITE        the rank ceremony.
+     44  TURN        the chapter turn.
+     46  BEAT        the session's charter and close cards. Above the rite ON
+                     PURPOSE: a promotion earned on the last answer of a run is
+                     composed INTO the close card (`rite.claim()`), and while
+                     the hand-off is in flight the card must be the one that is
+                     read. See "the ascension" in src/session/session.css.
+     47  REST        the break beat.
+     52  MENU        Escape.
+     56  REPORT      the progress report.
+     62  RESCUE      the way-out card. Above everything inside `#ui`, always,
+                     because it is the surface you need precisely when another
+                     one has gone wrong.
+
+   OUTSIDE `#ui`. Four surfaces are siblings of it rather than children — the
+   touchpad and the boot curtain in `#app`, the printable document and the drag
+   ghost on `<body>`. They cannot be ordered against the scale above, so they
+   are ordered against each other here and each one is documented as to why it
+   is allowed to sit over the whole interface.
+   =========================================================================== */
+
+:root {
+  /* ---- the world, and the instruments over it ---- */
+  --z-beckon:       6;
+  --z-ledger:       7;
+  --z-afford:       8;
+  --z-afford-head:  9;
+  --z-cine:        12;
+  --z-waypoint:    18;
+  --z-hud:         20;
+  --z-band:        21;
+  --z-launcher:    22;
+  --z-chapter:     23;
+  --z-card:        24;
+  --z-comms:       26;
+  --z-grant:       28;
+  --z-prompt:      30;
+  --z-toast:       32;
+  --z-first:       36;
+
+  /* ---- surfaces that own the frame ---- */
+  --z-modal:       40;
+  --z-foundry:     41;
+  --z-dossier:     42;
+  --z-rite:        43;
+  --z-turn:        44;
+  --z-beat:        46;
+  --z-rest:        47;
+  --z-menu:        52;
+  --z-report:      56;
+  --z-rescue:      62;
+
+  /* ---- outside #ui ----
+     TOUCH  the on-screen sticks, in `#app`. Above the whole interface, which is
+            safe only because src/core/input.js hides them the instant any
+            surface sets `uiOpen` — they can never coexist with a panel.
+     BOOT   the boot curtain, in `#app`. Over everything until it is `.gone`.
+     DOC    the printable teacher document, on `<body>` so `@media print` can
+            isolate it from a WebGL canvas with one rule.
+     DRAG   the rift's drag ghost, on `<body>` so it can follow the pointer past
+            the panel's own overflow. It exists only while a finger is down. */
+  --z-app-touch:   14;
+  --z-app-boot:    50;
+  --z-app-doc:     90;
+  --z-app-drag:    99;
+}
+
+/* The interface is its own stacking context. Without this, every level written
+   *inside* a surface competes with the surfaces themselves — the rift's weld
+   layer is 60 and its drag ghost 999, and neither may be allowed to mean
+   "above the Esc menu". `isolation` does this without the paint and filter
+   boundary that `opacity: .999` or a transform would impose. */
+#ui { isolation: isolate; }

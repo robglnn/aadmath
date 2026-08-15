@@ -46,7 +46,7 @@
 import * as THREE from 'three';
 import './guide.css';
 import { t, num } from '../i18n/index.js';
-import { resolveObjective } from './objective.js';
+import { resolveObjective, countLines } from './objective.js';
 import { lexiconOf, createLexicon } from './lexicon.js';
 
 /** Inside this the rift is in hand: the marker stands down and the key shows. */
@@ -143,6 +143,9 @@ export function createGuide(opts) {
 
   // ------------------------------------------------------------------- state
   let obj = null;
+  /* The last objective that actually resolved. The card falls back to this
+     across the gap the scheduler leaves just after a seal — see `paintCard`. */
+  let held = null;
   let poll = 0;
   let shown = false;
   let ink = '';
@@ -162,9 +165,36 @@ export function createGuide(opts) {
     return t('guide.key.kbm');
   }
 
+  /* src/ui P1 — THE CARD IS NEVER BLANK WHILE THE PLAYER IS IN THE WORLD.
+   *
+   * `resolveObjective` returns null for a beat after a seal: the line that was
+   * just held stops being the nearest unheld one, the scheduler is re-planned,
+   * and until a new rift is picked there is nothing to point at. This function
+   * used to take that null literally and pull the card off the screen — the
+   * cold critic timed it at "the objective card vanishes for ~2 s after the
+   * first seal", which is precisely the two seconds after a success in which a
+   * player is looking for what they earned and what to do with it.
+   *
+   * A momentary gap in the answer is not the same as there being no answer. The
+   * last resolved objective is held and kept on screen across the gap; only a
+   * genuinely empty world — no rifts at all — takes the card down. Everything
+   * on it is a pure function of live state, so a held objective that is a few
+   * hundred milliseconds stale is still true, and the distance keeps updating
+   * underneath it because that is measured from the player, not from the plan.
+   */
   function paintCard() {
-    if (!obj) { card.classList.remove('show'); shown = false; return; }
+    if (obj) held = obj;
+    // Held, but never stale about the one thing the seal just changed: the
+    // tally is re-counted off the live engine, so the frame after the first
+    // line is held reads "1 held" and not the "no lines held yet" it was
+    // carrying a moment ago. That count is the whole reward of a seal.
+    const o = obj || (held && { ...held, ...countLines(mastery) });
+    if (!o) { card.classList.remove('show'); shown = false; return; }
     if (!shown) { card.classList.add('show'); shown = true; }
+    return paintFrom(o);
+  }
+
+  function paintFrom(obj) {
     el.cap.textContent = t('guide.label');
     el.verb.textContent = t('guide.verb.' + obj.verb);
     el.what.textContent = t('skills.' + obj.skill);
@@ -255,11 +285,15 @@ export function createGuide(opts) {
     const H = root.clientHeight || innerHeight;
 
     // ---- where the objective is, from here ---------------------------------
-    if (obj) {
-      const dist = player.pos.distanceTo(obj.pos);
+    // The held fallback, for the same reason the card uses it: the waypoint and
+    // the distance must not blink out for the two seconds after a seal either.
+    // Both are measured from the player, so they stay true while they are held.
+    const aim = obj || held;
+    if (aim) {
+      const dist = player.pos.distanceTo(aim.pos);
       write(el.dist, 'dist', t('guide.metres', { n: num(Math.round(dist)) }));
-      write(el.dir, 'dir', dist < REACH ? t('guide.rel.here') : t('guide.rel.' + relative(obj.pos)));
-      placeMark(obj.aim || obj.pos, W, H, dist);
+      write(el.dir, 'dir', dist < REACH ? t('guide.rel.here') : t('guide.rel.' + relative(aim.pos)));
+      placeMark(aim.aim || aim.pos, W, H, dist);
     } else {
       pin.classList.remove('show');
     }
@@ -341,17 +375,32 @@ export function createGuide(opts) {
       last.dist = last.dir = last.m = last.nm = '';
       paintCard();
     },
-    /** The one thing the game is currently asking for. Critics read this. */
-    state: () => (obj ? {
-      verb: obj.verb, skill: obj.skill, kind: obj.kind,
-      metres: Math.round(player.pos.distanceTo(obj.pos)),
-      where: relative(obj.pos),
-      held: obj.held, open: obj.open, locked: obj.locked,
-      marker: pin.classList.contains('show'),
-      offScreen: pin.classList.contains('edge'),
-      prompt: prompt.classList.contains('show'),
-      taught: lex.known(),
-    } : null),
-    reset() { lex.reset(); obj = null; },
+    /**
+     * The one thing the game is currently asking for. Critics read this, and so
+     * does the rank rite, which prints it so a ceremony is never a frame with
+     * nothing to do on it.
+     *
+     * It reads the same held fallback the card does, so the answer does not go
+     * null for the two seconds after a seal — but it is a pure read: an earlier
+     * version of this assigned the fallback back into `obj` inside the getter,
+     * which let simply *asking* what the objective was end the gap that the
+     * next poll was about to fill honestly.
+     */
+    state: () => {
+      const o = obj || held;
+      if (!o) return null;
+      const tally = countLines(mastery);
+      return {
+        verb: o.verb, skill: o.skill, kind: o.kind,
+        metres: Math.round(player.pos.distanceTo(o.pos)),
+        where: relative(o.pos),
+        held: tally.held, open: tally.open, locked: tally.locked,
+        marker: pin.classList.contains('show'),
+        offScreen: pin.classList.contains('edge'),
+        prompt: prompt.classList.contains('show'),
+        taught: lex.known(),
+      };
+    },
+    reset() { lex.reset(); obj = null; held = null; },
   };
 }

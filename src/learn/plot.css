@@ -1,0 +1,78 @@
+/**
+ * The coordinate surface.
+ *
+ * Owned with the mathematics that needs it, and imported by it — the same
+ * arrangement `echo.css` already has. It borrows the rig's tokens
+ * (`--rf-teal`, `--rf-gold`, `--rf-u`) and defines nothing global, so the rift
+ * panel keeps its own stylesheet and this one cannot reach past its own surface.
+ */
+.rf-plot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(.5rem * var(--rf-u));
+  width: 100%;
+  min-height: 0;
+}
+
+.rf-plot-stage {
+  position: relative;
+  width: calc(min(340px, 66vw) * var(--rf-u));
+  max-width: 100%;
+  flex: 0 1 auto;
+  min-height: 0;
+  touch-action: none;
+}
+
+.rf-plot-stage svg { width: 100%; height: auto; display: block; overflow: hidden; }
+
+.rf-plot .gl { stroke: rgba(126, 190, 255, .14); stroke-width: 1; fill: none; }
+.rf-plot .ax { stroke: rgba(126, 190, 255, .5); stroke-width: 1.2; fill: none; }
+.rf-plot .anchor { fill: var(--rf-gold); opacity: .95; }
+.rf-plot .anchor-halo { fill: none; stroke: var(--rf-gold); stroke-width: 1; opacity: .38; }
+
+/* The line the cadet is drawing. It is drawn, so it is alive: it glows. */
+.rf-plot .drawn {
+  stroke: var(--rf-teal);
+  stroke-width: 2.6;
+  fill: none;
+  filter: drop-shadow(0 0 8px var(--rf-teal));
+}
+
+.rf-plot .knob {
+  fill: #0d141d;
+  stroke: var(--rf-teal);
+  stroke-width: 2;
+  cursor: grab;
+  transition: r .12s ease, stroke .12s ease;
+}
+.rf-plot .knob.live { fill: var(--rf-teal); stroke: #eef5ff; }
+.rf-plot .knob:focus { outline: none; }
+.rf-plot .knob:focus-visible { stroke: var(--rf-gold); stroke-width: 3; }
+.rf-plot .knob.dragging { cursor: grabbing; }
+
+.rf-plot-read {
+  display: flex;
+  align-items: center;
+  gap: calc(.55rem * var(--rf-u));
+  font-family: var(--rf-mono);
+  color: var(--rf-dim);
+  font-size: calc(.62rem * var(--rf-u));
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.rf-plot-read .val { color: var(--rf-ink); letter-spacing: normal; text-transform: none; }
+.rf-plot-read .val .katex { color: var(--rf-teal); font-size: calc(1.05rem * var(--rf-u)); }
+.rf-plot-read.bad .val .katex { color: #ff8f7a; }
+
+.rf-plot-bar { display: flex; gap: calc(.4rem * var(--rf-u)); width: 100%; }
+.rf-plot-bar .rf-key { flex: 1 1 0; }
+
+/* The rig already scales itself through `--rf-u`, so a short viewport needs no
+   second shrink — it needs the room it has. A phone on its side has plenty of
+   width and very little height, and the surface is square, so the height is
+   what to spend. */
+@media (max-height: 620px) {
+  .rf-plot-stage { width: min(calc(min(340px, 66vw) * var(--rf-u) * 1.9), 52vh, 46vw); }
+  .rf-plot-read { font-size: calc(.55rem * var(--rf-u)); }
+}

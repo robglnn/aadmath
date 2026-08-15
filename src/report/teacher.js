@@ -482,7 +482,13 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
         s.title,
         t('report.state.' + s.state),
         s.claim ? claimText(s.claim) : t('report.record.noClaim'),
-        num(s.items),
+        // The lifetime count, and — where there is a claim — which side of it
+        // those questions fell on. The bare total sat next to "tested out ·
+        // 3 items" and left a reader to guess whether the other nine questions
+        // were evidence the claim ignored or practice that came after it.
+        s.itemsAtClaim == null || !s.itemsSinceClaim
+          ? num(s.items)
+          : t('report.fact.itemsSplit', { n: num(s.items), before: num(s.itemsAtClaim), since: num(s.itemsSinceClaim) }),
         s.accuracy == null ? '—' : pct(s.accuracy),
         s.timeMs == null ? '—' : duration(s.timeMs).full,
         probes ? t('report.evidence.probeCount', { hit: s.probes.hit, n: probes }) : '—',
@@ -547,6 +553,10 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
   function claimText(c) {
     const road = t('report.road.' + c.road);
     const parts = [road, t('report.record.claimItemsShort', { n: c.items, band: c.band })];
+    // A run that stumbled and paid for it. On the sight road this is the whole
+    // difference between "proved out cold" and "opened cold, then worked for
+    // it", and the printed record used to show neither.
+    if (c.missed) parts.push(t('report.record.claimMissed', { n: c.missed }));
     if (c.reps.length > 1) parts.push(t('report.record.claimReps', { n: c.reps.length }));
     if (c.regrant) parts.push(t('report.record.claimRegrant'));
     return parts.join(' · ');

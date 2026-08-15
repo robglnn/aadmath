@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { heightAt } from './terrain.js';
+// Built structure is not a heightfield, so it needs its own two answers for
+// the lens. Both live with the builder. (src/build/camclip.js)
+import { camMarch, camClear } from '../build/camclip.js';
 
 /**
  * Third-person camera.
@@ -280,7 +283,12 @@ export class CameraRig {
     // Solids get a three-ray sweep: a single centre ray lets the lens shave the
     // inside of a tree trunk and fill a third of the frame with its backfaces.
     this.farRay = reach;
-    const solid = this._propHit(dt, rig, dir, sr);
+    // A built wall beside the cadet is not on the boom's line, so the raycast
+    // never sees it; the exact march does. Take whichever stops first.
+    const solid = Math.min(
+      this._propHit(dt, rig, dir, sr),
+      camMarch(rig.x, rig.y, rig.z, -dir.x, -dir.y, -dir.z, reach),
+    );
     if (solid < hit) {
       const squeeze = clamp(solid / Math.max(0.001, hit), 0, 1);
       // A boom that has been shoved right in against a boulder is about to
@@ -324,6 +332,9 @@ export class CameraRig {
     // toward the cadet until the ground it is standing over is below it, and
     // if it is still buried at the minimum boom it is simply lifted out.
     this._clear(rig);
+    // …and out of the cadet's own lattice, which `heightAt` answers for by
+    // naming the top of a wall rather than its face.
+    camClear(this.pos, rig);
 
     // ---- aim point ----
     // Under the wing the lens looks *below* the pilot, which drops the horizon

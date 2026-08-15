@@ -21,7 +21,7 @@
 --------------------------------------------------------------------------- */
 
 .rp-scrim{
-  position:fixed; inset:0; z-index:70;
+  position:fixed; inset:0; z-index:var(--z-report);
   /* `minmax(0,1fr)` rather than a bare auto row. An auto row sizes to its
      content, which makes the card's own `max-height:100%` circular — it
      resolves against a track the card just defined, the card grows past the
@@ -229,6 +229,9 @@
 }
 .rp-road.r-sight{color:#ffd9a8; border-color:rgba(255,194,95,.32); background:rgba(255,194,95,.1)}
 .rp-road.r-fast{color:#cfe6ff; border-color:rgba(150,200,255,.28)}
+/* Held, on ground that has reopened underneath. Amber rather than the rose the
+   withdrawn state uses: nothing was taken away from this line. */
+.rp-road.r-under{color:#ffcf9a; border-color:rgba(255,176,89,.34); background:rgba(255,176,89,.09)}
 .rp-name{
   font-size:.85rem; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -250,6 +253,19 @@
   font-size:.72rem; color:var(--ink-dim); text-align:right;
   font-variant-numeric:tabular-nums;
 }
+
+/* NOTHING MEASURED HERE. The bar track stays — the row must not change height
+   or shift its neighbours — but nothing is drawn in it and the figure reads as
+   the em dash this report uses everywhere for "not measured". An empty bar and
+   a bar at 0% look identical and mean opposite things, so the track is dashed
+   to say the difference out loud. */
+.rp-skill[data-measured="false"] .rp-bar{
+  background:none;
+  border-top:1px dashed rgba(150,200,255,.22);
+  border-radius:0; height:5px;
+}
+.rp-skill[data-measured="false"] .rp-bar i{display:none}
+.rp-skill[data-measured="false"] .rp-pct{color:var(--ink-mute); opacity:.75}
 .rp-caret{
   width:8px; height:8px; justify-self:center;
   border-right:1.5px solid var(--ink-mute); border-bottom:1.5px solid var(--ink-mute);
@@ -318,6 +334,16 @@
   font-size:.72rem; line-height:1.45; color:var(--ink-dim);
 }
 .rp-ev-when{display:block; margin-top:.12rem; font-size:.64rem; color:var(--ink-mute)}
+
+/* What happened on this line AFTER the claim. Deliberately not green: it is not
+   evidence for the claim above it, and a reader must be able to tell that at a
+   glance rather than by reading to the end of the sentence. */
+.rp-ev-since{
+  margin:.28rem 0 0; padding:.42rem .5rem;
+  border-left:2px solid rgba(150,200,255,.28);
+  background:rgba(150,200,255,.05);
+  font-size:.7rem; line-height:1.45; color:var(--ink-mute);
+}
 
 .rp-facts{
   display:grid; gap:.1rem .8rem; margin:.75rem 0 0;
@@ -515,7 +541,7 @@
 
 /* -------------------------------------------------------------- launcher -- */
 .rp-launch{
-  position:fixed; z-index:24;
+  position:fixed; z-index:var(--z-launcher);
   right:calc(var(--pad-r) + var(--thumb-r)); top:calc(var(--pad-t) + 74px);
   display:flex; align-items:center; gap:.4rem;
   padding:.42rem .62rem; min-height:36px;
@@ -613,7 +639,7 @@
    isolate it from a WebGL canvas with one rule.
 =========================================================================== */
 .rp-doc-host{
-  position:fixed; inset:0; z-index:90;
+  position:fixed; inset:0; z-index:var(--z-app-doc);
   /* Both tracks are `minmax(0,…)`. An implicit auto column sizes to the widest
      thing inside — a ten-row evidence table — and the whole document then hangs
      off the right of a 414-wide phone with the *page* scrolling sideways.

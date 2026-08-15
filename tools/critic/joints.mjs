@@ -84,9 +84,18 @@ await page.evaluate(() => {
     },
     pieces() {
       const out = [];
+      // `k` is the RENDER batch, not the kind. A wall that has had a doorway
+      // cut into it draws from its own batch (`door`) because a hole is a
+      // different geometry — it is still, to the collider and to every check
+      // here, a wall. Reporting the batch as the kind made a closed square look
+      // like three walls and one missing one.
       for (const k of Object.keys(b.lattice.live)) {
+        void k;
         for (const p of b.lattice.live[k]) {
-          if (!p.dead) out.push({ kind: k, x: p.x, y: p.y, z: p.z, base: p.base, turn: p.turn });
+          if (!p.dead) {
+            out.push({ kind: p.kind, door: !!p.door, x: p.x, y: p.y, z: p.z,
+              base: p.base, turn: p.turn });
+          }
         }
       }
       return out.sort((u, v) => u.kind.localeCompare(v.kind) || u.x - v.x || u.z - v.z);

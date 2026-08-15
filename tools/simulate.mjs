@@ -412,6 +412,15 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     engine.sightReadBandFor = () => Math.max(engine.cfg.checkMinDifficulty, engine.cfg.sightReadBand);
   }
   if (process.env.AB_SLOWCLIMB) engine.cfg.fastClimb = false;
+  //   CFG=k=v,k=v         drive any numeric dial in DEFAULT_MASTERY from
+  //                       outside, so a candidate setting is graded by this
+  //                       file before it is written into the engine.
+  if (process.env.CFG) {
+    for (const pair of process.env.CFG.split(',')) {
+      const [k2, v2] = pair.split('=');
+      engine.cfg[k2.trim()] = Number(v2);
+    }
+  }
   //   AB_ATTEMPTS=1         the schedule this replaced: spacing counted in
   //                         attempts of separation [3, 8, 20, 48] and nothing
   //                         else, so the whole retention ladder is climbable
@@ -510,6 +519,15 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   let sitting = 1;
   let sessionSeconds = 0;
   let reviewItems = 0, durableItems = 0, deepItems = 0;
+  // Items served on a skill this learner had already mastered, and the worst
+  // any single skill took. See the counting block in the loop below.
+  let heldItems = 0, heldReview = 0, heldRetrieval = 0, heldDeep = 0, heldOther = 0;
+  let heldWorst = 0;
+  const heldBySkill = new Map();
+  // The same count split by what served the item, so "eleven items on one held
+  // skill in one sitting" is attributed to a mechanism rather than argued about.
+  const heldByKind = new Map();
+  const heldWorstKind = new Map();
   let items = 0;
   // Which forms this learner has actually practised, and the run being built.
   const practised = new Map(SKILLS.map((s) => [s, new Set()]));
@@ -593,6 +611,31 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // is the whole distinction this build exists to make, and it is worth about
     // half a point of true mastery in the single-sitting cohort.
     const retrievalOnly = task.kind === 'deep';
+
+    // --- items spent on a line this learner had already proved ---------------
+    // The number a real 12-minute session was read by hand to discover, after
+    // the scheduler served one held skill nine times in twelve while an
+    // unmastered skill next door was never served at all. Nothing in this file
+    // could see it: it counted reviews and soundings by *kind*, and a defect
+    // whose whole shape is "too many items on a proved line" does not have a
+    // kind of its own. So it is counted here, by state rather than by label —
+    // was this skill already mastered at the moment it was served — and printed
+    // below, split into the two spaced mechanisms that are meant to land on a
+    // held line and everything else, which is not.
+    if (engine.get(task.skill)?.mastered) {
+      heldItems++;
+      if (task.kind === 'review') heldReview++;
+      else if (task.kind === 'retrieval') heldRetrieval++;
+      else if (task.kind === 'deep') heldDeep++;
+      else heldOther++;
+      const h = (heldBySkill.get(task.skill) || 0) + 1;
+      heldBySkill.set(task.skill, h);
+      if (h > heldWorst) heldWorst = h;
+      const kkey = `${task.skill}/${task.kind}`;
+      const hk = (heldByKind.get(kkey) || 0) + 1;
+      heldByKind.set(kkey, hk);
+      if (hk > (heldWorstKind.get(task.kind) || 0)) heldWorstKind.set(task.kind, hk);
+    }
 
     if (task.scaffold === 'full') learn(task.skill, GAIN.studyExample);
     else if (task.scaffold === 'partial') learn(task.skill, GAIN.completion);
@@ -679,6 +722,20 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     if (!cleared.has(task.skill) && engine.get(task.skill).mastered) {
       cleared.set(task.skill, { items: sp.items, seconds: sp.seconds, at: step + 1, elapsed: seconds });
     }
+    // A per-item hook for diagnostics that need to see the road and not just the
+    // arrival time. Off unless a caller asks for it, so the shipping figures are
+    // produced by byte-identical work.
+    if (opts.watch) {
+      opts.watch({
+        step, skill: task.skill, kind: task.kind, band: task.difficulty,
+        scaffold: task.scaffold, rep, form, tries, solved,
+        cost, mastered: engine.get(task.skill).mastered,
+        sightRead: engine.get(task.skill).sightRead,
+        check: engine.get(task.skill).check
+          ? { done: engine.get(task.skill).check.done, need: engine.get(task.skill).check.need }
+          : null,
+      });
+    }
 
     // --- nobody is routed around --------------------------------------------
     lastTouch.set(task.skill, step);
@@ -707,6 +764,12 @@ function runLearner(seed, policy = 'engine', opts = {}) {
       if (sitting >= sessions) break;
       sitting++;
       sessionSeconds = 0;
+      // The held-line budget is a per-sitting promise, so the figure that grades
+      // it has to be counted per sitting too. `heldWorst` above stays a
+      // whole-run number and is reported as one; this is the one that maps onto
+      // what a student actually sits through.
+      heldBySkill.clear();
+      heldByKind.clear();
       if (!frozen) {
         for (const s of SKILLS) {
           const floor = perma * (peak.get(s) || 0);
@@ -728,6 +791,8 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   return {
     theta, lr, items, trace, seconds, claims, cleared, spent, starve, knownSkills,
     sessionTrace, reviewItems, deepItems, durable: engine.durableCount(),
+    heldItems, heldReview, heldRetrieval, heldDeep, heldOther, heldWorst,
+    heldWorstKind: Object.fromEntries(heldWorstKind),
     // The hidden state at the buzzer, kept so the same learner can be asked
     // again a week later without being taught anything in between.
     k, peak, strength, gapPow: gpow, perma,
@@ -776,6 +841,193 @@ function score(engine, k) {
 }
 
 // ---------------------------------------------------------------------------
+// GATE LAB — `GATE_LAB=1 node tools/simulate.mjs` prints the two tables a gate
+// change has to be judged on, and nothing else, so a candidate can be graded in
+// seconds instead of half a minute. Diagnostic only.
+if (process.env.GATE_LAB) {
+  const N = Number(process.env.LAB_N || 400);
+  const med = (xs) => { const v = [...xs].sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+  const qq = (xs, p) => { const v = [...xs].sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.floor(p * v.length))]; };
+  const mins = [], its = [];
+  const bySkill = new Map(SKILLS.map((s) => [s, []]));
+  let allCleared = 0;
+  for (let i = 0; i < N; i++) {
+    const r = runLearner((i * 2654435761 + 12345) >>> 0, 'engine', { knows: () => 0.95, budget: 220, record: false });
+    let all = true;
+    for (const s of SKILLS) {
+      const c = r.cleared.get(s);
+      if (!c) { all = false; continue; }
+      mins.push(c.seconds / 60); its.push(c.items); bySkill.get(s).push(c.seconds / 60);
+    }
+    if (all) allCleared++;
+  }
+  console.log(`knower  median ${med(mins).toFixed(1)}  p75 ${qq(mins, 0.75).toFixed(1)}  p90 ${qq(mins, 0.90).toFixed(1)}  items med ${med(its).toFixed(1)} p75 ${qq(its, 0.75)} p90 ${qq(its, 0.90)}  min3 ${(100 * its.filter((x) => x <= 3).length / its.length).toFixed(1)}%  proved-all ${(100 * allCleared / N).toFixed(1)}%`);
+  console.log('  per skill med: ' + SKILLS.map((s) => `${s} ${med(bySkill.get(s)).toFixed(1)}`).join('  '));
+  const rows = [];
+  for (const c of [0.50, 0.60, 0.70, 0.75, 0.80, 0.90, 0.95]) {
+    let fast = 0, six = 0, ever = 0, seen = 0, inTime = 0;
+    for (let i = 0; i < N; i++) {
+      const r = runLearner((i * 2654435761 + 12345) >>> 0, 'engine', { knows: () => c, frozen: true, budget: 40, record: false });
+      const first = SKILLS.find((s) => r.spent.get(s).items > 0);
+      if (!first) continue;
+      seen++;
+      const cl = r.cleared.get(first);
+      if (cl) { ever++; if (cl.items <= 3) fast++; if (cl.items <= 6) six++; if (cl.elapsed <= 25 * 60) inTime++; }
+    }
+    rows.push(`  ${c.toFixed(2)}  <=3 ${(100 * fast / seen).toFixed(1).padStart(5)}%  <=6 ${(100 * six / seen).toFixed(1).padStart(5)}%  ever ${(100 * ever / seen).toFixed(1).padStart(5)}%  in25 ${(100 * inTime / seen).toFixed(1).padStart(5)}%`);
+  }
+  console.log(rows.join('\n'));
+  if (process.env.LAB_SEQ) {
+    const want = process.env.LAB_SEQ;
+    const seqs = [];
+    for (let i = 0; i < 60; i++) {
+      const log = [];
+      const r = runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+        knows: () => 0.95, budget: 220, record: false, watch: (e) => { if (e.skill === want) log.push(e); },
+      });
+      const c = r.cleared.get(want);
+      if (c) seqs.push(`${(c.seconds / 60).toFixed(1)}m ${c.items}i: ` + log.slice(0, c.items).map((e) => `${e.kind[0]}${e.band}${e.scaffold === 'none' ? '' : e.scaffold[0]}${e.solved ? (e.tries > 1 ? '~' : '') : 'X'}`).join(' '));
+    }
+    console.log(seqs.join('\n'));
+    process.exit(0);
+  }
+  if (process.env.LAB_GATE) {
+    // Gate accuracy per cohort, measured off the served items: what fraction of
+    // gate items each cohort answers cold. This is the only number a debt rule
+    // can be calibrated against.
+    for (const c of [0.95, 0.90, 0.80, 0.75, 0.70, 0.60, 0.50]) {
+      let ck = 0, cl = 0, pr = 0, prc = 0;
+      const bySk = new Map();
+      for (let i = 0; i < N; i++) {
+        runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+          knows: () => c, frozen: c !== 0.95, budget: c === 0.95 ? 220 : 40, record: false,
+          watch: (e) => {
+            if (e.kind === 'check') {
+              ck++; if (e.tries === 1 && e.solved) cl++;
+              const b = bySk.get(e.skill) || { n: 0, c: 0 }; b.n++; if (e.tries === 1 && e.solved) b.c++; bySk.set(e.skill, b);
+            }
+            if (e.kind === 'probe') { pr++; if (e.tries === 1 && e.solved) prc++; }
+          },
+        });
+      }
+      console.log(`  k=${c.toFixed(2)}  gate items ${(ck / N).toFixed(1)}/learner  clean ${(100 * cl / ck).toFixed(1)}%   sight-read clean ${(100 * prc / Math.max(1, pr)).toFixed(1)}%`
+        + (c === 0.95 ? '\n      by skill: ' + [...bySk].map(([k2, b]) => `${k2} ${(100 * b.c / b.n).toFixed(0)}%`).join(' ') : ''));
+    }
+  }
+  if (process.env.LAB_MASTERY) {
+    const M = Number(process.env.LAB_MASTERY);
+    const rs = [];
+    for (let i = 0; i < M; i++) rs.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', { record: false }));
+    const sortedT = [...rs].sort((a, b) => a.theta - b.theta);
+    const q1 = sortedT.slice(0, Math.floor(M / 5));
+    console.log(`  true mastery ${(100 * rs.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / M).toFixed(1)}%  allten ${(100 * rs.filter((r) => r.trueMastered === SKILLS.length).length / M).toFixed(1)}%  Q1 ${(100 * q1.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / q1.length).toFixed(1)}%  anyHollow ${(100 * rs.filter((r) => r.hollow > 0).length / M).toFixed(1)}%`);
+  }
+  process.exit(0);
+}
+
+// ---------------------------------------------------------------------------
+// TAIL PROBE — `TAIL_PROBE=1 node tools/simulate.mjs` prints where a knower's
+// slow clears actually go, item by item, and exits. Diagnostic only; it changes
+// nothing the shipping run reads.
+if (process.env.TAIL_PROBE) {
+  const N = Number(process.env.TAIL_N || 400);
+  const rows = [];
+  for (let i = 0; i < N; i++) {
+    const log = [];
+    const r = runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+      knows: () => 0.95, budget: 220, record: false, watch: (e) => log.push(e),
+    });
+    rows.push({ r, log, i });
+  }
+  const per = new Map(SKILLS.map((s) => [s, []]));
+  for (const { r, log } of rows) {
+    for (const s of SKILLS) {
+      const c = r.cleared.get(s);
+      if (!c) continue;
+      const mine = log.filter((e) => e.skill === s).slice(0, c.items);
+      per.get(s).push({ mins: c.seconds / 60, items: c.items, log: mine });
+    }
+  }
+  const q = (xs, p) => { const v = [...xs].sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.floor(p * v.length))]; };
+  const all = [];
+  for (const s of SKILLS) all.push(...per.get(s));
+  const cut = q(all.map((x) => x.mins), 0.75);
+  console.log(`TAIL PROBE — ${N} knowers, p75 cut = ${cut.toFixed(1)} min`);
+  console.log('per skill: n, median min, p75, p90, share of all clears above the global p75');
+  for (const s of SKILLS) {
+    const xs = per.get(s);
+    const m = xs.map((x) => x.mins);
+    const slow = xs.filter((x) => x.mins > cut);
+    console.log(`  ${s.padEnd(14)} n=${String(xs.length).padStart(4)} med ${q(m, 0.5).toFixed(1).padStart(5)} p75 ${q(m, 0.75).toFixed(1).padStart(5)} p90 ${q(m, 0.9).toFixed(1).padStart(5)}  slow ${String(slow.length).padStart(4)} (${(100 * slow.length / all.filter((x) => x.mins > cut).length).toFixed(1)}% of all slow clears)`);
+  }
+  // What the slow clears are made of.
+  const slowAll = all.filter((x) => x.mins > cut);
+  const kinds = new Map(); const bands = new Map(); const scaf = new Map();
+  let missedSR = 0, srSeen = 0, checkAband = 0, checkItems = 0, secs = 0;
+  for (const x of slowAll) {
+    for (const e of x.log) {
+      kinds.set(e.kind, (kinds.get(e.kind) || 0) + e.cost);
+      bands.set(e.band, (bands.get(e.band) || 0) + 1);
+      scaf.set(e.scaffold, (scaf.get(e.scaffold) || 0) + 1);
+      secs += e.cost;
+      if (e.kind === 'check') checkItems++;
+    }
+    if (x.log[0] && x.log[0].kind === 'probe') { srSeen++; if (x.log[0].tries > 1 || !x.log[0].solved) missedSR++; }
+    // count how many times a run restarted: a check item with done===0 after
+    // an earlier check item
+    let sawCheck = false;
+    for (const e of x.log) {
+      if (e.kind === 'check') { if (sawCheck && e.check && e.check.done === 0) checkAband++; sawCheck = true; }
+    }
+  }
+  console.log(`\nslow clears: ${slowAll.length} of ${all.length}, ${(secs / 60 / slowAll.length).toFixed(1)} min each on average`);
+  console.log('  minutes by item kind:');
+  for (const [k2, v] of [...kinds].sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${String(k2).padEnd(10)} ${(v / 60 / slowAll.length).toFixed(2)} min/clear  (${(100 * v / secs).toFixed(1)}%)`);
+  }
+  console.log('  items by band: ' + [...bands].sort((a, b) => a[0] - b[0]).map(([b, n]) => `d${b}:${(n / slowAll.length).toFixed(1)}`).join('  '));
+  console.log('  items by scaffold: ' + [...scaf].sort((a, b) => b[1] - a[1]).map(([b, n]) => `${b}:${(n / slowAll.length).toFixed(1)}`).join('  '));
+  console.log(`  sight-read missed on ${missedSR} of ${srSeen} slow clears (${(100 * missedSR / Math.max(1, srSeen)).toFixed(1)}%)`);
+  {
+    // How the two roads split, over every clear and not just the slow ones: a
+    // sight-read that lands, against one that does not and has to be climbed
+    // back from.
+    let a1 = 0, a1m = 0, b1 = 0, b1m = 0, a1i = 0, b1i = 0;
+    for (const x of all) {
+      const miss = x.log[0] && x.log[0].kind === 'probe' && (x.log[0].tries > 1 || !x.log[0].solved);
+      if (miss) { b1++; b1m += x.mins; b1i += x.items; } else { a1++; a1m += x.mins; a1i += x.items; }
+    }
+    console.log(`  sight-read landed: ${a1} clears, ${(a1m / a1).toFixed(1)} min / ${(a1i / a1).toFixed(1)} items each`);
+    {
+      const miss = (x) => x.log[0] && x.log[0].kind === 'probe' && (x.log[0].tries > 1 || !x.log[0].solved);
+      for (const [lab, set] of [['landed', all.filter((x) => !miss(x))], ['missed', all.filter(miss)]]) {
+        const k2 = new Map(); let sec = 0;
+        for (const x of set) for (const e of x.log) { k2.set(e.kind, (k2.get(e.kind) || 0) + e.cost); sec += e.cost; }
+        console.log(`    ${lab}: ` + [...k2].sort((a2, b2) => b2[1] - a2[1]).map(([kk, v]) => `${kk} ${(v / 60 / set.length).toFixed(2)}min`).join('  '));
+      }
+      console.log('    missed-sight-read samples:');
+      for (const x of all.filter(miss).sort((a2, b2) => b2.mins - a2.mins).slice(0, 6)) {
+        console.log(`      ${x.mins.toFixed(1)}m ${x.items}i: ` + x.log.map((e) => `${e.kind[0]}${e.band}${e.scaffold === 'none' ? '' : e.scaffold[0]}${e.solved ? (e.tries > 1 ? '~' : '') : 'X'}`).join(' '));
+      }
+    }
+    console.log(`  sight-read missed: ${b1} clears, ${(b1m / b1).toFixed(1)} min / ${(b1i / b1).toFixed(1)} items each  (${(100 * b1 / all.length).toFixed(1)}% of clears, ${(100 * b1m / (a1m + b1m)).toFixed(1)}% of all test-out minutes)`);
+  }
+  console.log(`  proving-run restarts after a miss: ${(checkAband / slowAll.length).toFixed(2)} per slow clear`);
+  console.log(`  gate items per slow clear: ${(checkItems / slowAll.length).toFixed(1)}`);
+  // Fast clears for contrast.
+  const fastAll = all.filter((x) => x.mins <= cut);
+  let fsecs = 0; const fkinds = new Map();
+  for (const x of fastAll) for (const e of x.log) { fkinds.set(e.kind, (fkinds.get(e.kind) || 0) + e.cost); fsecs += e.cost; }
+  console.log(`\nfast clears: ${fastAll.length}, ${(fsecs / 60 / fastAll.length).toFixed(1)} min each`);
+  console.log('  minutes by item kind: ' + [...fkinds].sort((a, b) => b[1] - a[1]).map(([k2, v]) => `${k2} ${(v / 60 / fastAll.length).toFixed(2)}`).join('  '));
+  // The first five items of a slow clear, for a handful of them.
+  console.log('\nsample slow clears (kind/band/scaffold/solved):');
+  for (const x of slowAll.slice(0, 8)) {
+    console.log(`  ${x.mins.toFixed(1)} min, ${x.items} items: ` + x.log.map((e) => `${e.kind[0]}${e.band}${e.scaffold === 'none' ? '' : e.scaffold[0]}${e.solved ? '' : 'X'}`).join(' '));
+  }
+  process.exit(0);
+}
+
 console.log(`ASCENT — mastery simulation`);
 console.log(`${LEARNERS} synthetic learners, budget ${BUDGET} items each, ${SKILLS.length} skills\n`);
 
@@ -1031,6 +1283,13 @@ for (const gap of [24, 72]) {
   console.log(`    re-probes that crossed a real gap  median ${median(rows.map((r) => r.durable)).toFixed(0)} per learner   (${(rows.reduce((a, r) => a + r.durable, 0) / rows.length).toFixed(1)} mean)`);
   console.log(`    lines caught lapsing and reopened  ${(rows.reduce((a, r) => a + r.lapsed, 0) / rows.length).toFixed(2)} per learner at the end`);
   console.log(`    items that were spaced re-probes   ${(rows.reduce((a, r) => a + r.reviewItems, 0) / rows.length).toFixed(0)} of ${(rows.reduce((a, r) => a + r.items, 0) / rows.length).toFixed(0)}   soundings ${(rows.reduce((a, r) => a + r.deepItems, 0) / rows.length).toFixed(0)}`);
+  // The figure this build exists to hold down, on the cohort that actually
+  // plays in sittings: how much of a session went to a line already proved, and
+  // the most any single line took out of one sitting.
+  const wk = {};
+  for (const r of rows) for (const [k2, v2] of Object.entries(r.heldWorstKind)) wk[k2] = Math.max(wk[k2] || 0, v2);
+  console.log(`    items on already-mastered skills   ${(rows.reduce((a, r) => a + r.heldItems, 0) / rows.length).toFixed(0)} per learner   worst one skill in a sitting ${Math.max(...rows.map((r) => r.heldWorst))}   unexplained ${rows.reduce((a, r) => a + r.heldOther, 0)}`);
+  console.log(`      worst one skill one sitting by mechanism   ${Object.entries(wk).map(([k2, v2]) => `${k2} ${v2}`).join('   ')}`);
 }
 // ---------------------------------------------------------------------------
 // THE RETENTION TEST
@@ -1144,6 +1403,38 @@ console.log('\n  the gate as a classifier — learners frozen at a known compete
     console.log(`      ${c.toFixed(2)}            ${(100 * fast / seen).toFixed(1).padStart(6)}%${' '.repeat(18)}${(100 * six / seen).toFixed(1).padStart(6)}%${' '.repeat(9)}${(100 * ever / seen).toFixed(1).padStart(6)}%${' '.repeat(12)}${(100 * inTime / seen).toFixed(1).padStart(6)}%${flag}`);
   }
   console.log(`    (${N} frozen learners per row, 40 items each — the sight-read is offered to every one of them)`);
+}
+
+// ---------------------------------------------------------------------------
+// NOBODY SPENDS TIME ON WHAT THEY ALREADY KNOW
+//
+// The other half of the same promise, and the half that had no figure. A real
+// session was read by hand and found one held skill served nine times in twelve
+// while an unmastered skill next door was served none — so "items served on a
+// skill this learner had already mastered" is printed here, permanently, split
+// by what served them. `review` and `retrieval` are the two mechanisms that are
+// *supposed* to land on a held line: a re-probe the wall clock called for, and
+// an interleaved retrieval item drawn from the lattice beneath blocked practice.
+// A sounding is the endgame answer to a proved shard. Anything in `other` is a
+// held line being drilled for no reason anybody can name, and should be zero.
+// ---------------------------------------------------------------------------
+console.log('\nnobody spends time on what they already know — items served on already-mastered skills');
+{
+  const tot = (k) => results.reduce((a, r) => a + r[k], 0);
+  const items = results.reduce((a, r) => a + r.items, 0);
+  const held = tot('heldItems');
+  const pct2 = (x, n) => `${(100 * x / Math.max(1, n)).toFixed(1)}%`;
+  console.log(`  items on skills already mastered when served   ${(held / results.length).toFixed(0)} of ${(items / results.length).toFixed(0)} per learner  (${pct2(held, items)})`);
+  console.log(`    spaced re-probes the clock called for        ${(tot('heldReview') / results.length).toFixed(0)}  (${pct2(tot('heldReview'), held)} of them)`);
+  console.log(`    interleaved retrieval from the lattice       ${(tot('heldRetrieval') / results.length).toFixed(0)}  (${pct2(tot('heldRetrieval'), held)})`);
+  console.log(`    soundings, once the shard is proved          ${(tot('heldDeep') / results.length).toFixed(0)}  (${pct2(tot('heldDeep'), held)})`);
+  console.log(`    anything else                                ${(tot('heldOther') / results.length).toFixed(0)}  (${pct2(tot('heldOther'), held)})   <- must stay 0`);
+  const worst = results.map((r) => r.heldWorst);
+  console.log(`  most items any one held skill took in a sitting ${Math.max(...worst)} (median ${median(worst).toFixed(0)}, p99 ${quantile(worst, 0.99)})`);
+  console.log('  (this cohort plays its whole 800-item budget as ONE unbroken sitting and has the level');
+  console.log('   proved inside ~250 of them, so almost everything after that is endgame sounding and the');
+  console.log("   per-sitting figure is a whole-run figure. The 22-minute sittings below are the real shape,");
+  console.log('   and a re-probe that has genuinely come due is uncapped by design — see heldReserveCap.)');
 }
 
 // ---------------------------------------------------------------------------
