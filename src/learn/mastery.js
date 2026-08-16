@@ -70,22 +70,28 @@
  *      cohorts frozen at a known hidden competence and prints the pass rate of
  *      each: 57.3% of learners who genuinely sit at 0.95 clear a skill in the
  *      minimum three items, against 22.8% of learners at 0.70 and 3.5% at 0.50,
- *      and *ever*, inside a 40-item sitting, 100% / 65.5% / 14.8%.
- *      Driven through the real game (tools/critic/testout.mjs) a player who can
- *      answer clears every one of the ten skills in exactly three items and a
- *      median of 2.3 minutes — the whole level proved inside one session.
+ *      and *ever*, inside a 40-item sitting, 99.8% / 66.8% / 12.0%.
  *
- *      "The top of the bank" is a demand, not an ordinal. A band-5 item measures
- *      anywhere from 6.9 to 10.1 on generators.demandOf() across this level, so
- *      pinning the sight-read to the ordinal asked a far harder question of a
- *      multi-step equation than of a one-step one — hard enough that a learner
- *      who genuinely knew multi-step needed a median of 15 minutes and 18 items
- *      to prove it, against 2.5 minutes and 3 items everywhere else. So no
- *      skill's sight-read may be harder than the hardest sight-read the rest of
- *      the level can offer. It is a one-sided outlier rule: it binds on exactly
- *      one skill here, lowers it only to the second-hardest gate in the level,
- *      never goes below the gate floor, and leaves the frozen-competence table
+ *      "The top of the bank" is a demand, not an ordinal, and so is the gate
+ *      floor under it. A band-5 item measures anywhere from 7.1 to 10.7 on
+ *      generators.demandOf() across this level and a band-4 item from 6.4 to
+ *      10.1, so a gate pinned to either ordinal asks a far harder question of a
+ *      multi-step equation than of a one-step one. `capBand` refuses to let any
+ *      skill's gate be harder than the hardest gate the rest of the level can
+ *      offer; `gateFloorFor` is what stops that refusal being overruled by the
+ *      ordinal floor on the one skill whose whole ladder sits above the level.
+ *      Both are one-sided outlier rules: they bind on exactly one skill here,
+ *      lower it no further than the level's own ceiling, never below the demand
+ *      the gate floor carries elsewhere, and leave the frozen-competence table
  *      above untouched to the decimal.
+ *
+ *      What that was worth, measured on learners who already know all ten
+ *      skills: minutes to clear one skill p75 7.5 -> 6.3, p90 12.6 -> 10.6,
+ *      p99 25.4 -> 24.5, worst case 77.7 -> 65.8, median unmoved at 2.7. The
+ *      whole level proved in 60 minutes median against 69. Nothing in the
+ *      classifier table moved by so much as a decimal, true mastery held at
+ *      100.0%, the lowest ability quintile at 100.0%, and learners finishing
+ *      with a hollow claim fell from 0.1% to 0.0%.
  *
  *   8. Leverage routing    — `next()` does not serve the weakest skill. It
  *      serves the item with the greatest expected mastery gain **per minute**:
@@ -119,6 +125,10 @@ const DEFAULT_MASTERY = {
   minDifficulty: 3,
   checkItems: 3,
   checkMinDifficulty: 4,
+  // Read `checkMinDifficulty` as a demand rather than as an ordinal. See
+  // `gateFloorFor`. 0 (CFG=gateDemandFloor=0 in tools/simulate.mjs) restores the
+  // ordinal reading, so what this costs and buys is measured, not asserted.
+  gateDemandFloor: 1,
   // --- the spacing schedule, in real elapsed minutes -------------------------
   // Ten minutes, eight hours, twenty-one hours, two days, five and a half days,
   // and five and a half days for ever after that. The first rung is inside a
@@ -233,10 +243,64 @@ const DEFAULT_MASTERY = {
   // behind a claim than the old "three in a row or start again", which paid the
   // same evidence in discarded work and taught items.
   gateMissCost: 2,
-  // How many a single run may absorb. One. A second miss inside the same run is
-  // not a slip, and the run ends: the band falls, support returns, and the rift
-  // teaches — the path that keeps a struggler held rather than ground.
-  gateMissLimit: 1,
+  // The hard ceiling on how many misses one run may absorb, whatever else says.
+  // It used to be one, and one is the wrong shape of rule: it counts misses and
+  // ignores where in the run they fell, so a slip taken with two items already
+  // banked ended the run exactly as fast as a slip taken cold. `gateRunCap`
+  // below counts the work still outstanding instead and binds first in every
+  // case this level can produce; this stays as the backstop that keeps the run
+  // finite whatever a future bank does to the arithmetic. Measured, moving from
+  // the count to the deficit leaves the median and the p75 where they were and
+  // takes the worst test-out a knower ever had from 77.7 minutes to 65.8.
+  gateMissLimit: 3,
+  // How far behind a run is allowed to fall before the rift takes it back.
+  //
+  // `gateMissLimit` counts misses; this counts the work still outstanding —
+  // `need - done`, the unassisted gate-band items this run has yet to produce.
+  // The two say different things and the second is the one that means anything,
+  // because a miss taken with two items already banked leaves a learner much
+  // closer to the bar than the same miss taken cold.
+  //
+  // It is what lets the miss limit rise without the gate going soft. A run that
+  // charges every miss and never ends is a random walk: it closes only if clean
+  // solves arrive faster than `gateMissCost` misses undo them, which at
+  // `gateMissCost` 2 means an unassisted gate-band accuracy above two in three.
+  // Measured on the shipping bank a learner at hidden competence 0.95 answers
+  // 82% of gate items cold and one at 0.70 answers 66%, so the walk closes for
+  // the first and diverges for the second — the gate does the separating, not a
+  // counter. The cap is what stops the diverging half being ground on an
+  // unscaffolded run for ever: fall this far behind and the run ends, the band
+  // falls, support comes back and the rift teaches, which is the only road that
+  // gets a struggling learner there.
+  gateRunCap: 7,
+  // A missed sight-read leaves the ladder at the gate floor rather than at
+  // placement's band, for a learner whose record across the lattice reads
+  // knower-level. See the block in `observe` that reads it, which is where the
+  // argument for it is. What it is worth, measured: the walk back from a missed
+  // sight-read falls from 2.56 taught items to 1.93, the items a knower is
+  // re-taught after they have already produced a clean gate-band solve on that
+  // very skill fall from 0.66 per clear to 0.18, and the p75 test-out falls
+  // 0.4 minutes. Nothing in the frozen-competence table moves, because
+  // `steadyAtGate` needs `gateFormMin` gate items before it answers at all and
+  // a learner below the bar never satisfies it. 0 restores the placement band
+  // (CFG=steadyFloor=0).
+  steadyFloor: 1,
+  // Who may open a run by the short road. See the `fast` test in `observe`.
+  //   0  everybody, which is what ships
+  //   1  only a learner whose lattice record already reads knower-level
+  //   2  everybody except a learner whose record actively reads struggling
+  //
+  // It ships at 0 because it is the one tightening measured here that a
+  // curriculum director would take and a teacher would not. At 1 the gate is a
+  // markedly better classifier — a learner frozen at competence 0.70 clears
+  // 56.4% of the time inside forty items rather than 66.8%, and at 0.80 83.2%
+  // rather than 92.0% — and it is paid for by the learners who need the road
+  // most: true mastery of the level falls from 100.0% to 99.0%, the lowest
+  // ability quintile from 100.0% to 96.3%, and learners finishing with a hollow
+  // claim rise from 0.0% to 0.8%. At 2 it is 60.4% / 86.0% for the same 0.8%.
+  // The dial is here, and so are its numbers, so a district that wants the
+  // stricter classifier can have it with the cost written down.
+  fastSteady: 0,
   // How many gate items this learner must have answered, anywhere in the
   // lattice, before `steadyAtGate` will answer at all. Nothing is inferred from
   // a cold start: below this the slower, supported road is the only road.
@@ -634,7 +698,7 @@ export class MasteryEngine {
 
   /** The band the next item on this skill would be served at. */
   bandFor(s, kind = this.kindFor(s)) {
-    if (kind === 'check') return Math.min(5, Math.max(this.cfg.checkMinDifficulty, s.difficulty));
+    if (kind === 'check') return this.gateBandFor(s.id, s.difficulty);
     if (kind === 'probe') return s.probe.band;
     if (kind === 'review') return Math.min(4, Math.max(3, s.difficulty));
     if (kind === 'deep') return 5;
@@ -1326,8 +1390,8 @@ export class MasteryEngine {
    * second-hardest gate in the level and never below the gate floor.
    */
   capBand(id, want) {
-    const floor = this.cfg.checkMinDifficulty;
-    if (want <= floor) return want;
+    const floor = this.gateFloorFor(id);
+    if (want <= floor) return floor;
     const lad = demandLadder();
     const row = lad[id];
     const others = this.graph.nodes.map((n) => n.id).filter((x) => x !== id && lad[x]);
@@ -1338,9 +1402,57 @@ export class MasteryEngine {
     return d;
   }
 
+  /**
+   * The ordinal this skill's gate floor sits at.
+   *
+   * `checkMinDifficulty` says "band 4 or above". Band 4 is an ordinal inside one
+   * skill's own ladder, and the ladder is only guaranteed to rise *within* a
+   * skill — so on the shipping bank "band 4" names a question measuring 6.4 on
+   * one skill and 10.1 on another. `capBand` above already refuses to let a
+   * skill's gate be *harder* than the hardest gate the rest of the level can
+   * offer, but it stopped at the ordinal floor, and on the one skill where the
+   * whole ladder sits above the level — multi-step, whose easiest item measures
+   * 8.4 against a level-wide band-5 ceiling of 8.9 — the ordinal floor is what
+   * bound. Its gate was served at 10.1 while every other skill's gate was served
+   * at 7.7 or below.
+   *
+   * Measured, that is not a stricter gate, it is a different one: a learner at
+   * hidden competence 0.95 answered 73% of multi-step's gate items cold against
+   * 82% everywhere else, and that one skill carried 35% of the whole test-out
+   * tail and a 35-minute p90 against 13.6 for the next worst.
+   *
+   * So the floor is a demand, not an ordinal. This returns the lowest ordinal on
+   * this skill whose measured demand still meets what `checkMinDifficulty` means
+   * *everywhere else in the level*, and it only ever moves for a skill whose
+   * band at the ordinal floor is already above the level's own ceiling. On this
+   * level it binds on exactly one skill and lands it at band 2 — measuring 8.69,
+   * still the second-hardest gate of the ten. Nothing is asked of a knower that
+   * the level does not ask elsewhere, and nothing below the level's own floor is
+   * accepted as gate evidence.
+   */
+  gateFloorFor(id) {
+    const want = this.cfg.checkMinDifficulty;
+    if (!this.cfg.gateDemandFloor) return want;
+    if (this._gateFloor?.has(id)) return this._gateFloor.get(id);
+    const lad = demandLadder();
+    const row = lad[id];
+    const others = this.graph.nodes.map((n) => n.id).filter((x) => x !== id && lad[x]);
+    let d = want;
+    if (row && others.length) {
+      // The hardest gate the rest of the level can actually produce, and the
+      // demand its own gate floor carries. A skill is only lowered while it is
+      // above the first, and never below the second.
+      const ceiling = Math.max(...others.map((x) => lad[x][4]));
+      const floorDemand = Math.max(...others.map((x) => lad[x][want - 1]));
+      while (d > 1 && row[d - 1] > ceiling && row[d - 2] >= floorDemand) d--;
+    }
+    (this._gateFloor ||= new Map()).set(id, d);
+    return d;
+  }
+
   /** What band the sight-read is asked at on this skill. */
   sightReadBandFor(id) {
-    return this.capBand(id, Math.max(this.cfg.checkMinDifficulty, this.cfg.sightReadBand));
+    return this.capBand(id, Math.max(this.gateFloorFor(id), this.cfg.sightReadBand));
   }
 
   /**
@@ -1360,10 +1472,14 @@ export class MasteryEngine {
    * A gate that gets harder every time it is attempted is not a stricter gate,
    * it is a moving one. So the run opens at the ladder's band, capped by the
    * cross-skill rule above — the same cap the sight-read has always used, and
-   * for the same reason.
+   * for the same reason, and floored by `gateFloorFor` rather than by the
+   * ordinal, which is what finally made that cap bind on the skill it was
+   * written for. After it: that skill's share of the whole test-out tail fell
+   * from 35.2% to 15.6%, its median clear for a learner who already knew it
+   * from 9.9 minutes to 4.5, and its p90 from 35.4 to 18.4.
    */
   gateBandFor(id, band) {
-    return this.capBand(id, Math.min(5, Math.max(this.cfg.checkMinDifficulty, band)));
+    return this.capBand(id, Math.min(5, Math.max(this.gateFloorFor(id), band)));
   }
 
   /** The highest band this learner has already solved cleanly on this skill. */
@@ -1419,6 +1535,24 @@ export class MasteryEngine {
     for (const s of this.state.values()) { seen += s.gateSeen || 0; clean += s.gateClean || 0; }
     if (seen < this.cfg.gateFormMin) return false;
     return (seen - clean) <= this.cfg.gateFormTol * clean;
+  }
+
+  /**
+   * The same reading, asked the other way round.
+   *
+   * `steadyAtGate` is false for two different learners: one whose record says
+   * they are struggling, and one who has not answered enough gate items for the
+   * question to have an answer. Everything that *grants* a concession has to
+   * read it the first way — nothing may be inferred from a cold start. Anything
+   * that *withdraws* one has to read it the second way, or a learner's first
+   * skill of the day is judged as though they had failed a test nobody gave
+   * them.
+   */
+  unsteadyAtGate() {
+    let seen = 0, clean = 0;
+    for (const s of this.state.values()) { seen += s.gateSeen || 0; clean += s.gateClean || 0; }
+    if (seen < this.cfg.gateFormMin) return false;
+    return (seen - clean) > this.cfg.gateFormTol * clean;
   }
 
   /**
@@ -1661,7 +1795,7 @@ export class MasteryEngine {
     else s.credit += 0.34;
     if (clean) s.bandClean[band] = (s.bandClean[band] || 0) + 1;
     const wasGate = (s.lastServed?.kind === 'check' || s.lastServed?.kind === 'probe')
-      && band >= this.cfg.checkMinDifficulty;
+      && band >= this.gateFloorFor(id);
     if (wasGate) { s.gateSeen += 1; if (clean) s.gateClean += 1; }
     // Two places where three clean solves per step is the wrong price.
     //
@@ -1680,6 +1814,10 @@ export class MasteryEngine {
     // A miss still costs two credits and still steps the ladder down, so a
     // learner who cannot do it is caught on the very next item and handed
     // support. This shortens the road back up; it does not remove the road down.
+    // The ordinal, deliberately, and not `gateFloorFor`: this is the *practice*
+    // ladder, not the gate. It is the road up to where a claim can be made, and
+    // on the one skill whose gate floor the demand rule lowers, the road up is
+    // unchanged — the gate simply stops asking for more than the level does.
     if (this.cfg.fastClimb && clean && (s.difficulty < this.cfg.checkMinDifficulty
       || s.difficulty < this.provenBand(s))) {
       s.credit = Math.max(s.credit, 3);
@@ -1715,7 +1853,7 @@ export class MasteryEngine {
     // would have, and the miss is ordinary evidence like any other.
     if (s.probe && !s.check && !s.mastered) {
       s.probe.served = (s.probe.served || 0) + 1;
-      if (clean && band >= this.cfg.checkMinDifficulty) {
+      if (clean && band >= this.gateFloorFor(id)) {
         s.probe = null;
         s.sightRead = 'passed';
         s.difficulty = Math.max(s.difficulty, band);
@@ -1760,7 +1898,30 @@ export class MasteryEngine {
         // mastered lattice below this skill, and one cold item asked above it
         // is not evidence against it. Miss it and it costs one item, which is
         // what the line above always claimed.
-        s.difficulty = s.baseBand ?? s.difficulty;
+        // Where placement put them — or, for a learner whose record across the
+        // whole lattice reads knower-level, the gate floor itself.
+        //
+        // A missed sight-read used to cost a knower four items and not one, and
+        // the four were not the miss, they were the walk back. Placement puts a
+        // new skill at band 3; the run re-opens on one clean unassisted solve at
+        // the gate band; so the road back was two band-3 items to climb the
+        // ladder and then a band-4 one, three of which taught a learner who had
+        // proved five other lines cold nothing at all. Measured on the tail,
+        // that walk was 2.56 items and 17% of every minute a knower spent above
+        // the median.
+        //
+        // Starting them at the gate floor instead is not a shortcut: a clean
+        // unassisted band-4 solve is a *harder* thing to produce than the two
+        // band-3 solves it replaces, so the road is shorter only for somebody
+        // who can actually walk it. `steadyAtGate` reads the whole lattice and
+        // needs `gateFormMin` gate items before it answers at all, so nothing
+        // here is inferred from a cold start, and a learner who cannot hold the
+        // gate band is stepped back down by the very next miss exactly as
+        // before. What it does not do is re-teach band 3 to somebody who has
+        // just been asked band 5 and whose only fault was the answer.
+        const floor = this.cfg.steadyFloor && this.steadyAtGate()
+          ? this.gateFloorFor(id) : 1;
+        s.difficulty = Math.max(s.baseBand ?? s.difficulty, floor);
         s.credit = 0;
       }
       return this.report(s, id, wasMastered, checkEvent);
@@ -1830,8 +1991,12 @@ export class MasteryEngine {
         // being re-set to zero.
         //
         // A run absorbs a miss only for a learner whose record **across the
-        // whole lattice** reads like a slip rather than a pattern, and only
-        // `gateMissLimit` times. That condition is what pays for it. Absorbing
+        // whole lattice** reads like a slip rather than a pattern, only while
+        // the work still outstanding stays inside `gateRunCap`, and never more
+        // than `gateMissLimit` times. Those conditions are what pay for it, and
+        // the middle one is the one that does the work: a run that has banked
+        // two items is much closer to the bar than one that has banked none, so
+        // the same miss should not end both. Absorbing
         // a miss unconditionally is a real concession — measured, it takes a
         // learner frozen at competence 0.70 from clearing 65.5% of the time
         // inside a sitting to 73.5% — because it is exactly the concession a
@@ -1858,7 +2023,12 @@ export class MasteryEngine {
         if (s.check.chargedFor !== s.lastServed) {
           s.check.chargedFor = s.lastServed;
           s.check.missed = (s.check.missed || 0) + 1;
-          if (s.check.missed <= this.cfg.gateMissLimit && this.steadyAtGate()) {
+          // How far behind this run would be if the miss were charged rather
+          // than cashed in: the unassisted gate-band items still outstanding.
+          // See `gateRunCap`.
+          const owing = s.check.need + this.cfg.gateMissCost - s.check.done;
+          if (s.check.missed <= this.cfg.gateMissLimit && owing <= this.cfg.gateRunCap
+            && this.steadyAtGate()) {
             s.check.need += this.cfg.gateMissCost;
             s.cleanRun = 0;
             // A miss still costs standing — just not the run. The clip is
@@ -1886,7 +2056,7 @@ export class MasteryEngine {
             // they are let off is the three or four taught items in between,
             // which were never evidence about anything.
             const steady = this.steadyAtGate();
-            const held = Math.min(5, Math.max(this.cfg.checkMinDifficulty, s.check.band ?? s.difficulty));
+            const held = this.gateBandFor(id, s.check.band ?? s.difficulty);
             s.check = null;
             s.cleanRun = 0;
             if (steady) {
@@ -1908,8 +2078,19 @@ export class MasteryEngine {
       // long road accepts. Neither road weakens what the run then asks for.
       const c = this.cfg;
       const classic = s.pL >= c.pL && s.cleanRun >= c.cleanRun && s.difficulty >= c.minDifficulty;
-      const fast = s.pL >= c.fastPL && s.cleanRun >= c.fastRun && band >= c.checkMinDifficulty
-        && s.difficulty >= c.checkMinDifficulty;
+      const gateFloor = this.gateFloorFor(id);
+      // The short road asks for less standing than the long one and demands it
+      // at the gate band itself. `fastSteady` is who may walk it: a learner
+      // whose record across the whole lattice reads knower-level. Without that
+      // condition it is the short road that makes the gate a repeated trial for
+      // a learner below the bar — one clean band-4 solve after every failed run
+      // is a cheap ticket back, and a learner who is guessing buys it about
+      // every fourth item. `steadyAtGate` needs `gateFormMin` gate items before
+      // it answers, so a cold start walks the long road either way.
+      const fast = s.pL >= c.fastPL && s.cleanRun >= c.fastRun && band >= gateFloor
+        && s.difficulty >= gateFloor
+        && (c.fastSteady === 1 ? this.steadyAtGate()
+          : c.fastSteady === 2 ? !this.unsteadyAtGate() : true);
       if (classic || fast) {
         const need = this.runLength(s, this.regrantItems(s));
         s.check = {
@@ -2165,11 +2346,19 @@ export class MasteryEngine {
       road,
       entryRun,
       entryNeed: c.entryNeed ?? this.cfg.cleanRun,
-      entryBand: c.entryBand ?? c.band ?? this.cfg.checkMinDifficulty,
+      entryBand: c.entryBand ?? c.band ?? this.gateFloorFor(s.id),
       checkDone,
       checkNeed: c.need ?? checkDone,
       checkBase: c.base ?? c.need ?? checkDone,
-      band: c.band ?? this.cfg.checkMinDifficulty,
+      band: c.band ?? this.gateFloorFor(s.id),
+      // What "the gate band" means on this skill, and whether the cross-skill
+      // demand rule moved it. A band is an ordinal inside one skill's own
+      // ladder (see `gateFloorFor`), so a report that prints the ordinal beside
+      // "band 4 or above" will understate a claim on the one skill whose whole
+      // ladder sits above the level. These two fields are what a report needs
+      // to say so; nothing in this file reads them.
+      bandFloor: this.gateFloorFor(s.id),
+      bandCapped: this.gateFloorFor(s.id) < this.cfg.checkMinDifficulty,
       reps: [...(c.reps || [])],
       forms: [...(c.forms || [])],
       novel: !!c.novel,
@@ -2287,7 +2476,7 @@ export class MasteryEngine {
         // A save written before the sight-read existed simply has not been
         // offered one, and a skill it never touched still gets its chance.
         probe: v.probe || (v.placed && !v.attempts && this.cfg.sightRead
-          ? { band: this.cfg.checkMinDifficulty } : (v.probe ?? null)),
+          ? { band: this.sightReadBandFor(k) } : (v.probe ?? null)),
         // The receipt for a claim granted before receipts existed cannot be
         // invented, and inventing one is the whole defect this fixes. It stays
         // null and the report says the evidence predates the record.

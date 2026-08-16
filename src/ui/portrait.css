@@ -108,7 +108,13 @@
        languages: the longest line the companion has runs to six lines at 390 px
        and a card of 153, the chip strip is 24, a row of the ledger is 28. */
     --pt-say: 166px;                /* what the companion's card may claim */
-    --pt-strip: 30px;               /* kit chips and the build charge */
+    /* MEASURED, NOT REMEMBERED. This was 30px — the height of a one-row chip
+       strip in English on the day somebody measured it. The strip is the thing
+       the ledger stands on, and tools/critic/transient.mjs photographed a
+       ledger row and a chip in the same 390 px of glass in all three languages
+       because 30 was not what the strip actually was. `--slot-kit-h` is the
+       live height, written by src/ui/slots.js; the reserve is that plus air. */
+    --pt-strip: calc(var(--slot-kit-h, 26px) + 8px);
     --pt-led: 32px;                 /* the wallet's ledger, its newest row */
     /* …and the three slots on the crosshair's axis, stacked up off the floor:
        the toast, the interact prompt, the foundry's hail. */

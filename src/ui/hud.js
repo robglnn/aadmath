@@ -311,11 +311,64 @@ export class HUD {
     this._sayT = setTimeout(() => this.marlow.classList.remove('show'), ms);
   }
 
+  /**
+   * THE NOTICE SLOT — one at a time, in order, and never overwritten.
+   *
+   * There is exactly one notice on this screen (src/ui/slots.css names its
+   * slot), and this used to be a single element with a single 1800 ms timer:
+   * whatever was said second deleted whatever was said first, mid-sentence,
+   * with no trace. src/kit/ledger.css already carries the scar — "the line
+   * explaining a surge was being deleted by the 'no footing' toast that the
+   * same surge's knockback fired half a second later" — and its answer was to
+   * build a second element and a second clock rather than to fix the slot.
+   *
+   * So the slot is a QUEUE. Each notice gets its whole life, and the next one
+   * starts when it ends.
+   *
+   * Three rules that make a queue honest rather than a backlog:
+   *   · the same words, twice, are one notice. A player leaning on a verb they
+   *     cannot afford asks for the same sentence sixty times a second; it is
+   *     already on screen, so the repeat is dropped. It is NOT allowed to
+   *     restart the clock either — that is how a message ends up on the glass
+   *     for as long as a finger is down, which is a message with no end.
+   *   · at most two wait. A notice that lands more than four seconds after the
+   *     button that caused it is not an answer, it is noise, so the oldest
+   *     waiting one is dropped rather than the newest.
+   *   · `classList`, never `className`. src/ui/slots.js may have hushed this
+   *     element for standing on something, and assigning the whole class string
+   *     wipes that decision until its next pass 110 ms later — which the player
+   *     sees as a flicker.
+   */
   flash(text, kind = '') {
-    this.toast.textContent = text;
-    this.toast.className = `toast plate show ${kind}`;
+    const q = (this._notices ||= []);
+    const live = this._notice;
+    if (live && live.text === text) return;
+    if (q.length && q[q.length - 1].text === text) return;
+    if (!live) { this._noticeShow({ text, kind }); return; }
+    q.push({ text, kind });
+    while (q.length > 2) q.shift();
+  }
+
+  _noticeShow(n) {
+    this._notice = n;
+    this.toast.textContent = n.text;
+    this.toast.classList.remove('good', 'bad');
+    if (n.kind) this.toast.classList.add(n.kind);
+    this.toast.classList.add('show');
+    this._noticeHold();
+  }
+
+  /** Run this notice's dwell, then hand the slot to whatever is waiting. */
+  _noticeHold() {
     clearTimeout(this._toastT);
-    this._toastT = setTimeout(() => { this.toast.className = 'toast plate'; }, 1800);
+    this._toastT = setTimeout(() => {
+      this.toast.classList.remove('show');
+      this._notice = null;
+      const next = (this._notices ||= []).shift();
+      // Long enough that two notices read as two, short enough that the second
+      // still belongs to the button that asked for it.
+      if (next) this._toastT = setTimeout(() => this._noticeShow(next), 220);
+    }, 1800);
   }
 
   // ---------------------------------------------------------------------------

@@ -391,10 +391,58 @@ const deck = (sr, name) => {
   const freshest = pool.filter((e) => (SERVED.get(keyOfEntry(e)) || 0) === least);
   const chosen = pick(sr, freshest.length ? freshest : pool);
   const key = keyOfEntry(chosen);
-  if (key && key.startsWith('ctx.')) SCENE_LOG.push(key);
+  if (isSceneKey(key)) SCENE_LOG.push(key);
   if (key) DRAWN.push(key);
   return chosen;
 };
+
+/**
+ * Is this deck key the name of a SITUATION, rather than of a question?
+ *
+ * The core bank names its framings `ctx.something`. A pack namespaces its own
+ * — `l2.ctx.hoist` — and the original test, `startsWith('ctx.')`, said no to
+ * every one of them. See `packScene` below for what that cost.
+ */
+const isSceneKey = (k) => /(?:^|\.)ctx\./.test(String(k || ''));
+
+/**
+ * A PACK'S OWN DECK, drawn through the engine's ledger.
+ *
+ * WHY THIS EXISTS. A generator pack cannot reach `DECKS`, so Algebra I Level 2
+ * keeps its own lists of framings and drew from them with a plain `pick`. That
+ * looked equivalent and was not: `pick` does not touch `SCENE_LOG`, `DRAWN` or
+ * `AVOID`, so every Level 2 item came back with `item.scene` EMPTY, and three
+ * separate mechanisms that all key off `scene` went quietly dark for a whole
+ * unit —
+ *
+ *   · the proving run's transfer test. `generate` refuses a situation the
+ *     learner has already worked inside, which is what makes the gate a
+ *     transfer test rather than a fourth rehearsal. Measured across the level,
+ *     2.2% of gate items were in an unseen form or world, against 68.1% in
+ *     Level 1 — and true mastery came out at 67% against Level 1's 100%.
+ *   · the session ledger, which cycles a deck before it repeats. Uncharged, a
+ *     pack's five framings can come up in any order, including twice running.
+ *   · the worked analogue, which is told not to reuse the live item's
+ *     situation. With no scene to name, it was never told anything.
+ *
+ * Packs draw through this instead of `pick`, and all three come back on.
+ *
+ * @param {()=>number} sr  the situation stream, as handed to `build`
+ * @param {Array<string|{ctx:string}>} entries  the pack's own framings
+ */
+function packScene(sr, entries) {
+  if (!Array.isArray(entries) || !entries.length) throw new Error('a deck with no framings');
+  let pool = entries.filter((e) => !AVOID.has(keyOfEntry(e)));
+  if (!pool.length) pool = entries;
+  let least = Infinity;
+  for (const e of pool) least = Math.min(least, SERVED.get(keyOfEntry(e)) || 0);
+  const freshest = pool.filter((e) => (SERVED.get(keyOfEntry(e)) || 0) === least);
+  const chosen = pick(sr, freshest.length ? freshest : pool);
+  const key = keyOfEntry(chosen);
+  if (isSceneKey(key)) SCENE_LOG.push(key);
+  if (key) DRAWN.push(key);
+  return chosen;
+}
 
 /** Every number in a worked example must be traceable to where it came from. */
 function distinct(...ns) {
@@ -1278,14 +1326,22 @@ const FORMS = {
         const a = int(r, 1, 3 + d), b = int(r, 1, 5 + d * 2);
         const c = int(r, 1, 3 + d), e = int(r, 1, 5 + d * 2);
         if (!distinct(a, b, c, e)) throw new Error('retry: repeated number');
-        const expr = `2\\left(${lin(a, v, b)}\\right) + 2\\left(${lin(c, v, e)}\\right)`;
+        // ONE SPELLING OF EACH SIDE, USED BY ALL THREE PLACES THAT SHOW IT.
+        // The prose, the drawing and the notation are three views of the same
+        // two sides. Written out three times they are three literals that agree
+        // by luck, and the day one of them is edited the picture starts
+        // describing a different hatch than the sentence does. Bound once here,
+        // a side cannot say `m + 15` in the sentence and anything else on the
+        // drawing, because there is only one string.
+        const wide = lin(a, v, b), tall = lin(c, v, e);
+        const expr = `2\\left(${wide}\\right) + 2\\left(${tall}\\right)`;
         const ans = lin(2 * (a + c), v, 2 * (b + e));
         return {
-          stem: `${T(sc, { w: `$${lin(a, v, b)}$`, h: `$${lin(c, v, e)}$` })} ${T('ask.perimeterExpr')}`,
+          stem: `${T(sc, { w: `$${wide}$`, h: `$${tall}$` })} ${T('ask.perimeterGather')}`,
           latex: expr,
           type: 'expression',
           answer: ans,
-          figure: { kind: 'rect', wLabel: lin(a, v, b), hLabel: lin(c, v, e) },
+          figure: { kind: 'rect', wLabel: wide, hLabel: tall },
           check: { kind: 'equivalent', math: expr, variable: v },
           steps: [
             { latex: `${expr} = ${lin(2 * a, v, 2 * b)} + ${lin(2 * c, v, 2 * e)}`, why: T('why.doubleEachSide') },
@@ -1516,19 +1572,24 @@ const FORMS = {
         // A worked example whose only job is to show which number came from
         // where cannot be built out of three copies of the same number.
         if (!distinct(k, a, b, k * a, k * b)) throw new Error('retry: repeated number');
+        // As in `lt-perimeter`: the two strips the width was cast in are named
+        // once, and the sentence, the field and the worked lines all read that
+        // one naming. The depth `k` is the same number in the prose and in the
+        // drawing for the same reason.
+        const stripA = co(a, v), stripB = String(b);
         const inner = lin(a, v, b);
         const expr = `${k}\\left(${inner}\\right)`;
         const ans = lin(k * a, v, k * b);
         return {
-          stem: `${T(sc, { k, w: `$${inner}$` })} ${T('ask.areaExpr')}`,
+          stem: `${T(sc, { k, w: `$${inner}$` })} ${T('ask.areaMultiplyOut')}`,
           latex: expr,
           type: 'expression',
           answer: ans,
-          figure: { kind: 'area', k, aLabel: co(a, v), bLabel: String(b) },
+          figure: { kind: 'area', k, aLabel: stripA, bLabel: stripB },
           check: { kind: 'equivalent', math: expr, variable: v },
           steps: [
-            { latex: `${k}\\left(${inner}\\right) = ${k} \\cdot ${co(a, v)} + ${k} \\cdot ${b}`, why: T('why.twoRectangles') },
-            { latex: `${k} \\cdot ${co(a, v)} + ${k} \\cdot ${b} = ${ans}`, why: T('why.multiplyEachOut') },
+            { latex: `${k}\\left(${inner}\\right) = ${k} \\cdot ${stripA} + ${k} \\cdot ${stripB}`, why: T('why.twoRectangles') },
+            { latex: `${k} \\cdot ${stripA} + ${k} \\cdot ${stripB} = ${ans}`, why: T('why.multiplyEachOut') },
           ],
           distractors: [
             { v: lin(k * a, v, b), m: 'partial-distribute' },
@@ -3558,6 +3619,9 @@ export const kit = {
   // exact rational and a straight line the same way the checker reads them.
   ratio, texLine, statementTex, bandTex, pointTex, ptsTex,
   VARS,
+  // A pack draws its own framings through this, never through `pick`, so the
+  // situation ledger and the gate's transfer test can see them.
+  scene: packScene,
 };
 
 /** An exact fraction in lowest terms, as strict KaTeX. "3", "-\frac{3}{4}". */

@@ -301,7 +301,235 @@ if (target) {
     lost || `${saved} recoveries (${left} falls, ${wedges} wedges), all onto solid ground inside ${CATCH_S}s`);
 }
 
-// --- 6. Console health ------------------------------------------------------
+// --- 6. THE SCHOOL LAPTOP: the browser refuses the pointer lock -------------
+//
+// THIS SECTION EXISTS BECAUSE THE GAME WAS SILENTLY UNPLAYABLE IN IT.
+//
+// `requestPointerLock` is a request. An `<iframe>` embedded without
+// `allow="pointer-lock"` — which is how an LMS embeds a game — refuses it. So
+// does a managed Chromebook, and so does Chrome for about a second after a
+// player presses Escape. When it was refused, this game had NO way to turn the
+// camera at all: `mousemove` returned early, no key turned, no drag turned. A
+// cold critic read "56 m TO YOUR LEFT" off the objective card for eight
+// minutes with no input on the machine that could face him left, and the card
+// went on printing "Look — MOUSE" the whole time.
+//
+// Everything below therefore runs in a context where the lock is refused
+// exactly the way a browser refuses it: `pointerlockerror` on the document, and
+// `pointerLockElement` null forever. Nothing here is allowed to use the mouse
+// to aim. The cadet turns with the arrow keys, walks with W, and seals a rift.
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+  await ctx2.addInitScript(() => {
+    Element.prototype.requestPointerLock = function () {
+      setTimeout(() => document.dispatchEvent(new Event('pointerlockerror')), 0);
+      return Promise.reject(new DOMException('pointer lock is not allowed here', 'SecurityError'));
+    };
+    Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true });
+  });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push('[nolock] ' + e.message));
+  p2.on('console', (m) => { if (m.type() === 'error') errors.push('[nolock] ' + m.text()); });
+
+  await p2.goto(URL, { waitUntil: 'networkidle' });
+  await p2.evaluate(() => { try { localStorage.clear(); } catch {} });
+  await p2.reload({ waitUntil: 'networkidle' });
+  await p2.waitForFunction(() => !!window.__ascent, null, { timeout: 30000 });
+  await p2.waitForTimeout(4500);
+
+  const yaw = () => p2.evaluate(() => window.__ascent.player.yaw);
+  const panelOpen = () => p2.evaluate(() => !!window.__ascent.panel?.open);
+
+  // Take the frame back first. A game that opens on its orders card is holding
+  // the cursor on purpose, and a click aimed at the world while a panel owns
+  // the frame is not a request to lock the pointer — it is a misclick. The
+  // player reads the card, presses its button, and *then* clicks the world.
+  const handBack2 = async () => {
+    for (let i = 0; i < 6; i++) {
+      if (!(await p2.evaluate(() => !!window.__ascent.input.uiOpen))) return true;
+      let hit = false;
+      for (const sel of ['.sc-go', '.ses-charter button', '.ses-rest button', '.rf-x']) {
+        const b = await p2.$(sel);
+        if (b && await b.isVisible()) { await b.click().catch(() => {}); hit = true; break; }
+      }
+      if (!hit) await p2.keyboard.press('Escape');
+      await p2.waitForTimeout(700);
+    }
+    return !(await p2.evaluate(() => !!window.__ascent.input.uiOpen));
+  };
+  const free = await handBack2();
+  note(free, 'the frame can be handed back before the world is clicked',
+    free ? '' : 'a panel still owned the frame after six attempts');
+
+  // A player clicks the world. The browser says no.
+  await p2.mouse.click(800, 450);
+  await p2.waitForTimeout(1400);
+  const mode = await p2.evaluate(() => ({
+    locked: window.__ascent.input.locked,
+    mode: window.__ascent.input.lookMode,
+  }));
+  note(mode.locked === false && mode.mode === 'blocked',
+    'the game NOTICES that the pointer lock was refused',
+    `locked=${mode.locked} lookMode=${mode.mode}`);
+
+  // 6b. It says so, in words, on the card — and the card stops advertising a
+  //     mouse that cannot look. Read as text, in whatever locale is running.
+  const card = await p2.evaluate(() => {
+    const fc = document.querySelector('#ui .fc');
+    const note = document.querySelector('#ui .fc-note');
+    const look = [...document.querySelectorAll('#ui .fc-rows li')]
+      .find((li) => li.dataset.v === 'look');
+    return {
+      shown: !!fc?.classList.contains('show'),
+      noted: !!note && !note.hidden && note.innerText.trim().length > 12,
+      look: look?.querySelector('.fc-keys')?.innerText.trim() || '',
+    };
+  });
+  // The look row must name at least two caps now (a key AND a drag), where
+  // before it named one word: MOUSE.
+  const honest = card.look.length > 0 && !/^(mouse|rat[oó]n|mysz)$/i.test(card.look.replace(/\s+/g, ''));
+  note(card.shown && card.noted && honest,
+    'the player is TOLD, and the card prints controls that actually work',
+    `card shown=${card.shown} notice=${card.noted} look row="${card.look.replace(/\n/g, ' · ')}"`);
+
+  // 6c. The arrow keys turn the camera. No mouse is touched.
+  // (A story beat may have taken the frame while the notice was read; the
+  //  arrows are correctly deaf behind a panel, so give the world back first.)
+  await handBack2();
+  const yA = await yaw();
+  await p2.keyboard.down('ArrowLeft');
+  await p2.waitForTimeout(2000);
+  await p2.keyboard.up('ArrowLeft');
+  await p2.waitForTimeout(250);
+  const turnedKeys = Math.abs((await yaw()) - yA);
+  // A full radian is a real change of bearing — 57°, enough to bring a marker
+  // that was off the side of the frame into the middle of it. The bar is not
+  // set at the engine's 2.6 rad/s because this harness renders on a software
+  // rasteriser and the engine clamps dt at 50 ms, so game time runs slower than
+  // wall time here in a way it never does on a machine with a graphics card.
+  note(turnedKeys > 1.0, 'ARROW KEYS turn the view with no pointer lock',
+    `${turnedKeys.toFixed(2)} rad held for 2s`);
+
+  // 6d. …and so does a click-drag, which is what a hand tries first.
+  const yB = await yaw();
+  await p2.mouse.move(800, 450);
+  await p2.mouse.down();
+  await p2.mouse.move(300, 450, { steps: 16 });
+  await p2.mouse.up();
+  await p2.waitForTimeout(250);
+  const turnedDrag = Math.abs((await yaw()) - yB);
+  note(turnedDrag > 0.5, 'CLICK-DRAG turns the view with no pointer lock',
+    `${turnedDrag.toFixed(2)} rad over 500px`);
+
+  // 6e. THE WHOLE POINT: face a rift you were told about, reach it, seal it —
+  //     on a machine where the mouse cannot aim.
+  const target = await p2.evaluate(() => {
+    const a = window.__ascent;
+    const r = a.rifts?.list?.filter((x) => !x.locked) ?? [];
+    const p = a.player.pos;
+    let best = null, bd = 1e9;
+    for (const x of r) {
+      const d = Math.hypot(x.pos.x - p.x, x.pos.z - p.z);
+      if (d < bd) { bd = d; best = x; }
+    }
+    return best ? { id: best.id, x: best.pos.x, z: best.pos.z, dist: bd } : null;
+  });
+
+  let arrived = false, opened2 = false;
+  if (target) {
+    let held = false;
+    for (let i = 0; i < 240 && !arrived; i++) {
+      // A story beat can take the frame mid-walk, and behind a panel the world
+      // is correctly deaf to both the arrows and W. A player presses on through
+      // it; so does this.
+      if (await p2.evaluate(() => !!window.__ascent.input.uiOpen)) {
+        if (held) { await p2.keyboard.up('KeyW'); held = false; }
+        await handBack2();
+        continue;
+      }
+      const err = await p2.evaluate((t) => {
+        const a = window.__ascent, p = a.player.pos;
+        const want = Math.atan2(t.x - p.x, t.z - p.z);
+        let d = ((want - a.player.yaw + Math.PI) % (Math.PI * 2)) - Math.PI;
+        if (d < -Math.PI) d += Math.PI * 2;
+        return { d, dist: Math.hypot(t.x - p.x, t.z - p.z) };
+      }, target);
+      // Turn by HOLDING AN ARROW KEY, while still running — the whole point of
+      // this section is that no mouse aiming happens anywhere in it, and a
+      // player steers on the move rather than stopping to aim. W is never
+      // released: letting go of it resets the acceleration curve and the cadet
+      // never gets above a shuffle. (Same reasoning as the WASD walk above.)
+      if (!held) { await p2.keyboard.down('KeyW'); held = true; }
+      if (Math.abs(err.d) > 0.10) {
+        const key = err.d > 0 ? 'ArrowLeft' : 'ArrowRight';
+        const ms = Math.min(400, Math.max(50, Math.abs(err.d) / 2.6 * 1000));
+        await p2.keyboard.down(key);
+        await p2.waitForTimeout(ms);
+        await p2.keyboard.up(key);
+      } else {
+        await p2.waitForTimeout(130);
+      }
+      opened2 = await panelOpen();
+      if (err.dist < 5 || opened2) arrived = true;
+    }
+    if (held) await p2.keyboard.up('KeyW');
+    if (!opened2) {
+      for (const k of ['KeyE', 'Enter']) {
+        await p2.keyboard.press(k);
+        await p2.waitForTimeout(500);
+        opened2 = await panelOpen();
+        if (opened2) break;
+      }
+    }
+  }
+  await p2.screenshot({ path: path.join(OUT, '05-nolock-rift.png') });
+  note(arrived && opened2,
+    'with NO pointer lock, a player can turn, reach a rift and open it',
+    target ? `${target.id}, ${target.dist.toFixed(0)}m away, arrows only` : 'no unlocked rift');
+
+  // 6f. …and finish a piece of mathematics inside it. Reading the answer off
+  //     the live item is reading a fact; every key that follows is pressed.
+  let sealed = false;
+  if (opened2) {
+    const fact = await p2.evaluate(() => {
+      const p = window.__ascent.panel;
+      return p?.item ? { answer: String(p.item.answer) } : null;
+    });
+    // The proof an item was completed is the mastery record moving, not a
+    // panel closing — a panel closes when a player gives up, too.
+    const before = await p2.evaluate(() => JSON.stringify(window.__ascent.state().skills || {}));
+    if (fact) {
+      const opts = await p2.$$('.rf-opt, .rf-choice button, .rf-choices button');
+      if (opts.length) {
+        const want = fact.answer.replace(/\s+/g, '');
+        let picked = null;
+        for (const o of opts) {
+          if ((await o.innerText()).replace(/\s+/g, '') === want) { picked = o; break; }
+        }
+        await (picked || opts[0]).click();
+      } else {
+        for (const ch of fact.answer) {
+          if (ch === '-') await p2.keyboard.press('Minus');
+          else if (ch === '/') await p2.keyboard.press('Slash');
+          else if (ch === '.') await p2.keyboard.press('Period');
+          else await p2.keyboard.press(ch);
+          await p2.waitForTimeout(60);
+        }
+        await p2.keyboard.press('Enter');
+      }
+      await p2.waitForTimeout(1600);
+      const after = await p2.evaluate(() => JSON.stringify(window.__ascent.state().skills || {}));
+      sealed = after !== before;
+    }
+  }
+  await p2.screenshot({ path: path.join(OUT, '06-nolock-item.png') });
+  note(sealed, 'with NO pointer lock, a player can complete an item',
+    sealed ? 'answered and registered' : 'the item never registered an attempt');
+
+  await ctx2.close();
+}
+
+// --- 7. Console health ------------------------------------------------------
 note(errors.length === 0, 'no console errors', errors.slice(0, 3).join(' | '));
 
 const facts = await page.evaluate(() => {

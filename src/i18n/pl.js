@@ -68,7 +68,7 @@ export default {
     remove: 'Usuń',
     removePrompt: 'Q · usuń',
     noCharge: 'Zapas budowy wyczerpany. Poczekaj, aż się odnowi.',
-    alreadyThere: 'Tam już coś zbudowano',
+    alreadyThere: 'Tam już coś zbudowano. Spójrz w górę, aby budować wyżej.',
     nothingThere: 'Nic na celowniku',
     latticeFull: 'Krata pełna — najpierw usuń jakiś element',
     anchorCall: 'Nad placem wiszą trzy kotwice. Z ziemi nie sięgniesz żadnej. Więc przestań stać na ziemi.',
@@ -185,10 +185,16 @@ export default {
       body: 'Coś cię trzyma. Naciśnij „Wydostań się”, żeby wrócić na otwarty grunt. Tutaj nigdy nie trzeba przeładowywać strony.',
       act: 'Wydostań się',
     },
+    nolock: {
+      title: 'Mysz nie obraca tu widoku',
+      body: 'Obracaj klawiszami strzałek. Albo przytrzymaj przycisk myszy i przeciągnij.',
+    },
     bind: {
       kbm: {
         move: 'W · A · S · D',
         look: 'Mysz',
+        lookFree: 'Mysz · Strzałki',
+        lookBlocked: 'Strzałki · Przeciągnij',
         jump: 'Spacja',
         glide: 'Przytrzymaj spację',
         interact: 'E',
@@ -299,6 +305,7 @@ export default {
 
     help: {
       keypad: 'Wpisz wartość, która czyni zdanie prawdziwym. Potem naciśnij „Zapieczętuj”.',
+      keypadExpression: 'Wpisz wyrażenie w najkrótszej postaci. Potem naciśnij „Zapieczętuj”.',
       balance: 'Wybierz ruch. Belka wykona go po obu stronach. Po obu, za każdym razem — na tym polega całe prawo.',
       sort: 'Odeślij każdy wyraz do właściwej ładowni.',
       area: 'Pokryj każdą część pola powierzchnią, którą ta część niesie.',
@@ -383,6 +390,7 @@ export default {
       liveOnly: 'Osprzęt nie ma w zapisie innej wyrwy o tym kształcie. Więc echo pokazuje twoją własną pracę, odczytaną z powrotem.',
       nudge: {
         keypad: 'Powiedz sobie to zdanie, zanim cokolwiek wpiszesz. Szukasz wartości, która czyni je prawdziwym, a nie tej, która leży najbliżej.',
+        keypadExpression: 'Tu nic się nie rozwiązuje. Zapisz tę samą wielkość w mniejszej liczbie wyrazów, a krótszy zapis musi nadal zgadzać się dla każdej wartości litery.',
         balance: 'Coś przykleiło się do niewiadomej. Zdejmij najpierw to z wierzchu. Belka zrobi resztę.',
         sort: 'Dwa wyrazy są podobne tylko wtedy, gdy część z literą zgadza się co do joty. Liczba nigdy nie jest podobna do litery.',
         area: 'Czynnik z zewnątrz dotyka każdej części w środku. Każdej.',
@@ -505,8 +513,8 @@ export default {
         b: 'Dwa dni temu żadna linia nie przetrwała u ciebie nocy. Teraz przetrwa. Niech rejestr odnotuje, że wtedy nie powiedziałam nic miłego.',
       },
       d5: {
-        a: 'Piąty dzień. Wczoraj w nocy znów przejrzałem tekst założycielski, szukając marginesu.',
-        b: 'To wciąż moje pismo. Dziewięćset lat, a wstyd zachował się zadziwiająco dobrze.',
+        a: 'Piąty dzień, a o świcie coś wyszło z sieci.',
+        b: 'Krąży wokół odłamka, nisko i powoli. Nie widziałem takiego od dziewięciu wieków.',
       },
       d8: {
         a: 'Ósmy dzień. Ruch w sieci znów prowadzi przez Odłamek Dziewiąty. Kiedyś nas omijał.',
@@ -520,6 +528,21 @@ export default {
         a: 'Dwudziesty pierwszy dzień. Cokolwiek innego jest prawdą, ten odłamek stoi, bo ktoś do niego wracał.',
         b: 'To ja napisałem słowo na marginesie. Ty kończysz zdanie. Mogę żyć z takim podziałem pracy.',
       },
+    },
+
+    /* STRAŻNICY (src/world/warden.js). Słowo jest wyjaśnione przy pierwszym
+       użyciu i nigdy wcześniej. Dwa zdania: czym to jest, a potem jedna rzecz,
+       którą trzeba zrobić. */
+    warden: {
+      first: {
+        a: 'To strażnik. Sieć wysyła takiego, gdy odłamek znów zaczyna się trzymać.',
+        b: 'Niesie zdanie i zrzuca odpowiedzi za sobą. Weź właściwy odważnik.',
+      },
+      wake: 'Wyszedł kolejny strażnik. Minutę temu wzniósł się nad granią i już się przemieszcza.',
+      /* Bezosobowo, nie w drugiej osobie czasu przeszłego: „dopadłeś” niesie
+         rodzaj adresata, a gra nie wie, kto ją czyta (tools/narrative/marlow-audit.mjs). */
+      left: 'Strażnik się rozpadł. Jego ładunek wciąż wisi w miejscu, w którym padł.',
+      full: 'Strażnik się rozpadł. Odłamek nie uniesie więcej skrytek, więc zapłata poszła w drobinach.',
     },
 
     place: {
@@ -1652,74 +1675,90 @@ export default {
       name: 'Płyta wyrzutni',
       short: 'Płyta',
       what: 'Piąty element siatki. Stań na niej, a wyrzuci cię dwanaście metrów w górę.',
+      gist: 'wyrzuca cię dwanaście metrów w górę',
     },
     flare: {
       name: 'Raca kominowa',
       short: 'Raca',
       what: 'F — odpala pod butami słup wznoszącego się powietrza, gdziekolwiek jesteś, na sześć sekund.',
+      gist: 'sześć sekund wznoszącego się powietrza tam, gdzie stoisz',
     },
     kite: {
       name: 'Wyważenie skrzydła',
       short: 'Skrzydło',
       what: 'Skrzydło leci płaściej, szybciej i ostrzej skręca. Doliny nie do przebycia mieszczą się teraz w jednym locie.',
+      gist: 'skrzydło leci płaściej, szybciej i ostrzej skręca',
     },
     reserve: {
       name: 'Głęboka rezerwa',
       short: 'Rezerwa',
       what: 'Zapas siatki więcej niż się podwaja i uzupełnia się o połowę szybciej.',
+      gist: 'dwa razy większy zapas, który szybciej się uzupełnia',
     },
     legs: {
       name: 'Sztormowe nogi',
       short: 'Nogi',
       what: 'Szybszy sprint, wyższy skok, a zryw wraca dwa razy prędzej.',
+      gist: 'szybszy sprint, wyższy skok, prędszy zryw',
     },
     sight: {
       name: 'Wzrok rezonansowy',
       short: 'Wzrok',
       what: 'Drobiny dryfu lgną do ciebie. Wiszącą skrytkę odczytasz z dwa razy większej odległości.',
+      gist: 'drobiny lgną do ciebie, a skrytki czytasz z dalszej odległości',
     },
     beacon: {
       name: 'Znacznik stały',
       short: 'Znacznik',
       what: 'G — za dziewięćdziesiąt drobin stawiasz słup wznoszącego się powietrza, który jutro nadal tu będzie. Jedyna rzecz, jaką możesz zrobić tej wyspie na trwałe.',
+      gist: 'słup wznoszącego się powietrza, który jutro nadal tu będzie',
     },
     windstep: {
       name: 'Krok wiatru',
       short: 'Krok',
       what: 'Zryw wraca, zanim buty dotkną ziemi. Trzy takie przenoszą przez przepaść, której skrzydło nie pokona.',
+      gist: 'zryw wraca, zanim buty dotkną ziemi',
     },
     span: {
       name: 'Długi lot',
       short: 'Lot',
       what: 'Skrzydło jeszcze raz: płaściej i szybciej. Z wysokiej grani dolatujesz do dalekiego brzegu bez lądowania.',
+      gist: 'skrzydło jeszcze raz, płaściej i szybciej',
     },
     array: {
       name: 'Szereg płyt',
       short: 'Szereg',
       what: 'Płyta wyrzuca cię o jedną trzecią wyżej i kosztuje sześć drobin zamiast osiemnastu. Płyty stają się schodami.',
+      gist: 'płyta wyrzuca wyżej i kosztuje trzy razy mniej',
     },
     squall: {
       name: 'Raca szkwałowa',
       short: 'Szkwał',
       what: 'Raca kosztuje szesnaście, sięga siedemdziesięciu czterech metrów i trzyma jedenaście sekund.',
+      gist: 'wyższa raca, która trzyma jedenaście sekund',
     },
     deepwell: {
       name: 'Głęboka studnia',
       short: 'Studnia',
       what: 'Zapas siatki sięga trzystu i uzupełnia się dwa razy szybciej. Most nad wąwozem za jednym podejściem.',
+      gist: 'zapas trzystu, uzupełniany dwa razy szybciej',
     },
     station: {
       name: 'Stacja przelotowa',
       short: 'Stacja',
       what: 'H — postaw stację przelotową: stałą wieżę wznoszącego powietrza. Przemieszczaj się między dowolnymi dwiema. Kosztuje jeden przywilej i dwieście czterdzieści drobin.',
+      gist: 'stała wieża i miejsce, do którego można się przenieść',
     },
     charter: {
       name: 'Przywilej na stację',
       what: 'Noc utrzymana to linia, która została w pamięci po odejściu od gry. Przetrzymaj je przez noc, a sieć wypisze kolejny przywilej.',
+      gist: 'przepustka na jedną wieżę',
     },
     chartersHeld: '«n|one:# przywilej|few:# przywileje|many:# przywilejów» · {cost}',
     charterIn: 'jeszcze {n} głębi',
     needCharter: 'Brak przywileju. Jeszcze {n} głębi i będzie następny',
+    // Przywilej opłacony przez strażników, nie przez głębię (src/world/warden.js).
+    charterWon: 'Przywilej zdobyty. Masz «n|one:# przywilej|few:# przywileje|many:# przywilejów». Przystanek kosztuje {cost} drobin i jeden przywilej.',
     stationSet: 'Stacja przelotowa {n} postawiona — jest już częścią wyspy',
     stationAlone: 'Nie ma jeszcze dokąd lecieć. Postaw drugą',
     travelled: 'Ze stacji na stację',
@@ -1760,13 +1799,25 @@ export default {
 
     pay: {
       lines: 'Utrzymaj ją, a «n|one:otworzy się jeszcze # linia sieci|few:otworzą się jeszcze # linie sieci|many:otworzy się jeszcze # linii sieci».',
-      kit: 'Utrzymaj ją, a {name} będzie twoja.',
+      /* „Utrzymaj ją, a Lotny trym będzie twój” nazywał nagrodę, którą gra
+         tłumaczy dopiero na karcie PO jej zdobyciu. `{gist}` to krótka postać
+         `kit.<id>.what`, przekazywana przez src/meta/objective.js: nazwa i to,
+         co ta rzecz robi, w jednym zdaniu. */
+      /* …i „dostajesz {name}” zamiast „{name} będzie twoja”: nazwy sprzętu są
+         w trzech rodzajach, a orzeczenie imienne zgadzało się tylko z jednym. */
+      kit: 'Utrzymaj ją, a dostajesz {name}: {gist}.',
       calm: 'Zamknij je, a wstrząsy w tym miejscu ustaną na dobre.',
       sound: 'Tę linię już trzymasz. Sondowanie schodzi nią w dół, po jednym trudniejszym zadaniu.',
     },
 
+    /* Wiersz pod znacznikami i słowo *utrzymana*. Wcześniej ten wiersz witał
+       nową grę definicją słowa, którego nie było nigdzie indziej na karcie —
+       zasadą o niczym. Teraz słowo pojawia się wtedy, gdy wreszcie coś znaczy:
+       przy pierwszej utrzymanej linii. Pusta karta mówi, czym są znaczniki.
+       (Wybiera src/meta/guide.js.) */
     tally: '{held} utrzymane · {open} otwarte · {locked} zamknięte',
-    tallyNew: 'Utrzymana znaczy udowodniona na dobre',
+    tallyNew: 'Jeden znacznik na każdą wyrwę tej linii',
+    tallyFirst: '{held} utrzymana — udowodniona na dobre',
 
     prompt: {
       open: 'Otwórz wyrwę',
@@ -1827,11 +1878,22 @@ export default {
     moteTake: 'Drobiny: +{n}',
     updraft: 'Komin powietrzny',
     surge: 'Wyładowanie wyrwy — przeskocz pierścień',
-    surgeHit: 'Wyładowanie wyrwy — tracisz drobiny: {n} · przeskocz pierścień albo zamknij wyrwę',
+    surgeRead: 'Pierścień odczytany · drobiny: +{n}',
+    surgeWarn: 'Wyrwa się ładuje — oderwij się od ziemi',
     balanceLock: 'Zamek wagowy',
     balanceNo: 'Belka tego nie przyjmuje',
     balanceReset: 'Odważniki układają się na nowo',
     cacheOpen: 'Skrytka otwarta — drobiny: {n}, a powietrze wznosi się tu już na stałe',
+
+    // --- strażnicy (src/world/warden.js): piąty dzień ----------------------
+    // Tabliczka z nazwą, nie zdanie: musi się zmieścić na telefonie trzymanym
+    // poziomo. Jedyną instrukcję podaje `wardenFan`, jeden raz.
+    wardenTag: 'Strażnik',
+    wardenFan: 'Wbiegnij we właściwy odważnik',
+    wardenOver: 'Za dużo o {n}',
+    wardenUnder: 'Za mało o {n}',
+    wardenBound: 'Strażnik ujęty — drobiny: {n}. Właśnie się rozpada.',
+    deepOpen: 'Głęboka skrytka otwarta — drobiny: {n}, a powietrze wznosi się tu już na stałe',
 
     // --- co świat mówi, gdy do niego podchodzisz (src/world/beckon.js) ---
     riftOpen: 'Wejdź na płytę · {skill}',
@@ -1846,7 +1908,33 @@ export default {
     anchorHeld: 'Kotwica zabezpieczona',
     vergeTag: 'Skraj · koniec Odłamka Dziewiątego',
     brink: 'Tutaj kończy się odłamek. Pod spodem nie ma nic.',
+    // --- pomiary (src/world/errand.js) --------------------------------------
+    surveyClaim: 'Znak pomiarowy zdobyty · {name}: drobiny +{n}, a powietrze już tu unosi na stałe',
+    markFind: 'Znak pomiarowy · {name}',
+    markHeld: 'Zmierzone · {name}',
     vergeHit: 'Skraj nie ustępuje. Tutaj kończy się Odłamek Dziewiąty — dalsze odłamki to przeprawa, której nikt nie odbył.',
+  },
+  survey: {
+    reckoning: 'Rachuba',
+    ossuary: 'Kostnica',
+    watchtower: 'Strażnica',
+    cathedral: 'Katedra',
+    arch: 'Szklany Łuk',
+    spine: 'Grzbiet',
+    said: {
+      reckoning: 'Coś tutaj wciąż liczy. Nigdy nie ustaliliśmy, co. Powietrze nad znakiem już się unosi — to droga i ona zostaje.',
+      ossuary: 'Statek kolonijny, dwieście lat po upadku. Formalnie nadal trzyma się planu.',
+      watchtower: 'Z tej kamiennej głowicy pilnowali przepaści. Teraz możesz z niej startować.',
+      cathedral: 'Gaj poniżej to jej sadzonka. Każdy powinien raz stanąć pod spodem.',
+      arch: 'Tutaj jezioro opuszcza świat. Łuk był już stary, kiedy zaczęło.',
+      spine: 'Najwyższy punkt Dziewiątego Odłamka. Reszta jest teraz pod tobą.',
+    },
+  },
+  relay: {
+    toTear: 'Następna linia · {skill}: {n} m',
+    toMark: 'Znak pomiarowy · {name}: {n} m',
+    stay: 'Ta linia nadal daje najwięcej. Wróć na płytę, kiedy zechcesz.',
+    rhythm: 'Wyrwa daje trzy pytania, a potem cichnie. Wykorzystaj przerwę — zawsze jest tam coś wartego drogi.',
   },
   // --- warstwa afordancji (src/world/afford.js): co oferuje wyrwa, który
   // klawisz to robi i w którą stronę jest następna -------------------------
@@ -1891,6 +1979,10 @@ export default {
       cache: 'Wisząca skrytka: waga, którą otwierasz, stając na brakującym odważniku.',
       anchor: 'Kotwica sieci: stały punkt dowodu, celowo zawieszony poza zasięgiem.',
       sound: 'Zejście: powrót w dół po linii, którą już trzymasz, pytanie po coraz trudniejszym pytaniu.',
+      /* Bezosobowo: „dogoniłeś… wziąłeś” niesie rodzaj adresata, a ten wiersz
+         jest jedynym objaśnieniem tego słowa, jakie gracz kiedykolwiek zobaczy. */
+      bind: 'Strażnik ujęty — konstrukt dogoniony, odważnik zabrany, a jego zdanie staje się prawdziwe.',
+      deepcache: 'Głęboka skrytka: wisząca skrytka z niewiadomą na obu szalkach. Zostawił ją strażnik.',
       surge: 'Wyładowanie wyrwy: pierścień, który wyrzuca otwarta wyrwa. Przeskocz je albo stracisz drobiny.',
       vault: 'Płyta wyrzutni postawiona: stań na niej, a wyrzuci cię dwanaście metrów w górę.',
       plate: 'Płyta wyrzutni kupiona: piąty element sieci.',
@@ -1905,6 +1997,8 @@ export default {
       cache: 'Wisząca skrytka',
       anchor: 'Kotwica sieci',
       sound: 'Zejście',
+      bind: 'Strażnik ujęty',
+      deepcache: 'Głęboka skrytka',
       found: 'Zebrane',
       surge: 'Wyładowanie wyrwy',
       spent: 'Wydane',

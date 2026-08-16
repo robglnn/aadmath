@@ -137,11 +137,23 @@ export function mountPlot(work, ctx) {
   const drawn = el('path', { class: 'drawn' });
   svg.appendChild(drawn);
 
+  // A KNOB IS TWO CIRCLES: one you can see, and one you can hit.
+  //
+  // The visible knob is 8 units in a 300-unit box, which is 13.7 CSS px on a
+  // 390-wide phone and 10.8 on the same phone turned sideways. The smallest
+  // target a thumb lands on reliably is 44. Growing the drawn circle to 44
+  // would cover two grid squares and hide the very readings it sits between,
+  // so the target grows instead of the mark: an invisible circle, wide enough
+  // to catch a thumb, centred on the same point.
   const handles = knobs.map((_, i) => {
-    const c = el('circle', { r: 8, class: 'knob', tabindex: 0, role: 'slider' });
-    c.setAttribute('aria-label', t('rift.plot.knob', { n: i + 1 }));
-    svg.appendChild(c);
-    return c;
+    const g = el('g', { class: 'knob-grp' });
+    const hit = el('circle', { r: 26, class: 'knob-hit', tabindex: 0, role: 'slider' });
+    hit.setAttribute('aria-label', t('rift.plot.knob', { n: i + 1 }));
+    const c = el('circle', { r: 8, class: 'knob' });
+    g.appendChild(hit);
+    g.appendChild(c);
+    svg.appendChild(g);
+    return Object.assign(hit, { _dot: c });
   });
 
   const read = document.createElement('div');
@@ -166,8 +178,11 @@ export function mountPlot(work, ctx) {
   let live = 0;
   function paint() {
     handles.forEach((h, i) => {
-      h.setAttribute('cx', X(knobs[i].x));
-      h.setAttribute('cy', Y(knobs[i].y));
+      for (const c of [h, h._dot]) {
+        c.setAttribute('cx', X(knobs[i].x));
+        c.setAttribute('cy', Y(knobs[i].y));
+      }
+      h._dot.classList.toggle('live', i === live);
       h.classList.toggle('live', i === live);
     });
     const line = lineOf(knobs);
@@ -257,11 +272,45 @@ export function mountPlot(work, ctx) {
     h.addEventListener('focus', () => { live = i; paint(); });
   });
 
-  // A tap anywhere on the grid moves the knob that is live. A finger is not a
-  // precise thing, and hunting for an 8px circle is not the question either.
+  // A TAP ANYWHERE ON THE GRID MOVES THE NEAREST KNOB, and then keeps
+  // following the finger.
+  //
+  // This used to require `e.target === svg`, so a tap that happened to land on
+  // the trace the cadet was drawing, or on an axis, hit a `<path>` instead of
+  // the canvas and was dropped on the floor. Measured on a 390x844 phone, 17
+  // taps in every 81 across the grid did nothing at all — and the one line a
+  // learner aims at most is the one they are trying to move. Nothing on this
+  // surface is a target now except the surface: press anywhere, the nearer
+  // knob comes to you, and dragging carries on from there. Precision is not
+  // the question this rift is asking.
   stage.addEventListener('pointerdown', (e) => {
-    if (ctx.settled() || e.target !== svg) return;
+    if (ctx.settled()) return;
+    if (handles.some((h) => h === e.target)) return;   // the knob handles its own drag
+    e.preventDefault();
+    const box = svg.getBoundingClientRect();
+    if (!box.width || !box.height) return;
+    const px = ((e.clientX - box.left) / box.width) * S;
+    const py = ((e.clientY - box.top) / box.height) * S;
+    let best = live;
+    let bestD = Infinity;
+    knobs.forEach((k, i) => {
+      const dx = X(k.x) - px;
+      const dy = Y(k.y) - py;
+      const dd = dx * dx + dy * dy;
+      if (dd < bestD) { bestD = dd; best = i; }
+    });
+    live = best;
     placeAt(live, e.clientX, e.clientY);
+    try { stage.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    const onMove = (ev) => placeAt(live, ev.clientX, ev.clientY);
+    const onUp = () => {
+      stage.removeEventListener('pointermove', onMove);
+      stage.removeEventListener('pointerup', onUp);
+      stage.removeEventListener('pointercancel', onUp);
+    };
+    stage.addEventListener('pointermove', onMove);
+    stage.addEventListener('pointerup', onUp);
+    stage.addEventListener('pointercancel', onUp);
   });
 
   // ------------------------------------------------------------------ commit

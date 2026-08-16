@@ -60,8 +60,15 @@ export default {
   'ask.howManyCycles': 'How many cycles does a bill of {c} credits buy?',
   'ask.howManyCyclesTow': 'How many cycles of tow does {c} credits buy?',
   'ask.howManyShiftsTotal': 'How many rotations make a total of {c} shifts?',
-  'ask.perimeterExpr': 'Which expression gives the distance all the way round?',
-  'ask.areaExpr': 'Which expression gives its area?',
+  // These two ask about a shape whose measuring rule is already printed on the
+  // card. "Which expression gives the distance all the way round?" was answered
+  // by the display: 2(3m + 6) + 2(m + 15) is that expression, sitting in the
+  // statement box above the answer box. So the ask names the printed rule for
+  // what it is, and then names the work — which is the work the item actually
+  // marks. Wording matched to the plain-language asks these skills already use
+  // ('ask.simplifyAlt2', 'ask.expand'), so no new term arrives undefined.
+  'ask.perimeterGather': 'The rule below adds that distance up. Gather what is alike, and write what is left.',
+  'ask.areaMultiplyOut': 'The rule below gives that area. Multiply it out.',
   'ask.whenSameCost': 'After how many runs do the plans cost the same?',
   'ask.shareOut': 'Share the bar out over every term.',
   'ask.whichEquationHold': 'Which equation says what happened to the hold?',

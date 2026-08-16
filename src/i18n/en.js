@@ -77,7 +77,11 @@ export default {
     remove: 'Clear',
     removePrompt: 'Q · clear',
     noCharge: 'Build charge spent. Wait for it to refill.',
-    alreadyThere: 'Already built there',
+    // A second click at a wall that is already there is now the commonest
+    // refusal in the game (src/build/builder.js: the aim no longer promotes an
+    // occupied slot a storey up). So it names the next move rather than just
+    // saying no.
+    alreadyThere: 'Already built there. Look up to build higher.',
     nothingThere: 'Nothing in the crosshair',
     latticeFull: 'Lattice at capacity — clear a piece first',
     anchorCall: 'Three anchors hang over the plaza. Nothing on the ground reaches them. So stop standing on the ground.',
@@ -205,10 +209,23 @@ export default {
       body: 'Something has hold of you. Press Recover to get back onto open ground. Nothing here ever needs a reload.',
       act: 'Recover',
     },
+    // The browser refused to let the game hold the mouse — an LMS iframe, a
+    // managed Chromebook. Said once, and it names the key to press rather than
+    // the thing that went wrong. (src/core/input.js, src/player/controls.js)
+    nolock: {
+      title: 'The mouse cannot turn the view here',
+      body: 'Turn with the arrow keys. Or hold a mouse button and drag.',
+    },
     bind: {
       kbm: {
         move: 'W · A · S · D',
         look: 'Mouse',
+        // Two more ways to say "look", for the two states the mouse can be in.
+        // `lookFree` is before the game has been granted the pointer; the mouse
+        // may yet work, and the arrows already do. `lookBlocked` is after a
+        // refusal, when naming the mouse at all would be a lie.
+        lookFree: 'Mouse · Arrows',
+        lookBlocked: 'Arrows · Drag',
         jump: 'Space',
         glide: 'Hold space',
         interact: 'E',
@@ -329,6 +346,10 @@ export default {
 
     help: {
       keypad: 'Type the value that makes the statement true. Then press Seal.',
+      // Same keypad, different task. A rewrite hands back an expression, not a
+      // value, and being told to "type the value" when no value is wanted sends
+      // a cadet looking for a number that is not there.
+      keypadExpression: 'Type the expression in its shortest form. Then press Seal.',
       balance: 'Choose a move. The beam applies it to both sides. Both sides, every time — that is the whole law.',
       sort: 'Send every term to the bay it belongs in.',
       area: 'Cover each part of the field with the area that part carries.',
@@ -416,6 +437,7 @@ export default {
       liveOnly: 'The rig has no other rift of this shape on record. So the echo shows your own work, read back to you.',
       nudge: {
         keypad: 'Say the statement to yourself before you type anything. The value you want is the one that makes it true, not the one that sits nearest.',
+        keypadExpression: 'Nothing here is being solved. Write the same amount in fewer terms, and the shorter line must still hold for every value of the letter.',
         balance: 'Something clings to the unknown. Undo the outermost thing first. The beam does the rest.',
         sort: 'Two terms are alike only when the letter part matches exactly. A number is never like a letter.',
         area: 'The factor outside touches every part inside. Every part.',
@@ -554,8 +576,8 @@ export default {
         b: 'Two days ago you could not hold a line overnight. Now you can. Let the record show I said nothing encouraging at the time.',
       },
       d5: {
-        a: 'Fifth day. I went back through the founding text last night, looking for the margin.',
-        b: 'It is still my handwriting. Nine hundred years, and the shame has kept remarkably well.',
+        a: 'Fifth day, and something came up out of the lattice at first light.',
+        b: 'It is going round the shard, low and slow. I have not seen one in nine centuries.',
       },
       d8: {
         a: 'Eighth day. Traffic through the lattice has begun routing across Shard Nine again. It used to route around us.',
@@ -569,6 +591,19 @@ export default {
         a: 'Twenty-first day. Whatever else is true, this shard is standing because somebody kept coming back to it.',
         b: 'I wrote the word in the margin. You are finishing the sentence. I can live with that division of labour.',
       },
+    },
+
+    /* THE WARDENS (src/world/warden.js). The word is defined the first time it
+       is used and never before. Two sentences: what it is, then the one thing
+       to do about it. */
+    warden: {
+      first: {
+        a: 'That is a warden. The lattice sends one out when a shard starts to hold again.',
+        b: 'It carries a statement and drops the answers behind it. Take the correct weight.',
+      },
+      wake: 'Another warden is out. It came up over the ridge a minute ago and it is already moving.',
+      left: 'The warden came apart. What it was carrying is still hanging where you caught it.',
+      full: 'The warden came apart. The shard will hold no more caches, so you were paid in motes.',
     },
 
     place: {
@@ -1771,75 +1806,91 @@ export default {
       name: 'Vault plate',
       short: 'Plate',
       what: 'A fifth piece for the lattice. Stand on one and it throws you twelve metres straight up.',
+      gist: 'it throws you twelve metres straight up',
     },
     flare: {
       name: 'Updraft flare',
       short: 'Flare',
       what: 'F — light a column of rising air under your own boots, anywhere, for six seconds.',
+      gist: 'six seconds of rising air, wherever you stand',
     },
     kite: {
       name: 'Kite trim',
       short: 'Trim',
       what: 'The wing flies flatter, faster and turns harder. Valleys you could not cross are now one glide.',
+      gist: 'the wing flies flatter, faster, and turns harder',
     },
     reserve: {
       name: 'Deep reserve',
       short: 'Reserve',
       what: 'The lattice reserve more than doubles, and refills half again as fast.',
+      gist: 'twice the lattice reserve, and it refills faster',
     },
     legs: {
       name: 'Storm legs',
       short: 'Legs',
       what: 'A faster sprint, a higher jump, and the dash comes back in half the time.',
+      gist: 'a faster sprint, a higher jump, a quicker dash',
     },
     sight: {
       name: 'Resonant sight',
       short: 'Sight',
       what: 'Drift motes lean toward you. You can read a hanging cache from twice as far out.',
+      gist: 'motes lean toward you, and you read caches further out',
     },
     beacon: {
       name: 'Standing beacon',
       short: 'Beacon',
       what: 'G — ninety motes plants a column of rising air that is still standing tomorrow. The only thing you can do to this island that lasts.',
+      gist: 'a column of rising air that is still there tomorrow',
     },
     windstep: {
       name: 'Windstep',
       short: 'Windstep',
       what: 'The dash comes back while your boots are off the ground. Three of them will cross a gap the wing cannot.',
+      gist: 'the dash comes back while your boots are off the ground',
     },
     span: {
       name: 'Long span',
       short: 'Span',
       what: 'The wing again, flatter and faster still. From the high ridge you can now reach the far coast without touching down.',
+      gist: 'the wing again, flatter and faster still',
     },
     array: {
       name: 'Plate array',
       short: 'Array',
       what: 'The vault plate throws you a third higher and costs six motes instead of eighteen. Plates become a staircase.',
+      gist: 'the plate throws higher and costs a third as much',
     },
     squall: {
       name: 'Squall flare',
       short: 'Squall',
       what: 'The flare costs sixteen, stands seventy-four metres tall and holds for eleven seconds.',
+      gist: 'a taller flare that holds for eleven seconds',
     },
     deepwell: {
       name: 'Deep well',
       short: 'Well',
       what: 'The lattice reserve reaches three hundred and refills twice as fast. Bridge a canyon in one run.',
+      gist: 'a reserve of three hundred, refilling twice as fast',
     },
     // --- the endgame: the rung that is a rate rather than a rung ---------
     station: {
       name: 'Waystation',
       short: 'Station',
       what: 'H — raise a waystation: a permanent tower of rising air. Travel between any two of them. Costs one charter and two hundred and forty motes.',
+      gist: 'a permanent tower, and a place you can step to',
     },
     charter: {
       name: 'A waystation charter',
       what: 'A night held is a line you still knew after you walked away. Hold what you hold across one and the lattice cuts you another charter.',
+      gist: 'a pass for one tower',
     },
     chartersHeld: '«n|one:# charter|other:# charters» · {cost}',
     charterIn: '{n} deeper',
     needCharter: 'No charter. {n} more depth cuts the next one',
+    // A charter the wardens paid for, not the depth ladder (src/world/warden.js).
+    charterWon: 'Charter earned. You hold «n|one:# charter|other:# charters». A waystation costs {cost} motes and one charter.',
     stationSet: 'Waystation {n} raised — it is on the island now',
     stationAlone: 'Nowhere to travel yet. Raise a second one',
     travelled: 'Waystation to waystation',
@@ -1886,16 +1937,38 @@ export default {
     // downstream of the line — never a generic reward noise.
     pay: {
       lines: 'Hold it and «n|one:# more line of the lattice opens|other:# more lines of the lattice open».',
-      kit: 'Hold it and {name} is yours.',
+      /* "Hold it and Kite trim is yours" named a reward that the game only
+         explains on the card you get AFTER you win it — so the sentence that
+         is supposed to make you want the thing is the one sentence that cannot
+         say what the thing is. `{gist}` is the short form of `kit.<id>.what`,
+         carried here by src/meta/objective.js. Name and meaning, one breath. */
+      kit: 'Hold it and {name} is yours — {gist}.',
       calm: 'Seal it and the surges here stop for good.',
       sound: 'You hold this line. A sounding walks back down it, one harder question at a time.',
     },
 
-    // "held" is coined on the orders card. The objective card is where a
-    // learner reads it cold, so the first painting of it says what it means
-    // and every later one does not. src/meta/guide.js picks.
+    /* THE ROW UNDER THE PIPS, AND THE WORD *HELD*.
+     *
+     * This row used to open a fresh save with "HELD MEANS PROVED FOR GOOD",
+     * which is a definition of a word that appears nowhere else on the card
+     * and that the player has not read once. A cold critic read it as a rule
+     * about nothing, and they were right: a definition that arrives before its
+     * term is not teaching, it is a riddle.
+     *
+     * Three states now, and the word arrives exactly when it first means
+     * something (src/meta/guide.js picks):
+     *   held 0  — nothing is held, so nothing is called held. The row says
+     *             what the marks above it are.
+     *   held 1  — the first line has just been held, and the word and its
+     *             meaning arrive in one breath. It spends its whole line on
+     *             that and drops the other two counts: the pips directly above
+     *             already draw held, open and locked as colour, and a row that
+     *             wraps "PROVED FOR / GOOD" has taught nobody anything.
+     *   held 2+ — the three counts. The word is known.
+     */
     tally: '{held} held · {open} open · {locked} locked',
-    tallyNew: 'Held means proved for good',
+    tallyNew: 'One mark for each rift on this line',
+    tallyFirst: '{held} held — proved for good',
 
     prompt: {
       open: 'Open the rift',
@@ -1958,11 +2031,24 @@ export default {
     moteTake: '+{n} motes',
     updraft: 'Updraft',
     surge: 'Rift surge — jump the ring',
-    surgeHit: 'Rift surge — {n} motes knocked loose · jump the ring, or seal the rift',
+    // A surge costs footing and nothing else. It used to take nine motes, and
+    // a critic who roamed for five minutes paid fifteen of them for it.
+    surgeRead: 'Surge read · +{n} motes',
+    surgeWarn: 'The tear is gathering — get off the ground',
     balanceLock: 'Balance lock',
     balanceNo: 'The beam refuses it',
     balanceReset: 'The weights re-form',
     cacheOpen: 'Cache broken open — {n} motes, and the air here rises for good',
+
+    // --- the wardens (src/world/warden.js): the fifth day -------------------
+    // A name plate, not a sentence: it has to fit a phone held sideways. The
+    // one instruction is said once, on the first fan, by `wardenFan`.
+    wardenTag: 'Warden',
+    wardenFan: 'Run into the correct weight',
+    wardenOver: 'Too big by {n}',
+    wardenUnder: 'Too small by {n}',
+    wardenBound: 'Warden bound — {n} motes. It is coming apart.',
+    deepOpen: 'Deep cache open — {n} motes, and the air here rises for good',
 
     // --- what the world says when you walk up to it (src/world/beckon.js) ---
     riftOpen: 'Step onto the plate · {skill}',
@@ -1977,7 +2063,38 @@ export default {
     anchorHeld: 'Anchor secured',
     vergeTag: 'The verge · edge of Shard Nine',
     brink: 'The shard ends here. There is nothing under it.',
+    // --- the survey (src/world/errand.js): the marks on the landmarks -------
+    surveyClaim: 'Survey mark claimed · {name} — +{n} motes, and the air here rises for good',
+    markFind: 'Survey mark · {name}',
+    markHeld: 'Surveyed · {name}',
     vergeHit: 'The verge holds. Shard Nine ends here — the far shards are a crossing nobody has made.',
+  },
+  // --- the survey marks (src/world/errand.js). Proper names: each one is a
+  // silhouette that was already standing in this world, and the mark is the
+  // reason to walk to it. `said` is Marlow, once, when it is claimed. ---------
+  survey: {
+    reckoning: 'The Reckoning',
+    ossuary: 'The Ossuary',
+    watchtower: 'The Watchtower',
+    cathedral: 'The Cathedral',
+    arch: 'The Glass Arch',
+    spine: 'The Spine',
+    said: {
+      reckoning: 'Something here still keeps count. We never learned of what. The air over it rises now — that is a road, and it stays.',
+      ossuary: 'A colony ship, two hundred years down. It is still, technically, on schedule.',
+      watchtower: 'They watched the gulf from this head of stone. Now you can leave from it.',
+      cathedral: 'The grove below is a seedling of this. Everybody should stand under it once.',
+      arch: 'The lake leaves the world here. The arch was already old when it started.',
+      spine: 'The highest ground on Shard Nine. Everything else is under you now.',
+    },
+  },
+  // --- the relay (src/meta/relay.js): what the world says the moment a stint
+  // of three items ends and the card really closes. One destination. ----------
+  relay: {
+    toTear: 'Next line · {skill} — {n} m',
+    toMark: 'Survey mark · {name} — {n} m',
+    stay: 'This line is still the best use of your time. Step back onto the plate when you are ready.',
+    rhythm: 'A tear gives three questions, then it settles. Use the gap — there is always something out there worth the walk.',
   },
   // --- the affordance layer (src/world/afford.js): what a rift says it will
   // do, the key that does it, and the bearing to the next one -------------
@@ -2053,6 +2170,8 @@ export default {
       cache: 'Hanging cache — a balance you open by standing on the missing weight.',
       anchor: 'Lattice anchor — a fixed point of the proof, hung out of reach on purpose.',
       sound: 'Descent — a run back down a line you already hold, one harder question at a time.',
+      bind: 'Warden bound — you ran down the construct and took the weight that made its statement true.',
+      deepcache: 'Deep cache — a hanging cache with an unknown on both pans. A warden left it there.',
       surge: 'Rift surge — the ring an open rift throws out. Jump it, or it costs you motes.',
       vault: 'Vault plate set — stand on it and it throws you twelve metres straight up.',
       plate: 'Vault plate bought — a fifth piece for the lattice.',
@@ -2068,6 +2187,8 @@ export default {
       cache: 'Hanging cache',
       anchor: 'Lattice anchor',
       sound: 'Descent',
+      bind: 'Warden bound',
+      deepcache: 'Deep cache',
       found: 'Picked up',
       // lost
       surge: 'Rift surge',

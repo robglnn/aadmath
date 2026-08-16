@@ -2,6 +2,12 @@ import 'katex/dist/katex.min.css';
 /* The stacking order, before any surface that uses it. src/ui/layers.css is the
    only place a level is chosen; every module reads its own from a token there. */
 import './ui/layers.css';
+/* …and the slotting order, which is the same discipline for the other axis:
+   layers.css says who is in front, src/ui/slots.css says who is allowed to be
+   there at all. Loaded here so every module can read its own slot from a token
+   there, and so the phone compositions at the foot of this list still get the
+   last word about a frame they compose themselves. */
+import './ui/slots.css';
 import './ui/style.css';
 import * as THREE from 'three';
 import { Engine } from './core/engine.js';
@@ -9,7 +15,7 @@ import { Input } from './core/input.js';
 import { createWorld, heightAt as groundHeight } from './world/world.js';
 import { Rifts } from './world/rifts.js';
 import { Player } from './player/controller.js';
-import { setSolids } from './player/terrain.js';
+import { setSolids, lowestGround, deck as playerDeck, outsideWorld } from './player/terrain.js';
 import { setCamSolids } from './build/camclip.js';
 import { ControlsCard } from './player/controls.js';
 import { Builder } from './build/builder.js';
@@ -25,9 +31,18 @@ import { initI18n, t, applyStatic, onLocaleChange, getLocale, setLocale } from '
 import { createStory } from './meta/index.js';
 import { createReport } from './report/index.js';
 import { createSession } from './session/index.js';
+// session chaining (src/session/stint.js): how many items ONE arrival at a tear
+// is worth, and therefore where the beat is in which the player decides what to
+// do next. See that file's header for what it replaced.
+import { createStint } from './session/stint.js';
+// world (src/world/errand.js) + narrative (src/meta/relay.js): the place worth
+// walking to between two stints, and the one line that names it.
+import { createErrand } from './world/errand.js';
+import { createRelay } from './meta/relay.js';
 import { createAudio } from './audio/index.js';
 import { createDrift } from './world/drift.js';
 import { createCaches } from './world/caches.js';
+import { createWardens } from './world/warden.js';
 import { createBeckon } from './world/beckon.js';
 import { createAfford } from './world/afford.js';
 import { createVerge, VERGE_R } from './world/verge.js';
@@ -51,6 +66,10 @@ import './ui/portrait.css';
 // Screen quiet (src/ui/quiet.js): how many text panels may stand at once.
 // Owns none of them; it only decides who yields. Wiring only.
 import { startQuiet } from './ui/quiet.js';
+// The slotting arbiter (src/ui/slots.js): publishes the two heights CSS cannot
+// know — the run band's and the kit strip's — and hushes the one transient
+// surface that is standing on another. Wiring only; owns none of them.
+import { startSlots } from './ui/slots.js';
 
 const content = loadContent();
 const graph = content.graph;
@@ -70,6 +89,27 @@ const panel = new RiftPanel(uiRoot);
 
 const saved = JSON.parse(localStorage.getItem('ascent.save') || 'null');
 const mastery = new MasteryEngine(graph, saved?.mastery);
+
+/**
+ * THE HARNESS CLOCK — how far ahead of the real one a critic has pushed us.
+ *
+ * Zero in a real session, and never touched by anything a player can do:
+ * `__ascent.advanceDays` below is the only writer, and a real save never has
+ * this key in it. The spacing schedule in src/learn/mastery.js runs on real
+ * elapsed time, so a critic who cannot move that clock cannot see anything the
+ * schedule does after the first ten minutes.
+ *
+ * It is restored HERE, before anything reads `mastery.now()`, and it survives a
+ * reload — because a returning day does. A session is a Pomodoro with an ending
+ * (src/session), so the honest way for a harness to open tomorrow's run is to
+ * open the page again, exactly as a learner does. While the offset lived only
+ * in module scope that reload put the clock back to today, and the fifth day
+ * could not be reached at all.
+ */
+const CLOCK_KEY = 'ascent.clockoffset';
+let clockOffset = 0;
+try { clockOffset = Number(localStorage.getItem(CLOCK_KEY)) || 0; } catch { clockOffset = 0; }
+if (clockOffset) mastery.setClock(() => Date.now() + clockOffset);
 let streak = 0;
 
 bootBar.style.width = '35%';
@@ -124,6 +164,10 @@ const controls = new ControlsCard(uiRoot, {
   onRecover: () => player.recover('asked'),
 });
 player.onStuck = (on) => controls.setStuck(on);
+// The browser will not let the game hold the mouse (an LMS iframe, a managed
+// Chromebook). The arrow keys and a click-drag already work; the card says so.
+// (src/core/input.js -> src/player/controls.js)
+input.onLookFallback = () => controls.lookBlocked();
 // The recovery says which recovery it was. "Back on open ground" is right for
 // a player who asked; it is not what the game should say when it has just
 // picked somebody up off its own edge without being asked. (src/player)
@@ -203,6 +247,21 @@ drift.addColumn(-88, -62, 66, 7.5);
 drift.addColumn(30, 100, 58, 7);
 drift.addColumn(-104, -6, 62, 7.5);
 
+// world: THE SURVEY (src/world/errand.js) — a reason to walk to the landmarks
+// that were already standing there. Every hero silhouette on this island now
+// carries a mark that pays, plants a permanent updraft, and turns green when it
+// is yours, so the space between two tears has finds in it instead of hillside.
+// Built after the standing columns so the ones a claim plants land on top of a
+// world that already has air in it.
+const errand = createErrand({
+  scene: engine.scene, player, drift, hud, wallet, audio, fx,
+  // Lazily: `story` is built at the bottom of this file and this only ever runs
+  // long after boot. A find speaks through the companion's queue so that it can
+  // never talk over a learning surface.
+  comms: { sayKey: (k, o) => story?.comms?.sayKey?.(k, o) },
+  isBusy: () => panel.open || session?.blocking?.() || false,
+});
+
 const caches = createCaches({
   scene: engine.scene, uiRoot, player, builder, hud, wallet, drift, audio, fx,
   isBusy: () => panel.open,
@@ -236,6 +295,13 @@ const kit = createKit({
 const verge = createVerge(engine.scene);
 const beckon = createBeckon({
   uiRoot, player, rifts, drift, builder, hud, verge,
+  // …and the survey marks, so an instrument standing on a landmark names itself
+  // from a hundred and fifty metres. (src/world/errand.js)
+  errand: () => errand,
+  // A tear that has just given its three items back does not pull you in again
+  // when you cross your own dais on the way out. The key still works: leaving is
+  // a decision and so is staying. (src/session/stint.js)
+  canWalkIn: (id) => !stint.settling(id),
   isBusy: () => panel.open || session.blocking?.() || false,
   onOpenRift: (r) => openRift(r),
   // src/world/afford.js says everything there is to say about a tear, and says
@@ -265,6 +331,12 @@ let chainNext = false;
 // opens on the frame after the panel shuts, and an uncancelled chain painted a
 // live keypad underneath it 460 ms later. (src/session)
 let chainTimer = 0;
+// …and how far that chain is allowed to run. THREE items per arrival, then the
+// world comes back with somewhere to go. A cold critic answered twelve in a row
+// without once choosing to; this is the object that says no. (src/session/stint.js)
+const stint = createStint({
+  onEnd: (id) => relay.returned(id),
+});
 
 /**
  * One turn of the learning loop.
@@ -319,6 +391,10 @@ function openRift(rift, override) {
   builder.man.setContext(rift.id, item);
 
   activeRift = rift;
+  // Every path that opens a tear — the plate, the key, the touch tag, the chain
+  // — comes through here, so this is the one place a stint can be started and
+  // nothing can start one behind that module's back. (src/session/stint.js)
+  stint.arrive(rift.id);
   audio.riftOpened(rift);
   input.uiOpen = true;
   document.exitPointerLock?.();
@@ -360,6 +436,10 @@ function openRift(rift, override) {
       let gained = 0;
       if (correct) {
         streak++;
+        // A piece of work finished at this tear. The stint counts these, never
+        // attempts — a card stays up until it comes out right, and a learner who
+        // needed four tries has not used up three of anything. (src/session/stint.js)
+        stint.sealed();
         chainNext = true;
         // The rift pays, but it is not where the money is: an answer is 2, a
         // proving-run item 4, an assisted one 1. A full session of answering
@@ -399,10 +479,14 @@ function openRift(rift, override) {
       audio.riftClosed();
       input.uiOpen = false;
       fx.setDialogue(false);
-      const again = chainNext;
+      // A solved rift hands you the next card straight away — for THREE items,
+      // and then it stops. `stint.more()` is the whole of the rule: inside an
+      // arrival the scheduler gets its run of items and gets to interleave;
+      // at the end of one the world comes back with somewhere to go, and it is
+      // the player who decides whether to walk there or press the key again.
+      // (src/session/stint.js, src/meta/relay.js)
+      const again = chainNext && stint.more();
       chainNext = false;
-      // A solved rift hands you the next thing straight away: the session keeps
-      // its rhythm, and the scheduler gets to interleave.
       if (again) {
         clearTimeout(chainTimer);
         chainTimer = setTimeout(() => {
@@ -413,6 +497,8 @@ function openRift(rift, override) {
           if (session.blocking()) return;
           if (!panel.open && nearRift && nearRift.id === rift.id) openRift(rift);
         }, 460);
+      } else {
+        stint.end();
       }
     },
   });
@@ -469,6 +555,10 @@ engine.add((dt, t2) => {
 // would be overwritten by the wing on the same frame.
 engine.add((dt, t2) => {
   drift.update(dt, t2);
+  // world: the survey marks turn, breathe, and are claimed by walking into one.
+  // Before the caches, because a claim plants an updraft and the lift has to be
+  // in the world on the same frame the cadet is standing there. (src/world/errand.js)
+  errand.update(dt, t2);
   caches.update(dt, t2, engine.camera);
   kit.update(dt, t2);
   // …and last, because everything above may have moved the cadet: the world
@@ -497,6 +587,39 @@ const story = createStory({
   camera: engine.camera, drift, caches, builder, kit, vergeR: VERGE_R,
 });
 engine.add((dt, t2) => story.update(dt, t2));
+
+// ---------------------------------------------------------------------------
+// narrative: THE RELAY (src/meta/relay.js). What the world says the moment a
+// stint ends and the card really closes — one destination, named, with a
+// bearing and a distance on it, and never the place you are standing. It is the
+// other half of src/session/stint.js: three items, then somewhere to go.
+// ---------------------------------------------------------------------------
+const relay = createRelay({
+  mastery, rifts, player, hud, errand,
+  comms: story.comms,
+  isBusy: () => panel.open || session?.blocking?.() || false,
+});
+engine.add((dt) => { stint.update(dt); relay.update(dt); });
+
+// ---------------------------------------------------------------------------
+// world: THE WARDENS (src/world/warden.js) — the fifth day.
+//
+// Everything else on this island waits to be walked into. A warden runs a
+// circuit, notices you, runs from you, sheds the answers behind it in a fan and
+// throws a ring of pressure when you take the wrong one. Bind one and it falls
+// apart into a new hanging cache, on the spot, for ever — so the best idea in
+// the game stops being five opened boxes and starts being a thing the island
+// grows one more of every day somebody comes back to it.
+//
+// Built after createStory because the day ledger it wakes on lives there, and
+// because the line that introduces the word is Marlow's to say.
+// ---------------------------------------------------------------------------
+const wardens = createWardens({
+  scene: engine.scene, uiRoot, player, hud, wallet, caches, audio, fx, story, kit,
+  isBusy: () => panel.open || session?.blocking?.() || story?.rite?.playing
+    || story?.turn?.playing || false,
+});
+engine.add((dt, t2) => wardens.update(dt, t2, engine.camera));
 
 // ---------------------------------------------------------------------------
 // Progress report (src/report). It wraps `mastery.observe` itself to keep its
@@ -571,6 +694,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 
 onLocaleChange(() => {
   applyStatic(); hud.render(hudState()); builder.relocalise(); caches.relocalise();
+  wardens.relocalise();
   afford.relocalise();
 });
 
@@ -588,14 +712,7 @@ function pickQuality() {
 
 // Expose a small surface for the automated critics: they drive the real game,
 // not a mock, and read the same state the player sees.
-/**
- * How far ahead of the real clock the harness has pushed us. Zero in a real
- * session and never touched by anything a player can do; `advanceDays` below is
- * the only writer. The spacing schedule in src/learn/mastery.js runs on real
- * elapsed time, so a critic who cannot move that clock cannot see anything the
- * schedule does after the first ten minutes.
- */
-let clockOffset = 0;
+
 
 window.__ascent = {
   engine, mastery, rifts, player, hud, panel, fx, world, builder, input, story, audio,
@@ -609,6 +726,18 @@ window.__ascent = {
   // hung out of reach and locked behind a balance (caches), and what a sealed
   // line buys (kit). Critics read the same objects the game runs on.
   drift, caches, kit,
+  // The rhythm, and what fills the gap it opens: three items per arrival
+  // (stint), a named place to walk to between two of them (errand), and the one
+  // line that says which. Read-only for a critic — every one of these is driven
+  // by playing, never by calling it.
+  stint, errand, relay,
+  // The one place the mote count moves (src/kit/ledger.js). Read, so a critic
+  // can prove what the world paid and what it took.
+  wallet,
+  // world: the fifth day. The one thing on this island with intent — it runs a
+  // circuit, it runs from you, and binding it hangs a new cache where it fell.
+  // Critics read and walk the real constructs (src/world/warden.js).
+  wardens,
   // world: what the world is actually saying about the tear in front of you and
   // about the next one — the plates, the key on them, the compass and the road.
   afford,
@@ -637,6 +766,7 @@ window.__ascent = {
     session: session.state(),
     // what the world has produced, and what mastery has bought
     drift: { ...drift.stats }, caches: caches.state(), kit: kit.state(),
+    wardens: wardens.state(),
   }),
   /**
    * Critic hook: it is tomorrow. Moves the wall clock the retention schedule
@@ -647,6 +777,7 @@ window.__ascent = {
   advanceDays(days = 1) {
     clockOffset += Math.round(Number(days) * 86400000);
     mastery.setClock(() => Date.now() + clockOffset);
+    try { localStorage.setItem(CLOCK_KEY, String(clockOffset)); } catch { /* private mode */ }
     save();
     return { offsetDays: clockOffset / 86400000, watch: mastery.watch() };
   },
@@ -806,6 +937,19 @@ window.__ascent = {
   surfaceAt: (x, z) => builder.solids.top(x, z),
   /** The island alone, with nothing built on it — for measuring height gained. */
   islandAt: (x, z) => groundHeight(x, z),
+  /**
+   * THE POINT OF NO RETURN, as the player module currently believes it.
+   *
+   * Read-only, and it exists because the one thing a harness could not see was
+   * the number the fall-catch is actually testing against. The cold-play gate
+   * reported "still out of the world 6.1 s after leaving it, y = −3" for
+   * months, and −3 is not a coincidence: it is a stale cached zero inside
+   * `lowestGround()`. A fact a critic cannot read is a fact that gets guessed
+   * at, and this one was guessed at three times. (src/player/terrain.js)
+   */
+  deck: () => ({ lowestGround: lowestGround(), deck: playerDeck() }),
+  /** …and the predicate itself, at any point. Read-only; changes nothing. */
+  outside: (x, y, z) => outsideWorld(x, y, z),
   anchors: () => ({
     secured: builder.anchors?.secured ?? 0,
     total: builder.anchors?.total ?? 0,
@@ -814,6 +958,14 @@ window.__ascent = {
 
   /** Screen quiet (src/ui/quiet.js): what yielded on the last pass. */
   quiet: () => quiet.state(),
+
+  /**
+   * Slotting (src/ui/slots.js): which transient surfaces are standing, which
+   * one is waiting for another, and any pair that met and could not be asked
+   * to. `clashes` is the list tools/critic/transient.mjs fails the build on —
+   * it is read back as evidence, never used to drive anything.
+   */
+  slots: () => slots.state(),
 
   reset: restartRun,
 };
@@ -829,10 +981,20 @@ window.__ascent = {
  */
 function restartRun() {
   localStorage.removeItem('ascent.save');
+  localStorage.removeItem(CLOCK_KEY);
   report.tracker.reset(); story.reset(); session.reset();
-  caches.reset(); kit.reset(); wallet.reset();
+  caches.reset(); wardens.reset(); kit.reset(); wallet.reset();
+  // The survey is progress too: a cleared save has to hand back an island with
+  // its landmarks unclaimed, or a "start over" starts over into somebody else's
+  // finished map. (src/world/errand.js, src/session/stint.js, src/meta/relay.js)
+  errand.reset(); stint.reset(); relay.reset();
   location.reload();
 }
 
 // The screen's own budget. Started last, so every panel it governs exists.
 const quiet = startQuiet();
+// …and the screen's own geometry. quiet.js decides how MANY surfaces may talk;
+// slots.js decides WHERE the transient ones stand and who waits when two of
+// them still meet. Started alongside it, and for the same reason: every surface
+// it measures has to exist first. (src/ui/slots.js — wiring only.)
+const slots = startSlots();

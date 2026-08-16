@@ -15,9 +15,13 @@
   min-height: 0;
 }
 
+/* The surface is square, so it is bounded by whichever of width and height
+   runs out first — and it should take what is actually there. Measured on a
+   390x844 phone the grid was 257px wide with 360px of empty panel above it,
+   which is a small target for no reason. `min(width, height)` spends both. */
 .rf-plot-stage {
   position: relative;
-  width: calc(min(340px, 66vw) * var(--rf-u));
+  width: min(calc(420px * var(--rf-u)), 86vw, 52vh);
   max-width: 100%;
   flex: 0 1 auto;
   min-height: 0;
@@ -43,13 +47,30 @@
   fill: #0d141d;
   stroke: var(--rf-teal);
   stroke-width: 2;
-  cursor: grab;
+  pointer-events: none;          /* the hit circle below owns the pointer */
   transition: r .12s ease, stroke .12s ease;
 }
 .rf-plot .knob.live { fill: var(--rf-teal); stroke: #eef5ff; }
-.rf-plot .knob:focus { outline: none; }
-.rf-plot .knob:focus-visible { stroke: var(--rf-gold); stroke-width: 3; }
-.rf-plot .knob.dragging { cursor: grabbing; }
+
+/* The target, not the mark. Invisible, thumb-sized, and the only thing on the
+   surface that takes a pointer before the grid does. */
+.rf-plot .knob-hit {
+  fill: transparent;
+  stroke: none;
+  cursor: grab;
+}
+.rf-plot .knob-hit:focus { outline: none; }
+.rf-plot .knob-hit:focus-visible + .knob { stroke: var(--rf-gold); stroke-width: 3; }
+.rf-plot .knob-hit.dragging { cursor: grabbing; }
+
+/* Everything drawn on the grid is scenery. A tap meant for the surface must
+   never be eaten by the trace the cadet is drawing or by an axis. */
+.rf-plot .gl,
+.rf-plot .ax,
+.rf-plot .drawn,
+.rf-plot .anchor,
+.rf-plot .anchor-halo,
+.rf-plot svg text { pointer-events: none; }
 
 .rf-plot-read {
   display: flex;
@@ -73,6 +94,6 @@
    width and very little height, and the surface is square, so the height is
    what to spend. */
 @media (max-height: 620px) {
-  .rf-plot-stage { width: min(calc(min(340px, 66vw) * var(--rf-u) * 1.9), 52vh, 46vw); }
+  .rf-plot-stage { width: min(calc(420px * var(--rf-u)), 62vh, 46vw); }
   .rf-plot-read { font-size: calc(.55rem * var(--rf-u)); }
 }

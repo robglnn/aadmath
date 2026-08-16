@@ -53,11 +53,49 @@ import './field.css';
  * registry the build lattice uses, so a cadet stands on one exactly the way he
  * stands on a floor he set himself, and can build off it. They are flagged
  * `fixed` so that they cannot be cleared out from under him.
+ *
+ * ---------------------------------------------------------------------------
+ * THE SECOND TIER — what a cache says on the fifth day.
+ *
+ * Five caches is five caches. A cadet who keeps coming back cracks the last one
+ * somewhere in the second sitting, and from then on the best idea in the game
+ * is a row of opened boxes. A critic put it exactly: *"by then I would hold all
+ * six grants, shards would be confetti, and the island would still be scenery
+ * with pickups on it."*
+ *
+ * So the apparatus is now a **kind of thing**, not five things. `hang()` builds
+ * one anywhere, and `src/world/warden.js` calls it: bind a warden and it falls
+ * out of the sky as a DEEP CACHE, on the spot where you caught it, for ever.
+ * The island grows a new hard place every day you come back.
+ *
+ * A deep cache is the same apparatus with one part added, and that one part is
+ * the whole of Algebra I Level 2's first hard idea:
+ *
+ *      a·x + b  =  c·x + d      — **there are unknown tiles on BOTH pans.**
+ *
+ * Everything the first tier taught still reads. The pans still carry out the
+ * arithmetic in front of you, the beam still slams the heavy way, and you still
+ * do it with your feet. The only new thing to see is that taking tiles off one
+ * side now takes them off the other as well — which is the sentence the whole
+ * unit is about, made physical, with no lecture attached.
+ *
+ * Four weights instead of three, because there is one more mistake available:
+ * collecting the unknowns on the wrong side, adding when the sign says
+ * subtract, and forgetting to divide at the end.
  */
 
 const COUNT = 5;
-const TILE_MAX = 320;
+/** Every tile of every cache near enough to read. 640 covers eight at once. */
+const TILE_MAX = 640;
+/** Past this, a cache is a silhouette and its pans are not laid out at all. */
+const TILE_RANGE = 170;
 const REWARD = 120;
+/** What a cache the cadet put there himself pays. Ground income; see ledger. */
+const DEEP_REWARD = 160;
+/** How many deep caches the island will carry. Twelve is twelve days. */
+const DEEP_MAX = 12;
+/** No two perches closer than this, or two hard places become one. */
+const DEEP_CLEAR = 46;
 const TOUCH = 2.2;
 const SPAN = 2;                 // perch half-width, in lattice cells (2 -> 20 m across)
 
@@ -102,6 +140,20 @@ export function createCaches(opts = {}) {
   });
   const seamMat = new THREE.MeshBasicMaterial({ color: 0xffc98a, fog: false });
 
+  /**
+   * A deep cache is the same apparatus in a warmer alloy. One glance says which
+   * tier is hanging there, from far enough out to decide whether to fly at it:
+   * cold blue is the island's own, amber is one you made.
+   */
+  const deepRigMat = new THREE.MeshStandardMaterial({
+    color: 0xffe3bd, emissive: 0xb46a1c, emissiveIntensity: 0.9,
+    roughness: 0.34, metalness: 0.46,
+  });
+  const deepBoxMat = new THREE.MeshStandardMaterial({
+    color: 0x9a7f63, emissive: 0x33220e, emissiveIntensity: 0.7,
+    roughness: 0.58, metalness: 0.3, flatShading: true,
+  });
+
   const tileGeo = new THREE.BoxGeometry(1, 1, 1);
   const tileMat = new THREE.MeshStandardMaterial({
     color: 0xffffff, emissive: 0x14203a, emissiveIntensity: 0.7,
@@ -117,11 +169,14 @@ export function createCaches(opts = {}) {
 
   const list = [];
   const saved = load();
+  /** Deep caches the cadet made himself. Position, seed and whether it is open. */
+  const deep = Array.isArray(saved.deep) ? saved.deep : [];
 
-  for (let i = 0; i < COUNT; i++) build(i);
+  for (let i = 0; i < COUNT; i++) make(siteFor(i));
+  for (const d of deep) make({ ...d, tier: 2 });
 
-  // ------------------------------------------------------------------ build
-  function build(i) {
+  /** Where the fifth of the island's own caches hangs. Fixed, for ever. */
+  function siteFor(i) {
     const ang = -Math.PI / 2 + i * 2.3999632 + 0.4;
     // the highest ground on this bearing — what the perch is measured against
     let hi = 6;
@@ -131,12 +186,23 @@ export function createCaches(opts = {}) {
     }
     const rad = ISLAND_R + 22 + i * 7;
     // snapped to the build lattice, because the perch *is* build lattice
-    const cx = Math.round((Math.cos(ang) * rad) / CELL) * CELL;
-    const cz = Math.round((Math.sin(ang) * rad) / CELL) * CELL;
-    const top = Math.max(18, hi + LIFT[i]);
+    return {
+      key: String(i), tier: 1, seed: i, ang,
+      x: Math.round((Math.cos(ang) * rad) / CELL) * CELL,
+      z: Math.round((Math.sin(ang) * rad) / CELL) * CELL,
+      y: Math.max(18, hi + LIFT[i]),
+    };
+  }
+
+  // ------------------------------------------------------------------ build
+  function make(spec) {
+    const { x: cx, z: cz, y: top, tier = 1 } = spec;
+    const ang = spec.ang != null ? spec.ang : Math.atan2(cz, cx);
+    const slot = list.length;
 
     const c = {
-      i, x: cx, z: cz, y: top, opened: !!saved[i],
+      i: slot, slot, key: spec.key, tier, seed: spec.seed ?? slot,
+      x: cx, z: cz, y: top, opened: !!(saved.opened && saved.opened[spec.key]),
       group: new THREE.Group(), roll: 0, rollV: 0, want: 0,
       load: [], stones: [], settle: 0,
     };
@@ -163,17 +229,19 @@ export function createCaches(opts = {}) {
         builder.solids.add({
           kind: 'floor', x: cx + gx * CELL, y: top, z: cz + gz * CELL, yaw: 0,
           base: top, onGround: false, dead: false, fixed: true, grow: 1, fade: 0,
-          sel: 0, want: 0, tone: 0, id: -1 - (i * 64 + (gx + SPAN) * 8 + (gz + SPAN)),
+          sel: 0, want: 0, tone: 0, id: -1 - (slot * 64 + (gx + SPAN) * 8 + (gz + SPAN)),
         });
       }
     }
 
     // ---- the monolith the balance is the lock on
+    const alloy = tier === 2 ? deepRigMat : rigMat;
+    const shell = tier === 2 ? deepBoxMat : boxMat;
     const bodyGeo = new THREE.BoxGeometry(1.6, 3.2, 1.7);
     const seamGeo = new THREE.BoxGeometry(0.09, 2.8, 1.76);
     c.half = [];
     for (const s of [-1, 1]) {
-      const h = new THREE.Mesh(bodyGeo, boxMat.clone());
+      const h = new THREE.Mesh(bodyGeo, shell.clone());
       h.position.set(s * 0.83, 1.7, -7.6);
       h.castShadow = true;
       h.receiveShadow = true;
@@ -194,7 +262,8 @@ export function createCaches(opts = {}) {
 
     // ---- the mark that says there is something out here at all
     c.markMat = new THREE.MeshBasicMaterial({
-      color: 0xffc98a, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
+      color: tier === 2 ? 0xffb057 : 0xffc98a,
+      transparent: true, opacity: 0.3, side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
     });
     // It starts above the apparatus, not through it: a mark you can see from
@@ -215,7 +284,7 @@ export function createCaches(opts = {}) {
     // The whole balance — arm, risers and both pans — is rigid about the pivot,
     // so it is one geometry and one draw rather than five.
     const rigParts = [new THREE.BoxGeometry(7.0, 0.30, 0.42)];
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.62, 5.3, 4), rigMat);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.62, 5.3, 4), alloy);
     post.position.set(0, 2.65, -1.4);
     c.group.add(post);
 
@@ -227,20 +296,25 @@ export function createCaches(opts = {}) {
       pan.translate(side * 2.8, -1.6, 0);
       rigParts.push(pan);
     }
-    const rig = new THREE.Mesh(merge(rigParts), rigMat);
+    const rig = new THREE.Mesh(merge(rigParts), alloy);
     for (const g of rigParts) g.dispose();
     rig.castShadow = true;
     beam.add(rig);
 
-    // ---- the statement, and the three weights
-    const q = question(i);
+    // ---- the statement, and the weights: three on the island's own caches,
+    // four on a deep one, because a second unknown adds a fourth mistake
+    const q = tier === 2 ? deepQuestion(c.seed) : question(c.seed);
     c.q = q;
     layout(c, null);
 
+    // Four weights on one rank is nine metres of counterweights, which is wider
+    // than the deck. They spread to the width they need and no wider.
+    const gap = q.choices.length > 3 ? 2.9 : 3.6;
+    const mid = (q.choices.length - 1) / 2;
     for (let k = 0; k < q.choices.length; k++) {
       const v = q.choices[k];
       const s = new THREE.Group();
-      s.position.set((k - 1) * 3.6, 1.7, 2.8);
+      s.position.set((k - mid) * gap, 1.7, 2.8);
       // A counterweight has to read as a thing you can walk into from as far
       // out as the statement reads. At 0.62 it was a chip at twenty metres.
       const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.92, 0), new THREE.MeshStandardMaterial({
@@ -267,7 +341,7 @@ export function createCaches(opts = {}) {
       { local: [0, 7.3, -1.4], near: [0, 3.4, 2.8], cls: 'big', tex: q.latex },
     ];
     for (let k = 0; k < c.stones.length; k++) {
-      c.tags.push({ local: [(k - 1) * 3.6, 2.45, 2.8], cls: 'weight', tex: String(c.stones[k].v), stone: k });
+      c.tags.push({ local: [(k - mid) * gap, 2.45, 2.8], cls: 'weight', tex: String(c.stones[k].v), stone: k });
     }
 
     if (c.opened) openNow(c, true);
@@ -281,9 +355,8 @@ export function createCaches(opts = {}) {
    * actually makes here: dividing before undoing the addition, and undoing the
    * addition and then forgetting to divide.
    */
-  function question(i) {
-    let h = 0x9e3779b9 ^ (i * 2654435761);
-    const rnd = (n) => { h = Math.imul(h ^ (h >>> 15), 2246822507); return ((h >>> 8) % n); };
+  function question(seed) {
+    const rnd = dice(seed);
     for (let tries = 0; tries < 40; tries++) {
       const a = 2 + rnd(3);           // 2..4
       const x = 2 + rnd(6);           // 2..7
@@ -292,33 +365,94 @@ export function createCaches(opts = {}) {
       if (c > 30) continue;
       const wrongA = c - b;                       // never divided
       const wrongB = Math.round(c / a);           // never subtracted
-      const set = [x, wrongA, wrongB].filter((v, k, arr) => v > 0 && v <= 30 && arr.indexOf(v) === k);
+      const set = uniq([x, wrongA, wrongB]);
       if (set.length < 3) continue;
-      // a fixed, seeded order, so the answer is not always in the same place
-      const order = [set[0], set[1], set[2]];
-      const at = rnd(3);
-      const tmp = order[0]; order[0] = order[at]; order[at] = tmp;
-      return { a, b, c, x, choices: order, latex: `${a}x + ${b} = ${c}` };
+      return {
+        a, b, rc: 0, rd: c, x,
+        choices: shuffle(set, rnd),
+        latex: `${a}x + ${b} = ${c}`,
+      };
     }
-    return { a: 2, b: 3, c: 11, x: 4, choices: [4, 8, 6], latex: '2x + 3 = 11' };
+    return { a: 2, b: 3, rc: 0, rd: 11, x: 4, choices: [4, 8, 6], latex: '2x + 3 = 11' };
   }
 
   /**
-   * Lay the pans out. With no weight loaded the left pan carries `a` unknown
-   * tiles and `b` units; once a weight is chosen each unknown tile becomes that
-   * many units, one for one, which is the whole argument made physical.
+   * THE SECOND TIER: unknown tiles on both pans.
+   *
+   *      a·x + b  =  c·x + d,   a > c,   x whole and small enough to lay out
+   *
+   * The three wrong weights are the three mistakes this step actually produces:
+   * adding the constants when the sign says subtract, adding the unknowns when
+   * the sign says subtract, and doing both steps right and then not dividing.
+   */
+  function deepQuestion(seed) {
+    const rnd = dice(seed ^ 0x5bf03635);
+    for (let tries = 0; tries < 80; tries++) {
+      const rc = 1 + rnd(3);              // 1..3 unknown tiles on the right
+      const a = rc + 1 + rnd(3);          // strictly more on the left
+      const x = 2 + rnd(6);               // 2..7
+      const b = 1 + rnd(9);               // 1..9
+      const d = (a - rc) * x + b;         // keeps the statement true
+      if (d < 1 || d > 34) continue;
+      if (a * x + b > 34) continue;
+      const wrongSign = (d + b) % (a - rc) === 0 ? (d + b) / (a - rc) : -1;
+      const wrongSide = (d - b) % (a + rc) === 0 ? (d - b) / (a + rc) : -1;
+      const wrongDiv = d - b;
+      const set = uniq([x, wrongSign, wrongSide, wrongDiv]);
+      if (set.length < 4) continue;
+      return {
+        a, b, rc, rd: d, x,
+        choices: shuffle(set, rnd),
+        latex: `${a}x + ${b} = ${rc === 1 ? '' : rc}x + ${d}`,
+      };
+    }
+    return {
+      a: 5, b: 2, rc: 2, rd: 11, x: 3, choices: [3, 5, 9, 1],
+      latex: '5x + 2 = 2x + 11',
+    };
+  }
+
+  /** A small seeded die, so a cache asks the same question for ever. */
+  function dice(seed) {
+    let h = 0x9e3779b9 ^ ((seed | 0) * 2654435761);
+    return (n) => { h = Math.imul(h ^ (h >>> 15), 2246822507); return ((h >>> 8) % n); };
+  }
+
+  /** Whole, positive, small enough to lay out as tiles, and no repeats. */
+  function uniq(vs) {
+    return vs.filter((v, k, arr) => v > 0 && v <= 34 && arr.indexOf(v) === k);
+  }
+
+  /** A fixed, seeded order, so the answer is not always in the same place. */
+  function shuffle(set, rnd) {
+    const out = set.slice();
+    for (let k = out.length - 1; k > 0; k--) {
+      const j = rnd(k + 1);
+      const tmp = out[k]; out[k] = out[j]; out[j] = tmp;
+    }
+    return out;
+  }
+
+  /**
+   * Lay the pans out. With no weight loaded each pan carries its own unknown
+   * tiles and its own units; once a weight is chosen every unknown tile becomes
+   * that many units, one for one, on BOTH pans — which is the whole argument
+   * made physical, and the only new thing a deep cache has to say.
    */
   function layout(c, v) {
-    const { a, b, c: rhs } = c.q;
+    const { a, b, rc, rd } = c.q;
     c.load.length = 0;
     if (v === null) {
       lay(c.load, -2.8, -1.5, a, 'x');
       lay(c.load, -2.8, -1.5, b, 'unit', a);
+      if (rc) lay(c.load, 2.8, -1.5, rc, 'x');
+      lay(c.load, 2.8, -1.5, rd, 'unit', rc);
     } else {
       lay(c.load, -2.8, -1.5, a * v + b, 'unit');
+      lay(c.load, 2.8, -1.5, rc * v + rd, 'unit');
     }
-    lay(c.load, 2.8, -1.5, rhs, 'unit');
     c.left = v === null ? null : a * v + b;
+    c.right = v === null ? null : rc * v + rd;
   }
 
   function lay(out, px, py, count, kind, skipRows = 0) {
@@ -341,7 +475,7 @@ export function createCaches(opts = {}) {
     if (c.opened || stone.spent || c.settle > 0) return;
     layout(c, stone.v);
     c.settle = 1.1;
-    const diff = c.left - c.q.c;
+    const diff = c.left - c.right;
     if (diff === 0) {
       c.rollV = 0;
       c.want = 0;
@@ -373,15 +507,16 @@ export function createCaches(opts = {}) {
     openNow(c, false);
     c.opened = true;
     save();
-    // What the wallet actually took, which is REWARD until the day's assay runs
-    // thin (src/kit/ledger.js). The caption prints the paid number, never the
-    // sticker price: the ledger strip is right beside it.
-    const paid = wallet?.earn?.(REWARD, 'cache') ?? REWARD;
+    // What the wallet actually took, which is the sticker price until the day's
+    // assay runs thin (src/kit/ledger.js). The caption prints the paid number,
+    // never the sticker price: the ledger strip is right beside it.
+    const sticker = c.tier === 2 ? DEEP_REWARD : REWARD;
+    const paid = wallet?.earn?.(sticker, c.tier === 2 ? 'deepcache' : 'cache') ?? sticker;
     // the reward that changes the map: a standing updraft, here, for ever
-    drift?.addColumn?.(c.x, c.z, 78, 8.4, true);
+    drift?.addColumn?.(c.x, c.z, c.tier === 2 ? 96 : 78, c.tier === 2 ? 9.2 : 8.4, true);
     audio?.unlocked?.();
     fx?.impact?.('good');
-    hud?.flash?.(t('field.cacheOpen', { n: paid }), 'good');
+    hud?.flash?.(t(c.tier === 2 ? 'field.deepOpen' : 'field.cacheOpen', { n: paid }), 'good');
   }
 
   function openNow(c, silent) {
@@ -486,7 +621,10 @@ export function createCaches(opts = {}) {
         if (_p.distanceTo(player.pos) < TOUCH) choose(c, s);
       }
 
-      // tiles
+      // tiles. A cache the cadet cannot read is a silhouette: past TILE_RANGE
+      // its pans are not composed at all, so the island may carry a dozen of
+      // these without the instanced buffer or the frame paying for them.
+      if (camera && camera.position.distanceTo(c.group.position) > TILE_RANGE) continue;
       c.group.updateMatrixWorld(true);
       c.beam.updateMatrixWorld(true);
       for (const tl of c.load) {
@@ -507,15 +645,71 @@ export function createCaches(opts = {}) {
     if (camera) placeTags(camera);
   }
 
+  // ------------------------------------------------------------------- hang
+  /**
+   * HANG A DEEP CACHE HERE, FOR EVER.
+   *
+   * Called by `src/world/warden.js` when a warden is bound: the construct falls
+   * apart and this is what is left standing in the air where it fell. The perch
+   * is real floor in the same solid registry the build lattice uses, so it is a
+   * place before it is a puzzle — somewhere to land, build from, and fly on.
+   *
+   * @param {number} x
+   * @param {number} z
+   * @param {number} y  where it should hang; clamped to somewhere reachable
+   * @param {number} seed  what statement it holds, for ever
+   * @returns {object|null} the cache, or null if the island will carry no more
+   */
+  function hang(x, z, y, seed) {
+    if (deep.length >= DEEP_MAX) return null;
+    // Two hard places on top of each other is one hard place. Push the new one
+    // out along its own bearing until it stands clear of every other perch.
+    let px = Math.round(x / CELL) * CELL;
+    let pz = Math.round(z / CELL) * CELL;
+    for (let guard = 0; guard < 24; guard++) {
+      const near = list.find((c) => Math.hypot(c.x - px, c.z - pz) < DEEP_CLEAR);
+      if (!near) break;
+      const k = Math.max(0.001, Math.hypot(px, pz));
+      px = Math.round((px + (px / k) * DEEP_CLEAR) / CELL) * CELL;
+      pz = Math.round((pz + (pz / k) * DEEP_CLEAR) / CELL) * CELL;
+    }
+    // …and never past the point where the leash would stop a cadet flying at it.
+    const out = Math.hypot(px, pz);
+    if (out > ISLAND_R * 1.4) {
+      px = Math.round(((px / out) * ISLAND_R * 1.4) / CELL) * CELL;
+      pz = Math.round(((pz / out) * ISLAND_R * 1.4) / CELL) * CELL;
+    }
+    // The perch is a torn shard of island with a sixteen-metre keel under it, so
+    // it has to hang clear of the hill it is over or the keel grows out of the
+    // grass and it reads as scenery rather than as somewhere you have to reach.
+    const ground = heightAt(px, pz);
+    const floor = (ground === null ? 8 : ground) + 24;
+    const spec = {
+      key: `d${seed}`, tier: 2, seed: seed | 0,
+      x: px, z: pz, y: Math.max(floor, Math.round(y || 0)),
+      ang: Math.atan2(pz, px),
+    };
+    deep.push({ key: spec.key, seed: spec.seed, x: spec.x, y: spec.y, z: spec.z, ang: spec.ang });
+    make(spec);
+    save();
+    rebuildTags();
+    return list[list.length - 1];
+  }
+
   // -------------------------------------------------------------------- save
   function load() {
-    try { return JSON.parse(localStorage.getItem('ascent.caches') || '{}') || {}; }
-    catch { return {}; }
+    let raw = {};
+    try { raw = JSON.parse(localStorage.getItem('ascent.caches') || '{}') || {}; }
+    catch { return { opened: {}, deep: [] }; }
+    // A save written before deep caches existed is a bare map of open indices.
+    if (!raw.opened && !raw.deep) return { opened: raw, deep: [] };
+    return { opened: raw.opened || {}, deep: Array.isArray(raw.deep) ? raw.deep : [] };
   }
   function save() {
     const o = {};
-    for (const c of list) if (c.opened) o[c.i] = 1;
-    try { localStorage.setItem('ascent.caches', JSON.stringify(o)); } catch { /* private mode */ }
+    for (const c of list) if (c.opened) o[c.key] = 1;
+    const payload = { opened: o, deep };
+    try { localStorage.setItem('ascent.caches', JSON.stringify(payload)); } catch { /* private mode */ }
   }
 
   return {
@@ -524,10 +718,17 @@ export function createCaches(opts = {}) {
     /** RESONANT SIGHT: read a cache's statement from twice as far out. */
     setSight(on) { sight = !!on; },
     list,
+    hang,
+    /** How many more the island will carry, so a warden knows what to pay. */
+    room: () => Math.max(0, DEEP_MAX - deep.length),
     state: () => ({
       total: list.length,
       opened: list.filter((c) => c.opened).length,
-      at: list.map((c) => ({ i: c.i, x: c.x, y: c.y, z: c.z, opened: c.opened })),
+      deep: deep.length,
+      deepOpen: list.filter((c) => c.tier === 2 && c.opened).length,
+      at: list.map((c) => ({
+        i: c.i, tier: c.tier, x: c.x, y: c.y, z: c.z, opened: c.opened,
+      })),
     }),
     reset() {
       try { localStorage.removeItem('ascent.caches'); } catch { /* private mode */ }

@@ -54,6 +54,56 @@
   background: rgba(120, 190, 255, .22); border-color: rgba(150, 220, 255, .6);
 }
 
+/* THE BROWSER REFUSED THE MOUSE, AND THE CARD SAYS SO.
+   Amber rather than red: nothing has broken, and a school laptop that never
+   grants a pointer lock is a normal machine. It is one line of "press this
+   instead", sitting above the rows it is talking about. */
+#ui .fc-note {
+  margin: 0 0 .5rem;
+  padding: .42rem .5rem .44rem;
+  border-left: 2px solid var(--amber, #ffc46b);
+  border-radius: 3px;
+  background: rgba(255, 186, 92, .1);
+  font-size: .66rem; line-height: 1.42;
+  color: var(--ink);
+}
+#ui .fc-note[hidden] { display: none; }
+#ui .fc-note strong {
+  display: block;
+  font-weight: 600;
+  color: var(--amber, #ffc46b);
+}
+#ui .fc-note span { display: block; color: var(--ink-dim); }
+/* THE COLD OPEN STANDS EVERY READOUT DOWN. THIS ONE CARD IS THE EXCEPTION.
+ *
+ * src/meta/meta.css stands `.fc` down for the whole cold open — correctly: the
+ * opening is a title shot and a controls legend in the corner of it is
+ * clutter. Measured, that shot runs about twenty-six seconds.
+ *
+ * A player whose browser has just refused the mouse cannot spend those
+ * twenty-six seconds finding out why. They are being shown a place they have
+ * been told is 53 m to their left, on a machine that has silently taken away
+ * their ability to face left, and the only sentence in the game that explains
+ * it is behind the titles. Nothing else on that stand-down list is load
+ * bearing in that way — a crosshair or a rank strip coming back late costs
+ * nothing.
+ *
+ * So the exception is exactly as narrow as the reason for it: only a card that
+ * is carrying the refusal notice (`.nolock`), and only while its owner is
+ * actually showing it (`.show`, so GOT IT still closes it). An ordinary
+ * controls card still waits for the titles like everything else. */
+#ui.meta-cine .fc.nolock.show {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* While the warning is fresh the card must not fade out from under it. */
+#ui .fc.warned .fc-note { animation: fcWarn 1.5s ease 2; }
+@keyframes fcWarn {
+  0%, 100% { background: rgba(255, 186, 92, .1); }
+  50% { background: rgba(255, 186, 92, .22); }
+}
+
 #ui .fc-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
 #ui .fc-rows.tail {
   margin-top: .46rem; padding-top: .46rem;
@@ -182,4 +232,5 @@
 @media (prefers-reduced-motion: reduce) {
   #ui .fc, #ui .fcs, #ui .fc-pill { transition-duration: .01ms; }
   #ui .fc-rows li.lit { animation: none; }
+  #ui .fc.warned .fc-note { animation: none; }
 }

@@ -65,26 +65,66 @@ export const RIM = () => (typeof World.ISLAND_R === 'number' ? World.ISLAND_R : 
 // still reach.
 // ---------------------------------------------------------------------------
 
-/** Metres below the lowest reachable ground at which return becomes impossible. */
-const DECK_MARGIN = 8;
+/**
+ * Metres below the lowest reachable ground at which return becomes impossible.
+ *
+ * This was 8, and 8 was too generous by exactly the amount that made the promise
+ * untrue. The lowest ground on this island IS the coast — 6.9 m — so a cadet who
+ * walks off the shard starts falling from the very height the margin is measured
+ * from, and under the wing he sinks at two metres a second. Eight metres of
+ * margin is therefore four seconds of beige void before the catch will even
+ * look, and the cold-play gate allows six seconds between leaving the world and
+ * standing in it again. It was failing at 6.1 s, at y = −2, with the catch about
+ * to fire: the fix was never a bigger catch, it was a margin that is not four
+ * seconds of nothing.
+ *
+ * Three metres is still unarguably the point of no return. Nothing in this game
+ * manufactures height outside an updraft column, every column stands on the
+ * island, and there is no ground at all outside the coastline — so a cadet three
+ * metres under the lowest ground he could possibly land on, over open air, is
+ * exactly as unable to get back as one eight metres under it. The margin was
+ * only ever there to keep the test off a legitimate low pass along the coast,
+ * and that pass is over *ground*, where `heightAt` answers and this branch is
+ * never reached. (world — smallest possible edit outside src/world; see report.)
+ */
+const DECK_MARGIN = 3;
 /** Absolute backstop, far under everything, for states nobody has thought of. */
 export const FLOOR = -420;
 
 let _low = null;
-let _lowTries = 0;
+let _lowAt = -1e9;
 
 /**
  * The lowest ground on the island, measured off the live heightfield rather
  * than written down. The world team reshapes this island regularly; a number
  * typed into the player would be wrong the first time they did, and wrong
  * silently. Sampled once, on the first frame that has a world to sample.
+ *
+ * IT IS NEVER FROZEN TO A DEFAULT, and that is the whole of a bug that made the
+ * cold-play gate's edge-recovery step flaky for as long as it has existed.
+ *
+ * This used to allow eight attempts and then cache `0` for the rest of the
+ * session. The eight attempts are spent during boot — `outsideWorld` reaches
+ * here only when the heightfield answers null, which on the first few frames it
+ * does because the island has not been built yet — so on any load slow enough
+ * to burn them, `lowestGround()` was 0 for ever instead of 6.9, the point of no
+ * return sat at −3 instead of +3.9, and a cadet under the wing needed five
+ * extra seconds of sinking before the catch would even look at him. The gate
+ * timed out at 6.1 s "at 166 m out, y = −3", which is that cached zero to the
+ * metre. It passed or failed on how quickly the machine happened to boot.
+ *
+ * A time throttle costs the same handful of sweeps and cannot lie: while there
+ * is no world the answer is the safe one and nothing is remembered, and the
+ * first frame that has an island measures it and keeps it.
+ * (world — second and last small edit outside src/world; see report.)
  */
 export function lowestGround() {
   if (_low !== null) return _low;
-  // Eight thousand probes is nothing once and a disaster sixty times a second,
-  // so a world that never answers gets a handful of attempts and then a number.
-  if (_lowTries > 8) return (_low = 0);
-  _lowTries++;
+  // Eight thousand probes is nothing twice a second and a disaster sixty times
+  // a second, so a world that has not answered yet is asked again on a clock.
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (now - _lowAt < 500) return 0;
+  _lowAt = now;
   const R = RIM() + 10;
   let lo = Infinity;
   for (let x = -R; x <= R; x += 4) {

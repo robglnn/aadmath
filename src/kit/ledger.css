@@ -14,9 +14,20 @@
  * block grows upward and the NEWEST line is always the lowest one, a hand's
  * width above the mote prices it is about to change. */
 
+/* THE SECOND STEP OF THE FOOT-LEFT STACK, and it stands on the first one
+   rather than beside it.
+   `bottom: 96px` was a number that cleared a one-row kit strip in English on a
+   laptop. The strip is bottom-anchored, so it grows UPWARD: buy a sixth verb
+   and it wraps to two rows, its ceiling rises 26 px, and the row explaining
+   what a surge just cost you is printed under a price chip. A cold critic
+   photographed exactly that — "−5 Rift surge — the ring an open rift throws
+   out. Jump it, or it costs you motes." with its second line cut in half.
+   `--slot-foot-1` is the strip's floor plus the strip's MEASURED height plus
+   one small gap (src/ui/slots.css, src/ui/slots.js). It cannot be wrong about
+   a strip it did not measure. */
 .ledger{
   position:absolute;
-  bottom:calc(96px + var(--safe));
+  bottom:var(--slot-foot-1);
   left:var(--pad-l);
   width:min(304px,42vw);
   display:flex;flex-direction:column;gap:.26rem;
@@ -62,7 +73,12 @@
    It WRAPS. It does not clip, it does not ellipsise, and it has no max-height:
    a definition with its last word cut off has taught nobody anything, which is
    the fault the same critic filed against Marlow's card. */
-.led-row.taught{--led-ink:#c7a86a;max-width:min(268px,100%);align-items:flex-start}
+/* 236px, the same as `.note` above and for the same reason: the companion's
+   card is centred with a 760px cap, so on a 1280 frame its left edge is at 260
+   and a 268px row starting at the padding reaches 286. A definition is the one
+   row that must be readable, so it is the one row that must not be printed on
+   somebody else's plate. */
+.led-row.taught{--led-ink:#c7a86a;max-width:min(236px,100%);align-items:flex-start}
 .led-row.taught .led-why{
   text-transform:none;font-size:.62rem;letter-spacing:.01em;line-height:1.34;
   overflow:visible;text-overflow:clip;white-space:normal;
@@ -89,6 +105,9 @@
    tail rather than wrapping into three lines over the world. */
 /* breakpoint only — a phone is a phone in both orientations (mobile-landscape) */
 @media (max-width:760px),(max-height:520px) and (orientation:landscape){
-  .ledger{bottom:calc(128px + var(--safe));width:min(220px,54vw)}
+  /* The stack takes care of the height on its own now — a thumb zone raises
+     `--slot-foot` and the ledger rides up with the strip. All that is left for
+     a narrow frame to say is how wide a row may be. */
+  .ledger{width:min(220px,54vw)}
   .led-left{display:none}
 }

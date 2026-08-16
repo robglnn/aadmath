@@ -160,8 +160,13 @@
 /* ===========================================================================
    THE PROMPT — the answer to "I walked into it and nothing happened".
    =========================================================================== */
+/* `--slot-prompt-dy` is 62px, and it lives in src/ui/slots.css rather than here
+   because the grant card that stands above this prompt is written off the same
+   number — the two were picked independently, they met, and the cold critic
+   photographed "E Sound this line" printed through "LINE SEALED". One number,
+   one file. (hud/slotting pass: this is the only change to this stylesheet.) */
 #ui .gd-prompt {
-  position: absolute; left: 50%; top: calc(50% + 62px); translate: -50% 0;
+  position: absolute; left: 50%; top: calc(50% + var(--slot-prompt-dy)); translate: -50% 0;
   display: flex; align-items: center; gap: .5rem;
   padding: .4rem .72rem .42rem .46rem;
   border-radius: 999px;
@@ -211,7 +216,7 @@
   .gd-what { font-size: .7rem; }
   .gd-why { display: none; }
   .gd-mark .gd-nm { font-size: .5rem; }
-  #ui .gd-prompt { top: calc(50% + 48px); }
+  /* the prompt's own 48px on a small screen is `--slot-prompt-dy` too */
 }
 @media (max-width: 720px) {
   #ui .gd-card { top: calc(var(--pad-t) + 112px); }

@@ -214,14 +214,24 @@ export function createGuide(opts) {
     // The pips above already show held, open and locked as colour. Until the
     // first line is held, the row below them spends its one line on the word
     // instead of on a zero.
-    el.tally.textContent = obj.held === 0
-      ? t('guide.tallyNew')
-      : t('guide.tally', { held: obj.held, open: obj.open, locked: obj.locked });
+    /* THREE STATES, BECAUSE A DEFINITION HAS TO ARRIVE WITH ITS TERM.
+       The empty card used to print "HELD MEANS PROVED FOR GOOD" — the meaning
+       of a word the card had not used and the player had not read. It now says
+       what the marks above it are; the word arrives on the frame where the
+       first line is actually held, with its meaning attached; and from the
+       second one it is a bare count, because by then it is a word he owns.
+       i18n, additive — `guide.tallyFirst` is in all three bundles. */
+    const counts = { held: obj.held, open: obj.open, locked: obj.locked };
+    el.tally.textContent = obj.held === 0 ? t('guide.tallyNew')
+      : obj.held === 1 ? t('guide.tallyFirst', counts)
+        : t('guide.tally', counts);
   }
 
   function payLine(o) {
     if (o.pay === 'lines') return t('guide.pay.lines', { n: o.payN });
-    if (o.pay === 'kit') return t('guide.pay.kit', { name: o.payName });
+    // Name AND meaning. "Hold it and Kite trim is yours" named a thing this
+    // game explains only on the card it hands you after you have won it.
+    if (o.pay === 'kit') return t('guide.pay.kit', { name: o.payName, gist: o.payGist });
     if (o.pay === 'sound') return t('guide.pay.sound');
     return t('guide.pay.calm');
   }

@@ -57,6 +57,7 @@ export class ControlsCard {
       <div class="fc-card plate" role="group">
         <div class="fc-head"><i aria-hidden="true"></i><h3></h3>
           <button type="button" class="fc-x"></button></div>
+        <div class="fc-note" hidden><strong></strong><span></span></div>
         <ul class="fc-rows">${CORE.map((v) => row(v)).join('')}</ul>
         <ul class="fc-rows tail">${TAIL.map((v) => row(v)).join('')}</ul>
       </div>`;
@@ -77,6 +78,9 @@ export class ControlsCard {
     root.appendChild(this.stuckEl);
 
     this.head = this.el.querySelector('h3');
+    this.note = this.el.querySelector('.fc-note');
+    this.noteTitle = this.note.querySelector('strong');
+    this.noteBody = this.note.querySelector('span');
     this.dismissBtn = this.el.querySelector('.fc-x');
     this.rows = Object.fromEntries([...this.el.querySelectorAll('li')]
       .map((li) => [li.dataset.v, li]));
@@ -94,6 +98,7 @@ export class ControlsCard {
     this._src = null;
     this._hold = { move: 0, look: 0 };
     this._look = 0;
+    this._blocked = false;        // the browser refused the mouse; say so once
 
     this.dismissBtn.addEventListener('click', () => this.hide(true));
     this.pill.addEventListener('click', () => this.show());
@@ -123,7 +128,9 @@ export class ControlsCard {
     this.sBody.textContent = t('firstrun.stuck.body');
     this.sBtnLabel.textContent = t('firstrun.stuck.act');
     this._src = null;             // force the bindings to be redrawn
-    this._bindings(this.input ? this._hands(this.input) : 'kbm');
+    if (this._toldLook) this._noteText();
+    const inp = this.input;
+    this._bindings(inp ? this._hands(inp) : 'kbm', inp ? inp.lookMode : 'pointer');
   }
 
   /**
@@ -141,20 +148,69 @@ export class ControlsCard {
     return inp.source;
   }
 
-  /** Print the bindings of the hands that are actually on the machine. */
-  _bindings(src) {
-    if (src === this._src) return;
-    this._src = src;
+  /**
+   * Print the bindings of the hands that are actually on the machine — and, for
+   * LOOK, the binding that actually works at this second.
+   *
+   * A card that says "Look — MOUSE" on a machine where the mouse cannot look is
+   * worse than a card that says nothing: it is the game insisting the player is
+   * doing it wrong. A cold critic watched that exact row for nineteen minutes
+   * while no mouse input reached the camera. So the look row is keyed on
+   * `Input.lookMode` and changes the moment the truth does.
+   */
+  _bindings(src, look = 'pointer') {
+    const key = `${src}/${look}`;
+    if (key === this._src) return;
+    this._src = key;
     const s = src === 'pad' ? 'pad' : src === 'touch' ? 'touch' : 'kbm';
     for (const v of [...CORE, ...TAIL]) {
       const li = this.rows[v];
       if (!li) continue;
       li.querySelector('.fc-verb').textContent = t('controls.' + v);
-      li.querySelector('.fc-keys').innerHTML = caps(t(`firstrun.bind.${s}.${v}`));
+      // A stick and a thumb are never refused, so only the mouse has states.
+      const bk = (s === 'kbm' && v === 'look' && look !== 'pointer')
+        ? (look === 'blocked' ? 'lookBlocked' : 'lookFree')
+        : v;
+      li.querySelector('.fc-keys').innerHTML = caps(t(`firstrun.bind.${s}.${bk}`));
     }
     // On a touch device the button *is* the binding — printing a keycap that
     // says the same word as the label next to it reads as a stutter.
     this.sBtnKeys.innerHTML = s === 'touch' ? '' : caps(t(`firstrun.bind.${s}.recover`));
+  }
+
+  /**
+   * THE BROWSER SAID NO. TELL THEM, ONCE, AND TELL THEM WHAT TO PRESS.
+   *
+   * Called by src/core/input.js the first time a pointer-lock request is
+   * refused. Everything the player needs is already on this card, so the card
+   * is what comes back: it un-retires, un-dismisses, opens, and grows one line
+   * that names the keys. Nothing here blocks the game or asks to be dismissed —
+   * a school laptop that has never once granted a lock is a normal machine, not
+   * an error state.
+   */
+  lookBlocked() {
+    this._blocked = true;
+    if (this._toldLook) return;
+    this._toldLook = true;
+    this._noteText();
+    this.note.hidden = false;
+    // Marks this card as the one the cold open is not allowed to stand down.
+    // See the `#ui.meta-cine .fc.nolock.show` memo in controls.css.
+    this.el.classList.add('nolock');
+    clearTimeout(this._leave);
+    this._leaving = false;
+    this._retired = false;
+    this.dismissed = false;
+    this.show();
+    // The card holds for long enough to be read, then behaves normally again.
+    this._warnUntil = performance.now() + 6000;
+    this.el.classList.add('warned');
+    setTimeout(() => this.el.classList.remove('warned'), 6000);
+  }
+
+  _noteText() {
+    this.noteTitle.textContent = t('firstrun.nolock.title');
+    this.noteBody.textContent = t('firstrun.nolock.body');
   }
 
   show() {
@@ -187,7 +243,7 @@ export class ControlsCard {
   update(dt) {
     const inp = this.input;
     if (!inp) return;
-    this._bindings(this._hands(inp));
+    this._bindings(this._hands(inp), inp.lookMode);
 
     // A panel owns the frame: stand aside, and come back when it is done.
     this.el.classList.toggle('away', !!inp.uiOpen);
@@ -229,7 +285,11 @@ export class ControlsCard {
      *
      * `_leaving` is the latch the sentinel in `done` was meant to be and never
      * was: nothing read it. The timer is armed once and then left alone. */
-    if (this.done.size >= CORE.length && this.open && !this._leaving && !this._retired) {
+    // …but not while the card is holding a warning the player has had no time
+    // to read. The look row ticks the instant the arrows are pressed, and the
+    // arrows are exactly what the warning just told them to press.
+    const warned = this._warnUntil && performance.now() < this._warnUntil;
+    if (this.done.size >= CORE.length && this.open && !this._leaving && !this._retired && !warned) {
       this._leaving = true;
       this._leave = setTimeout(() => {
         this._leaving = false; this._retired = true; this.hide();

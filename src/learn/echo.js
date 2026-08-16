@@ -59,7 +59,7 @@
  * ladder exists in EN, ES and PL.
  */
 import { evaluate, varsOf, solveLinear, parse, parseEquation, linearize, parseArrayCells } from './parser.js';
-import { R, str as rstr, texOf, fromString, eq as reqq, sub, isZero, toNum } from './rational.js';
+import { R, str as rstr, texOf, fromString, eq as reqq, sub, add, isZero, toNum, isR } from './rational.js';
 import { makeT } from './strings.js';
 
 export const MAX_TIER = 4;
@@ -100,7 +100,13 @@ function substitute(latex, v, valueTex) {
 function substituteVerified(latex, v, val, env = {}) {
   let want;
   try { want = evaluate(latex, { ...env, [v]: val }); } catch { return null; }
-  for (const written of [rstr(val), `\\left(${rstr(val)}\\right)`]) {
+  // A NEGATIVE value is written in brackets first, not second. Bare, it lands
+  // against whatever sign is already there and prints "--3 + 1 = 4", which
+  // parses to the right number and reads like a typing accident. Level 2 runs
+  // a cadet's own rule at a negative reading, so this is now a common row.
+  const bare = rstr(val);
+  const wrapped = `\\left(${bare}\\right)`;
+  for (const written of (toNum(val) < 0 ? [wrapped, bare] : [bare, wrapped])) {
     const out = substitute(latex, v, written);
     try { if (reqq(evaluate(out, env), want)) return out; } catch { /* try the next */ }
   }
@@ -351,12 +357,23 @@ function relationsOf(src) {
   return { parts, rels };
 }
 
+/**
+ * A trial value, whether it arrived as a whole number or as an exact fraction.
+ *
+ * Every trial used to be an integer, and on a lean that was wrong. A cadet who
+ * divides before subtracting hands in a boundary that is a FRACTION less than
+ * one step from the true one — `t \le 8/3` against `t \le 2` — so no integer
+ * anywhere separates the two sets, the probe found nothing to say, and the
+ * echo fell through to reprinting the question. Eight forms did that.
+ */
+const asR = (t) => (isR(t) ? t : R(t));
+
 /** Is this statement true when the unknown takes this value? `null` if unreadable. */
 function holdsAt(src, v, t) {
   const { parts, rels } = relationsOf(src);
   if (!rels.length) return null;
   let vals;
-  try { vals = parts.map((p) => evaluate(p, { [v]: R(t) })); } catch { return null; }
+  try { vals = parts.map((p) => evaluate(p, { [v]: asR(t) })); } catch { return null; }
   for (let i = 0; i < rels.length; i++) {
     const d = toNum(sub(vals[i], vals[i + 1]));
     const ok = rels[i] === '<' ? d < 0 : rels[i] === '>' ? d > 0 : rels[i] === '\\le' ? d <= 0 : d >= 0;
@@ -370,7 +387,7 @@ function relationAt(src, v, t) {
   const { parts, rels } = relationsOf(src);
   if (!rels.length) return null;
   let vals;
-  try { vals = parts.map((p) => evaluate(p, { [v]: R(t) })); } catch { return null; }
+  try { vals = parts.map((p) => evaluate(p, { [v]: asR(t) })); } catch { return null; }
   let out = rstr(vals[0]);
   for (let i = 0; i < rels.length; i++) out += ` ${rels[i]} ${rstr(vals[i + 1])}`;
   return out;
@@ -456,7 +473,11 @@ function leanProbe(item, raw, v, T) {
 
   // A statement against a statement.
   if (!relationsOf(raw).rels.length) return [];
-  for (const t of trialValues(math, raw)) {
+  // The cadet's OWN boundary goes in the hat first, exactly as written. It is
+  // the value their statement argues about, so it is the value most likely to
+  // separate their set from this one — and when their boundary is a fraction a
+  // whole number never will.
+  for (const t of [...ownBoundaries(raw, v), ...trialValues(math, raw)]) {
     const mine = holdsAt(raw, v, t);
     const theirs = holdsAt(math, v, t);
     if (mine == null || theirs == null || mine === theirs) continue;
@@ -467,7 +488,7 @@ function leanProbe(item, raw, v, T) {
       {
         cls: 'rf-echo-probe',
         latex: shown,
-        why: T(mine ? 'echo.yourSetLetsThrough' : 'echo.yourSetShutsOut', { v, t }),
+        why: T(mine ? 'echo.yourSetLetsThrough' : 'echo.yourSetShutsOut', { v, t: rstr(asR(t)) }),
       },
       {
         cls: 'rf-echo-probe verdict',
@@ -479,10 +500,31 @@ function leanProbe(item, raw, v, T) {
   return [];
 }
 
+/**
+ * The ends of the set the cadet wrote down, as exact rationals — the boundary
+ * itself, and one small step either side of it so a strict end and a closed
+ * end can be told apart.
+ */
+function ownBoundaries(raw, v) {
+  const { parts, rels } = relationsOf(raw);
+  if (!rels.length) return [];
+  const out = [];
+  for (const part of parts) {
+    const p = String(part).trim();
+    if (!p || varsOf(p).includes(v)) continue;
+    let val;
+    try { val = evaluate(p, {}); } catch { continue; }
+    if (!val || !Number.isFinite(toNum(val))) continue;
+    const step = R(1, Math.max(1, val.d) * 4);
+    out.push(val, sub(val, step), add(val, step));
+  }
+  return out;
+}
+
 /** The statement with a number written in for the unknown, verified part by part. */
 function substituteRelation(src, v, t) {
   const { parts, rels } = relationsOf(src);
-  const put = parts.map((p) => (varsOf(p).includes(v) ? substituteVerified(p, v, R(t)) : p.trim()));
+  const put = parts.map((p) => (varsOf(p).includes(v) ? substituteVerified(p, v, asR(t)) : p.trim()));
   if (put.some((p) => !p)) return null;
   let out = put[0];
   for (let i = 0; i < rels.length; i++) out += ` ${rels[i]} ${put[i + 1]}`;

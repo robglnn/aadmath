@@ -60,9 +60,19 @@ await page.waitForTimeout(4200);
 const facts = () => page.evaluate(() => {
   const a = window.__ascent, b = a.builder;
   const live = [];
+  // `k` is the RENDER BATCH, NOT THE KIND. A wall with a doorway cut into it
+  // draws from its own batch (`door`) because a hole is different geometry. It
+  // is still a wall to the collider and to every count here. Reading the batch
+  // as the kind is why this script spent a whole round reporting "three walls
+  // and the fourth never lands" about a box that was closed, and "0 doors"
+  // about the doorway that closed it.
   for (const k of Object.keys(b.lattice.live)) {
+    void k;
     for (const p of b.lattice.live[k]) {
-      if (!p.dead) live.push({ kind: k, x: p.x, y: p.y, z: p.z, base: p.base, turn: p.turn, tms: p.tms });
+      if (!p.dead) {
+        live.push({ kind: p.kind, door: !!p.door, x: p.x, y: p.y, z: p.z,
+          base: p.base, turn: p.turn, tms: p.tms });
+      }
     }
   }
   const tg = b.target();
@@ -311,76 +321,112 @@ ok(Math.hypot(atBox.pos.x - boxSite.x, atBox.pos.z - boxSite.z) < 2.2,
   'stood in a clear flat cell to build the box in',
   `${boxSite.x}, ${boxSite.z} — ground spans ${boxSite.span} m`);
 await pressUntil('Digit1', (f) => f.slot === 0);
+// WAIT FOR THE RESERVE, THE WAY THE CHIP TELLS YOU TO.
+//
+// The reserve is a real cost (src/build/builder.js: MAX_CHARGE, REGEN) and the
+// ramp and the deck above already spent most of it. Sweeping a box on the
+// remains got three walls and a refusal, and this script read that as "the
+// fourth wall does not land" — a bug in the measurement, not in the verb. A
+// player reads "Build charge spent. Wait for it to refill." and waits. So does
+// this, and the sweep it then measures is a sweep with the reserve behind it.
+for (let i = 0; i < 40; i++) {
+  const f = await facts();
+  if (f.charge >= 74) break;
+  await page.waitForTimeout(500);
+}
+console.log(`  reserve before the sweep: ${(await facts()).charge}`);
 const pt = await worldPoint() || CANDIDATES[0];
 await page.mouse.move(pt[0], pt[1]);
 await page.evaluate(() => {
   window.__down = [];
   addEventListener('mousedown', () => window.__down.push(performance.now()), true);
+  // A PASSIVE FLIGHT RECORDER. Reads only, on the page's own frames, so the
+  // measurement below is not interrupted by a round trip to node. It exists
+  // because "the fourth wall did not land" is a claim that needs the slot the
+  // fourth column actually resolved to, and asking for it mid-gesture would
+  // change the gesture.
+  window.__trace = [];
+  const a = window.__ascent, b = a.builder;
+  const tick = () => {
+    const tg = b.target();
+    window.__trace.push({ t: Math.round(performance.now()), turn: b.turn,
+      cell: `${Math.round(a.player.pos.x / 4) * 4},${Math.round(a.player.pos.z / 4) * 4}`,
+      pos: `${a.player.pos.x.toFixed(2)},${a.player.pos.z.toFixed(2)}`,
+      slot: `${tg.x},${tg.z}`, base: tg.base, valid: tg.valid, why: tg.reason,
+      charge: Math.round(b.charge) });
+    window.__traceId = requestAnimationFrame(tick);
+  };
+  tick();
 });
-// ONE UNBROKEN GESTURE, and nothing in the middle of it.
+// ONE UNBROKEN GESTURE, AND NOTHING IN THE MIDDLE OF IT.
 //
-// The waits below are a person's: a flick of the wrist between quarter turns,
-// a beat to read the refusal, a beat to mean it. Nothing here takes a
-// screenshot or asks node a question, because a full-page capture at two times
-// scale costs about a second and would land in the middle of the measurement.
-// The photographs are taken afterwards, off the finished box.
+// This used to be a hold, three flicks of F, and then two more deliberate
+// presses — because the wall that closed the room was refused once and had to
+// be confirmed. It is not refused any more: it goes down with a doorway cut
+// into it (src/build/builder.js, `place`). So the gesture is now exactly what
+// a player would do: press, turn, turn, turn, release. Four walls, one press.
+//
+// The two extra presses that used to confirm the room are gone, and they had
+// to go: with the box already closed they were two more clicks at a face that
+// was already built, which is how this script used to end with five walls on
+// three levels and call it a failure of the fourth.
+//
+// The waits below are a person's: a flick of the wrist between quarter turns.
+// Nothing here takes a screenshot or asks node a question, because a full-page
+// capture at two times scale costs about a second and would land in the middle
+// of the measurement. The photographs are taken afterwards, off the finished box.
 await page.mouse.down();
 for (let i = 0; i < 3; i++) {
   await page.waitForTimeout(120);          // a human quarter-turn flick
   await page.keyboard.press('KeyF');
 }
-await page.waitForTimeout(240);
+await page.waitForTimeout(300);
 await page.mouse.up();
-const sweptChip = await page.evaluate(() => ({
-  why: document.querySelector('.axiom-why')?.textContent || '',
-  shown: !!document.querySelector('.axiom-why.show'),
-}));
-await page.waitForTimeout(160);
-await page.mouse.down(); await page.mouse.up();     // asks
-await page.waitForTimeout(240);                     // read the chip
-await page.mouse.down(); await page.mouse.up();     // means it
 await page.waitForTimeout(420);
 const swept = await facts();
-const sw3 = swept.pieces.filter((p) => p.kind === 'wall').slice(0, 3);
-const sw = sw3;
+const sw = swept.pieces.filter((p) => p.kind === 'wall');
 const span = sw.length >= 2 ? sw[sw.length - 1].tms - sw[0].tms : NaN;
 const levels = [...new Set(sw.map((p) => p.base))];
 console.log(`  walls down: ${sw.length}  gaps(ms): ${sw.map((p, i) => i ? Math.round(p.tms - sw[i - 1].tms) : 0).slice(1).join(', ')}`);
 console.log(`  faces: ${[...new Set(sw.map((p) => `${p.x},${p.z}`))].join(' | ')}  levels: ${JSON.stringify(levels)}`);
-ok(sw.length === 3, 'one held trigger sets ONE wall on each face the turn offers',
+const tr = await page.evaluate(() => { cancelAnimationFrame(window.__traceId); const t = window.__trace; const out = []; for (const r of t) { const k = r.turn + '|' + r.slot + '|' + r.valid + '|' + r.why + '|' + r.cell; if (!out.length || out[out.length - 1].k !== k) out.push({ k, ...r }); } return out; });
+for (const r of tr) console.log(`    t${r.turn} cell ${r.cell} at ${r.pos} -> slot ${r.slot} base ${r.base} valid=${r.valid} ${r.why} charge ${r.charge}`);
+console.log(`  reserve after: ${swept.charge}  chip: "${await page.evaluate(() => document.querySelector('.axiom-why')?.textContent || '')}"`);
+ok(sw.length === 4, 'ONE held trigger and three flicks of F close the whole box',
   `${sw.length} walls from ONE mouse press and 3 taps of F`);
 // THE CHIMNEY. One hold used to answer the same face over and over, finding the
 // top of the wall it had just set as the next level up: nine walls, six storeys,
 // the whole reserve, in 570 ms, none of it asked for.
 ok(levels.length === 1, 'and it does not climb — one hold never stacks a second storey',
   `levels touched: ${JSON.stringify(levels)}`);
-ok(sw.length === 3 && span < 1600, 'and the whole sweep lands inside one and a half seconds',
+ok(sw.length === 4 && span < 1600, 'and the whole sweep lands inside one and a half seconds',
   `${Math.round(span)} ms from the first wall to the last, in the game's own clock, at ${HZ} fps`);
 
-// The fourth is the one that shuts him in: it must SAY so even under a hold.
-ok(sw.length === 3 && sweptChip.shown && sweptChip.why.length > 0,
-  'the sweep stops at the wall that would shut him in, and says why rather than going quiet',
-  `${sw.length} walls, chip "${sweptChip.why}"`);
-
 const closed = swept;
-const cw = closed.pieces.filter((p) => p.kind === 'wall');
+const cw = sw;
 const t4 = cw.length === 4 ? cw[3].tms - cw[0].tms : NaN;
-ok(cw.length === 4, 'two deliberate presses close the box', `${cw.length} walls`);
 ok(cw.length === 4 && new Set(cw.map((p) => p.base)).size === 1,
   'all four walls founded on exactly one level',
   JSON.stringify([...new Set(cw.map((p) => p.base))]));
 // THE LATENCY. How long after the button goes down does the piece exist?
 const lat = await page.evaluate(() => window.__down.slice());
 const lastWall = cw[cw.length - 1];
-const react = lat.length && lastWall ? lastWall.tms - lat[lat.length - 1] : NaN;
+const react = lat.length && lastWall ? cw[0].tms - lat[0] : NaN;
 console.log(`  TIME TO A CLOSED BOX: ${Math.round(t4)} ms of the game's own clock — `
-  + `4 walls, 1 mouse hold + 3 taps of F + 2 confirming presses`);
+  + '4 walls, 1 mouse hold + 3 taps of F');
 console.log(`  button down → piece real: ${Math.round(react)} ms`);
 ok(react >= 0 && react < 60, 'a piece is real on the frame the button goes down',
   `${Math.round(react)} ms from mousedown to the piece existing in the collider`);
 ok(t4 < 2500, 'four walls and a closed box inside two and a half seconds, by hand',
   `${Math.round(t4)} ms`);
-ok(closed.boxed, 'and he is told he is shut in the moment it closes', `boxed ${closed.boxed}`);
+// NOT SHUT IN, AND THAT IS THE POINT. The sealing wall carries a doorway, so
+// the room he just closed is a room and not a trap. `boxed` is the flag that
+// sends the recovery key outside the walls; it must be FALSE, because there is
+// nothing to recover from.
+const doors = cw.filter((p) => p.door);
+ok(doors.length === 1, 'the wall that closed the room carries a doorway',
+  `${doors.length} door(s)`);
+ok(!closed.boxed, 'so he is not shut in, and needs no rescue', `boxed ${closed.boxed}`);
 await shot('01-box-closed');
 
 // Out again, so the ramp can be built on clean ground.

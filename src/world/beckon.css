@@ -47,6 +47,14 @@
 .bk-tag.rich { color: #ffd8a2; border-color: rgba(255, 191, 106, .6); }
 .bk-tag.dead { color: #96a9bd; border-color: rgba(120, 150, 180, .26); opacity: .8; }
 .bk-tag.edge { color: #ffd0b8; border-color: rgba(255, 160, 120, .48); }
+/* A survey mark still to be claimed (src/world/errand.js). Violet is this
+   world's one unused signal colour: cyan is a tear, gold is the tear the
+   scheduler wants, green is work already held, orange is the edge. */
+.bk-tag.mark {
+  color: #e6dcff;
+  border-color: rgba(176, 140, 255, .66);
+  box-shadow: 0 0 22px rgba(150, 110, 255, .3), 0 6px 26px rgba(0, 0, 0, .5);
+}
 
 /* the key the prompt is asking for */
 .bk-tag b {

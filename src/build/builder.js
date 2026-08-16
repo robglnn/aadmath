@@ -535,23 +535,54 @@ export class Builder {
     for (let i = 0; i < cands.length; i++) {
       const c = qLevel(cands[i]);
       let s = Math.abs(c - aimY) + weight[i];
+      // THE CHIMNEY, AND WHY THIS GUARD HAS TO OUTWEIGH AN OCCUPIED SLOT.
+      //
       // Levels well above the eye line are not what you meant — unless the
       // level IS the head of the ramp you are standing on, which is the one
-      // case where a storey up is exactly what you meant.
+      // case where a storey up is exactly what you meant. That exemption is
+      // `ranks[i] >= 2`, the carry, and it is why a staircase still chains.
       //
       // THE KNIFE EDGE THIS SAT ON. A storey is four metres and the eye is at
       // 1.62, so a cadet at the foot of a ramp has its head 2.38 m above his
-      // aim — inside this 2.6 m guard by a quarter of a metre. Tip the gaze
+      // aim — inside the old 2.6 m guard by a quarter of a metre. Tip the gaze
       // three degrees down, which running does, and the guard fired on the very
       // level the climb needed: the next ramp came out level with the last one
       // instead of on top of it, and the staircase became a sawtooth with a
       // four-metre step to fall down at every second joint. The magnet was
-      // right the whole time and this was overruling it.
-      if (c > aimY + 2.6 && ranks[i] < 2) s += 8;
+      // right the whole time and this was overruling it. The carry exemption is
+      // the correct answer to that, and it is kept.
+      //
+      // WHAT WAS STILL BROKEN. The guard cost 8 and an occupied slot cost 100,
+      // so an occupied slot always promoted the piece a storey rather than
+      // saying it was taken. Standing still on flat ground and clicking eight
+      // times at one face therefore built a **twenty-four metre chimney**: six
+      // walls straight up, one above the other, none of them reachable, the
+      // whole reserve gone. Photographed, at 4 m intervals, on real clicks.
+      // That is the "every placement snapped into the plane of the existing
+      // structure, producing a 2x2 slab, not a footprint" a cold critic wrote
+      // down — the horizontal half of it was fixed by naming the cell above;
+      // this was the vertical half, and it was still live.
+      //
+      // So the guard now costs more than an occupied slot does. A storey the
+      // crosshair is not on is not offered at all, and the honest answer to a
+      // second click at a wall that is already there is "occupied" — the same
+      // word the chip has always had for it. Building a second storey is still
+      // one gesture: look up at the head of the wall (about 24°) and click.
+      if (c > aimY + AIM_REACH_UP && ranks[i] < 2) s += OUT_OF_AIM;
       const clash = this.solids.blocked(kind, gx, gz, c);
-      if (clash) s += 100;
+      if (clash) s += OCCUPIED;
       const ok = this._founded(gx, gz, c, ground);
-      if (!ok) s += 24;
+      // AND WHY AN UNFOUNDED LEVEL COSTS MORE THAN AN OCCUPIED ONE.
+      //
+      // Neither can be built, so the only thing these two numbers decide is
+      // which sentence the player reads. With the chimney closed, a second
+      // click at a wall left the aim's own level occupied and the cheapest
+      // remaining candidate a storey *below* it, hanging in the air — so the
+      // game answered a wall that was plainly already there with "No footing
+      // there", which is true of a level the player never looked at and
+      // nonsense about the one he did. A level with nothing under it is never
+      // what anybody meant; a level with your own wall in it always is.
+      if (!ok) s += UNFOUNDED;
       if (s < bestScore) { bestScore = s; base = c; free = !clash; held = ok; }
     }
 
@@ -1170,6 +1201,29 @@ const REACH = { wall: 2.6, beam: 2.6, floor: 4.6, vault: 4.6, ramp: 5.0 };
  * so it beats a level inferred from where the cadet's eyes happen to be by
  * enough that his eyes cannot overrule it.
  */
+/**
+ * How far above the crosshair a level may still be the one you meant.
+ *
+ * A wall is four metres tall and the eye is at 1.62, so a flat gaze lands in
+ * the middle of the storey the cadet is standing on and 2.38 m below the base
+ * of the storey above it. Anything looser than that and a level gaze reaches
+ * the next storey up, which is how a click at a wall that is already there
+ * used to answer with a wall four metres over your head. Anything tighter and
+ * a deck laid on the head of a wall needs an unreasonable stare.
+ *
+ * At 1.2 m the next storey needs about 24° of upward look on a wall and 15° on
+ * a deck: a deliberate glance at the head of the thing you are building on,
+ * and nothing a running gaze does by accident.
+ */
+const AIM_REACH_UP = 1.2;
+/**
+ * The three refusals, priced so that the one the player reads is the one about
+ * the level he was actually looking at. A slot that is taken outranks a slot
+ * with nothing under it, and both outrank a storey the crosshair never reached.
+ */
+const OCCUPIED = 100;
+const UNFOUNDED = 130;
+const OUT_OF_AIM = 140;
 const CARRY_MAGNET = 9.6;
 const NODE_MAGNET = 6.0;
 const SLOT_MAGNET = 3.4;

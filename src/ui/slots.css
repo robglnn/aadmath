@@ -1,0 +1,174 @@
+/* ===========================================================================
+   THE SLOTTING ORDER. Where every TRANSIENT surface is allowed to stand.
+
+   Read src/ui/layers.css first. That file answers "who is in front?". This one
+   answers "who is allowed to be there at all?" — and they are different
+   questions with different failure modes.
+
+   WHY THIS FILE EXISTS.
+
+   src/ui/layers.css put every surface in the game on one z scale, and the
+   layout matrix (tools/critic/landscape.mjs) reported 288 frames out of 288
+   clean. A cold critic then found three overlaps in a single session of real
+   play:
+
+     1. the interact prompt drawn straight through the grant card that had just
+        landed — "E Sound this line" over "LINE SEALED / F = light a column of
+        rising air under your own boots", both illegible;
+     2. the notice toast ("30 motes needed") printed as grey ghost text in the
+        skirt of the RUN banner, in three consecutive frames;
+     3. the "−5 Rift surge" ledger row with its second line cut in half by the
+        VAULT PLATE chip standing on it.
+
+   Every one of those pairs is correctly ORDERED. The prompt is level 30 and
+   the grant card 28, so the prompt did win — it won by printing itself through
+   a card the player had just earned. Ordering decides who is legible when two
+   surfaces meet. It does not stop them meeting.
+
+   And every one of those pairs is TRANSIENT: a prompt, an unlock card, a
+   toast, a banner, a ledger row. None of them is on screen in a resting frame,
+   which is why a matrix of resting frames could photograph 288 of them and see
+   nothing at all. tools/critic/transient.mjs is the harness that raises them on
+   purpose — a seal, an unlock, a surge, a refusal — and audits those frames.
+
+   THE RULES.
+
+     1. A transient surface takes its position from a token in this file. A
+        bare offset picked inside one module is how two modules end up choosing
+        the same 84 pixels without ever meeting.
+     2. Surfaces in the same COLUMN form a stack, and each one is anchored off
+        the one below or above it — never off a number that happens to clear it
+        today. Where a neighbour's height is not knowable in CSS (the run band
+        and the kit strip both grow with the words in them, in three languages),
+        src/ui/slots.js measures it and publishes it here.
+     3. Where two surfaces cannot be separated — a phone has one column and
+        390 px of it — one of them YIELDS. src/ui/slots.js decides that on the
+        real boxes, at every screen size, in every language, rather than in a
+        media query somebody thought to write. A yielded surface is not lost:
+        the prompt comes back when the card retires, and the notice toast
+        QUEUES (src/ui/hud.js) instead of being overwritten by the next one.
+     4. A transient surface arrives legible or not at all. A 300 ms fade on an
+        1800 ms message is a sixth of its life spent as grey ghost text, and if
+        it travels toward its neighbour on the way in, that is who the ghost
+        looks like it belongs to. Notices rise from BELOW their slot, away from
+        the banner above them, and reach full ink in 120 ms.
+     5. A surface that yields does not spend its life while it is yielding. A
+        clock that runs whether or not anybody could see the words spends them
+        on a frame nobody read — and two of these surfaces get exactly one
+        showing, ever: the grant card names a capability the player just bought,
+        and a ledger row prints what a word MEANS the first time it is used.
+        src/kit/kit.js retracts the card and re-queues it; src/kit/ledger.js
+        counts a row's life in painted time; src/ui/hud.js queues notices
+        instead of overwriting them. A yield is a delay, never a deletion.
+
+   THE COLUMNS.
+
+     TOP CENTRE   the run band, then the notice toast under it.
+     CENTRE STAGE the grant card, then the interact prompt under it.
+     FOOT LEFT    the kit strip, then the ledger rows above it.
+     FOOT CENTRE  the build hotbar and the companion — owned by their modules;
+                  the stage's floor is anchored to clear them.
+
+   The phone compositions (src/ui/landscape.css, src/ui/portrait.css) load
+   LAST, on purpose, and are entitled to compose their own slots for a frame
+   this file cannot serve. They already do, and this file does not fight them:
+   it is the discipline for every other screen, and it is the arbiter for all
+   of them.
+   =========================================================================== */
+
+:root {
+  /* Air between two transient surfaces in the same column. One number, so a
+     gap is never "whatever cleared it in English at 1600x900". */
+  --slot-gap: 16px;
+  /* …and in the foot stack, where the rows are half the height. */
+  --slot-gap-s: 10px;
+
+  /* ---- TOP CENTRE ----
+     `--slot-band` is the run band's real height, written by src/ui/slots.js off
+     the live element. The literal here is only the first frame's fallback: the
+     band is 69 px in English at 1600x900 and taller in Polish, and a notice
+     that clears the English one by luck is the defect, not the fix. */
+  --slot-band: 72px;
+  --slot-notice: calc(var(--pad-t) + var(--slot-band) + var(--slot-gap));
+
+  /* ---- CENTRE STAGE ----
+     The prompt hangs below the crosshair; the grant card stands above it. Both
+     are written off the same number, so the gap between them cannot drift. */
+  --slot-prompt-dy: 62px;
+  /* The card's FLOOR, measured up from the foot of the frame. Anchoring the
+     card by its bottom edge rather than by its middle is half the fix: the
+     card is two lines in English and three in Polish, and a middle-anchored
+     card grows DOWN into the prompt by half of whatever the translator wrote. */
+  --slot-stage-floor: max(
+    calc(50% - var(--slot-prompt-dy) + var(--slot-gap)),
+    /* …and it never comes down onto the companion, who is bottom-anchored at
+       `--hud-b + 4` (src/meta/meta.css) and is up to three lines tall. */
+    calc(var(--hud-b) + 130px)
+  );
+
+  /* ---- FOOT LEFT ----
+     A stack of two, from the floor up: the kit strip, then the ledger. Both
+     are bottom-anchored, so both grow UPWARD — which is exactly why the ledger
+     cannot be given a fixed offset and be right. `--slot-kit-h` is the strip's
+     live height, written by src/ui/slots.js; the literal is one row's worth. */
+  --slot-foot: calc(var(--safe) + 52px);
+  --slot-kit-h: 26px;
+  --slot-foot-1: calc(var(--slot-foot) + var(--slot-kit-h) + var(--slot-gap-s));
+}
+
+/* A thumb owns the foot of a touch screen, so the whole stack starts higher.
+   One override, at the floor: everything standing on it comes up with it.
+   (The numbers are src/kit/kit.css's own, moved here and not changed.) */
+:root[data-touch] {
+  --slot-foot: calc(var(--sa-b) + var(--thumb-b) + 4px);
+}
+
+/* A small screen brings the prompt in closer to the crosshair. The number was
+   in src/meta/guide.css; it is here because the grant card above it has to
+   know it, and one number in two files is two numbers. */
+@media (max-width: 900px) {
+  :root { --slot-prompt-dy: 48px; }
+}
+
+/* ===========================================================================
+   THE YIELD.
+
+   `visibility` as well as `opacity`, and no transition on the way out — the
+   same two decisions src/ui/quiet.css makes, for the same two reasons. The box
+   stays, so src/ui/slots.js goes on measuring a yielded surface exactly where
+   it would have stood and can tell when the frame is free again; and a yield
+   that faded would be re-judged mid-fade, nine times a second, forever.
+
+   `!important`, for the same reason src/ui/quiet.css is: the owners write
+   their own visibility at higher specificity than any generic class can reach
+   — `#ui .gd-prompt.show { opacity: 1 }` — and a yield that loses the cascade
+   is not a yield. It cannot collide with anything else that hides a surface,
+   because every other rule that touches these is also asking for zero.
+   =========================================================================== */
+#ui .slot-yield,
+.slot-yield {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: none !important;
+}
+
+/* THE BAND OWNS THE TOP LINE OF ITS COLUMN — including from the compass.
+   `.afd-head` ("NEXT RIFT · 34 m", src/world/afford.css) is pinned to
+   `--pad-t + 2px` at the centre of the top edge. So is the run band, and the
+   band is opaque and four levels above it (src/ui/layers.css), so from the
+   moment a run starts the compass is painted and unreadable — every frame, for
+   the whole session.
+
+   src/ui/portrait.css and src/ui/landscape.css both already delete it on a
+   phone, and both give the same reason: "One compass, not two — `.afd-head`
+   prints the same verb, the same place and the same distance as the objective
+   card at the top of the same screen." That is just as true on a laptop; the
+   phone rules were written because a phone ran out of room first, not because
+   a laptop had a second compass worth reading.
+
+   Found by tools/critic/transient.mjs. It could not be found by the resting
+   matrix, which drives every viewport with `hasTouch` — and a touch device
+   moves this element to the foot of the screen (afford.css), so the collision
+   is only reachable on a pointer frame with a run in progress. */
+#ui:has(.ses-band.show) .afd-head { opacity: 0; }

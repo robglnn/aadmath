@@ -360,11 +360,21 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
 @keyframes slotHit{0%{transform:scale(1)}40%{transform:scale(.9);
   box-shadow:0 0 26px -2px rgba(95,230,255,.9)}100%{transform:scale(1)}}
 
-.toast{position:absolute;z-index:var(--z-toast);left:50%;top:calc(var(--pad-t) + 84px);transform:translateX(-50%);
+/* THE NOTICE SLOT — under the run band, and never in its skirt.
+   `--slot-notice` is the band's measured height plus one gap (src/ui/slots.css
+   and src/ui/slots.js). It used to be `--pad-t + 84px`, which cleared an
+   English band on a laptop by 33 px and was never measured against a Polish
+   one. And the notice used to travel UP into the band on its way in — a
+   300 ms fade beginning 8 px higher than it ends — which is why a cold critic
+   photographed "30 motes needed" three times running as grey ghost text
+   apparently belonging to the RUN banner. It now rises from BELOW its slot,
+   away from the band, and reaches full ink in 120 ms: a message with an
+   1800 ms life cannot spend a sixth of it unreadable. */
+.toast{position:absolute;z-index:var(--z-toast);left:50%;top:var(--slot-notice);transform:translateX(-50%);
   padding:.6rem 1.1rem;--cut:14px;
   font-size:.85rem;letter-spacing:.06em;white-space:nowrap;
-  opacity:0;transition:opacity .3s,translate .3s;translate:0 -8px}
-.toast.show{opacity:1;translate:0 0}
+  opacity:0;transition:opacity .3s ease,translate .3s ease;translate:0 8px}
+.toast.show{opacity:1;translate:0 0;transition-duration:.12s}
 .toast.good{color:var(--lime);--plate-line:color-mix(in srgb,var(--lime) 46%,transparent)}
 .toast.bad{color:var(--rose);--plate-line:color-mix(in srgb,var(--rose) 46%,transparent)}
 
@@ -412,7 +422,9 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
   .rig-shards i{display:none}     /* the shard glyph already says it */
   .langs{padding:.2rem;gap:.14rem}
   .langs button{font-size:.62rem;padding:.3rem .42rem;min-width:30px;letter-spacing:.1em}
-  .toast{top:calc(var(--pad-t) + 72px);font-size:.78rem;padding:.5rem .85rem}
+  /* Same slot, tighter air: a small screen keeps the notice under the measured
+     band, it just does not spend a full gap on it (src/ui/slots.css). */
+  .toast{top:calc(var(--pad-t) + var(--slot-band) + var(--slot-gap-s));font-size:.78rem;padding:.5rem .85rem}
   .marlow{font-size:.9rem;padding:.65rem .85rem}
 }
 
@@ -455,7 +467,10 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
   :root[data-touch] .slot span{display:none}
   :root[data-touch] .buildbar .place{height:38px;width:52px;margin:0 0 0 .3rem}
   .marlow{font-size:.82rem;padding:.5rem .8rem;bottom:calc(var(--hud-b) + 10px)}
-  .toast{top:calc(var(--pad-t) + 46px)}
+  /* 390 px of height and a thumb on each flank: the notice sits directly under
+     the measured band with the small gap. src/ui/landscape.css composes this
+     frame last and moves it again; this is what it inherits. */
+  .toast{top:calc(var(--pad-t) + var(--slot-band) + var(--slot-gap-s))}
 }
 /* Landscape on a pointer device: still short, so the hotbar shrinks. */
 @media (max-height:520px) and (pointer:fine){

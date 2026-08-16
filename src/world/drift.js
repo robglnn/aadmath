@@ -38,10 +38,10 @@ import './field.css';
  *
  *   SURGES    The one thing that pushes back. A rift that is open and unsealed
  *             is unstable: every fifteen seconds or so it throws a ring of
- *             pressure out across the ground, and being caught by one costs you
- *             shards and your footing. It is telegraphed, it is survivable, and
- *             it is the reason the richest mote veins — the ones that grow
- *             right up against an open rift — are not free money.
+ *             pressure out across the ground. It is telegraphed, it is
+ *             survivable, and it is the reason the richest mote veins — the
+ *             ones that grow right up against an open rift — are not free
+ *             money.
  *
  *             It does not start until the cadet has sealed his first line, and
  *             no tear ever throws a ring at somebody standing on its own
@@ -52,6 +52,39 @@ import './field.css';
  *             **Seal the line and the surges stop.** For ever, at that rift.
  *             That is the whole design in one sentence: the mathematics is the
  *             only thing in the game that calms the world down.
+ *
+ *             ---- WHAT A COLD CRITIC PAID FOR CURIOSITY -------------------
+ *             That design was right and the implementation charged the wrong
+ *             account. A critic roamed for five and a half minutes and wrote:
+ *             *"rift surges quietly drained me 29 → 14 motes for the crime of
+ *              wandering."* Three separate things made that true:
+ *
+ *               1. THE COST WAS MONEY. Nine motes a hit, taken out of a wallet
+ *                  the game never explains fast enough, with no way to earn it
+ *                  back in the same second. A hazard that takes currency for a
+ *                  mistake you did not know you could make is a tax on
+ *                  exploring, and this game's whole problem is that nobody
+ *                  explores. **A surge now costs footing and nothing else.**
+ *               2. THE REACH WAS THE ISLAND. A ring was thrown at anybody
+ *                  inside seventy-five metres and travelled thirty-four, so
+ *                  walking *past* an open tear on the way somewhere else was
+ *                  enough. It is now thrown only at somebody actually loitering
+ *                  in the tear's own field — inside `SURGE_NEAR` — which is
+ *                  exactly where the charged veins are and nowhere else.
+ *                  Crossing the island is free, forever.
+ *               3. IT WAS NOT ACTUALLY TELEGRAPHED. The header claimed it was.
+ *                  The code spawned a two-metre ring and expanded it at 26 m/s;
+ *                  from thirty metres out that is one second of warning, on a
+ *                  one-metre line of light, behind you half the time. A tear
+ *                  about to surge now draws a **gathering ring at the exact
+ *                  radius the pressure will reach**, contracting for a second
+ *                  and a half before anything moves. You can see where it will
+ *                  land and how long you have.
+ *
+ *             And the skill is now worth something. A ring passing underneath
+ *             an airborne cadet is a **read**, and it pays — so the answer to
+ *             "there is pressure here" is jump, glide, keep harvesting, and get
+ *             better at it. That is the difference between a hazard and a toll.
  */
 
 const VEINS = 26;               // fixed sites on the island
@@ -77,11 +110,29 @@ const LANDING = [[-17, 5], [16, 11]];
 const SURGE_EVERY = 15.5;       // seconds between rings at an unsealed rift
 const SURGE_R = 34;             // how far a ring reaches
 const SURGE_SPEED = 26;         // metres a second
-const SURGE_COST = 9;           // shards knocked loose
 // Metres inside which a tear will not throw anything: its own doorstep. A cadet
 // this close is arriving, and a ring that shoves him back off the plate is the
 // game taking away the thing it just told him to go and get.
 const SURGE_DOOR = 15;
+/**
+ * …and the outer edge of a tear's field. Beyond this you are not loitering in
+ * an unstable place, you are walking across an island, and the island is not
+ * allowed to charge you for that. It is set to the ring's own reach so that
+ * every surge thrown is one the cadet is genuinely standing in the path of —
+ * the old value was 74.8 m, which threw rings at people forty metres past the
+ * furthest the ring could travel.
+ */
+const SURGE_NEAR = SURGE_R;
+/** Seconds of visible gathering before a ring is thrown. */
+const SURGE_WARN = 1.5;
+/**
+ * Metres a cadet has to be off HIS OWN GROUND, with his boots actually out of
+ * contact with it, for a passing ring to count as read rather than taken. One
+ * jump clears it; standing on a hill does not.
+ */
+const SURGE_CLEAR = 2.2;
+/** What a read pays. A hazard you can beat should feed the wallet, not drain it. */
+const SURGE_BOUNTY = 4;
 
 export function createDrift(opts = {}) {
   const {
@@ -306,17 +357,46 @@ export function createDrift(opts = {}) {
     color: 0xff8f6b, transparent: true, opacity: 0.42, side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
   });
+  // THE GATHERING RING. Wider than the pressure ring and drawn at the radius
+  // the pressure will actually reach, so what you read off the ground is not
+  // "something is happening" but "it will get exactly this far, in this long".
+  const warnGeo = new THREE.RingGeometry(0.94, 1, 96);
+  warnGeo.rotateX(-Math.PI / 2);
+  const warnMat = new THREE.MeshBasicMaterial({
+    color: 0xffc27a, transparent: true, opacity: 0.34, side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+  });
+
   const surges = [];
+  const warns = [];
   const timers = new Map();
 
-  function emit(rift) {
-    const m = new THREE.Mesh(ringGeo, ringMat.clone());
+  /** Has the cadet ever been told what a gathering ring is? Once, ever. */
+  let saidWarn = false;
+
+  /** A tear starts gathering. Nothing moves for `SURGE_WARN` seconds. */
+  function warn(rift) {
+    // The one sentence that turns a hazard into a skill: it says what is about
+    // to happen and what to do about it, before the first ring ever moves.
+    if (!saidWarn) { saidWarn = true; hud?.flash?.(t('field.surgeWarn'), 'bad'); }
+    const m = new THREE.Mesh(warnGeo, warnMat.clone());
     m.userData.noCamBlock = true;
     m.renderOrder = 3;
     const h = heightAt(rift.pos.x, rift.pos.z);
-    m.position.set(rift.pos.x, (h === null ? rift.pos.y - 4 : h) + 0.6, rift.pos.z);
+    const y = (h === null ? rift.pos.y - 4 : h) + 0.5;
+    m.position.set(rift.pos.x, y, rift.pos.z);
+    m.scale.setScalar(SURGE_R);
     group.add(m);
-    surges.push({ mesh: m, r: 2, hit: false, x: rift.pos.x, z: rift.pos.z });
+    warns.push({ mesh: m, t: SURGE_WARN, x: rift.pos.x, y, z: rift.pos.z });
+  }
+
+  function emit(x, y, z) {
+    const m = new THREE.Mesh(ringGeo, ringMat.clone());
+    m.userData.noCamBlock = true;
+    m.renderOrder = 3;
+    m.position.set(x, y + 0.1, z);
+    group.add(m);
+    surges.push({ mesh: m, r: 2, hit: false, read: false, x, z });
   }
 
   // ------------------------------------------------------------------ frame
@@ -332,7 +412,7 @@ export function createDrift(opts = {}) {
   let took = 0;
   let tookT = 0;
   let recharge = 4;
-  const stats = { motes: 0, surges: 0, lifts: 0, events: 0, spent: 0 };
+  const stats = { motes: 0, surges: 0, reads: 0, lifts: 0, events: 0, spent: 0 };
 
   function update(dt, time) {
     const p = player.pos;
@@ -508,10 +588,30 @@ export function createDrift(opts = {}) {
         if (t0 > SURGE_EVERY) {
           timers.set(r.id, 0);
           const d = Math.hypot(p.x - r.pos.x, p.z - r.pos.z);
-          if (d < SURGE_R * 2.2 && d > SURGE_DOOR) emit(r);
+          // Inside the tear's own field, and outside its doorstep. Crossing the
+          // island is free: a cadet on his way somewhere is never surged at.
+          if (d < SURGE_NEAR && d > SURGE_DOOR) warn(r);
         } else timers.set(r.id, t0);
       }
     }
+
+    // ---- the gathering: a second and a half of visible warning, then the ring
+    for (let i = warns.length - 1; i >= 0; i--) {
+      const w = warns[i];
+      w.t -= dt;
+      const k = Math.max(0, w.t / SURGE_WARN);
+      // Contracts from the reach it will have to a point at the tear, so the
+      // ground itself says *this far, this soon*.
+      w.mesh.scale.setScalar(1.5 + (SURGE_R - 1.5) * k);
+      w.mesh.material.opacity = 0.16 + (1 - k) * 0.5;
+      if (w.t <= 0) {
+        emit(w.x, w.y, w.z);
+        group.remove(w.mesh);
+        w.mesh.material.dispose();
+        warns.splice(i, 1);
+      }
+    }
+
     for (let i = surges.length - 1; i >= 0; i--) {
       const s = surges[i];
       s.r += SURGE_SPEED * dt;
@@ -519,18 +619,44 @@ export function createDrift(opts = {}) {
       s.mesh.material.opacity = 0.5 * (1 - s.r / SURGE_R) + 0.06;
       if (!s.hit && !busy) {
         const d = Math.hypot(p.x - s.x, p.z - s.z);
-        const high = p.y - s.mesh.position.y;
-        if (Math.abs(d - s.r) < 3.4 && high < 9) {
-          s.hit = true;
-          const k = Math.max(0.001, d);
-          player.vel.x += ((p.x - s.x) / k) * 15;
-          player.vel.z += ((p.z - s.z) / k) * 15;
-          player.vel.y = Math.max(player.vel.y, 7);
-          player.loco.grounded = false;
-          const lost = wallet?.take?.(SURGE_COST) || 0;
-          stats.surges++; stats.events++;
-          fx?.impact?.('bad');
-          hud?.flash?.(lost ? t('field.surgeHit', { n: lost }) : t('field.surge'), 'bad');
+        /* HOW FAR OFF THE GROUND YOU ARE — not how far above the ring's own
+           plane. The ring is a flat disc laid at the tear's ground height and
+           this island is a hillside: measured against the disc, a cadet
+           STANDING STILL twenty-nine metres uphill of a tear cleared every ring
+           by three metres and was paid four motes a time for it, which is a
+           mote fountain with no skill in it. Measured against the ground under
+           his own boots it is the thing it is meant to be — did you leave the
+           ground — and the boots have to actually be off it. */
+        const gh = heightAt(p.x, p.z);
+        const air = p.y - (gh === null ? s.mesh.position.y : gh);
+        const flying = !player.loco?.grounded;
+        if (Math.abs(d - s.r) < 3.4) {
+          if (flying && air >= SURGE_CLEAR) {
+            // THE READ. The ring went under you because you were in the air
+            // when it arrived, and that is a thing you did on purpose. It pays.
+            // A hazard a player can beat has to feed the wallet, or "avoidable
+            // with skill" means "costs nothing when you are perfect and costs
+            // money the rest of the time", which is a toll with extra steps.
+            if (!s.read) {
+              s.read = true;
+              s.hit = true;
+              const got = wallet?.earn?.(SURGE_BOUNTY, 'surge') ?? SURGE_BOUNTY;
+              stats.reads++; stats.events++;
+              hud?.flash?.(t('field.surgeRead', { n: got }), 'good');
+            }
+          } else {
+            s.hit = true;
+            const k = Math.max(0.001, d);
+            player.vel.x += ((p.x - s.x) / k) * 15;
+            player.vel.z += ((p.z - s.z) / k) * 15;
+            player.vel.y = Math.max(player.vel.y, 7);
+            player.loco.grounded = false;
+            // Footing, and nothing else. The wallet is not touched: see the
+            // header. Curiosity is not a billable event.
+            stats.surges++; stats.events++;
+            fx?.impact?.('bad');
+            hud?.flash?.(t('field.surge'), 'bad');
+          }
         }
       }
       if (s.r >= SURGE_R) { group.remove(s.mesh); s.mesh.material.dispose(); surges.splice(i, 1); }

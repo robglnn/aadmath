@@ -407,6 +407,18 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   //   AB_NODEBT=1           the gate forgets: every run asks for the same three
   //   AB_NOCAP=1            the sight-read is pinned to the band ordinal again
   //   AB_SLOWCLIMB=1        three clean solves per band step, everywhere
+  //
+  // The three dials the test-out tail was cut with, all off in one line:
+  //   CFG=gateDemandFloor=0,steadyFloor=0,gateMissLimit=1,gateRunCap=99
+  // reproduces the engine as it stood before that work, to the decimal, on
+  // every figure this file prints. Individually:
+  //   gateDemandFloor=0   the gate floor is the band ordinal again, so the one
+  //                       skill whose whole ladder sits above the level keeps a
+  //                       gate no other skill in the level can match
+  //   steadyFloor=0       a missed sight-read drops a knower back to the
+  //                       placement band and the taught walk back up
+  //   gateMissLimit=1,gateRunCap=99   a run ends on the second miss however
+  //                       close to the bar it already was
   if (process.env.AB_NODEBT) engine.cfg.gateDebtCap = 0;
   if (process.env.AB_NOCAP) {
     engine.sightReadBandFor = () => Math.max(engine.cfg.checkMinDifficulty, engine.cfg.sightReadBand);
@@ -462,6 +474,22 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     repSeen.set(s, {});
     stability.set(s, 1);
     strength.set(s, 1);
+  }
+  // A psychometric probe for ONE skill. The classifier table below can only
+  // read the first skill a frozen learner meets — a root — so a change to a
+  // gate deep in the lattice is invisible to it. This marks every other line
+  // held and never due, so the router has exactly one thing to serve and the
+  // same frozen-competence question can be asked of any node in the graph.
+  // Diagnostic only; no shipping figure passes through it.
+  if (opts.unlock) {
+    for (const s of SKILLS) {
+      if (s === opts.unlock) continue;
+      const st = engine.get(s);
+      engine.place(st);
+      st.mastered = true; st.everMastered = true; st.probe = null;
+      st.masteredAt = 0; st.masteredTime = vnow; st.provedTime = vnow;
+      st.dueTime = vnow + 1e13; st.dueAt = 1e9;
+    }
   }
   const knownSkills = new Set();
   if (opts.knows) {
@@ -656,6 +684,18 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // model here is exactly what the shipping schedule is prepared to call
     // durable retention.
     const durableBefore = engine.get(task.skill)?.durable || 0;
+    // Diagnostic only: what the engine believed about this learner *before* the
+    // answer landed. Read here rather than in the watch hook below because the
+    // observation changes both, and the question a tail probe asks is which
+    // road the learner was on when the item was served.
+    const before = opts.watch ? {
+      steady: engine.steadyAtGate(),
+      gateSeen: [...engine.state.values()].reduce((a, x) => a + (x.gateSeen || 0), 0),
+      gateClean: [...engine.state.values()].reduce((a, x) => a + (x.gateClean || 0), 0),
+      need: engine.get(task.skill).check?.need ?? 0,
+      done: engine.get(task.skill).check?.done ?? 0,
+    } : null;
+    const events = [];
     let tries = 0;
     for (let attempt = 0; attempt < 3 && !solved; attempt++) {
       const eff = clamp(k.get(task.skill) * (1 - novelty) + support - (task.skill === sticky ? 0.10 : 0), 0, 1);
@@ -691,6 +731,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
         learn(task.skill, answered ? GAIN.errorFeedback : GAIN.studyExample);
         assisted = true;
       }
+      if (opts.watch && res?.checkEvent) events.push(res.checkEvent);
       // The moment a claim is made, against the truth at that moment — not
       // against where the learner ends up after another two hundred items.
       if (res?.justMastered) {
@@ -734,6 +775,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
         check: engine.get(task.skill).check
           ? { done: engine.get(task.skill).check.done, need: engine.get(task.skill).check.need }
           : null,
+        before, events,
       });
     }
 
@@ -861,7 +903,7 @@ if (process.env.GATE_LAB) {
     }
     if (all) allCleared++;
   }
-  console.log(`knower  median ${med(mins).toFixed(1)}  p75 ${qq(mins, 0.75).toFixed(1)}  p90 ${qq(mins, 0.90).toFixed(1)}  items med ${med(its).toFixed(1)} p75 ${qq(its, 0.75)} p90 ${qq(its, 0.90)}  min3 ${(100 * its.filter((x) => x <= 3).length / its.length).toFixed(1)}%  proved-all ${(100 * allCleared / N).toFixed(1)}%`);
+  console.log(`knower  median ${med(mins).toFixed(1)}  p75 ${qq(mins, 0.75).toFixed(1)}  p90 ${qq(mins, 0.90).toFixed(1)}  p99 ${qq(mins, 0.99).toFixed(1)}  max ${Math.max(...mins).toFixed(1)}  items med ${med(its).toFixed(1)} p75 ${qq(its, 0.75)} p90 ${qq(its, 0.90)}  min3 ${(100 * its.filter((x) => x <= 3).length / its.length).toFixed(1)}%  proved-all ${(100 * allCleared / N).toFixed(1)}%`);
   console.log('  per skill med: ' + SKILLS.map((s) => `${s} ${med(bySkill.get(s)).toFixed(1)}`).join('  '));
   const rows = [];
   for (const c of [0.50, 0.60, 0.70, 0.75, 0.80, 0.90, 0.95]) {
@@ -910,8 +952,36 @@ if (process.env.GATE_LAB) {
           },
         });
       }
+      // By skill, for the two cohorts a gate has to separate. A gate floor that
+      // is a level-wide ordinal rather than a level-wide demand shows up here
+      // and nowhere else: one skill reading ten points below the others on the
+      // knower row is a harder gate, not a stricter one, and the same skill
+      // reading ten points below on the 0.70 row is what pays for it.
       console.log(`  k=${c.toFixed(2)}  gate items ${(ck / N).toFixed(1)}/learner  clean ${(100 * cl / ck).toFixed(1)}%   sight-read clean ${(100 * prc / Math.max(1, pr)).toFixed(1)}%`
-        + (c === 0.95 ? '\n      by skill: ' + [...bySk].map(([k2, b]) => `${k2} ${(100 * b.c / b.n).toFixed(0)}%`).join(' ') : ''));
+        + (c === 0.95 || c === 0.70 ? '\n      by skill: ' + [...bySk].map(([k2, b]) => `${k2} ${(100 * b.c / b.n).toFixed(0)}%`).join(' ') : ''));
+    }
+  }
+  if (process.env.LAB_NODE) {
+    // The classifier table, asked of one named node instead of of whatever root
+    // the router happens to serve first. Every other line is held and not due,
+    // so this is the same psychometric question about a gate deep in the graph.
+    console.log(`  the gate as a classifier, per skill (frozen learners, ${N} per cell, 40 items each)`);
+    console.log('    skill            0.50   0.60   0.70   0.75   0.80   0.90   0.95   <- cleared it, ever, inside 40 items');
+    for (const target of (process.env.LAB_NODE === '1' ? SKILLS : process.env.LAB_NODE.split(','))) {
+      const cells = [];
+      for (const c of [0.50, 0.60, 0.70, 0.75, 0.80, 0.90, 0.95]) {
+        let ever = 0, seen = 0;
+        for (let i = 0; i < N; i++) {
+          const r = runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+            knows: () => c, frozen: true, budget: 40, record: false, unlock: target,
+          });
+          if (!r.spent.get(target).items) continue;
+          seen++;
+          if (r.cleared.get(target)) ever++;
+        }
+        cells.push(`${(100 * ever / Math.max(1, seen)).toFixed(1)}%`.padStart(7));
+      }
+      console.log(`    ${target.padEnd(14)}${cells.join('')}`);
     }
   }
   if (process.env.LAB_MASTERY) {
@@ -1024,6 +1094,115 @@ if (process.env.TAIL_PROBE) {
   console.log('\nsample slow clears (kind/band/scaffold/solved):');
   for (const x of slowAll.slice(0, 8)) {
     console.log(`  ${x.mins.toFixed(1)} min, ${x.items} items: ` + x.log.map((e) => `${e.kind[0]}${e.band}${e.scaffold === 'none' ? '' : e.scaffold[0]}${e.solved ? '' : 'X'}`).join(' '));
+  }
+  process.exit(0);
+}
+
+// ---------------------------------------------------------------------------
+// TAIL WHY — `TAIL_WHY=1 node tools/simulate.mjs` answers one question and
+// exits: for a learner who already knows the skill, where do the minutes above
+// the median actually go, and which mechanism spent them. Diagnostic only.
+//
+// It reads the engine's own state before each item rather than inferring it
+// from the trace, so "the run ended" and "the learner was re-taught ground they
+// had already proved at the gate band" are counted, not guessed at.
+if (process.env.TAIL_WHY) {
+  const N = Number(process.env.TAIL_N || 300);
+  const q = (xs, p) => { const v = [...xs].sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.floor(p * v.length))]; };
+  const med = (xs) => q(xs, 0.5);
+
+  // --- 1. what the engine believes about each cohort at the gate ------------
+  console.log('the gate record the engine actually reads (steadyAtGate), by hidden competence');
+  console.log('  k      gate items/learner  miss per clean solve   items served while "steady"');
+  for (const c of [0.95, 0.80, 0.75, 0.70, 0.60, 0.50]) {
+    let seen = 0, clean = 0, steadyItems = 0, allItems = 0;
+    for (let i = 0; i < Math.min(N, 200); i++) {
+      let last = null;
+      runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+        knows: () => c, frozen: c !== 0.95, budget: c === 0.95 ? 220 : 40, record: false,
+        watch: (e) => { last = e.before; allItems++; if (e.before.steady) steadyItems++; },
+      });
+      if (last) { seen += last.gateSeen; clean += last.gateClean; }
+    }
+    const ratio = (seen - clean) / Math.max(1, clean);
+    console.log(`  ${c.toFixed(2)}   ${(seen / Math.min(N, 200)).toFixed(1).padStart(8)}          ${ratio.toFixed(2).padStart(10)}            ${(100 * steadyItems / allItems).toFixed(1).padStart(6)}%`);
+  }
+  console.log('  (the engine calls a learner steady when that ratio is at or under gateFormTol)');
+
+  // --- 2. where a knower's minutes go, item by item -------------------------
+  const clears = [];
+  for (let i = 0; i < N; i++) {
+    const log = [];
+    const r = runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+      knows: () => 0.95, budget: 220, record: false, watch: (e) => log.push(e),
+    });
+    for (const s of SKILLS) {
+      const c = r.cleared.get(s);
+      if (!c) continue;
+      clears.push({ skill: s, mins: c.seconds / 60, items: c.items, log: log.filter((e) => e.skill === s).slice(0, c.items) });
+    }
+  }
+  const cut = q(clears.map((x) => x.mins), 0.75);
+  const mins = clears.map((x) => x.mins);
+  console.log(`\n${clears.length} clears by learners at hidden competence 0.95`);
+  console.log(`  minutes  median ${med(mins).toFixed(1)}  p75 ${q(mins, 0.75).toFixed(1)}  p90 ${q(mins, 0.9).toFixed(1)}  mean ${(mins.reduce((a, b) => a + b, 0) / mins.length).toFixed(1)}`);
+  const hist = new Map();
+  for (const x of clears) hist.set(Math.min(15, x.items), (hist.get(Math.min(15, x.items)) || 0) + 1);
+  console.log('  items to clear: ' + [...hist].sort((a, b) => a[0] - b[0]).map(([k2, v]) => `${k2 === 15 ? '15+' : k2}:${(100 * v / clears.length).toFixed(1)}%`).join('  '));
+
+  // Every item of every clear, bucketed by what it was and what it cost.
+  const bucket = new Map();
+  const add = (name, secs) => { const b = bucket.get(name) || { n: 0, s: 0 }; b.n++; b.s += secs; bucket.set(name, b); };
+  let ended = 0, charged = 0, opened = 0;
+  for (const x of clears) {
+    let provedGate = false;   // has this skill already produced a clean gate-band solve?
+    for (const e of x.log) {
+      const gate = e.kind === 'check' || e.kind === 'probe';
+      const cleanItem = e.solved && e.tries === 1;
+      if (gate) add(cleanItem ? `${e.kind} clean` : `${e.kind} missed`, e.cost);
+      else add(`${e.kind} ${provedGate ? 'AFTER a clean gate solve' : 'before any gate evidence'}`, e.cost);
+      if (gate && cleanItem && e.band >= 4) provedGate = true;
+      for (const ev of e.events) { if (ev === 'failed') ended++; if (ev === 'charged') charged++; if (ev === 'opened') opened++; }
+    }
+  }
+  const totalSecs = [...bucket.values()].reduce((a, b) => a + b.s, 0);
+  console.log('\n  every item of every clear, by what it was:');
+  for (const [k2, v] of [...bucket].sort((a, b) => b[1].s - a[1].s)) {
+    console.log(`    ${k2.padEnd(42)} ${(v.n / clears.length).toFixed(2).padStart(5)} items/clear  ${(v.s / 60 / clears.length).toFixed(2).padStart(5)} min/clear  ${(100 * v.s / totalSecs).toFixed(1).padStart(5)}% of all test-out minutes`);
+  }
+  console.log(`\n  proving runs opened ${(opened / clears.length).toFixed(2)} per clear;  runs ended by a miss ${(ended / clears.length).toFixed(2)};  misses absorbed and charged ${(charged / clears.length).toFixed(2)}`);
+
+  // The same split, but only over the clears above the p75 — the tail itself.
+  const slow = clears.filter((x) => x.mins > cut);
+  const sb = new Map();
+  let sEnded = 0, sCharged = 0;
+  for (const x of slow) {
+    let provedGate = false;
+    for (const e of x.log) {
+      const gate = e.kind === 'check' || e.kind === 'probe';
+      const cleanItem = e.solved && e.tries === 1;
+      const name = gate ? `${e.kind} ${cleanItem ? 'clean' : 'missed'}`
+        : `${e.kind} ${provedGate ? 'AFTER a clean gate solve' : 'before any gate evidence'}`;
+      const b = sb.get(name) || { n: 0, s: 0 }; b.n++; b.s += e.cost; sb.set(name, b);
+      if (gate && cleanItem && e.band >= 4) provedGate = true;
+      for (const ev of e.events) { if (ev === 'failed') sEnded++; if (ev === 'charged') sCharged++; }
+    }
+  }
+  const sSecs = [...sb.values()].reduce((a, b) => a + b.s, 0);
+  console.log(`\n  the tail alone — ${slow.length} clears above ${cut.toFixed(1)} min, ${(sSecs / 60 / slow.length).toFixed(1)} min each:`);
+  for (const [k2, v] of [...sb].sort((a, b) => b[1].s - a[1].s)) {
+    console.log(`    ${k2.padEnd(42)} ${(v.n / slow.length).toFixed(2).padStart(5)} items/clear  ${(v.s / 60 / slow.length).toFixed(2).padStart(5)} min/clear  ${(100 * v.s / sSecs).toFixed(1).padStart(5)}%`);
+  }
+  console.log(`    runs ended by a miss ${(sEnded / slow.length).toFixed(2)} per tail clear;  misses charged ${(sCharged / slow.length).toFixed(2)}`);
+
+  // How much of the tail is one skill.
+  console.log('\n  by skill: median / p75 / p90 minutes, and share of the minutes above the p75');
+  const slowSecs = new Map();
+  for (const x of slow) slowSecs.set(x.skill, (slowSecs.get(x.skill) || 0) + x.mins);
+  const slowTotal = [...slowSecs.values()].reduce((a, b) => a + b, 0);
+  for (const s of SKILLS) {
+    const xs = clears.filter((x) => x.skill === s).map((x) => x.mins);
+    console.log(`    ${s.padEnd(14)} ${med(xs).toFixed(1).padStart(5)} ${q(xs, 0.75).toFixed(1).padStart(6)} ${q(xs, 0.9).toFixed(1).padStart(6)}    ${(100 * (slowSecs.get(s) || 0) / slowTotal).toFixed(1).padStart(5)}%`);
   }
   process.exit(0);
 }
@@ -1185,6 +1364,26 @@ console.log('\ntesting out — learners who already know this, on the real sched
   console.log(`    items   to clear one skill    median ${median(its).toFixed(1)}   p75 ${quantile(its, 0.75).toFixed(0)}   p90 ${quantile(its, 0.90).toFixed(0)}`);
   console.log(`    cleared in the minimum 3 items ${(100 * its.filter((x) => x <= 3).length / its.length).toFixed(1)}%   in <= 4 min ${(100 * mins.filter((x) => x <= 4).length / mins.length).toFixed(1)}%`);
   console.log(`    proved the whole level         ${(100 * clearedAll / knowers.length).toFixed(1)}% of them, in ${median(wholeSession).toFixed(0)} min median (${(median(wholeSession) / 25).toFixed(1)} sessions of 25 min)`);
+  // The other half of the client's sentence — "nobody spends time on what they
+  // already know" — asked of the learner it is about, over the session shape the
+  // product is built around. Every item of the first 25 minutes is attributed by
+  // the state of the skill it landed on at the moment it was served.
+  {
+    const CAP = 25 * 60;
+    let known = 0, fresh = 0, kn = 0, fn = 0;
+    for (let i = 0; i < COHORT_N; i++) {
+      let t = 0;
+      runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+        knows: () => 0.95, budget: 220, record: false,
+        watch: (e) => {
+          if (t >= CAP) return;
+          t += e.cost;
+          if (e.mastered && e.kind !== 'check' && e.kind !== 'probe') { known += e.cost; kn++; } else { fresh += e.cost; fn++; }
+        },
+      });
+    }
+    console.log(`    of the first 25 minutes, the share spent on a line already proved  ${(100 * known / (known + fresh)).toFixed(1)}%   (${(kn / COHORT_N).toFixed(1)} items of ${((kn + fn) / COHORT_N).toFixed(1)})`);
+  }
   console.log('    per skill   median min  median items');
   for (const s of SKILLS) {
     const b = bySkill.get(s);
@@ -1370,6 +1569,18 @@ console.log('\nfalse positives — how often a mastery claim is wrong');
   console.log(`  every mastery claim this run made, judged against the hidden truth at the moment it was made`);
   console.log(`    all claims                 ${String(all.length).padStart(7)}   wrong (competence < ${HOLLOW}) ${rate(bad(all), all.length)}%`);
   console.log(`    claims off the sight-read  ${String(viaSight.length).padStart(7)}   wrong (competence < ${HOLLOW}) ${rate(bad(viaSight), viaSight.length)}%`);
+  // The same rate per skill. A gate that is stricter on one node than on the
+  // rest of the level shows up here and in no other figure this file prints:
+  // the pooled rate hides it, because one skill in ten moving five points moves
+  // the pool by half a point.
+  {
+    const bySk = new Map(SKILLS.map((s2) => [s2, { n: 0, bad: 0 }]));
+    for (const c of all) { const b = bySk.get(c.skill); if (b) { b.n++; if (c.k < HOLLOW) b.bad++; } }
+    console.log('    by skill: ' + SKILLS.map((s2) => {
+      const b = bySk.get(s2);
+      return `${s2} ${b.n ? (100 * b.bad / b.n).toFixed(1) : ' n/a'}%`;
+    }).join('  '));
+  }
   const stillWrong = results.reduce((a, r) => a + r.hollowAtEnd.length, 0);
   const claimsMain = results.reduce((a, r) => a + r.claims.length, 0);
   console.log(`    of the ordinary population, claims still wrong at the end of the session ${rate(stillWrong, claimsMain)}%`);

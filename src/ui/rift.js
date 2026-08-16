@@ -362,25 +362,50 @@ function veinPaths(seed) {
 // ---------------------------------------------------------------------------
 // Figures. Some items come with a diagram spec; it is part of the question.
 // ---------------------------------------------------------------------------
-function figureHtml(fig) {
+export function figureHtml(fig) {
   if (!fig) return '';
   if (fig.kind === 'rect') return rectSvg(fig);
   if (fig.kind === 'line' || fig.kind === 'lines') return gridSvg(fig);
   return '';
 }
 
+/**
+ * A rectangle whose two sides are expressions.
+ *
+ * THE LABEL BOXES LIVE INSIDE THE VIEWBOX. An SVG clips at its viewBox, so a
+ * label box that hangs over the edge is not "slightly cropped" — it is a
+ * different label. This drawing used to put the height label in a 90-unit box
+ * starting at unit 362 of a 396-unit viewBox: 56 of those 90 units were outside
+ * the picture. `m + 15` rendered, centred, and then had 72% of its ink cut off,
+ * so the side of a hatch that the prose called `m + 15` was drawn as `m`. A
+ * learner who trusted the drawing summed 2(3m + 6) + 2(m) and was marked wrong
+ * for reading the picture we gave them. That is the worst failure this product
+ * has, because nothing about it looks broken.
+ *
+ * So the plate is drawn narrower than the viewBox and every label box is
+ * budgeted out of the remainder, with slack to spare for the widest side the
+ * bank can print. `tools/check-figures.mjs --render` measures the real ink of
+ * every label the bank can produce against this clip edge, so the budget is a
+ * checked claim rather than a comment.
+ */
+const RECT_LABEL_W = 96;   // the height label's own box, inside the viewBox
+const RECT_GUTTER = 8;     // between the plate and that box
+
 function rectSvg(fig) {
-  const w = 300, h = 150;
+  const VW = 396, VH = 212;                                   // the viewBox, unchanged
+  const x = 24, y = 34, h = 150;                              // the plate
+  const w = VW - x - RECT_GUTTER - RECT_LABEL_W - 4;          // 264
+  const lx = x + w + RECT_GUTTER;                             // the label box, fully inside VW
   return `<div class="rf-fig">
-    <svg viewBox="0 0 ${w + 96} ${h + 62}" role="img">
-      <rect x="56" y="34" width="${w}" height="${h}" fill="rgba(95,230,255,.07)" stroke="#5fe6ff" stroke-width="1.4"/>
-      <path d="M56 22 h${w}" stroke="rgba(95,230,255,.5)" stroke-width="1" stroke-dasharray="3 3"/>
-      <path d="M44 34 v${h}" stroke="rgba(95,230,255,.5)" stroke-width="1" stroke-dasharray="3 3"/>
-      <foreignObject x="56" y="0" width="${w}" height="22">
-        <div class="figlabel" xmlns="http://www.w3.org/1999/xhtml">${texFirst([fig.wLabel]) || ''}</div>
+    <svg viewBox="0 0 ${VW} ${VH}" role="img">
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="rgba(95,230,255,.07)" stroke="#5fe6ff" stroke-width="1.4"/>
+      <path d="M${x} ${y - 12} h${w}" stroke="rgba(95,230,255,.5)" stroke-width="1" stroke-dasharray="3 3"/>
+      <path d="M${x + w + 4} ${y} v${h}" stroke="rgba(95,230,255,.5)" stroke-width="1" stroke-dasharray="3 3"/>
+      <foreignObject x="${x}" y="0" width="${w}" height="22">
+        <div class="figlabel" data-fig="w" xmlns="http://www.w3.org/1999/xhtml">${texFirst([fig.wLabel]) || ''}</div>
       </foreignObject>
-      <foreignObject x="${56 + w + 6}" y="${34 + h / 2 - 14}" width="90" height="28">
-        <div class="figlabel" xmlns="http://www.w3.org/1999/xhtml">${texFirst([fig.hLabel]) || ''}</div>
+      <foreignObject x="${lx}" y="${y + h / 2 - 14}" width="${RECT_LABEL_W}" height="28">
+        <div class="figlabel" data-fig="h" xmlns="http://www.w3.org/1999/xhtml">${texFirst([fig.hLabel]) || ''}</div>
       </foreignObject>
     </svg></div>`;
 }
@@ -1320,7 +1345,11 @@ export class RiftPanel {
         (row.why ? `<div class="rf-echo-why">${texProse(row.why)}</div>` : ''));
     }
 
-    if (tier === 1) add('rf-echo-nudge', texProse(t('rift.echo.nudge.' + (this.mode || 'keypad'))));
+    // The first whisper is an instruction, so it obeys the same rule the footer
+    // does: it must describe THIS task. It used to tell a cadet rewriting
+    // `2(6n + 9) + 2(7n + 2)` that "the value you want is the one that makes it
+    // true" — there is no value, and nothing on that card is true or false.
+    if (tier === 1) add('rf-echo-nudge', texProse(t('rift.echo.nudge.' + (this._helpKey() || 'keypad'))));
     else {
       const live = !ex || !ex.steps?.length;
       let closer;
@@ -1420,8 +1449,28 @@ export class RiftPanel {
 
     this._modality = built;
     this.mode = built.name;
-    this._say(t('rift.help.' + this.mode));
+    // The footer says what to do, so it has to know WHAT is being asked for.
+    // One keypad serves two different tasks — charge a value, or build an
+    // expression — and it used to tell every cadet to "type the value that
+    // makes the statement true" even when the statement was `2(3m + 6) + 2(m + 15)`
+    // and the thing wanted was an expression. An instruction that describes a
+    // different task than the one on screen is worse than no instruction.
+    this._say(t('rift.help.' + this._helpKey()));
     requestAnimationFrame(() => this._fit());
+  }
+
+  /**
+   * Which instruction this card's footer should carry.
+   *
+   * The modality alone does not decide it. The keypad takes a value in a solve
+   * and an expression in a rewrite, and those are two different instructions;
+   * the sorting bays and the choice rig ask for a placement and a selection.
+   * Anything a locale has not written a task-specific line for falls back to
+   * the modality's own, so adding a modality cannot leave a card silent.
+   */
+  _helpKey() {
+    if (this.mode === 'keypad' && this.item?.type === 'expression') return 'keypadExpression';
+    return this.mode;
   }
 
   /**

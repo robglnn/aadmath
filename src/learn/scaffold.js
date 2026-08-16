@@ -104,6 +104,52 @@ export function analogueFor(item, opts = {}) {
       return cand;
     }
   }
+
+  // LAST PASS, and it only ever runs where the three above found nothing.
+  //
+  // The digit rule above was written for Level 1, where every answer is one
+  // number: if the live answer is 7, a 7 anywhere on the example is a numeral
+  // a learner can copy straight across. Level 2 answers are COMPOSITE — a rule
+  // `y = 2x + 1`, a rate `1/2`, a point `(4, 3)` — and the same rule then
+  // forbids every 1 and every 2 anywhere on any candidate. Measured over the
+  // band-1 line forms, that rejected every draw: `write-linear` found no
+  // analogue for a third of its items, and an item with no analogue falls back
+  // on the LEARNER'S OWN TRACE, whose second worked line prints the slope of
+  // the live answer in full. The strict rule was producing the exact leak it
+  // exists to prevent.
+  //
+  // So for a composite answer only, and only after the strict search has
+  // failed, the test becomes the one that matches what a learner could
+  // actually copy: no component of the live answer may be a component of the
+  // example's answer, and the live answer must not appear on the example
+  // anywhere as written. A stray `1` inside a coordinate is not an answer.
+  const parts = digitsOf(item.answer);
+  if (parts.size > 1) {
+    for (const pass of passes) {
+      for (let i = 0; i < tries; i++) {
+        let cand;
+        try {
+          cand = safeGenerate(item.skill, pass.band, (base + i * 6131 + (pass.sameForm ? 0 : 977) + pass.band * 31) >>> 0,
+            { locale, record: false, avoidScenes: avoid, ...(pass.sameForm ? { form: item.form } : {}) });
+        } catch { continue; }
+        if (!cand) continue;
+        if (pass.sameForm && cand.form !== item.form) continue;
+        if (skeleton) { if (norm(cand.stem) === norm(item.stem)) continue; }
+        else if (norm(cand.latex) === liveTex) continue;
+        if (norm(cand.answer) === liveAns) continue;
+        // Not one numeral of the live answer may also be a numeral of the
+        // example's answer: the two landings have to be readably different.
+        let shares = false;
+        for (const nmb of digitsOf(cand.answer)) if (parts.has(nmb)) { shares = true; break; }
+        if (shares) continue;
+        // …and the live answer must not be legible, as written, anywhere on it.
+        const surfaces = [cand.latex, cand.answer, ...(cand.steps || []).map((s) => s.latex)].join(' ');
+        if (norm(surfaces).includes(liveAns)) continue;
+        noteSituation(cand.scene);
+        return cand;
+      }
+    }
+  }
   return null;
 }
 

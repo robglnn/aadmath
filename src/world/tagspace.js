@@ -88,6 +88,12 @@ const CHROME = [
   '.axiom', '.axiom-clear',         // the build charge and its clear (src/build)
   '.mnu-pill',                      // the way out (src/ui/menu.js)
   '.ses-band',                      // the run's own progress (src/session)
+  /* Two more transient plates that were on the glass and not on this list.
+     The grant card is the biggest thing this HUD ever draws and it lands in
+     the middle of the frame; a world label walking across the centre had never
+     heard of it. (hud/slotting pass — additive selectors only.) */
+  '.kit-toast',                     // what mastery just bought (src/kit)
+  '.led-row',                       // one movement of the wallet (src/kit)
 ];
 
 /** Vertical steps a label is allowed to walk away from its anchor, in px. */

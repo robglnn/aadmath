@@ -285,7 +285,16 @@
   content: ''; position: absolute; inset: -3.2rem -4rem; z-index: -1;
   background: radial-gradient(60% 62% at 50% 50%, rgba(2, 6, 14, .62), rgba(2, 6, 14, 0) 72%);
 }
+/* `width: max-content` and a top margin on the rule below: the seals count is
+   pinned 1.15rem ABOVE that rule, which put it inside this line's band with
+   only horizontal luck keeping the two apart — and this line was a full-width
+   block with centred text, so nothing could see how close they were.
+   tools/critic/transient.mjs measured 147x7px of it at 1600x900 in English;
+   in Polish "Rozdział 12" is wider and the letters themselves would meet.
+   (hud/slotting pass: the box now hugs its own ink, and the row above the rule
+   is a row.) */
 .meta-turn .tn-kick {
+  width: max-content; margin-inline: auto;
   font-size: .68rem; letter-spacing: .46em; text-transform: uppercase;
   color: var(--rank-ink); font-weight: 700; text-indent: .46em;
   text-shadow: 0 0 22px color-mix(in srgb, var(--rank-glow) 65%, transparent),
@@ -293,7 +302,7 @@
 }
 .meta-turn.show .tn-kick { animation: metaTurnKick .8s cubic-bezier(.2, .8, .2, 1) both; }
 .meta-turn .tn-rule {
-  position: relative; height: 1px; margin: .74rem auto .82rem;
+  position: relative; height: 1px; margin: 1.5rem auto .82rem;
   width: min(52vw, 460px);
 }
 .meta-turn .tn-rule i {

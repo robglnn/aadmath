@@ -895,8 +895,43 @@ export function createKit(opts = {}) {
    */
   const stations = [];
 
-  /** Charters earned by the whole learning record, minus the ones spent. */
-  function charters() { return Math.max(0, chartersAt(Math.max(0, depth)) - spent); }
+  /**
+   * CHARTERS THAT DEPTH DID NOT PAY FOR.
+   *
+   * A charter used to come from one place only: five further points of depth,
+   * which starts at depth 46 and is therefore something a cadet meets somewhere
+   * in his second month. Everything the waystation was built to be — a real
+   * decision between four beacons and one network node, a reason a wallet is
+   * not a score — was a month away from the player who most needed a reason to
+   * come back on the fifth day.
+   *
+   * So the wardens pay one too, every third one bound (src/world/warden.js).
+   * They cannot be farmed: one warden wakes per returning day, and three is the
+   * most that are ever out. Three days of coming back is one charter, which is
+   * the same rate the depth ladder settles at — the fifth day just reaches it
+   * from the other end.
+   *
+   * Stored rather than derived, because unlike depth it is not a function of
+   * the learning record and cannot be re-derived from it.
+   */
+  const CHARTER_KEY = 'ascent.charters';
+  let granted = 0;
+  try { granted = Math.max(0, JSON.parse(localStorage.getItem(CHARTER_KEY) || '0') | 0); }
+  catch { granted = 0; }
+
+  /** Charters earned by the whole record — depth and binds — minus those spent. */
+  function charters() {
+    return Math.max(0, chartersAt(Math.max(0, depth)) + granted - spent);
+  }
+
+  /** One more charter, from something that is not depth. Returns the new total. */
+  function grantCharter(n = 1) {
+    granted += Math.max(0, n | 0);
+    try { localStorage.setItem(CHARTER_KEY, JSON.stringify(granted)); } catch { /* private mode */ }
+    sync();
+    hud?.flash?.(t('kit.charterWon', { n: charters(), cost: stationPrice() }), 'good');
+    return charters();
+  }
 
   /**
    * How much deeper the next charter is. Counted off charters *earned*, never
@@ -1223,17 +1258,36 @@ export function createKit(opts = {}) {
     /** Charters earned and not yet spent — the endgame's only scarce thing. */
     charters,
     /**
+     * Award one that depth did not pay for. The wardens call this every third
+     * bind (src/world/warden.js), which is what puts a waystation inside reach
+     * of a cadet on his second week instead of his second month.
+     */
+    grantCharter,
+    /**
      * What the next grant is and what it promises, for the beat that states
      * what this run is *for*. The charter used to print a rep count; a
      * capability you want is not a quota, and this is where it comes from.
      */
+    /* `gist` is the short form of `what` — six to ten words, no full stop —
+       for the surfaces that have to make you WANT this thing before you own
+       it. The objective card used to say "Hold it and Kite trim is yours",
+       naming a reward the game only explains on the card you get after you
+       win it. i18n, additive: `kit.<id>.gist` is in all three bundles. */
     nextGrant() {
       const g = nextGrant();
-      if (g) return { id: g.id, name: t(K(g.id, 'name')), what: t(K(g.id, 'what')) };
+      if (g) {
+        return {
+          id: g.id, name: t(K(g.id, 'name')),
+          what: t(K(g.id, 'what')), gist: t(K(g.id, 'gist')),
+        };
+      }
       // Past the last rung there is still something to want, and the orders
       // card is entitled to say what it is. This is the line that used to read
       // "everything the kit has is already yours".
-      return { id: 'charter', name: t('kit.charter.name'), what: t('kit.charter.what') };
+      return {
+        id: 'charter', name: t('kit.charter.name'),
+        what: t('kit.charter.what'), gist: t('kit.charter.gist'),
+      };
     },
     grants: GRANTS.map((g) => ({ id: g.id, lines: g.lines ?? null, depth: g.depth ?? null })),
     reset() {
@@ -1250,6 +1304,7 @@ export function createKit(opts = {}) {
       depth = -1;
       temper = 0;
       spent = 0;
+      granted = 0;
       sounding = { rung: 0, best: 0, runs: 0 };
       sday.day = 0; sday.best = 0; sday.said = false;
       beacons.length = 0;
@@ -1264,6 +1319,7 @@ export function createKit(opts = {}) {
         localStorage.removeItem(CHARGE_KEY);
         localStorage.removeItem(BEACON_KEY);
         localStorage.removeItem(STATION_KEY);
+        localStorage.removeItem(CHARTER_KEY);
         // The descent's day record. A fresh cadet has not been anywhere today.
         localStorage.removeItem(SOUND_KEY);
         // The old attempt-counted ledger. Nothing reads it any more; it is

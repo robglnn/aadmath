@@ -12,6 +12,35 @@ const STICK_DZ = 0.17;
 const TRIGGER_DZ = 0.35;
 
 /**
+ * How fast the arrow keys swing the view. Radians per second.
+ *
+ * Deliberately close to the pad's stick rate (3.1) rather than to a mouse. A
+ * key has no magnitude, so this single number is the whole feel of it: slower
+ * and a player cannot turn round inside a rift's dwell time, faster and the
+ * horizon slews past too quickly to read the marker they are turning to find.
+ */
+const KEY_TURN = 2.6;
+
+/**
+ * How far a mouse must travel before a press becomes a look and not a click.
+ *
+ * A left click in the world places a build piece. Without a deadzone every
+ * placement would also nudge the camera by the two or three pixels a hand moves
+ * while a finger goes down, which reads as the world twitching at you.
+ */
+const DRAG_DZ = 3;
+
+/**
+ * How long after losing the pointer a refusal is treated as ordinary.
+ *
+ * Chrome will not re-lock the pointer for about a second after Escape released
+ * it. That refusal is the browser protecting the player's way out of the game,
+ * not a policy that stops them looking around — announcing it as "your school
+ * has blocked the mouse" would be a lie told to every player who ever pauses.
+ */
+const RELOCK_COOLDOWN = 2200;
+
+/**
  * Controls that eat a click. Anything a hand can aim at and expect to respond.
  */
 const UI_TAGS = 'button,a[href],input,select,textarea,summary,label,[role="button"],'
@@ -83,6 +112,31 @@ export class Input {
     this.interact = false;         // one-frame edge, cleared in endFrame()
     this.slot = 0;
     this.locked = false;
+
+    // ---- looking around without the pointer lock -------------------------
+    //
+    // THE VIEW IS NEVER THE BROWSER'S TO WITHHOLD.
+    //
+    // `requestPointerLock` is a request, and a browser is allowed to say no. It
+    // says no in an `<iframe>` that was embedded without `allow="pointer-lock"`
+    // — which is how every LMS on earth embeds a game — it says no under a
+    // managed-device policy, and it says no for a second after a player presses
+    // Escape. Until now the answer to "no" was that `mousemove` returned early
+    // and NOTHING turned the camera: not the mouse, not a drag, not a key. A
+    // cold critic sat for nineteen minutes reading "56 m TO YOUR LEFT" off the
+    // objective card with no way on the machine to face left.
+    //
+    // So looking around no longer depends on the lock at all. The lock is an
+    // upgrade — it buys unlimited travel and a hidden cursor — and the arrow
+    // keys and a click-drag are always live underneath it.
+    this.lockDenied = false;      // the browser refused, and it was not the Escape cooldown
+    this.onLookFallback = null;   // called once, when that is first known
+    this._told = false;
+    this._drag = null;
+    this._dragged = false;        // the last press ended as a look, not a click
+    this._askedAt = 0;
+    this._unlockedAt = 0;
+
     this._uiOpen = false;
     this._grace = 0;              // seconds the world stays deaf after a panel
     this.pointerOnUI = false;     // was the last press aimed at the interface?
@@ -157,6 +211,47 @@ export class Input {
   /** Deafen the world for a moment — used when the interface eats a gesture. */
   eatPointer(s = UI_GRACE) { this._grace = Math.max(this._grace, s); }
 
+  // ---- how the player can look, right now -----------------------------
+  /**
+   * What actually turns the camera on this machine at this moment.
+   *
+   *   `pointer`  the lock is held: the mouse looks, with no edge to the desk
+   *   `blocked`  the browser refused the lock: arrow keys and drag, and the
+   *              player has been told so in words
+   *   `free`     no lock yet, and no refusal yet — clicking may still get one,
+   *              and meanwhile the arrow keys work
+   *
+   * The controls card prints the bindings for whichever of these is true, which
+   * is the whole reason it exists as a value rather than as two booleans read
+   * in three places. (src/player/controls.js)
+   */
+  get lookMode() {
+    if (this.locked) return 'pointer';
+    return this.lockDenied ? 'blocked' : 'free';
+  }
+
+  /**
+   * The browser will not lock the pointer. Say so, once, and never again.
+   *
+   * Called from four places because a refusal arrives in four shapes: a
+   * rejected promise, a `pointerlockerror` event, a method that is not there at
+   * all, and — the quiet one — a request that neither resolves nor errors and
+   * simply leaves `pointerLockElement` null forever.
+   */
+  _denyLock(why) {
+    clearTimeout(this._lockWatch);
+    if (this.locked) return;
+    // The Escape cooldown is not a denial. See RELOCK_COOLDOWN.
+    if (this._unlockedAt && performance.now() - this._unlockedAt < RELOCK_COOLDOWN) return;
+    this.lockDenied = true;
+    this.lockDeniedWhy = why;
+    if (this._told) return;
+    this._told = true;
+    // The card is not this module's business, so it is handed the fact and
+    // decides what to say. (src/main.js wires it to src/player/controls.js)
+    try { this.onLookFallback?.(why); } catch { /* the view still works */ }
+  }
+
   // ---- settings -------------------------------------------------------
   /**
    * Aim speed and inverted aim, live and remembered.
@@ -222,7 +317,9 @@ export class Input {
       // keypad is an `<input>`, and typing an answer that contains an "r" must
       // not pick the cadet up and put him down somewhere else.
       const tag = e.target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+      // SELECT joins the list now that the arrow keys steer the camera: an
+      // arrow inside a dropdown is choosing an option, not turning the cadet.
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
       this.keys.add(e.code);
       this.source = 'kbm';
       switch (e.code) {
@@ -248,6 +345,10 @@ export class Input {
         // the player so that a controller and a thumb reach it the same way.
         case 'KeyR': this._press('recover', 0.30); break;
       }
+      // These four scroll a page by default, and a page that scrolls under a
+      // full-bleed canvas moves the interface off the top of the window.
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'ArrowUp'
+        || e.code === 'ArrowDown' || e.code === 'PageUp' || e.code === 'PageDown') e.preventDefault();
       const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
       if (n >= 0) this.slot = n;
       this.anyKey = true;
@@ -260,19 +361,72 @@ export class Input {
       if (e.code === 'KeyG') this._release('glide');
       if (e.code === 'KeyR') this._release('recover');
     });
-    addEventListener('blur', () => { this.keys.clear(); for (const a of ACTIONS) this._down[a] = false; });
+    addEventListener('blur', () => {
+      this.keys.clear();
+      for (const a of ACTIONS) this._down[a] = false;
+      // A drag that was in progress when the window lost focus never gets its
+      // `pointerup`, and a live drag would keep swinging the view on the next
+      // stray move. (Alt-tab out of a right-drag is exactly this.)
+      this._drag = null;
+    });
 
-    this.canvas.addEventListener('click', () => {
+    // THE LOCK IS ASKED FOR ON A *WORLD* CLICK, NOT ON THE CANVAS ELEMENT.
+    //
+    // This used to be `canvas.addEventListener('click', …)`, and it inherited
+    // the exact trap this file's `uiHit` comment was written about: `#ui` is a
+    // stack of full-bleed layers, several of which are transparent divs with
+    // `pointer-events: auto` sitting over the entire frame. The canvas is their
+    // sibling, not their ancestor, so when one of them is up the click never
+    // reaches the canvas and the request was simply never made — no lock, no
+    // error, no way to look, and nothing anywhere that could notice. Captured
+    // in three locales at two frame sizes, five of the six never asked at all.
+    //
+    // `worldPointer` already knows the difference between a pane of glass and a
+    // control, so the same question decides this as decides every other world
+    // verb. Capture phase, so a layer that stops propagation cannot hide it.
+    addEventListener('click', (e) => {
       if (this.locked || this.uiOpen) return;
+      if (!this.worldPointer(e)) return;
+      // A press that turned into a look was a look, not a request for a lock.
+      if (this._dragged) return;
+      // ASK EVERY TIME, BUT NEVER DEPEND ON THE ANSWER.
+      //
+      // The request is repeated on later clicks even after a refusal, because
+      // the commonest refusal in this game is its own pause menu calling
+      // `exitPointerLock` — and a player coming back out of a menu must get the
+      // mouse back. It is throttled only so a machine that always says no is
+      // not asked sixty times a minute.
+      const now = performance.now();
+      if (now - this._askedAt < 1200) return;
+      this._askedAt = now;
       // Chrome returns a promise here and rejects it when the document is not
       // allowed to lock the pointer (a sandboxed iframe, a headless run). An
       // unhandled rejection is a console error, and this project treats a
       // console error as a failure — so refusal is a normal outcome, not a bug.
-      const req = this.canvas.requestPointerLock?.();
-      if (req && typeof req.catch === 'function') req.catch(() => {});
-    });
+      if (!this.canvas.requestPointerLock) { this._denyLock('unsupported'); return; }
+      let req;
+      try { req = this.canvas.requestPointerLock(); }
+      catch { this._denyLock('threw'); return; }
+      if (req && typeof req.catch === 'function') req.catch(() => this._denyLock('rejected'));
+      // …and the silent case, which is the one that cost the nineteen minutes:
+      // no rejection, no error event, no lock. Only a clock can see it.
+      clearTimeout(this._lockWatch);
+      this._lockWatch = setTimeout(() => { if (!this.locked) this._denyLock('silent'); }, 900);
+    }, true);
+    document.addEventListener('pointerlockerror', () => this._denyLock('error'));
     document.addEventListener('pointerlockchange', () => {
+      const was = this.locked;
       this.locked = document.pointerLockElement === this.canvas;
+      if (this.locked) {
+        // It works here after all. Forget the refusal; the card goes back to
+        // printing the mouse.
+        clearTimeout(this._lockWatch);
+        this.lockDenied = false;
+        this._askedAt = 0;
+      } else if (was) {
+        this._unlockedAt = performance.now();
+        this._drag = null;
+      }
     });
     addEventListener('mousemove', (e) => {
       if (!this.locked) return;
@@ -282,6 +436,39 @@ export class Input {
       this.source = 'kbm';
       this.idleLook = 0;
     });
+
+    // ---- drag to look, whether or not the lock was granted ---------------
+    //
+    // Under a lock the mouse reports `movementX` forever in any direction. With
+    // no lock it reports a cursor that stops at the edge of the window, so the
+    // gesture has to be a drag: press, pull, release, press again. That is the
+    // same gesture every map and every model viewer on the web uses, and it is
+    // the one a hand tries first when the mouse does nothing.
+    //
+    // Either button drags. The right button is what a player who knows games
+    // reaches for, and the left is what everyone else reaches for; a left drag
+    // still places its build piece on the way down, because the press is a
+    // click until it has travelled DRAG_DZ and only then becomes a look.
+    addEventListener('pointermove', (e) => {
+      const d = this._drag;
+      if (!d || e.pointerId !== d.id) return;
+      // A button released outside the window never sends its `pointerup`. The
+      // next move with no buttons down is the honest end of the gesture.
+      if (e.buttons === 0) { this._endDrag(); return; }
+      if (this.locked || this.uiOpen) { this._drag = null; return; }
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      d.x = e.clientX; d.y = e.clientY;
+      d.moved += Math.abs(dx) + Math.abs(dy);
+      if (!d.look && d.moved < DRAG_DZ) return;
+      d.look = true;
+      const k = 0.0030 * this.sensitivity;
+      this.look.x += dx * k;
+      this.look.y += dy * k * (this.invertY ? -1 : 1);
+      this.source = 'kbm';
+      this.idleLook = 0;
+    });
+    addEventListener('pointerup', (e) => { if (this._drag?.id === e.pointerId) this._endDrag(); });
+    addEventListener('pointercancel', (e) => { if (this._drag?.id === e.pointerId) this._endDrag(); });
     // Capture phase, on the window, before anything else sees the press: one
     // decision about who this gesture belongs to, recorded where every other
     // world system can read it. Capture is the point — a UI handler that calls
@@ -293,6 +480,15 @@ export class Input {
       // A gesture the interface ate also buys the world a moment of deafness,
       // which covers a panel that is still fading out under the cursor.
       if (!world && !this.locked) this.eatPointer(0.16);
+      // A press in the world is a candidate look. Touch is excluded: a thumb
+      // already has its own stick and its own TURN pad. (src/player/touch.js)
+      this._dragged = false;
+      if (!world || this.locked) return;
+      // A stylus on a classroom 2-in-1 drags the same way a mouse does. Only a
+      // finger is excluded, and only because it already has a stick and a TURN
+      // pad of its own.
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      this._drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: 0, look: false };
     }, true);
 
     addEventListener('mousedown', (e) => {
@@ -311,11 +507,32 @@ export class Input {
       // Dash keeps C, left Ctrl and the pad's B, all three of which the
       // controls card now prints. (src/player/controls.js)
     });
-    addEventListener('contextmenu', (e) => { if (this.locked) e.preventDefault(); });
+    // On macOS the context menu opens on the *press*, so a right-drag to look
+    // would never survive its own first pixel unless the menu is refused up
+    // front. It is refused over the world only — a right click on a button, a
+    // link or a text field still does what the operating system promises.
+    addEventListener('contextmenu', (e) => {
+      if (this.locked || this._drag || this._dragged) { e.preventDefault(); return; }
+      const el = e.target;
+      if (!el || el === this.canvas || !uiHit(el)) e.preventDefault();
+    });
+    // The hotbar wheel was gated on the lock for the same reason the look was,
+    // and it failed in the same place: with no lock the player could not change
+    // the piece in their hand by the one gesture every game binds it to.
     addEventListener('wheel', (e) => {
-      if (!this.locked) return;
+      if (!this.locked) {
+        if (this.uiOpen || this._grace > 0) return;
+        const el = e.target;
+        if (el && el !== this.canvas && uiHit(el)) return;   // a scrollable panel
+      }
       this.slot = (this.slot + (e.deltaY > 0 ? 1 : 3)) % 4;
     }, { passive: true });
+  }
+
+  /** End a drag, remembering whether it turned into a look. */
+  _endDrag() {
+    this._dragged = !!this._drag?.look;
+    this._drag = null;
   }
 
   // ---- gamepad --------------------------------------------------------
@@ -380,13 +597,39 @@ export class Input {
 
     if (!pad && !touching) {
       const k = this.keys;
-      const kx = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+      // LEFT AND RIGHT TURN. THEY DO NOT STRAFE.
+      //
+      // They used to be a second copy of A and D, which made them the only keys
+      // on the board that did something WASD already did — while the one thing
+      // a keyboard could not do at all was turn round. On a machine with no
+      // pointer lock that was the difference between a playable game and a
+      // player facing a wall for nineteen minutes.
+      //
+      // Up and Down keep walking, so a hand that never leaves the arrow cluster
+      // can still go everywhere: forward, back, and any bearing it likes.
+      const kx = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
       const ky = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
       const m = Math.hypot(kx, ky);
       this.move.x = m ? kx / m : 0;
       this.move.y = m ? ky / m : 0;
       this.moveMag = m ? 1 : 0;
       this.sprint = k.has('ShiftLeft') || k.has('ShiftRight');
+
+      // ---- the view, from the keyboard alone ----
+      // Live under a granted lock as well as without one. A binding that only
+      // exists when something else has failed is a binding nobody ever learns,
+      // and the controls card could not honestly print it.
+      if (!this.uiOpen) {
+        const tx = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0);
+        const ty = (k.has('PageDown') ? 1 : 0) - (k.has('PageUp') ? 1 : 0);
+        if (tx || ty) {
+          const rate = KEY_TURN * this.sensitivity * dt;
+          this.look.x += tx * rate;
+          this.look.y += ty * rate * (this.invertY ? -1 : 1);
+          this.idleLook = 0;
+          this.source = 'kbm';
+        }
+      }
     }
     if (this.uiOpen) { this.move.x = 0; this.move.y = 0; this.moveMag = 0; this.sprint = false; }
     this.lookTravel += Math.abs(this.look.x) + Math.abs(this.look.y);

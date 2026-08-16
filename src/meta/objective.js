@@ -40,7 +40,7 @@ const VERB_FOR = {
  *
  * @param {{mastery:object, rifts:object, player:object, kit:object|null}} ctx
  * @returns {{skill:string, verb:string, rift:object, pos:object,
- *            pay:string, payN:number, payName:string,
+ *            pay:string, payN:number, payName:string, payGist:string,
  *            held:number, open:number, locked:number}|null}
  */
 export function resolveObjective(ctx) {
@@ -67,6 +67,10 @@ export function resolveObjective(ctx) {
   let pay = 'calm';
   let payN = 0;
   let payName = '';
+  /* …and what it DOES, in six words. The card names a reward the player has
+     never seen; a name with no meaning behind it is not a reason to walk.
+     (hud/slotting pass: `gist` comes off kit.nextGrant(), i18n additive.) */
+  let payGist = '';
   if (st?.mastered) {
     pay = 'sound';
   } else if (opens > 0) {
@@ -75,6 +79,7 @@ export function resolveObjective(ctx) {
   } else if (grant) {
     pay = 'kit';
     payName = grant.name;
+    payGist = grant.gist || '';
   }
 
   const tally = countLines(mastery);
@@ -94,6 +99,7 @@ export function resolveObjective(ctx) {
     pay,
     payN,
     payName,
+    payGist,
     ...tally,
   };
 }

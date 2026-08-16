@@ -1,0 +1,13 @@
+/* THE WARDENS (src/world/warden.js).
+   The apparatus reads as a hanging cache — same weights, same statement, same
+   verb — so it borrows field.css whole. The one thing that has to differ is the
+   name plate: a warden is amber and moving, a cache is cold and still, and a
+   cadet must be able to tell at two hundred metres which one he is looking at. */
+
+.warden-tags { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+
+.field-tag.warden-lede {
+  color: #ffd9a8;
+  border-color: rgba(255, 176, 87, .46);
+  box-shadow: 0 0 20px rgba(255, 150, 60, .22), 0 6px 26px rgba(0, 0, 0, .5);
+}

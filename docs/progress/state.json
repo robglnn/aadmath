@@ -34,8 +34,8 @@
       "id": "build",
       "name": "Axiom building system",
       "status": "passed",
-      "score": 8,
-      "note": "Hand-built square, wall/deck and ramp/floor joints all close exactly; box in 1.2s, piece real 3ms after the button"
+      "score": 9,
+      "note": "four walls close a square in 486 ms by hand; 16/16 quarter turns; no chimney; lens never inside own lattice"
     },
     {
       "id": "learn-ux",
@@ -359,6 +359,62 @@
     {
       "t": "P1 src/ui",
       "m": "layers.css: one stacking scale (30 levels, none shared); grant card no longer bleeds through the tear; ceremony carries a next action; controls card retires; 14 terms gloss themselves in EN/ES/PL"
+    },
+    {
+      "t": "test-out tail",
+      "m": "gate floor is a demand not an ordinal; knower p75 7.5->6.6 min, p90 12.6->10.7, classifier rows unmoved"
+    },
+    {
+      "t": "build",
+      "m": "chimney closed: a repeat click at a built wall now says so instead of stacking a 24 m tower"
+    },
+    {
+      "t": "build",
+      "m": "handproof.mjs: real key/mouse proof of the build verb, with close-up joint frames"
+    },
+    {
+      "t": "retention d5",
+      "m": "the wardens: a construct that runs a circuit, sheds four answers behind it and pushes back; bind one and it hangs a new deep cache (unknowns on both pans) where it fell"
+    },
+    {
+      "t": "retention d5",
+      "m": "wardens shipped"
+    },
+    {
+      "t": "retention d5",
+      "m": "the wardens: a construct that runs a circuit, sheds four answers behind it, and pushes back; bind one and a Level 2 deep cache hangs where it fell, for ever"
+    },
+    {
+      "t": "wave 12",
+      "m": "P0 figure/prose: rect height label was clipped by its own viewBox (72% of ink lost) so 'm + 15' drew as 'm'; geometry fixed, asks now name the task, footer+echo task-aware, new tools/check-figures.mjs gate (static + real-browser render + self-test)"
+    },
+    {
+      "t": "wave 12",
+      "m": "figure gate: check-figures.mjs (A agreement / B not-already-answered / C real-browser legibility) all self-tested; validate-items wires A+B; figureplay.mjs proves a picture-truster is accepted in EN/ES/PL from a cleared save"
+    },
+    {
+      "t": "hud",
+      "m": "slotting discipline for transient surfaces + tools/critic/transient.mjs"
+    },
+    {
+      "t": "P0 pointer-lock",
+      "m": "camera fallback: arrows turn, drag looks, denial announced; coldplay 15/15, landscape 288/288"
+    },
+    {
+      "t": "hud",
+      "m": "transient 72/72, landscape 288/288, coldplay 15/15"
+    },
+    {
+      "t": "hud",
+      "m": "slots discipline + transient gate: landscape 288/288, transient 72/72, coldplay 15/15"
+    },
+    {
+      "t": "wave 13",
+      "m": "world between rifts: stints of three, the survey, surges stop charging for curiosity"
+    },
+    {
+      "t": "wave 13",
+      "m": "world between rifts: stints of three, the survey, surges stop charging for curiosity"
     }
   ]
 }

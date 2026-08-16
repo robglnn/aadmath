@@ -6,6 +6,22 @@
   "title": "Algebra I — Level 2: Lean, Rate and Pair",
   "description": "Fourteen lines beyond the first shard. Level 1 ends with a balance that stays level; Level 2 is what happens when it leans, when a formula has to give up a different letter, when a rule is drawn as a trace, and when one statement is no longer enough to pin a point down. Inequalities in one variable from one step to a compound band, literal equations, ratio and proportion, rate of change, graphing and writing linear rules, and systems by substitution and by elimination.",
   "schema": "unified-alignment-1",
+  "verification": {
+    "checkedOn": "2026-08-15",
+    "sources": [
+      "Common Core State Standards for Mathematics, High School Algebra and Functions conceptual categories, and grades 6, 7 and 8: http://www.corestandards.org/Math/",
+      "19 Tex. Admin. Code §111.39 (Algebra I, Adopted 2012, One Credit), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-39",
+      "19 Tex. Admin. Code §111.26 (Grade 6, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-26",
+      "19 Tex. Admin. Code §111.27 (Grade 7, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-27",
+      "19 Tex. Admin. Code §111.28 (Grade 8, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-28"
+    ],
+    "note": "Every `text` field in this graph is the standard quoted word for word from the sources above, including the trailing punctuation the TEKS codes carry. Where a CCSS expectation ends in a worked example, the quotation stops before the example and the claim is unaffected. Level 2 cites 31 codes that the Level 1 maps in content/standards/ do not carry; they are verified here, against the same sources and the same rule.",
+    "caveats": [
+      "This alignment is to the 2012-adopted mathematics TEKS, which is the version STAAR Algebra I is built on. Nothing here is claimed against a revised chapter.",
+      "`core` means the mastery gate for that node proves the expectation: three unassisted items at band 4 or above, at least one outside notation, in a form the learner has not practised. Every claim below `core` carries a caveat naming the part that is not tested.",
+      "Process standards are cited under `practices`, never under `alignment`. A process standard is not content coverage and is not counted as a code the unit teaches."
+    ]
+  },
   "requires": [
     "algebra1-l1"
   ],
@@ -230,7 +246,7 @@
         {
           "framework": "CCSS-M",
           "code": "CCSS.MATH.CONTENT.8.F.B.4",
-          "text": "Construct a function to model a linear relationship between two quantities. Determine the rate of change and initial value of the function from a description of a relationship or from two (x, y) values, including reading these from a table or from a graph.",
+          "text": "Construct a function to model a linear relationship between two quantities. Determine the rate of change and initial value of the function from a description of a relationship or from two (x, y) values, including reading these from a table or from a graph. Interpret the rate of change and initial value of a linear function in terms of the situation it models, and in terms of its graph or a table of values.",
           "depth": "core"
         },
         {
@@ -283,7 +299,7 @@
         ]
       },
       "alignmentNote": {
-        "CCSS-M": "8.F.B.4 is core: the table never states its rule, so the learner has to derive the rate of change and the initial value before any row can be filled. HSF.LE.A.2 is the same act stated at high-school level and is claimed as supporting because only the linear half is tested.",
+        "CCSS-M": "8.F.B.4 is core: the table never states its rule, so the learner has to derive the rate of change and the initial value before any row can be filled. The expectation's closing clause — interpret both in terms of the situation — is met by the context form here and again by write-linear, which cites the same code word for word. HSF.LE.A.2 is the same act stated at high-school level and is claimed as supporting because only the linear half is tested.",
         "TEKS": "A.3(B) is core — rate of change from a table is exactly what the gate tests. A.2(C) is supporting: the rule is used, not written."
       },
       "bkt": {
@@ -551,17 +567,17 @@
         },
         {
           "framework": "TEKS",
-          "code": "A.1(F)",
-          "citation": "19 TAC §111.39(c)(1)(F)",
-          "text": "analyze mathematical relationships to connect and communicate mathematical ideas;",
+          "code": "7.11(A)",
+          "citation": "19 TAC §111.27(b)(11)(A)",
+          "text": "model and solve one-variable, two-step equations and inequalities;",
           "depth": "supporting",
-          "caveat": "Claimed for the dispute form only, where the learner has to judge two finished readings rather than produce one.",
+          "caveat": "The two-step case is the floor of this node, not its target. The expectation stops at two steps and never reaches a bracket or an unknown on both sides.",
           "i18n": {
             "es": {
-              "caveat": "Se reclama solo para la forma de disputa, donde el estudiante juzga dos lecturas ya hechas en lugar de producir una."
+              "caveat": "El caso de dos pasos es el piso de este nodo, no su objetivo. La expectativa termina en dos pasos y nunca llega a un paréntesis ni a una incógnita en los dos lados."
             },
             "pl": {
-              "caveat": "Twierdzone tylko dla formy sporu, gdzie uczeń ocenia dwa gotowe odczyty zamiast tworzyć własny."
+              "caveat": "Przypadek dwóch kroków jest podłogą tego węzła, nie jego celem. Oczekiwanie kończy się na dwóch krokach i nigdy nie sięga nawiasu ani niewiadomej po obu stronach."
             }
           }
         }
@@ -578,7 +594,7 @@
       },
       "alignmentNote": {
         "CCSS-M": "HSA.REI.B.3 is core and is proved at full strength here: brackets, unknowns on both sides, and a negative coefficient that turns the relation. Nothing above this node is needed to claim the inequality half of REI.B.3 for linear cases.",
-        "TEKS": "A.5(B) is core, and this is the only node in the course where both cases the expectation names by name — the distributive property, and variables on both sides — are met inside one inequality. That is why the claim moves from supporting to core here and nowhere earlier."
+        "TEKS": "A.5(B) is core, and this is the only node in the course where both cases the expectation names by name — the distributive property, and variables on both sides — are met inside one inequality. That is why the claim moves from supporting to core here and nowhere earlier. 7.11(A) is the grade 7 floor and is supporting. A.1(F) is a process standard and is claimed under practices, not as content coverage."
       },
       "bkt": {
         "pInit": 0.14,
@@ -1024,7 +1040,16 @@
           "framework": "CCSS-M",
           "code": "CCSS.MATH.CONTENT.HSF.IF.C.7.A",
           "text": "Graph linear and quadratic functions and show intercepts, maxima, and minima.",
-          "depth": "core"
+          "depth": "supporting",
+          "caveat": "Linear functions only, and intercepts only. Quadratic functions, maxima and minima are named by the expectation and are outside Algebra I Level 2.",
+          "i18n": {
+            "es": {
+              "caveat": "Solo funciones lineales, y solo interceptos. La expectativa nombra funciones cuadráticas, máximos y mínimos, que quedan fuera de Álgebra I Nivel 2."
+            },
+            "pl": {
+              "caveat": "Tylko funkcje liniowe i tylko punkty przecięcia. Oczekiwanie wymienia funkcje kwadratowe, maksima i minima, które są poza Algebrą I Poziom 2."
+            }
+          }
         },
         {
           "framework": "CCSS-M",
@@ -1076,7 +1101,7 @@
         ]
       },
       "alignmentNote": {
-        "CCSS-M": "HSF.IF.C.7.A is core in its linear half and is tested on a working coordinate surface: the learner drags the trace onto the grid and the rig accepts it only when the line it drew is the line the readings describe. Reading a value off a trace, and finding where a trace reaches a level, cover the intercept clause.",
+        "CCSS-M": "HSF.IF.C.7.A is supporting, not core, and the caveat says why: the gate proves the linear half and the intercept clause, and this unit never reaches a quadratic, a maximum or a minimum. What it does prove is tested on a working coordinate surface — the learner drags the trace onto the grid and the rig accepts it only when the line drawn is the line the readings describe. Reading a value off a trace, and finding where a trace reaches a level, cover the intercept clause. HSA.REI.D.10 is supporting for the same linear-only reason.",
         "TEKS": "A.3(C) is core. Three of its four named key features are tested — the y-intercept, the slope, and the x-intercept, which is asked as \"where does the trace reach this level\". Zeros are the x-intercept under another name and are not asked separately."
       },
       "bkt": {
@@ -1110,6 +1135,10 @@
         {
           "id": "div-direction",
           "text": "Divides the wrong way round when stepping back to the axis."
+        },
+        {
+          "id": "add-not-multiply",
+          "text": "Adds the rate to the input instead of multiplying by it, so the trace is read one step along rather than at its height."
         }
       ]
     },

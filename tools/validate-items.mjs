@@ -34,6 +34,7 @@ import { diagnose } from '../src/learn/diagnose.js';
 import { analogueFor } from '../src/learn/scaffold.js';
 import { echoScript, ladderOf, ladderNotation } from '../src/learn/echo.js';
 import { auditContextAsk } from './check-context-ask.mjs';
+import { auditFigure, auditSelfAnswering, FORM_ASK, FIGURE_KINDS } from './check-figures.mjs';
 import enUI from '../src/i18n/en.js';
 import esUI from '../src/i18n/es.js';
 import plUI from '../src/i18n/pl.js';
@@ -371,6 +372,26 @@ for (const locale of ITEM_LOCALES) {
             }
           }
           if (/\{[a-z]\w*\}/.test(item.stem)) fail(`${where}: stem has an unsubstituted placeholder :: ${item.stem}`);
+
+          // THE DRAWING IS PART OF THE QUESTION, AND MUST NOT ASK A DIFFERENT ONE.
+          //
+          // A `like-terms` card described a hatch `3m + 6` across and `m + 15`
+          // down, drew it labelled `3m + 6` and `m`, and marked the answer from
+          // the sentence. Every gate here passed it, because the mathematics was
+          // right and only the picture lied. These two read the figure back
+          // against the item that owns it: every label must be a quantity the
+          // prose states, and a learner who works from the drawing alone must
+          // arrive at the answer this item marks.
+          //
+          // The clipping that actually caused it lives in pixels, not in data,
+          // so `node tools/check-figures.mjs --render` measures the real
+          // renderer in a real browser. Both halves share one file and one
+          // self-test (`--self-test`).
+          for (const p of auditFigure(item)) fail(`figure: ${locale}: ${p.replace(/\n\s+/g, ' | ')}`);
+          // And: a question the display already answers is not a question.
+          for (const p of auditSelfAnswering(item, FORM_ASK[item.form])) {
+            fail(`figure: ${locale}: ${p.replace(/\n\s+/g, ' | ')}`);
+          }
           // A generator that can put "1" into a counted-noun slot writes
           // "1 counterweights" in English and worse in Polish. Catch it here
           // rather than in a screenshot.

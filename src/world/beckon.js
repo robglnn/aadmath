@@ -55,6 +55,10 @@ const VEIN_LABEL = 21;      // …and the ground only names itself under your fe
 // thirty-four, so it was signage about something you had not gone to look at
 // yet. It reveals on approach now, like the ground and the drift already did.
 const ANCHOR_LABEL = 19;
+// A survey mark is a destination, not furniture: its whole job is to be the
+// reason you change direction, so it names itself from far enough out to be
+// that. (src/world/errand.js)
+const SURVEY_LABEL = 150;
 const MARK_MAX = 2;         // two chips is the most a frame may ever carry
 const MARK_MAX_NARROW = 1;  // …and a phone has a third of the room, so: one
 const KNOCK_COOL = 7;       // seconds before a shut tear repeats itself
@@ -62,6 +66,20 @@ const KNOCK_COOL = 7;       // seconds before a shut tear repeats itself
 export function createBeckon(opts = {}) {
   const {
     uiRoot, player, rifts, drift, builder, hud, verge,
+    /**
+     * The survey marks (src/world/errand.js), so a lattice instrument standing
+     * on a landmark names itself from a distance instead of being one more
+     * unexplained shape. Passed as a thunk because the survey is built after
+     * this module in `src/main.js`, and this module must stand up without it.
+     */
+    errand = () => null,
+    /**
+     * May a WALK-IN open this tear right now? The interact key is never asked
+     * — a cadet who presses it has decided — but a tear that has just given
+     * three items back should not drag him in again the moment he crosses his
+     * own dais on the way out. (src/session/stint.js)
+     */
+    canWalkIn = () => true,
     isBusy = () => false, onOpenRift = () => {},
     // The affordance layer (src/world/afford.js) took over every word this
     // module used to say about a tear, and says it with the key on it. Two
@@ -189,6 +207,29 @@ export function createBeckon(opts = {}) {
       });
     }
 
+    // ---- the survey marks ------------------------------------------------
+    // One label, on the nearest unclaimed mark, from far enough out that it is
+    // a reason to change direction rather than a caption on something you have
+    // already reached. A claimed one says so too — a mark that goes silent the
+    // moment it is yours teaches the player that finds are consumables.
+    const survey = errand();
+    if (survey?.marks) {
+      let sm = null, sd = SURVEY_LABEL;
+      for (const m of survey.marks) {
+        const d = Math.hypot(p.x - m.x, p.z - m.z);
+        if (d < sd) { sd = d; sm = m; }
+      }
+      if (sm) {
+        marks.push({
+          pos: _tmp(sm.x, sm.y + 2.4, sm.z),
+          cls: sm.held ? 'held' : 'mark',
+          text: sm.held
+            ? t('field.markHeld', { name: t('survey.' + sm.id) })
+            : t('field.markFind', { name: t('survey.' + sm.id) }),
+        });
+      }
+    }
+
     // ---- the edge of the world -----------------------------------------
     const edge = verge?.mark?.(p);
     if (edge) marks.push({ pos: _tmp(edge.x, edge.y, edge.z), cls: 'edge', text: t('field.vergeTag') });
@@ -275,6 +316,10 @@ export function createBeckon(opts = {}) {
     // rift you have just finished stands between you and the one the game is
     // asking for, and crossing your own work drags you back into it.
     if (near.mastered) return;
+    // …and so is a tear that has just given its three items back. Walking off
+    // a dais must not be the same gesture as walking back onto it: that is the
+    // exact loop a critic spent ten minutes inside. The key still works.
+    if (!canWalkIn(near.id)) return;
     if (!armed) return;
     armed = false;
     onOpenRift(near);

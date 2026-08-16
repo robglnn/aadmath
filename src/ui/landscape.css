@@ -316,6 +316,12 @@
   #ui:has(.kit-toast.show) .toast,
   #ui:has(.kit-toast.show) .kit,
   #ui:has(.kit-toast.show) .axiom,
+  /* …and the wallet's strip, which was not on this list and is in the gutter
+     the card's left edge reaches on a 844 px frame. It is safe to stand a
+     ledger row down now and it was not before: src/kit/ledger.js counts a
+     row's life in the time it was PAINTED, so a definition hidden for the five
+     seconds this card owns is not a definition spent. */
+  #ui:has(.kit-toast.show) .ledger,
   #ui:has(.kit-toast.show) .fc { opacity: 0; }
   /* The clear-build button takes the right flank under the first-contact card,
      inset far enough that it can never reach the thumb cluster. */
@@ -339,11 +345,38 @@
      companion's card are the two things that grow, and they grow towards each
      other. 144 px puts its foot exactly on the line the card is not allowed to
      cross, whatever the safe area does. */
+  /* ANCHORED OFF THE TOP, AND IT GROWS DOWN.
+     "144 px puts its foot exactly on the line the card is not allowed to
+     cross" was true of a receipt — "+2 CIPHER VEIN" is four words. It is not
+     true of the row that says what a word MEANS, which is seventy characters
+     and six lines in a 100 px column: bottom-anchored, that row grew UPWARD
+     through the kit strip at the top of the axis and off the top edge, and
+     tools/critic/transient.mjs measured 166 px of it in all three languages.
+     Growing down instead costs nothing — src/ui/portrait.css already showed
+     one row here and this sheet does too, so there is no stack to invert — and
+     the band below is the companion's, which is 90 px further down. */
   .ledger {
     left: calc(var(--pad-l) + var(--lsc-rail) + var(--lsc-step)); right: auto;
-    bottom: 144px;
+    top: calc(var(--pad-t) + 92px); bottom: auto;
     width: 100px;
   }
+  /* ONE ROW. The gutter is 100 px wide and a row is a sentence: "Rift surge —
+     the ring an open rift throws out. Jump it, or it costs you motes." is six
+     lines in that column and three of them stacked is 300 px of a 390 px
+     screen, growing upward through the kit strip at the top of the axis and
+     off the top edge. tools/critic/transient.mjs measured 166 px of it.
+     src/ui/portrait.css already made this decision, in these words: "the
+     newest movement is the one about the price the chips under it are about to
+     change, and the other two are history on a frame that has to carry a
+     companion and two thumbs as well." */
+  .ledger .led-row:nth-last-child(n+2) { display: none; }
+  /* A definition stays in the gutter and spends HEIGHT on itself rather than
+     width. The flank to its right belongs to the first-contact card, which is
+     356 px wide and up for the whole of a cadet's first minutes — a row that
+     reached for that space was printed across CONTROLS in all three languages
+     the moment it was given it. */
+  .ledger .led-row.taught,
+  .ledger .led-row.note { max-width: 100%; }
   .led-n { font-size: .74rem; min-width: 1.8em; }
   .led-why { font-size: .48rem; letter-spacing: .07em; }
 
@@ -417,6 +450,13 @@
      written; landscape only ever said it for `.fcs`. */
   #ui:has(.fc.show) .hail,
   #ui:has(.fc.show) .gd-prompt,
+  /* The kit strip and the build charge are on the same axis and they reach the
+     card's own flank: at 844x390 in Polish the strip runs to 632 px and the
+     card starts at 470, so PODKŁADKA WYRZUTNI was printed under CONTROLS.
+     They already stand down for the pill (`.fcs`, above); the card is the
+     larger claim and was somehow the one they did not stand down for. */
+  #ui:has(.fc.show) .kit,
+  #ui:has(.fc.show) .axiom,
   #ui:has(.fc.show) .toast { opacity: 0; }
   #ui .fc-card { padding: .5rem .6rem .5rem .66rem; }
   #ui .fc-head { margin-bottom: .38rem; }

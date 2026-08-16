@@ -92,8 +92,15 @@ import './ledger.css';
  * buy the endgame by staying up late, and it tells them so once, plainly.
  */
 export const ASSAY = 260;
-/** Income the island hands over for free. Everything else is paid for by work. */
-const GROUND = new Set(['vein', 'cache', 'anchor', 'found']);
+/**
+ * Income the island hands over for free, and therefore the only income the
+ * day's assay tapers. `deepcache` is here for the same reason `cache` is: a
+ * cadet who cracks one is picking something up, however hard it was to reach.
+ * `bind` is deliberately NOT here — running a warden down and taking the weight
+ * that makes its statement true is a question answered, and answers are never
+ * tapered. That distinction is the one sentence this economy exists to say.
+ */
+const GROUND = new Set(['vein', 'cache', 'deepcache', 'anchor', 'found']);
 /** Where the day's yield is kept, so a reload is not a fresh seam. */
 const ASSAY_KEY = 'ascent.assay';
 
@@ -112,6 +119,49 @@ const MAX_LINES = 3;
  * @param {() => number} o.clock     the wall clock the spacing schedule reads, so
  *        the day's yield turns over on the same midnight everything else does
  */
+/**
+ * A ROW'S LIFE IS COUNTED IN THE TIME IT WAS ACTUALLY ON THE GLASS.
+ *
+ * A wall clock spends a row whether anybody could see it or not. That is
+ * survivable for a receipt and fatal for the row that says what a word MEANS:
+ * `ledger.first.*` is printed once, EVER, and the reason is written into the
+ * seen set the moment the row is appended. If the frame it landed on belonged
+ * to something else — a rank rite, an open tear, or the grant card that a phone
+ * on its side gives the whole middle of the screen to — then the one printing
+ * of that definition was spent on a frame nobody could read, and there is no
+ * second one.
+ *
+ * So the clock only runs while the row is lit. src/kit/kit.js takes exactly
+ * this position about the grant card, in almost these words, and for exactly
+ * this reason: a thing the player earned and could not read is worse than one
+ * that arrives four seconds late.
+ */
+function retire(row, ms) {
+  let left = ms;
+  let last = -1;
+  const tick = (now) => {
+    if (!row.isConnected) return;
+    if (last < 0) last = now;
+    if (now - last >= 100) {
+      let lit = 1;
+      try {
+        lit = parseFloat(getComputedStyle(row).opacity || '1');
+        const p = row.parentElement;
+        if (p) lit *= parseFloat(getComputedStyle(p).opacity || '1');
+      } catch { lit = 1; }
+      if (lit > 0.5) left -= now - last;
+      last = now;
+    }
+    if (left <= 0) {
+      row.classList.remove('in');
+      setTimeout(() => row.remove(), 420);
+      return;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 export function createLedger({ root, initial = 0, onChange = () => {}, clock = () => Date.now() }) {
   let count = clean(initial);
   /** The day's yield: which day it is, and how much ground has been worked. */
@@ -209,11 +259,9 @@ export function createLedger({ root, initial = 0, onChange = () => {}, clock = (
     // Two frames, then the entrance transition — a row appended and animated in
     // the same tick does not animate at all in Chromium.
     requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add('in')));
-    // A definition is read once and needs longer than a receipt does.
-    setTimeout(() => {
-      row.classList.remove('in');
-      setTimeout(() => row.remove(), 420);
-    }, row.classList.contains('taught') ? LINE_MS + 2600 : LINE_MS);
+    // A definition is read once and needs longer than a receipt does — and it
+    // is counted in painted time, not wall time (see `retire` above).
+    retire(row, row.classList.contains('taught') ? LINE_MS + 2600 : LINE_MS);
     // `left` here is the BALANCE AFTER the movement, and the field keeps its
     // name because tools/critic/pacing.mjs and the foundry read it. The strip's
     // own label no longer says "left" — see `ledger.balance` — because on screen
@@ -234,7 +282,7 @@ export function createLedger({ root, initial = 0, onChange = () => {}, clock = (
     strip.appendChild(row);
     while (strip.children.length > MAX_LINES) strip.firstChild.remove();
     requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add('in')));
-    setTimeout(() => { row.classList.remove('in'); setTimeout(() => row.remove(), 420); }, LINE_MS + 1600);
+    retire(row, LINE_MS + 1600);
   }
 
   /** A line the strip prints when a levy found nothing worth taking. */
@@ -246,7 +294,7 @@ export function createLedger({ root, initial = 0, onChange = () => {}, clock = (
     strip.appendChild(row);
     while (strip.children.length > MAX_LINES) strip.firstChild.remove();
     requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add('in')));
-    setTimeout(() => { row.classList.remove('in'); setTimeout(() => row.remove(), 420); }, LINE_MS);
+    retire(row, LINE_MS);
     log.unshift({ delta: 0, why, at: Date.now(), left: count });
   }
 

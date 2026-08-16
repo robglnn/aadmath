@@ -67,7 +67,7 @@ export default {
     remove: 'Quitar',
     removePrompt: 'Q · quitar',
     noCharge: 'Carga de obra agotada. Espera a que se rellene.',
-    alreadyThere: 'Ahí ya hay algo construido',
+    alreadyThere: 'Ahí ya hay algo construido. Mira arriba para construir más alto.',
     nothingThere: 'No hay nada en la mira',
     latticeFull: 'La red está al límite: quita antes una pieza',
     anchorCall: 'Tres anclas cuelgan sobre la plaza. Nada del suelo llega hasta ellas. Así que deja de quedarte en el suelo.',
@@ -184,10 +184,16 @@ export default {
       body: 'Algo te tiene atrapado. Pulsa Recuperar para volver a terreno despejado. Aquí nunca hace falta recargar la página.',
       act: 'Recuperar',
     },
+    nolock: {
+      title: 'Aquí el ratón no puede girar la vista',
+      body: 'Gira con las teclas de flecha. O mantén pulsado un botón del ratón y arrastra.',
+    },
     bind: {
       kbm: {
         move: 'W · A · S · D',
         look: 'Ratón',
+        lookFree: 'Ratón · Flechas',
+        lookBlocked: 'Flechas · Arrastrar',
         jump: 'Espacio',
         glide: 'Mantén espacio',
         interact: 'E',
@@ -298,6 +304,7 @@ export default {
 
     help: {
       keypad: 'Escribe el valor que hace verdadera la afirmación. Luego pulsa Sellar.',
+      keypadExpression: 'Escribe la expresión en su forma más corta. Luego pulsa Sellar.',
       balance: 'Elige un movimiento. La viga lo aplica a los dos lados. A los dos, siempre: esa es toda la ley.',
       sort: 'Envía cada término a la bodega que le corresponde.',
       area: 'Cubre cada parte del campo con el área que esa parte lleva.',
@@ -382,6 +389,7 @@ export default {
       liveOnly: 'El equipo no tiene registrada ninguna otra grieta de esta forma. Así que el eco te devuelve tu propio trazo.',
       nudge: {
         keypad: 'Dite la afirmación en voz baja antes de escribir nada. El valor que buscas es el que la hace verdadera, no el que queda más a mano.',
+        keypadExpression: 'Aquí no se resuelve nada. Escribe la misma cantidad con menos términos, y la línea más corta debe seguir valiendo para cualquier valor de la letra.',
         balance: 'Algo va pegado a la incógnita. Deshaz primero lo de fuera. La viga hace el resto.',
         sort: 'Dos términos son semejantes solo si la parte con letra coincide exactamente. Un número nunca es semejante a una letra.',
         area: 'El factor de fuera toca cada parte de dentro. Todas.',
@@ -504,8 +512,8 @@ export default {
         b: 'Hace dos días no podías sostener una línea toda la noche. Ahora sí. Que conste que entonces no dije nada alentador.',
       },
       d5: {
-        a: 'Quinto día. Anoche repasé el texto fundacional otra vez, buscando el margen.',
-        b: 'Sigue siendo mi letra. Nueve siglos, y la vergüenza se ha conservado notablemente bien.',
+        a: 'Quinto día, y al amanecer algo ha salido de la red.',
+        b: 'Da vueltas al fragmento, bajo y despacio. No veía uno desde hace nueve siglos.',
       },
       d8: {
         a: 'Octavo día. El tráfico de la red vuelve a pasar por el Fragmento Nueve. Antes nos rodeaba.',
@@ -519,6 +527,19 @@ export default {
         a: 'Vigesimoprimer día. Pase lo que pase, este fragmento sigue en pie porque alguien volvió una y otra vez.',
         b: 'Yo escribí la palabra en el margen. Tú estás terminando la frase. Puedo vivir con ese reparto del trabajo.',
       },
+    },
+
+    /* LOS GUARDIANES (src/world/warden.js). La palabra se define la primera vez
+       que se usa y nunca antes. Dos frases: qué es, y lo único que hay que
+       hacer con ello. */
+    warden: {
+      first: {
+        a: 'Eso es un guardián. La red manda uno cuando un fragmento vuelve a sostenerse.',
+        b: 'Lleva un enunciado y suelta las respuestas detrás. Toma la pesa correcta.',
+      },
+      wake: 'Ha salido otro guardián. Ha asomado por la cresta hace un minuto y ya se mueve.',
+      left: 'El guardián se ha deshecho. Lo que llevaba sigue colgado donde lo sujetaste.',
+      full: 'El guardián se ha deshecho. El fragmento no sostiene más cajas, así que cobraste en motas.',
     },
 
     place: {
@@ -1632,74 +1653,90 @@ export default {
       name: 'Placa de impulso',
       short: 'Placa',
       what: 'Una quinta pieza para la retícula. Písala y te lanza doce metros hacia arriba.',
+      gist: 'te lanza doce metros hacia arriba',
     },
     flare: {
       name: 'Bengala de ascendencia',
       short: 'Bengala',
       what: 'F: enciende una columna de aire ascendente bajo tus botas, donde quieras, durante seis segundos.',
+      gist: 'seis segundos de aire ascendente donde estés',
     },
     kite: {
       name: 'Ajuste del ala',
       short: 'Ala',
       what: 'El ala planea más plana, más rápida y gira mejor. Los valles que no podías cruzar caben en un solo vuelo.',
+      gist: 'el ala planea más plana, más rápida y gira mejor',
     },
     reserve: {
       name: 'Reserva profunda',
       short: 'Reserva',
       what: 'La reserva de la retícula más que se duplica, y se recarga la mitad de rápido otra vez.',
+      gist: 'el doble de reserva, que además se recarga antes',
     },
     legs: {
       name: 'Piernas de tormenta',
       short: 'Piernas',
       what: 'Más velocidad al esprintar, más salto y un impulso que vuelve en la mitad de tiempo.',
+      gist: 'más esprint, más salto y un impulso más rápido',
     },
     sight: {
       name: 'Vista resonante',
       short: 'Vista',
       what: 'Las motas de la deriva se inclinan hacia ti. Puedes leer una caja colgante desde el doble de lejos.',
+      gist: 'las motas se inclinan hacia ti y lees las cajas desde más lejos',
     },
     beacon: {
       name: 'Baliza permanente',
       short: 'Baliza',
       what: 'G: por noventa motas plantas una columna de aire ascendente que mañana seguirá ahí. Es lo único que le puedes hacer a esta isla que dure.',
+      gist: 'una columna de aire ascendente que mañana sigue ahí',
     },
     windstep: {
       name: 'Paso de viento',
       short: 'Paso',
       what: 'El impulso vuelve mientras sigues en el aire. Tres seguidos cruzan un vacío que el ala no cruza.',
+      gist: 'el impulso vuelve mientras sigues en el aire',
     },
     span: {
       name: 'Vuelo largo',
       short: 'Vuelo',
       what: 'El ala otra vez: aún más plana y más rápida. Desde la cresta alta ya alcanzas la costa lejana sin tocar el suelo.',
+      gist: 'el ala otra vez, aún más plana y más rápida',
     },
     array: {
       name: 'Serie de placas',
       short: 'Serie',
       what: 'La placa te lanza un tercio más alto y cuesta seis motas en vez de dieciocho. Las placas se vuelven una escalera.',
+      gist: 'la placa lanza más alto y cuesta un tercio',
     },
     squall: {
       name: 'Bengala de turbonada',
       short: 'Turbonada',
       what: 'La bengala cuesta dieciséis, se alza setenta y cuatro metros y aguanta once segundos.',
+      gist: 'una bengala más alta que aguanta once segundos',
     },
     deepwell: {
       name: 'Pozo profundo',
       short: 'Pozo',
       what: 'La reserva de la retícula llega a trescientos y se recarga el doble de rápido. Puentea un cañón de una sola vez.',
+      gist: 'una reserva de trescientos que se recarga el doble de rápido',
     },
     station: {
       name: 'Estación de paso',
       short: 'Estación',
       what: 'H — levanta una estación de paso: una torre permanente de aire ascendente. Viaja entre dos cualesquiera. Cuesta una cédula y doscientas cuarenta motas.',
+      gist: 'una torre permanente y un sitio al que puedes viajar',
     },
     charter: {
       name: 'Una cédula de estación',
       what: 'Una noche sostenida es una línea que se sigue sabiendo tras dejar el juego. Consérvalas de una noche para otra y la retícula te extiende otra cédula.',
+      gist: 'un pase para una torre',
     },
     chartersHeld: '«n|one:# cédula|other:# cédulas» · {cost}',
     charterIn: '{n} más de hondura',
     needCharter: 'Sin cédula. {n} de hondura más y sale la siguiente',
+    // Una cédula pagada por los guardianes, no por la hondura (src/world/warden.js).
+    charterWon: 'Cédula ganada. Tienes «n|one:# cédula|other:# cédulas». Un enclave cuesta {cost} motas y una cédula.',
     stationSet: 'Estación de paso {n} levantada — ya forma parte de la isla',
     stationAlone: 'Todavía no hay adónde viajar. Levanta una segunda',
     travelled: 'De estación a estación',
@@ -1740,13 +1777,26 @@ export default {
 
     pay: {
       lines: 'Sostenla y «n|one:se abrirá # línea más de la red|other:se abrirán # líneas más de la red».',
-      kit: 'Sostenla y {name} será tuya.',
+      /* «Sostenla y Ala afinada será tuya» nombraba un premio que el juego solo
+         explica en la tarjeta que llega DESPUÉS de ganarlo. `{gist}` es la
+         forma corta de `kit.<id>.what`, que trae src/meta/objective.js: el
+         nombre y lo que hace, en la misma frase. */
+      /* …y en imperativo con objeto directo, no con «será tuya»: los nombres
+         del equipo son masculinos y femeninos, y la concordancia se rompía en
+         la mitad de ellos. */
+      kit: 'Sostenla y ganas {name}: {gist}.',
       calm: 'Séllalo y las sacudidas de aquí se acaban para siempre.',
       sound: 'Ya sostienes esta línea. Un sondeo la recorre hacia abajo, cada pregunta más difícil.',
     },
 
+    /* La fila bajo las marcas, y la palabra *sostenida*. Antes esta fila abría
+       una partida nueva con la definición de una palabra que no aparecía en
+       ninguna otra parte de la tarjeta: una regla sobre nada. Ahora la palabra
+       llega cuando por fin significa algo — al sostener la primera línea — y la
+       tarjeta vacía dice qué son las marcas. (src/meta/guide.js elige.) */
     tally: '{held} sostenidas · {open} abiertas · {locked} cerradas',
-    tallyNew: 'Sostenida quiere decir probada para siempre',
+    tallyNew: 'Una marca por cada grieta de esta línea',
+    tallyFirst: '{held} sostenida — probada para siempre',
 
     prompt: {
       open: 'Abre la grieta',
@@ -1807,11 +1857,22 @@ export default {
     moteTake: '+{n} motas',
     updraft: 'Ascendencia',
     surge: 'Sacudida de la grieta — salta el anillo',
-    surgeHit: 'Sacudida de la grieta: pierdes {n} motas · salta el anillo o sella la grieta',
+    surgeRead: 'Anillo leído · +{n} motas',
+    surgeWarn: 'La grieta se está cargando: sal del suelo',
     balanceLock: 'Cierre de balanza',
     balanceNo: 'La barra lo rechaza',
     balanceReset: 'Las pesas se rehacen',
     cacheOpen: 'Caja abierta: {n} motas, y aquí el aire ya sube para siempre',
+
+    // --- los guardianes (src/world/warden.js): el quinto día ---------------
+    // Una placa con el nombre, no una frase: tiene que caber en un móvil en
+    // horizontal. La única instrucción la dice `wardenFan`, una vez.
+    wardenTag: 'Guardián',
+    wardenFan: 'Entra corriendo en la pesa correcta',
+    wardenOver: 'Se pasa por {n}',
+    wardenUnder: 'Se queda corta por {n}',
+    wardenBound: 'Guardián sujetado: {n} motas. Se está deshaciendo.',
+    deepOpen: 'Caja profunda abierta: {n} motas, y aquí el aire ya sube para siempre',
 
     // --- lo que dice el mundo cuando te acercas (src/world/beckon.js) ---
     riftOpen: 'Súbete a la placa · {skill}',
@@ -1826,7 +1887,33 @@ export default {
     anchorHeld: 'Ancla asegurada',
     vergeTag: 'El linde · fin del Fragmento Nueve',
     brink: 'El fragmento acaba aquí. Debajo no hay nada.',
+    // --- la prospección (src/world/errand.js) -------------------------------
+    surveyClaim: 'Hito reclamado · {name}: +{n} motas, y aquí el aire ya sube para siempre',
+    markFind: 'Hito de prospección · {name}',
+    markHeld: 'Hito reclamado · {name}',
     vergeHit: 'El linde no cede. El Fragmento Nueve acaba aquí: los fragmentos lejanos son una travesía que nadie ha hecho.',
+  },
+  survey: {
+    reckoning: 'El Cómputo',
+    ossuary: 'El Osario',
+    watchtower: 'La Atalaya',
+    cathedral: 'La Catedral',
+    arch: 'El Arco de Vidrio',
+    spine: 'El Espinazo',
+    said: {
+      reckoning: 'Algo sigue llevando la cuenta aquí. Nunca supimos de qué. Ahora el aire sube sobre el hito: eso es un camino, y se queda.',
+      ossuary: 'Una nave de colonos, doscientos años caída. Técnicamente sigue en hora.',
+      watchtower: 'Desde esta cabeza de piedra vigilaban el abismo. Ahora puedes despegar de ella.',
+      cathedral: 'El bosque de abajo es una semilla de esto. Todo el mundo debería ponerse debajo una vez.',
+      arch: 'Aquí el lago se va del mundo. El arco ya era viejo cuando empezó.',
+      spine: 'El punto más alto del Fragmento Nueve. Todo lo demás te queda debajo.',
+    },
+  },
+  relay: {
+    toTear: 'Siguiente línea · {skill}: {n} m',
+    toMark: 'Hito de prospección · {name}: {n} m',
+    stay: 'Esta línea sigue siendo lo que más te conviene. Vuelve a la placa cuando quieras.',
+    rhythm: 'Una grieta da tres preguntas y luego se calma. Aprovecha el hueco: siempre hay algo ahí fuera que merece el paseo.',
   },
   // --- la capa de afordancia (src/world/afford.js): qué ofrece una grieta,
   // qué tecla lo hace y hacia dónde queda la siguiente ---------------------
@@ -1871,6 +1958,8 @@ export default {
       cache: 'Caja colgante: una balanza que se abre poniéndote en la pesa que falta.',
       anchor: 'Ancla de la red: un punto fijo de la demostración, colgado fuera de alcance a propósito.',
       sound: 'Descenso: un recorrido de vuelta por una línea que ya sostienes, cada pregunta más difícil.',
+      bind: 'Guardián sujetado: alcanzaste el constructo y tomaste la pesa que hace cierto su enunciado.',
+      deepcache: 'Caja profunda: una caja colgante con una incógnita en los dos platillos. La dejó un guardián.',
       surge: 'Sacudida de la grieta: el anillo que lanza una grieta abierta. Sáltalo o te cuesta motas.',
       vault: 'Placa de bóveda puesta: písala y te lanza doce metros hacia arriba.',
       plate: 'Placa de bóveda comprada: una quinta pieza para la red.',
@@ -1885,6 +1974,8 @@ export default {
       cache: 'Caja colgante',
       anchor: 'Ancla de la red',
       sound: 'Descenso',
+      bind: 'Guardián sujetado',
+      deepcache: 'Caja profunda',
       found: 'Recogidas',
       surge: 'Sacudida de la grieta',
       spent: 'Gastadas',

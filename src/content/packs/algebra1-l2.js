@@ -45,6 +45,12 @@ import pl from '../../../content/lang/packs/algebra1-l2.pl.js';
 const {
   pick, int, nz, nzc, band, Bcoef, Bkonst, Broot, co, sg, lin, paren, distinct,
   arrayTex, ratio, pointTex, ptsTex,
+  // Every situation this pack shows is drawn through `scene`, never through
+  // `pick`. `pick` chooses; `scene` chooses AND tells the engine what it chose,
+  // which is what the session ledger, the analogue and the gate's transfer test
+  // all read. Drawing a framing with `pick` leaves `item.scene` empty and turns
+  // the proving run back into a rehearsal.
+  scene,
 } = kit;
 
 /** The letters this unit uses for one unknown. Short, and never `l` or `o`. */
@@ -108,6 +114,29 @@ const RULES = [
   { ctx: 'l2.ctx.ruleStack', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
   { ctx: 'l2.ctx.ruleBrine', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
 ];
+/**
+ * The framings the single-situation skills rotate through.
+ *
+ * These five nodes each dressed their contextual form in ONE hardcoded world,
+ * so `item.scene` was empty and the gate had no situation to withhold. A deck
+ * of one is worse than none — `generate` refuses a framing the learner has
+ * already worked inside, and with nothing to rotate to it would burn its whole
+ * retry budget — so each of them gets a second world, and both go through
+ * `scene`.
+ */
+const HOLDS = [
+  { ctx: 'l2.ctx.twoHolds', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.twoBays', ask: 'l2.ask.holdMass' },
+];
+const SHARES = [
+  { ctx: 'l2.ctx.shareOut', ask: 'l2.ask.oneLoad' },
+  { ctx: 'l2.ctx.splitRun', ask: 'l2.ask.oneLoad' },
+];
+const GAUGES = [
+  { ctx: 'l2.ctx.gauge' },
+  { ctx: 'l2.ctx.stockpile' },
+];
+
 /** Two conditions that hold at once. */
 const PAIRS = [
   { ctx: 'l2.ctx.pairCrates', x: 'l2.ask.pairHowManyLight', y: 'l2.ask.pairHowManyHeavy' },
@@ -234,7 +263,7 @@ const inequalityOneStep = [
   {
     id: 'i1-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, LIMITS);
+      const sc = scene(sr, LIMITS);
       const v = pick(r, VARS);
       const rel = pick(r, RELS);
       const a = int(r, 2, 2 + 2 * d);
@@ -383,7 +412,7 @@ const inequalityTwoStep = [
     // "what is the most I can load?".
     id: 'i2-limit', rep: 'context', dMin: 2, dMax: 5, distinctNums: true,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, LIMITS);
+      const sc = scene(sr, LIMITS);
       const v = pick(r, VARS);
       const up = r() < 0.5;
       const rel = up ? pick(r, ['>', '\\ge']) : pick(r, ['<', '\\le']);
@@ -421,7 +450,7 @@ const inequalityTwoStep = [
   {
     id: 'i2-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, LIMITS);
+      const sc = scene(sr, LIMITS);
       const v = pick(r, VARS);
       const rel = pick(r, RELS);
       const a = int(r, 2, 3 + d);
@@ -721,7 +750,7 @@ const compoundInequality = [
   {
     id: 'cd-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, BANDS);
+      const sc = scene(sr, BANDS);
       const v = pick(r, VARS);
       const lo = int(r, 2, 4 + d);
       const hi = lo + int(r, 2, 3 + d);
@@ -961,7 +990,7 @@ const literalEquations = [
     build({ r, d, T }) {
       // A literal equation with numbers in it: the same act, at the magnitudes
       // the band promises, so the ladder is measured and not asserted.
-      const a = d >= 3 ? Bcoef(r, d) : int(r, 2, 3 + d);
+      const a = d >= 3 ? Bcoef(r, d) : int(r, 2, 5 + 2 * d);
       const b = Bkonst(r, d);
       if (Math.abs(a) < 2 || !distinct(a, b)) throw new Error('retry: repeated number');
       const math = `y = ${lin(a, 'x', 0)} ${sg(b)}`;
@@ -991,8 +1020,8 @@ const literalEquations = [
     id: 'le-share', rep: 'symbolic', dMin: 2, dMax: 5, distinctNums: true,
     build({ r, d, T }) {
       // A bar over a sum: the move that has to happen first, in letters.
-      const k = int(r, 2, 2 + d);
-      const a = int(r, 2, 4 + d);
+      const k = int(r, 2, 2 + 2 * d);
+      const a = int(r, 2, 4 + 3 * d);
       if (!distinct(k, a)) throw new Error('retry: repeated number');
       const math = `\\frac{P ${sg(-a)}}{${k}} = Q`;
       const answer = `${k}Q + ${a}`;
@@ -1013,6 +1042,40 @@ const literalEquations = [
           { v: `Q + ${a}`, m: 'partial-rule' },
           { v: `${k}\\left(Q + ${a}\\right)`, m: 'partial-distribute' },
           { v: `${a} - ${k}Q`, m: 'sign-slip' },
+        ],
+      };
+    },
+  },
+  {
+    // The standard form, turned round. The named formulas above are a fixed
+    // catalogue of twelve, so on their own they cannot hold a learner who is
+    // being held: band 1 offered two prompts and repeated them. This form is
+    // the same act with drawn numbers, so the supply does not run out.
+    id: 'le-standard', rep: 'symbolic', dMin: 1, dMax: 5, distinctNums: true,
+    build({ r, d, T }) {
+      const a = d >= 3 ? Bcoef(r, d) : int(r, 2, 4 + 2 * d);
+      const b = d >= 3 ? nzc(r, 2, 3 + d) : int(r, 2, 3 + 2 * d);
+      const c = d >= 3 ? Bkonst(r, d) : int(r, 2, 6 + 3 * d);
+      if (Math.abs(b) < 2 || !distinct(a, b, c)) throw new Error('retry: repeated number');
+      const math = `${lin(a, 'x', 0)} ${signedTerm(b, 'y')} = ${c}`;
+      const answer = `\\frac{${c} ${sg(-a)}x}{${b}}`;
+      return {
+        stem: T('l2.ask.solveFormulaFor', { v: 'y' }),
+        latex: `${math} \\;\\Rightarrow\\; y = \\square`,
+        type: 'expression',
+        answer,
+        check: { kind: 'rearrange', math, variable: 'y', vars: ['x'] },
+        steps: [
+          { latex: `${co(b, 'y')} = ${c} ${sg(-a)}x`, why: T('l2.why.moveTheOtherTermFirst', { v: 'y' }) },
+          { latex: `y = \\frac{${c} ${sg(-a)}x}{${b}}`, why: T('why.divideBothByCoef', { a: b }) },
+        ],
+        distractors: [
+          { v: `\\frac{${c} ${sg(a)}x}{${b}}`, m: 'sign-on-constant' },
+          { v: `\\frac{${c}}{${b}} ${sg(-a)}x`, m: 'partial-rule' },
+          { v: `${c} ${sg(-a)}x`, m: 'partial-rule' },
+          { v: `\\frac{${b}}{${c} ${sg(-a)}x}`, m: 'div-direction' },
+          { v: `${b}\\left(${c} ${sg(-a)}x\\right)`, m: 'divide-not-multiply' },
+          { v: `\\frac{${a}x ${sg(-c)}}{${b}}`, m: 'sign-slip' },
         ],
       };
     },
@@ -1103,7 +1166,7 @@ const ratioProportion = [
   {
     id: 'rp-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, RATIOS);
+      const sc = scene(sr, RATIOS);
       const p = drawProportion(r, d, 3);
       const cross = [p.a * p.e, p.b * p.c];
       return {
@@ -1131,7 +1194,7 @@ const ratioProportion = [
   {
     id: 'rp-model', rep: 'verbal', dMin: 2, dMax: 5, distinctNums: true,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, RATIOS);
+      const sc = scene(sr, RATIOS);
       // The unknown stands in a numerator, because the rig re-solves whichever
       // statement the cadet chooses and a letter under a bar is a different
       // question from the one this form is asking.
@@ -1165,11 +1228,11 @@ const ratioProportion = [
 /** Two readings on one straight rule, with the rate the band asks for. */
 function drawRate(r, d, { whole = false } = {}) {
   const run = whole ? 1 : int(r, 1, 1 + d);
-  const rise = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 1, 2 + 2 * d);
+  const rise = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 1, 3 + 3 * d);
   if (rise === 0) throw new Error('retry: a flat rule teaches nothing here');
   if (!whole && d >= 4 && rise % run === 0 && r() < 0.6) throw new Error('retry: draw a rate that is not whole');
-  const x1 = d >= 3 ? int(r, -4 - d, 4 + d) : int(r, 0, 4 + d);
-  const b0 = d >= 3 ? nz(r, -(4 + 2 * d), 4 + 2 * d) : int(r, 0, 4 + 2 * d);
+  const x1 = d >= 3 ? int(r, -4 - d, 4 + d) : int(r, 0, 4 + 2 * d);
+  const b0 = d >= 3 ? nz(r, -(4 + 2 * d), 4 + 2 * d) : int(r, 0, 5 + 3 * d);
   const x2 = x1 + run;
   const y1 = b0;
   const y2 = b0 + rise;
@@ -1303,7 +1366,7 @@ const slopeRate = [
   {
     id: 'sr-context', rep: 'context', dMin: 1, dMax: 5,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, RATES);
+      const sc = scene(sr, RATES);
       const run = int(r, 2, 2 + d);
       const rise = int(r, 2, 3 + 2 * d);
       const x1 = int(r, 0, 3 + d);
@@ -1346,16 +1409,22 @@ const slopeRate = [
  * a band-1 trace climbs one or two and starts above it. `validate-courses`
  * measures the result, so these numbers are checked rather than claimed.
  */
-const MSPAN = [2, 3, 4, 5, 6];
-const BSPAN = [4, 7, 10, 14, 18];
+const MSPAN = [3, 4, 4, 5, 6];
+const BSPAN = [6, 9, 11, 14, 18];
 /** How far the chart reaches at each band. A wider sky holds a steeper trace. */
 const CHART = [8, 11, 14, 17, 20];
 function drawChartLine(r, d) {
   const lim = CHART[d - 1];
   const ms = MSPAN[d - 1];
   const bs = BSPAN[d - 1];
-  const m = d >= 3 ? nz(r, -ms, ms) : int(r, 1, ms);
+  // The low bands never draw a rate of one. `y = x + 5` hides the coefficient
+  // altogether, which is the exact reading this unit teaches against — it is
+  // the rule a cadet writes when they add the rate instead of multiplying by
+  // it. It also collapses the rule to a single digit, and a single-digit
+  // answer at band 1 leaves the scaffold no analogue it is allowed to show.
+  const m = d >= 3 ? nz(r, -ms, ms) : int(r, 2, ms);
   if (m === 0) throw new Error('retry: a flat trace');
+  if (d < 3 && Math.abs(m) === 1) throw new Error('retry: a hidden rate');
   const b = d >= 2 ? nz(r, -bs, bs) : int(r, 1, bs);
   const reach = Math.max(1, Math.min(3, Math.floor((lim - 2) / Math.abs(m))));
   const x1 = -int(r, 0, reach);
@@ -1529,7 +1598,7 @@ const graphLinear = [
   {
     id: 'gl-context', rep: 'context', dMin: 1, dMax: 5,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, RULES);
+      const sc = scene(sr, RULES);
       const lim = CHART[d - 1];
       const m = int(r, 2, 2 + 2 * d);
       const b = int(r, 2, Math.max(3, lim - 3));
@@ -1676,7 +1745,7 @@ const writeLinear = [
   {
     id: 'wl-context', rep: 'context', dMin: 1, dMax: 5,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, RULES);
+      const sc = scene(sr, RULES);
       const m = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 2, 2 + 2 * d);
       const b = d >= 2 ? nz(r, -(4 + 3 * d), 4 + 3 * d) : int(r, 1, 7);
       if (m === 0 || b === 0 || !distinct(m, b)) throw new Error('retry: repeated number');
@@ -1702,11 +1771,11 @@ const writeLinear = [
 // ===========================================================================
 /** A pair of statements meeting at whole numbers, the first already solved for y. */
 function drawSubSystem(r, d) {
-  const x = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + d);
-  const y = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + d);
+  const x = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + 2 * d);
+  const y = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + 2 * d);
   const m = d >= 3 ? nzc(r, -(2 + d), 2 + d) : int(r, 2, 2 + d);
   const b = y - m * x;
-  const a = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + d);
+  const a = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + 2 * d);
   const c = a * x + y;
   if (b === 0 || !distinct(a, b, c, m)) throw new Error('retry: repeated number');
   const e1 = `y = ${lin(m, 'x', b)}`;
@@ -1798,7 +1867,7 @@ const systemSubstitution = [
   {
     id: 'ss-context', rep: 'context', dMin: 1, dMax: 5,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, PAIRS);
+      const sc = scene(sr, PAIRS);
       const x = int(r, 2, 4 + d);
       const y = int(r, 2, 4 + d);
       const m = int(r, 2, 2 + d);
@@ -1837,12 +1906,19 @@ const systemSubstitution = [
 // system-elimination  —  add until one letter leaves
 // ===========================================================================
 /** Two statements in standard form whose y-terms are already opposite. */
+// The low bands draw from a WIDE window at a LOW magnitude, not a narrow one.
+// Measured before this was true, band 1 of this form held 64 distinct systems
+// and 72% of them had no analogue at all: every candidate the scaffold
+// auditioned printed a digit of the live answer somewhere, because there were
+// barely any digits left to print. An item with no analogue falls back on the
+// learner's own trace, which is the one trace that contains the live answer —
+// so a narrow pool is not a gentler question, it is a leaking echo.
 function drawElimSystem(r, d, { scaled = false } = {}) {
-  const x = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + d);
-  const y = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + d);
-  const a1 = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + d);
-  const a2 = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + d);
-  const b1 = nzc(r, 2, 2 + d);
+  const x = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 4 + 2 * d);
+  const y = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 4 + 2 * d);
+  const a1 = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + 2 * d);
+  const a2 = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + 2 * d);
+  const b1 = nzc(r, 2, 2 + 2 * d);
   const k = scaled ? int(r, 2, 2 + d) : 1;
   const b2 = -b1 * k;
   if (a1 * b2 - a2 * b1 === 0) throw new Error('retry: the traces never meet');
@@ -1938,7 +2014,7 @@ const systemElimination = [
   {
     id: 'se-context', rep: 'context', dMin: 1, dMax: 5,
     build({ r, d, T, sr }) {
-      const sc = pick(sr, PAIRS);
+      const sc = scene(sr, PAIRS);
       const x = int(r, 2, 4 + d);
       const y = int(r, 2, 4 + d);
       const a1 = int(r, 2, 3 + d);
@@ -2067,12 +2143,13 @@ const bracketBothSides = [
   },
   {
     id: 'bbs-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
-    build({ r, d, T }) {
+    build({ r, d, T, sr }) {
       const { v, x, a, b, c, e } = drawBrackets(r, d);
       if (a < 0 || c < 0 || b < 0 || e < 0 || x < 0) throw new Error('retry: a hold cannot carry a negative mass');
       const eqn = `${paren(a, lin(1, v, b))} = ${paren(c, lin(1, v, e))}`;
+      const sc = scene(sr, HOLDS);
       return {
-        stem: `${T('l2.ctx.twoHolds')} ${T('l2.ask.holdMass', { v })}`,
+        stem: `${T(sc.ctx)} ${T(sc.ask, { v })}`,
         latex: eqn,
         type: 'numeric',
         answer: String(x),
@@ -2091,6 +2168,44 @@ const bracketBothSides = [
           { v: String(c * e - a * b), m: 'one-side-only' },
           { v: String(x + 1), m: 'arith-slip' },
           { v: String(x - 1), m: 'arith-slip' },
+        ],
+      };
+    },
+  },
+  {
+    // THE FIRST LINE, not the answer.
+    //
+    // Three item forms is not a bank, it is a rehearsal: the gate asks for an
+    // item in a form the learner has not practised, and with three forms and
+    // two required representations there is never one left. Measured across
+    // the level, only 2% of gate items were in an unseen form against 68% in
+    // Level 1, and true mastery fell from 100% to 62%. So the thin skills get
+    // a fourth form, in a representation they did not have — and it is the one
+    // that isolates the misconception this node is really about: opening a
+    // bracket onto the letter and leaving the number behind.
+    id: 'bbs-firstline', rep: 'verbal', dMin: 1, dMax: 5,
+    build({ r, d, T }) {
+      const { v, x, a, b, c, e } = drawBrackets(r, d);
+      const eqn = `${paren(a, lin(1, v, b))} = ${paren(c, lin(1, v, e))}`;
+      const opened = `${lin(a, v, a * b)} = ${lin(c, v, c * e)}`;
+      return {
+        stem: T('l2.ask.whichFirstLine'),
+        latex: asks(eqn),
+        type: 'expression',
+        answer: opened,
+        check: { kind: 'equationChoice', variable: v, expect: String(x) },
+        steps: [
+          { latex: `${paren(a, lin(1, v, b))} = ${lin(a, v, a * b)}`, why: T('l2.why.openBothBrackets') },
+          { latex: `${paren(c, lin(1, v, e))} = ${lin(c, v, c * e)}`, why: T('l2.why.openBothBrackets') },
+        ],
+        distractors: [
+          { v: `${lin(a, v, b)} = ${lin(c, v, c * e)}`, m: 'partial-distribute' },
+          { v: `${lin(a, v, a * b)} = ${lin(c, v, e)}`, m: 'partial-distribute' },
+          { v: `${lin(a, v, b)} = ${lin(c, v, e)}`, m: 'partial-distribute' },
+          { v: `${lin(a, v, -a * b)} = ${lin(c, v, c * e)}`, m: 'neg-distribute' },
+          { v: `${lin(a, v, a * b)} = ${lin(c, v, -c * e)}`, m: 'neg-distribute' },
+          { v: `${lin(a, v, a * b)} = ${lin(c, v, c * e + 1)}`, m: 'arith-slip' },
+          { v: `${lin(a, v, a * b + 1)} = ${lin(c, v, c * e)}`, m: 'arith-slip' },
         ],
       };
     },
@@ -2170,7 +2285,7 @@ const fractionSolve = [
   },
   {
     id: 'fs-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
-    build({ r, d, T }) {
+    build({ r, d, T, sr }) {
       const v = pick(r, VARS);
       const k = int(r, 2, 2 + d);
       const c = int(r, 2, 4 + d);
@@ -2179,8 +2294,9 @@ const fractionSolve = [
       if (x <= 0) throw new Error('retry: a delivery cannot be negative');
       if (!distinct(k, b, c, x)) throw new Error('retry: repeated number');
       const eqn = `\\frac{${lin(1, v, b)}}{${k}} = ${c}`;
+      const sc = scene(sr, SHARES);
       return {
-        stem: `${T('l2.ctx.shareOut')} ${T('l2.ask.oneLoad', { v })}`,
+        stem: `${T(sc.ctx)} ${T(sc.ask, { v })}`,
         latex: eqn,
         type: 'numeric',
         answer: String(x),
@@ -2201,6 +2317,41 @@ const fractionSolve = [
       };
     },
   },
+  {
+    // The move that has to be first, on its own. A cadet who divides by the
+    // number under the bar instead of multiplying by it never reaches a wrong
+    // ANSWER here — they reach a wrong LINE, and this is the form that shows
+    // it to them one step earlier, in a representation this skill did not have.
+    id: 'fs-firstline', rep: 'verbal', dMin: 1, dMax: 5,
+    build({ r, d, T }) {
+      const v = pick(r, VARS);
+      const k = int(r, 2, 2 + 2 * d);
+      const c = d >= 3 ? nz(r, -(3 + d), 3 + d) : int(r, 2, 4 + d);
+      const b = Bkonst(r, d);
+      const x = c * k - b;
+      if (x === 0 || !distinct(k, b, c, x)) throw new Error('retry: repeated number');
+      const eqn = `\\frac{${lin(1, v, b)}}{${k}} = ${c}`;
+      return {
+        stem: T('l2.ask.whichFirstLine'),
+        latex: asks(eqn),
+        type: 'expression',
+        answer: `${lin(1, v, b)} = ${c * k}`,
+        check: { kind: 'equationChoice', variable: v, expect: String(x) },
+        steps: [
+          { latex: `${k} \\cdot \\frac{${lin(1, v, b)}}{${k}} = ${k} \\cdot ${c}`, why: T('l2.why.multiplyBothByBottom', { k }) },
+          { latex: `${lin(1, v, b)} = ${c * k}`, why: T('l2.why.clearTheBarFirst', { v }) },
+        ],
+        distractors: [
+          { v: `${lin(1, v, b)} = ${c}`, m: 'partial-rule' },
+          { v: `${v} = ${c * k}`, m: 'wrong-unwrap-order' },
+          { v: `${lin(1, v, b * k)} = ${c * k}`, m: 'partial-rule' },
+          { v: `${lin(1, v, -b)} = ${c * k}`, m: 'sign-slip' },
+          { v: `${lin(1, v, b)} = ${c * k + 1}`, m: 'arith-slip' },
+          { v: `${lin(1, v, b)} = ${c * k - 1}`, m: 'arith-slip' },
+        ],
+      };
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -2209,9 +2360,9 @@ const fractionSolve = [
 /** Four rows of one linear rule, with even steps and no rule written down. */
 function drawTable(r, d) {
   const rate = nzc(r, 2, 1 + 2 * d) * (d >= 3 && r() < 0.4 ? -1 : 1);
-  const base = d >= 3 ? nz(r, -(4 + 4 * d), 4 + 4 * d) : int(r, 1, 4 + 2 * d);
+  const base = d >= 3 ? nz(r, -(4 + 4 * d), 4 + 4 * d) : int(r, 1, 6 + 3 * d);
   const step = int(r, 1, Math.max(1, d - 1));
-  const start = d >= 3 ? int(r, -3 - d, 3 + d) : int(r, 1, 4);
+  const start = d >= 3 ? int(r, -3 - d, 3 + d) : int(r, 1, 3 + 2 * d);
   const rows = [0, 1, 2, 3].map((i) => {
     const x = start + i * step;
     return [x, rate * x + base];
@@ -2224,12 +2375,12 @@ function drawTable(r, d) {
 const ruleFromTable = [
   {
     id: 'rft-output', rep: 'table', dMin: 1, dMax: 5,
-    build({ r, d, T }) {
+    build({ r, d, T, sr }) {
       const { rows, missing, rate, base } = drawTable(r, d);
       const ans = rows[missing][1];
       const prev = rows[missing - 1];
       return {
-        stem: `${T('l2.ctx.gauge')} ${T('ask.missingReading')}`,
+        stem: `${T(scene(sr, GAUGES).ctx)} ${T('ask.missingReading')}`,
         latex: arrayTex('x', 'y', rows, missing),
         type: 'numeric',
         answer: String(ans),
@@ -2254,13 +2405,13 @@ const ruleFromTable = [
   },
   {
     id: 'rft-input', rep: 'table', dMin: 2, dMax: 5,
-    build({ r, d, T }) {
+    build({ r, d, T, sr }) {
       const { rows, missing, rate } = drawTable(r, d);
       const ans = rows[missing][0];
       const shown = rows.map((row, i) => (i === missing ? [null, row[1]] : row));
       const prev = rows[missing - 1];
       return {
-        stem: `${T('l2.ctx.gauge')} ${T('ask.missingInput')}`,
+        stem: `${T(scene(sr, GAUGES).ctx)} ${T('ask.missingInput')}`,
         latex: arrayTexInput('x', 'y', shown),
         type: 'numeric',
         answer: String(ans),
@@ -2284,13 +2435,13 @@ const ruleFromTable = [
   },
   {
     id: 'rft-context', rep: 'context', dMin: 1, dMax: 5,
-    build({ r, d, T }) {
+    build({ r, d, T, sr }) {
       const { rows, missing, rate, base } = drawTable(r, d);
       if (rate < 0 || base < 0) throw new Error('retry: a stockpile does not run backwards here');
       const ans = rows[missing][1];
       const prev = rows[missing - 1];
       return {
-        stem: `${T('l2.ctx.stockpile')} ${T('l2.ask.missingWatch')}`,
+        stem: `${T(scene(sr, GAUGES).ctx)} ${T('l2.ask.missingWatch')}`,
         latex: arrayTex('x', 'y', rows, missing),
         type: 'numeric',
         answer: String(ans),
@@ -2308,6 +2459,39 @@ const ruleFromTable = [
           { v: String(ans - rate), m: 'arith-slip' },
           { v: String(ans + 1), m: 'arith-slip' },
           { v: String(base), m: 'partial-rule' },
+        ],
+      };
+    },
+  },
+  {
+    // A fourth reading of the same table, in the representation this skill did
+    // not have: two cadets have filled the gap, and only one of them used the
+    // rate. It is the form the gate can reach for when every table form has
+    // already been practised.
+    id: 'rft-dispute', rep: 'verbal', dMin: 1, dMax: 5,
+    build({ r, d, T, sr }) {
+      const { rows, missing, rate, base } = drawTable(r, d);
+      const ans = rows[missing][1];
+      const prev = rows[missing - 1];
+      const next = rows[Math.min(3, missing + 1)];
+      return {
+        stem: `${T(scene(sr, GAUGES).ctx)} ${T('l2.ask.whichCadetIsRight', { v: 'y' })}`,
+        latex: arrayTex('x', 'y', rows, missing),
+        type: 'numeric',
+        answer: String(ans),
+        check: { kind: 'table', rows, missing },
+        steps: [
+          { latex: `${rows[0][1]} \\rightarrow ${rows[1][1]}`, why: T('l2.why.stepTellsRate', { n: rate }) },
+          { latex: `${prev[1]} ${sg(rate * (rows[missing][0] - prev[0]))} = ${ans}`, why: T('l2.why.applyRateOnce') },
+        ],
+        distractors: [
+          { v: String(prev[1]), m: 'off-by-one-row' },
+          { v: String(next[1]), m: 'off-by-one-row' },
+          { v: String(rows[missing][0] + rate), m: 'add-not-multiply' },
+          { v: String(rate * rows[missing][0]), m: 'partial-rule' },
+          { v: String(base), m: 'partial-rule' },
+          { v: String(ans + rate), m: 'arith-slip' },
+          { v: String(ans - rate), m: 'arith-slip' },
         ],
       };
     },

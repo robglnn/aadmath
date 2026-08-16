@@ -5,13 +5,36 @@
 #ui .kit { pointer-events: none; }
 #ui .kit .kit-chip { pointer-events: auto; }
 
+/* The floor of the foot-left stack. `--slot-foot` is that 52px, named once in
+   src/ui/slots.css, because the ledger strip above has to stand on it and two
+   modules choosing their own offsets is how the VAULT PLATE chip ended up
+   printed across the second line of "−5 Rift surge". */
 .kit {
   position: absolute; z-index: var(--z-hud); left: var(--pad-l);
-  bottom: calc(52px + var(--safe));
-  display: flex; flex-wrap: wrap; gap: .3rem; max-width: min(52vw, 520px);
+  bottom: var(--slot-foot);
+  display: flex; gap: .3rem; max-width: min(52vw, 520px);
   opacity: 0; translate: 0 6px; transition: opacity .4s, translate .4s;
 }
 .kit.any { opacity: 1; translate: 0 0; }
+
+/* ONE ROW, ALWAYS — and not only on a phone.
+   This strip is anchored to its own bottom edge, so a strip that wraps grows
+   UPWARD, into whatever is above it. The rule below said so already and said
+   it for `:root[data-touch]` alone, where the thing above is the companion's
+   line: "three bought verbs on a phone put a price underneath a sentence."
+   The same sentence is true of a laptop. tools/critic/transient.mjs
+   photographed it: two verbs at 1600x900 are 540 px of chips in a 520 px box,
+   so the strip wrapped to two rows, its ceiling rose 27 px, and it printed
+   itself across the foot of Marlow's card — 118x5 px of it, in all three
+   languages. A stack whose floor is measured (src/ui/slots.css) is only a
+   stack if the thing standing on the floor is one row high. */
+#ui .kit { flex-wrap: nowrap; }
+/* …so past two bought verbs the chips shed the long name and keep the three
+   things that are actually the point: the key, a word for the thing, and the
+   price. The price is never what goes — the chip is the only place a spend is
+   quoted before it is made. */
+#ui .kit:has(.kit-chip:nth-child(3)) .kit-chip .full { display: none; }
+#ui .kit:has(.kit-chip:nth-child(3)) .kit-chip .sh { display: inline; }
 
 .kit-chip {
   display: inline-flex; align-items: center; gap: .34rem;
@@ -46,14 +69,6 @@
 
 /* the grant itself: it lands once, in the middle of the frame, and it names the
    capability rather than congratulating anybody */
-/* 64% of the frame, which is where this plate has always read best — except
-   that 64% is a fraction of the whole window and the companion's card is
-   anchored to the FOOT of it, so on any screen short enough the two travel into
-   each other. The mobile compositions give this plate a real slot (see
-   src/ui/portrait.css and src/ui/landscape.css); this is the same promise for
-   every other screen — 64% wherever there is room for it, and above the band
-   the companion may claim where there is not. 260 px is her worst case at
-   desktop plus this plate's own half-height. */
 /* THE LEVEL THIS CARD NEVER HAD.
    The frame the critic photographed: VAULT PLATE rendering *behind* the rift
    panel, its words coming up through the translucent number keys and garbling
@@ -62,9 +77,22 @@
    purpose. It now sits at the top of the HUD band and under everything modal
    (src/ui/layers.css), and `kit.js` retracts it outright when a tear takes the
    frame rather than leaving it to shine through the glass. */
+/* THE SLOT THIS CARD NEVER HAD EITHER.
+   The level fixed who was in front. It did not stop the interact prompt
+   standing in the same place: the prompt hangs 62 px below the crosshair and
+   this card was centred on 64% of the frame, so at 1600x900 the card occupied
+   y 499–593 and the prompt y 513–552 — inside it, on top of it, both
+   illegible. That is the frame the cold critic photographed at ~(800,530).
+
+   Two changes, both in src/ui/slots.css. It is anchored by its BOTTOM edge
+   rather than by its middle, so a three-line Polish card grows upward into the
+   empty stage instead of downward into the prompt by half of whatever the
+   translator wrote. And that bottom edge is `--slot-stage-floor`: one gap
+   above the prompt's own ceiling, written off the same number the prompt is
+   written off, and never lower than the companion's card at the foot. */
 .kit-toast {
-  position: absolute; z-index: var(--z-grant); left: 50%; transform: translate(-50%, -50%);
-  top: min(64%, calc(100% - var(--hud-b) - 260px));
+  position: absolute; z-index: var(--z-grant); left: 50%; transform: translateX(-50%);
+  top: auto; bottom: var(--slot-stage-floor);
   display: grid; justify-items: center; gap: .2rem; text-align: center;
   padding: .7rem 1.4rem; border-radius: var(--cut);
   background: var(--plate-bg); border: 1px solid rgba(95, 230, 255, .34);
@@ -98,10 +126,12 @@
    and below the companion's line, which is bottom-anchored 52px higher. Four
    pixels of clearance rather than twelve, because the line above is the one
    that grows — Marlow speaking two lines must not land on a price. */
+/* The floor itself moves, and it moves in ONE place: src/ui/slots.css sets
+   `--slot-foot` to clear the thumb zone on a touch device, so the ledger strip
+   standing on this one rises with it without being told twice. */
 :root[data-touch] .kit {
   left: calc(var(--pad-l) + var(--thumb-l));
   right: calc(var(--pad-r) + var(--thumb-r));
-  bottom: calc(var(--sa-b) + var(--thumb-b) + 4px);
   /* One row, always. A wrapping strip grows *upward* — into the companion's
      line — because it is anchored to its own bottom edge, so three bought
      verbs on a phone put a price underneath a sentence. */
