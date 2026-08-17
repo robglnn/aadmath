@@ -10,7 +10,22 @@
 #ui .mnu {
   position: absolute; inset: 0;
   z-index: var(--z-menu);      /* over the world's plates, under the way-out card */
-  display: grid; place-items: center;
+  /* THE CAP THAT WAS NOT ONE, AGAIN — this time on the pause card.
+     src/ui/portrait.css already carries this argument for the companion's
+     plate; the same mistake was sitting in this file untouched. `place-items:
+     center` on an implicit grid gives the card a row track sized to the CARD,
+     so `max-height: 100%` on it resolves against its own content height and
+     caps nothing at all. The card grew to whatever the nine glossary entries
+     needed, its `overflow: auto` never engaged because there was nothing to
+     overflow, and the surplus ran off the bottom of the screen into
+     `body { overflow: hidden }` — which cut "Recover puts you back on solid
+     ground from anywhere off the edge of the shard, inside a hill, or inside"
+     in half, mid-line, on a 390x844 phone, in all three languages.
+     `grid-template-rows: minmax(0, 1fr)` makes the track the ROOM instead of
+     the card, so the cap is a real cap and the scroller is a real scroller. */
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center; justify-items: center;
   padding: var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l);
   opacity: 0; pointer-events: none;
   transition: opacity .26s ease;
@@ -26,9 +41,16 @@
 
 #ui .mnu-card {
   position: relative;
-  width: min(760px, 100%);
-  max-height: 100%;
-  overflow: auto;
+  /* 940, not 760: the WORDS block below is nine definitions, and at 760 each one
+     wrapped to three lines and pushed the card off a 768-tall school laptop.
+     Wider is shorter here — the same words in two lines instead of three — and
+     the controls and screens columns breathe as well. */
+  width: min(940px, 100%);
+  /* `min-height: 0` is the other half of the fix above: without it a grid item
+     refuses to shrink below its content and the cap is overruled a second time,
+     from the inside. */
+  max-height: 100%; min-height: 0;
+  overflow: auto; overscroll-behavior: contain;
   --cut: 16px;
   --ink-rank: var(--rank-ink, #8ec7ff);
   padding: 1.05rem 1.2rem 1.1rem 1.3rem;
@@ -139,6 +161,31 @@
 }
 #ui .mnu-toggle:hover, #ui .mnu-toggle:focus-visible { color: var(--ink); }
 
+/* ---------- words ----------
+   Every noun the game coined, one short line each, on the card that is one key
+   away from every frame. Two columns on a laptop so nine rows read as a table
+   a thumb can scan, one column on a phone so no line wraps to three.
+   The term and its meaning are on the SAME line: a definition list that puts
+   the meaning on the next row reads as a heading followed by a paragraph, and
+   a fourteen-year-old scanning for one word then has to read all nine. */
+#ui .mnu-words {
+  margin-top: 1rem; padding-top: .74rem;
+  border-top: 1px solid rgba(130, 190, 255, .16);
+}
+#ui .mnu-words dl {
+  margin: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .22rem 1.5rem;
+}
+#ui .mnu-words dl > div {
+  display: flex; align-items: baseline; gap: .4rem;
+  font-size: .72rem; line-height: 1.32; min-width: 0;
+}
+#ui .mnu-words dt {
+  flex: none; margin: 0; font-weight: 700; color: var(--ink);
+  font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
+}
+#ui .mnu-words dd { margin: 0; min-width: 0; color: var(--ink-dim); }
+
 /* ---------- the way out ----------
    The card used to list "Recover · R" among the controls and offer no way to
    press it. This is the door: amber, above the fold of the closing line, and
@@ -231,6 +278,7 @@
 /* breakpoint only — a phone is a phone in both orientations (mobile-landscape) */
 @media (max-width: 720px), (max-height: 520px) and (orientation: landscape) {
   #ui .mnu-cols { grid-template-columns: minmax(0, 1fr); }
+  #ui .mnu-words dl { grid-template-columns: minmax(0, 1fr); }
   #ui .mnu-card { padding: .9rem .95rem 1rem 1.05rem; }
   #ui .mnu-head h2 { font-size: .74rem; letter-spacing: .2em; }
   #ui .mnu-sub { font-size: .72rem; }

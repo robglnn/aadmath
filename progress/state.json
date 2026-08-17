@@ -5,7 +5,7 @@
   "wave": 9,
   "summary": "Live and playable at robglnn.github.io/aadmath. Mobile clean in both orientations. A teacher can switch the progress record between TEKS and Common Core, and a department head passed it for adoption at 8/10. The cold-player gate — real key input, debug API forbidden — passes 6/6 against the production URL.",
   "metrics": {
-    "fps": 106,
+    "fps": 98,
     "consoleErrors": 0,
     "itemsValidated": 12180,
     "i18nKeys": 1072,
@@ -415,6 +415,58 @@
     {
       "t": "wave 13",
       "m": "world between rifts: stints of three, the survey, surges stop charging for curiosity"
+    },
+    {
+      "t": "esc+vocab",
+      "m": "Escape opens the menu under a real pointer lock; every coined word now defined at first use; SLIPPING/TESTED OUT contradiction removed; sprint on the controls card; check-language gains the gloss rule"
+    },
+    {
+      "t": "template diversity",
+      "m": "skeleton rule in the scheduler + 2 new var-meaning forms + a 20-item session gate in validate-items; worst shape 4/20, 0 back-to-back, 0 window breaches, verified with real keys in en/es/pl"
+    },
+    {
+      "t": "wave 14",
+      "m": "one number, one place, one name: LINES HELD is canonical; every other count scoped 'this run'/'in all'; oneprogress.mjs gate added"
+    },
+    {
+      "t": "wave 14",
+      "m": "agency: foundry+rift contact, ORDERS, stint chain, skippable ceremonies"
+    },
+    {
+      "t": "wave 14",
+      "m": "chosen 36 vs imposed 7 over 15 min real input (was 7 vs 16)"
+    },
+    {
+      "t": "P0 one-number",
+      "m": "WORLD REPAIRED is the single progress figure; gate rewritten to fail on >1"
+    },
+    {
+      "t": "wave 10",
+      "m": "perf: sustained-frame gate added — fps measured at minute 15 of real play, not second five"
+    },
+    {
+      "t": "wave 10",
+      "m": "learn: template diversity now enforced at the ACT grain, not just the skeleton"
+    },
+    {
+      "t": "P0 rift ring",
+      "m": "objective dead zone 9-11m killed; recover resolves; fall catch 6.1s->1.78s; coldplay 18/18"
+    },
+    {
+      "t": "wave 15 world",
+      "m": "THE DEEPS: sunk-shard layer at 330-820m below the horizon line; verge frame no longer a cream wash. 81fps median, all gates green."
+    },
+    {
+      "t": "wave fx/audio",
+      "m": "seal beat: light in fx + a choir in stings; wind now knows a ridge from a grove; wing cloth luffs. 75.9fps median (was 68.7)."
+    },
+    {
+      "t": "wave feel",
+      "m": "player+build: ramp launch, dash-jump, flow chain — coldplay 18/18, 0 console errors"
+    },
+    {
+      "t": "P0 hollow mastery",
+      "m": "form floor: no line holds while a question type is 0-for-3; row prints the honest lower bound; nothing served from a locked skill; ORDERS quotes the planned workload as a range"
     }
   ]
 }

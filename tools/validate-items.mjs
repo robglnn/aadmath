@@ -26,7 +26,8 @@ import katex from 'katex';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generate, SKILLS, FORMS_BY_SKILL, verify, demandOf, literalsOf } from '../src/learn/generators.js';
+import { generate, SKILLS, FORMS_BY_SKILL, verify, demandOf, literalsOf, resetSituations } from '../src/learn/generators.js';
+import { MasteryEngine } from '../src/learn/mastery.js';
 import { ITEM_BUNDLES, ITEM_LOCALES } from '../src/learn/strings.js';
 import { fromString, eq as req, str as rstr } from '../src/learn/rational.js';
 import { equivalent, solveLinear } from '../src/learn/parser.js';
@@ -854,6 +855,247 @@ for (const [name, s] of Object.entries(strat)) {
 }
 
 // ---------------------------------------------------------------------------
+// 9b. TEMPLATE DIVERSITY, measured over a real session rather than a real item.
+//
+// Every check above this line reads ONE item and asks whether it is sound. All
+// of them passed on the session a cold critic actually complained about:
+//
+//     "items 4, 8 and 11 are the same 'starts at X, drops N a minute, read
+//      after M minutes' template inside eight questions — a kid will see the
+//      reskin."
+//
+// Three different framings, three different sets of numbers, three correct
+// items, one sentence pattern. `tools/scene-audit.mjs` could not see it either,
+// because no *situation* repeated — the deck dealt a skiff, then a coolant
+// loop, then a tether, exactly as it is supposed to. The defect lives one level
+// up, in the shape, and it only exists across a sequence. So it is checked
+// across a sequence: real MasteryEngine, real `taskFor`, real form draw, twenty
+// items, the way `src/main.js` plays them.
+//
+// The three bars, and why they are these numbers:
+//
+//   · NO TWO CONSECUTIVE items share a skeleton. This is the version a learner
+//     cannot miss and there is no pedagogical argument for it — a band with two
+//     shapes can alternate.
+//   · AT MOST `WINDOW_CAP` of one skeleton inside any `WINDOW` consecutive
+//     items. Six and two: a shape may come back, but not three times inside
+//     six questions, which is where "again?" starts. Measured, the schedule
+//     meets this exactly — the worst window over 2100 sessions is 2 — and
+//     widening the window to 8 or 10 makes it *worse*, because the constraint
+//     stops being satisfiable and gives way.
+//   · AT MOST `SESSION_CAP` of one skeleton in the whole twenty. Five, which is
+//     a quarter of a session. It is deliberately not three: a learner who is
+//     struggling on one skill NEEDS the shape again, and the rule that moved
+//     them off it took the lowest ability quintile from 6.7% to 3.3% true
+//     mastery (see `varyShape` in src/learn/mastery.js). What is banned is
+//     undisguised repetition, not repetition.
+//
+// A failure here is nearly always a hole in the bank rather than a bug in the
+// scheduler: some (skill, band) offers too few distinct shapes to spread out.
+// The report says which, so the fix is a new item form, not a looser rule.
+// ---------------------------------------------------------------------------
+let sessionWorst = { session: 0, window: 0, adjacent: 0 };
+{
+  const SESSIONS = 24;
+  const ITEMS = 20;
+  const WINDOW = 6;
+  const WINDOW_CAP = 2;
+  const SESSION_CAP = 5;
+  // A learner is not one accuracy. The bar has to hold for the cadet who is
+  // getting most of it right and racing ahead — whose session spans many skills
+  // — and for the one who is stuck on the first node all sitting, whose session
+  // is twenty items of one skill at one band. The second is the hard case, and
+  // it is the case the critic was reading.
+  const ABILITIES = [0.45, 0.55, 0.65, 0.78, 0.85, 0.92];
+
+  const skelOf = new Map();
+  const actOfPair = new Map();
+  for (const [sk, forms] of Object.entries(FORMS_BY_SKILL)) {
+    for (const f of forms) {
+      skelOf.set(`${sk}/${f.id}`, f.skeleton || `form:${f.id}`);
+      actOfPair.set(`${sk}/${f.id}`, f.act || `do:${sk}:${f.rep}`);
+    }
+  }
+  /* THE SECOND GRAIN, AND WHY THE FIRST ONE PASSED A SESSION A PLAYER CALLED
+     REPETITIVE.
+
+     A player counted their own fourteen items and reported: "6 of 14 items
+     were 'substitute a value into a monomial/binomial' … 2 of 14 were 'table
+     with a rule header, one gap'. 8 of 14 across two shapes." Every bar below
+     was green while that happened, because `eval-expr` files four notations
+     for one substitution under four different SKELETONS — `form:ee-linear`,
+     `form:ee-two-var`, `form:ee-fraction`, `form:ee-square` — and the gate
+     obediently counted four shapes where the learner counted one question.
+
+     So every bar is now held at the ACT grain as well (see `actOf` in
+     src/learn/generators.js), and the act bars are the strict ones, because
+     the act is what a learner reports back:
+
+       · ADJACENCY IS ABSOLUTE. Not one pair of consecutive items in any
+         session may be the same act. The scheduler can always avoid this —
+         every band offers at least three acts — so there is no give here at
+         all, and any failure is a scheduler defect rather than a thin bank.
+       · THE WINDOW CAP GIVES WAY, RARELY, AND ONLY WHERE THE BANK IS THIN.
+         `like-terms` above band 3 offers exactly three acts and `eval-expr`
+         at band 1 offers three, so a six-item window on one of those skills
+         has no slack at all: two of each act is the only arrangement that
+         meets the cap, and one forced item breaks it. Measured over 120
+         sessions the residue is 9 windows in 1800. The bar is 1%: the rule is
+         enforced, and the handful of places the bank cannot satisfy it are
+         allowed and counted rather than hidden by loosening the rule.
+       · SESSION CAP 6 of 20. A learner held on one skill all sitting can meet
+         at most four acts, so five of one act is the arithmetic floor, not a
+         defect. Six is one item of slack over that; seven is the number the
+         schedule produced before this rule and is now a failure. */
+  const ACT_WINDOW_SLACK = 0.01;
+  const ACT_SESSION_CAP = 6;
+  let actAdjacent = 0, actWindows = 0, actWindowsOver = 0, actWorstSession = 0;
+  const rand = (seed) => {
+    let a = seed >>> 0;
+    return () => {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  for (let s = 0; s < SESSIONS; s++) {
+    const acc = ABILITIES[s % ABILITIES.length];
+    const rnd = rand((s * 2654435761 + 12345) >>> 0);
+    const engine = new MasteryEngine(graph);
+    // The bank's own ledger of situations lives for exactly one page load, and
+    // a session is one page load.
+    resetSituations();
+    const seq = [];
+    for (let i = 0; i < ITEMS; i++) {
+      const objective = engine.next();
+      if (!objective) break;
+      const task = engine.taskFor(objective.id);
+      if (!task) break;
+      const pool = task.formCandidates || [];
+      // Exactly what src/main.js does with the candidates it is handed: one at
+      // random. Anything cleverer here would be testing a scheduler the game
+      // does not ship.
+      const formId = pool.length ? pool[Math.floor(rnd() * pool.length)] : null;
+      const forms = FORMS_BY_SKILL[task.skill] || [];
+      const form = forms.find((f) => f.id === formId)
+        || forms.filter((f) => task.difficulty >= f.dMin && task.difficulty <= f.dMax)[0]
+        || forms[0];
+      if (!form) break;
+      seq.push({
+        skeleton: skelOf.get(`${task.skill}/${form.id}`),
+        act: actOfPair.get(`${task.skill}/${form.id}`),
+        skill: task.skill, d: task.difficulty, kind: task.kind,
+      });
+      engine.observe(task.skill, rnd() < acc, {
+        assisted: task.scaffold !== 'none',
+        form: form.id, rep: form.rep,
+        scene: (form.sceneKeys || [])[0] || '', kind: task.kind,
+      });
+    }
+    if (seq.length < ITEMS) {
+      fail(`diversity: session ${s} (accuracy ${acc}) ran dry after ${seq.length} of ${ITEMS} items`);
+      continue;
+    }
+
+    for (let i = 1; i < seq.length; i++) {
+      if (seq[i].skeleton !== seq[i - 1].skeleton) continue;
+      sessionWorst.adjacent++;
+      fail(`diversity: session ${s} (accuracy ${acc}) items ${i} and ${i + 1} are both "${seq[i].skeleton}" `
+        + `— ${seq[i].skill} d${seq[i].d} has too few shapes to alternate`);
+    }
+    for (let a = 0; a + WINDOW <= seq.length; a++) {
+      const count = new Map();
+      for (let b = a; b < a + WINDOW; b++) count.set(seq[b].skeleton, (count.get(seq[b].skeleton) || 0) + 1);
+      for (const [k, v] of count) {
+        if (v > sessionWorst.window) sessionWorst.window = v;
+        if (v > WINDOW_CAP) {
+          fail(`diversity: session ${s} (accuracy ${acc}) shows "${k}" ${v} times inside items `
+            + `${a + 1}-${a + WINDOW} (cap ${WINDOW_CAP} per ${WINDOW})`);
+        }
+      }
+    }
+    const total = new Map();
+    for (const it of seq) total.set(it.skeleton, (total.get(it.skeleton) || 0) + 1);
+    for (const [k, v] of total) {
+      if (v > sessionWorst.session) sessionWorst.session = v;
+      if (v > SESSION_CAP) {
+        fail(`diversity: session ${s} (accuracy ${acc}) shows "${k}" ${v} times in ${ITEMS} items (cap ${SESSION_CAP})`);
+      }
+    }
+
+    // ---- the same three bars, at the grain the learner counts ----
+    for (let i = 1; i < seq.length; i++) {
+      if (seq[i].act !== seq[i - 1].act) continue;
+      actAdjacent++;
+      fail(`diversity: session ${s} (accuracy ${acc}) asks the learner to do the same thing twice `
+        + `running at items ${i} and ${i + 1} — both are "${seq[i].act}" (${seq[i].skill} d${seq[i].d})`);
+    }
+    for (let a = 0; a + WINDOW <= seq.length; a++) {
+      const count = new Map();
+      for (let b = a; b < a + WINDOW; b++) count.set(seq[b].act, (count.get(seq[b].act) || 0) + 1);
+      actWindows++;
+      if (Math.max(...count.values()) > WINDOW_CAP) actWindowsOver++;
+    }
+    const actTotal = new Map();
+    for (const it of seq) actTotal.set(it.act, (actTotal.get(it.act) || 0) + 1);
+    for (const [k, v] of actTotal) {
+      if (v > actWorstSession) actWorstSession = v;
+      if (v > ACT_SESSION_CAP) {
+        fail(`diversity: session ${s} (accuracy ${acc}) asks "${k}" ${v} times in ${ITEMS} items `
+          + `(cap ${ACT_SESSION_CAP}) — that is what a learner calls "the same question all session"`);
+      }
+    }
+  }
+  if (actWindows && actWindowsOver / actWindows > ACT_WINDOW_SLACK) {
+    fail(`diversity: ${actWindowsOver} of ${actWindows} six-item windows carry one act more than `
+      + `${WINDOW_CAP} times (${(100 * actWindowsOver / actWindows).toFixed(1)}%, bar `
+      + `${(100 * ACT_WINDOW_SLACK).toFixed(0)}%) — the schedule is repeating one question`);
+  }
+  sessionWorst = {
+    ...sessionWorst, sessions: SESSIONS, items: ITEMS, window: sessionWorst.window,
+    WINDOW, WINDOW_CAP, SESSION_CAP,
+    actAdjacent, actWindows, actWindowsOver, actWorstSession, ACT_SESSION_CAP,
+  };
+  resetSituations();
+}
+
+// ---------------------------------------------------------------------------
+// 9c. …and the bank has to be able to MEET that, at every band it serves.
+//
+// The rules above are enforced by the scheduler as preferences that give way
+// rather than as refusals, because a scheduler that refuses to serve anything
+// is worse than one that serves a repeat. That is only safe if the bank can
+// actually satisfy them, so the satisfiability is checked here instead of being
+// discovered by a learner: three distinct shapes at a band is the floor at
+// which "never twice running, never three times in six" is reachable at all.
+// ---------------------------------------------------------------------------
+for (const skill of SKILLS) {
+  for (let d = 1; d <= 5; d++) {
+    const shapes = new Set((FORMS_BY_SKILL[skill] || [])
+      .filter((f) => d >= f.dMin && d <= f.dMax)
+      .map((f) => f.skeleton || `form:${f.id}`));
+    if (shapes.size < 3) {
+      fail(`diversity: ${skill} at band ${d} offers ${shapes.size} distinct item shape(s) `
+        + `(floor 3) — a learner held at this band cannot be given variety`);
+    }
+    /* …and the floor that actually decides whether "never twice running" is
+       reachable. Three SKELETONS can be one ACT — four notations for one
+       substitution were exactly that — and a band with fewer than three acts
+       cannot alternate at all, whatever the scheduler does. */
+    const acts = new Set((FORMS_BY_SKILL[skill] || [])
+      .filter((f) => d >= f.dMin && d <= f.dMax)
+      .map((f) => f.act || `do:${skill}:${f.rep}`));
+    if (acts.size < 3) {
+      fail(`diversity: ${skill} at band ${d} asks the learner to do ${acts.size} distinct thing(s) `
+        + `(floor 3) — every item at this band is one of ${[...acts].join(' / ')}, so no schedule `
+        + `can stop it repeating`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 10. The standards map document is generated here, so it cannot drift.
 //
 // A standards alignment that lives in a hand-maintained markdown file is a
@@ -1205,6 +1447,11 @@ for (const skill of SKILLS) {
 console.log(`diagnosis: ${producible.size} misconceptions producible and translated in ${ITEM_LOCALES.length} locales; `
   + `${offListNamed}/${offListChecked} off-list responses were given a name (must be 0)`);
 console.log(`scaffolds: ${pairs - missing - leaked}/${pairs} analogues clean, ${leaked} leaked the live answer, ${missing} unavailable`);
+console.log(`template diversity over ${sessionWorst.sessions} played sessions of ${sessionWorst.items} items: `
+  + `worst one shape ${sessionWorst.session}/${sessionWorst.items} (cap ${sessionWorst.SESSION_CAP}), `
+  + `worst ${sessionWorst.WINDOW}-item window ${sessionWorst.window} (cap ${sessionWorst.WINDOW_CAP}), `
+  + `${sessionWorst.adjacent} back-to-back repeats (cap 0); `
+  + `thinnest band ${Math.min(...SKILLS.flatMap((s) => [1, 2, 3, 4, 5].map((d) => new Set((FORMS_BY_SKILL[s] || []).filter((f) => d >= f.dMin && d <= f.dMax).map((f) => f.skeleton)).size)))} shapes (floor 3)`);
 console.log(`echo: ${ladders - flat}/${ladders} four-layer ladders strictly deepen, ${thin} answer a slip with no mathematics or by restating the prompt, ${leakyEcho} print the live answer`);
 console.log(`typography: 0 unicode maths glyphs in ${ITEM_LOCALES.length} locales; ${typographyAnglo} locale-specific operators in the notation (both must be 0)`);
 console.log(`surface strategies over ${choiceItems} choice items (1-in-4 baseline):`);

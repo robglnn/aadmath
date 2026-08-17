@@ -34,11 +34,12 @@ import './foundry.css';
  *                     nothing, lit cyan when the cheapest thing is in reach and
  *                     gold when the permanent one is. You can read your own
  *                     wallet off the sky from two hundred metres away.
- *   IT OPENS ITSELF   Walking onto the deck opens it. There is no key to know.
- *                     E opens it from further out, the hail is a click target
- *                     for a mouse and a tap target for a thumb, and a pad's X
- *                     does the same — but a player who knows none of that still
- *                     gets the shop by walking into the thing that is glowing.
+ *   IT ASKS, IT DOES  Walking onto the deck makes the hail loud — bigger,
+ *   NOT ANSWER        brighter, breathing — and then it waits. E opens it from
+ *                     twenty-six metres, the hail is a click target for a mouse
+ *                     and a tap target for a thumb, and a pad's X does the same.
+ *                     It once opened itself on contact; that is gone, and
+ *                     `update()` carries the whole argument for why.
  *   IT QUOTES FIRST   Every row names the price, says what the thing does in one
  *                     line of the world's own language, and — for the rows not
  *                     for sale yet — exactly what opens them, which is always
@@ -65,9 +66,8 @@ export const FOUNDRY_AT = [7, 15];
 
 const DECK_R = 5.6;      // metres of stone floor
 const DECK_H = 0.62;     // …standing this far proud of the meadow
-const OPEN_R = 6.4;      // walk this close and the panel opens
+const OPEN_R = 6.4;      // stand this close and the hail goes loud
 const HAIL_R = 26;       // the hail appears from here
-const REARM_R = 13;      // …and you must leave this far for the dwell to re-arm
 
 /** Slate / cyan / gold: nothing, something, the permanent thing. */
 const TONE = {
@@ -298,7 +298,6 @@ export function createFoundry(opts = {}) {
   panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
   let open_ = false;
-  let armed = true;          // has the player left and come back since it opened
   let visited = false;
   let toneNow = 'none';
   let flareT = 0;
@@ -317,7 +316,6 @@ export function createFoundry(opts = {}) {
     if (open_ || isBusy() || input?.uiOpen) return false;
     open_ = true;
     visited = true;
-    armed = false;
     paint();
     panel.classList.add('show');
     if (input) input.uiOpen = true;
@@ -385,6 +383,21 @@ export function createFoundry(opts = {}) {
       r.li.dataset.state = item.state;
       r.li.classList.toggle('afford', item.state === 'buy');
 
+      // WHAT CHANGED, NOT WHAT IS THERE.
+      //
+      // `kit.js` calls `refresh()` twice a second for as long as this panel is
+      // open, and this block used to tear the whole action cell down and build
+      // a fresh button with a fresh listener every time — a button, a closure
+      // and a listener twice a second, for as long as a player stands at the
+      // counter reading it. Measured over a real session that was the largest
+      // single source of listener churn in the game. The cell is rebuilt only
+      // when the words or the state on it actually differ.
+      const label = item.state === 'buy'
+        ? t('foundry.take')
+        : t('foundry.short', { n: item.price - purse });
+      const sig = `${item.state}|${label}|${item.carried}|${item.key}|${item.lock?.key || ''}|${item.lock?.n || ''}`;
+      if (r.sig === sig) continue;
+      r.sig = sig;
       r.act.textContent = '';
       r.act.className = 'fdy-act';
       if (item.state === 'buy' || item.state === 'poor') {
@@ -392,9 +405,7 @@ export function createFoundry(opts = {}) {
         b.type = 'button';
         b.className = 'fdy-buy';
         b.disabled = item.state !== 'buy';
-        b.textContent = item.state === 'buy'
-          ? t('foundry.take')
-          : t('foundry.short', { n: item.price - purse });
+        b.textContent = label;
         b.addEventListener('click', () => buy(item.id));
         r.act.appendChild(b);
       } else {
@@ -479,10 +490,30 @@ export function createFoundry(opts = {}) {
     }
     hail.classList.toggle('show', wantHail);
 
-    // ---- walking in is the interaction ----
-    if (d > REARM_R) armed = true;
+    // ---- standing on the deck ASKS. It does not answer. ----
+    //
+    // This used to be `if (onDeck && armed) open()`, and it was the single
+    // worst thing in the game's report card:
+    //
+    //   "the Foundry shop … opened full-screen three times with no input from
+    //    me — once mid-sprint, once mid-build."
+    //
+    // The shop stands thirteen metres from the spawn, in the middle of the only
+    // flat ground on the plateau, which is to say: on the route to everywhere.
+    // Crossing it is not a request to go shopping. A full-screen modal that
+    // arrives while a cadet is sprinting somewhere else, or three walls into a
+    // lattice, is not discoverable — it is an interruption that also loses
+    // their work, and no amount of "but they would have wanted to see it"
+    // makes taking the frame uninvited the right call.
+    //
+    // Discoverability survives intact, because it never depended on this. The
+    // crucible is a landmark lit off the player's own wallet from two hundred
+    // metres; the hail carries the key from twenty-six; and standing on the
+    // deck now makes that hail LOUD (`.here` — see foundry.css) rather than
+    // making the decision for them. One key, one click, one pad button, all
+    // still open it instantly. The player asks; the shop answers.
     const onDeck = d < OPEN_R && player.pos.y - y > -2.4 && player.pos.y - y < 4.2;
-    if (onDeck && armed) open();
+    hail.classList.toggle('here', onDeck && wantHail);
 
     // A pad has no E. Read the same button the world's interact verb reads,
     // edge-triggered here because the kit ticks after `input.endFrame()` has
@@ -513,7 +544,7 @@ export function createFoundry(opts = {}) {
     pos: site,
     /** Repaint from outside: the wallet moves while the panel is open. */
     refresh() { if (open_) paint(); },
-    reset() { visited = false; armed = true; close(); },
+    reset() { visited = false; close(); },
   };
 }
 

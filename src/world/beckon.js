@@ -282,6 +282,31 @@ export function createBeckon(opts = {}) {
   }
 
   /**
+   * Is the cadet doing something a full-screen card would wreck?
+   *
+   * Three things count, and each of them is a thing the player is *steering*:
+   *
+   *   BUILDING  the hand is out and a lattice is going up. A modal here does
+   *             not just interrupt, it throws away a piece of work — the worst
+   *             kind of interruption there is.
+   *   GLIDING   the wing is open. Nobody has ever wanted to be taken out of
+   *             the air, and a card that lands mid-flight also lands the cadet.
+   *   SPRINTING flat out across the plateau, which on this island means going
+   *             somewhere specific. A tear crossed at speed is scenery.
+   *
+   * Deliberately NOT here: walking, jogging, standing, looking around. Those
+   * are how a player arrives somewhere, and arriving somewhere is the whole
+   * gesture contact-to-open exists to honour.
+   */
+  const SPRINTING = 9.4;    // m/s — above a run, below the 11.8 top end
+  function engaged() {
+    if (builder?.busyBuilding) return true;
+    if (player?.gliding) return true;
+    if ((player?.speed ?? 0) > SPRINTING) return true;
+    return false;
+  }
+
+  /**
    * Contact. The one behaviour the client's whole report was about: walking
    * into a ring has to do something, and if it will not open it has to say so.
    */
@@ -303,6 +328,9 @@ export function createBeckon(opts = {}) {
     const off = rifts.nearestAny(player.pos, RIFT_REARM);
     if (!off) armed = true;
     if (isBusy() || !near) return;
+    // Busy hands get neither the card nor the toast. A red "Rift surge" thrown
+    // across a half-built lattice is the same interruption in a smaller font.
+    if (engaged()) return;
 
     if (near.locked) {
       if (knock <= 0) {
@@ -320,6 +348,23 @@ export function createBeckon(opts = {}) {
     // a dais must not be the same gesture as walking back onto it: that is the
     // exact loop a critic spent ten minutes inside. The key still works.
     if (!canWalkIn(near.id)) return;
+    // ARE THEY EVEN TALKING TO YOU? — the other half of contact, added after a
+    // cold critic reported "a rift that opened on contact while I was placing
+    // walls".
+    //
+    // Contact-to-open earns its keep and stays: it is how a stranger opens
+    // their first tear with no key knowledge at all, and `tools/critic/
+    // coldplay.mjs` walks a cold player into one to prove it. But "walked into
+    // it" and "was moving through the space it happens to occupy" are not the
+    // same event, and only the first is a request.
+    //
+    // So a tear now waits, rather than grabs, whenever the cadet is plainly in
+    // the middle of something else. It costs nothing: the plate is still lit,
+    // the key is still printed on it, and the moment they stop — put the hand
+    // down, level out, come off the sprint — one more step opens it. Nothing
+    // is hidden and nothing is refused; the tear simply stops finishing other
+    // people's sentences. (The test itself is at the top of this function, so
+    // the shut-tear knock below is held to the same rule.)
     if (!armed) return;
     armed = false;
     onOpenRift(near);

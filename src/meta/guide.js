@@ -16,8 +16,10 @@
  *
  * So this file is that answer, out loud, before anything has been found:
  *
- *   THE OBJECTIVE   one verb, one line, one distance, one reason it is worth
- *                   walking there, and the whole arc in ten pips underneath.
+ *   THE OBJECTIVE   one verb, one line, one distance, and one reason it is
+ *                   worth walking there. No score, no tally, no pips: this card
+ *                   is a signpost and the progress number is on the rig, where
+ *                   there is exactly one of it (src/meta/progress.js).
  *                   Recomputed from live state every 450 ms, never stored —
  *                   which is what makes it survive a session break for free.
  *                   There is no objective record to reload, restore, migrate or
@@ -47,10 +49,47 @@ import * as THREE from 'three';
 import './guide.css';
 import { t, num } from '../i18n/index.js';
 import { resolveObjective, countLines } from './objective.js';
+/* This card prints no PROGRESS figure any more — see `paintFrom`. `countLines`
+   is still read, because the card's own wording turns on whether anything is
+   held yet; it is a predicate here, not a number on the glass. The one number
+   that is still printed is how far away the rift is, which is a fact about the
+   world and not about the learner, and it is declared as one. */
+import { FIG, tagFigure } from './progress.js';
 import { lexiconOf, createLexicon } from './lexicon.js';
 
-/** Inside this the rift is in hand: the marker stands down and the key shows. */
-const REACH = 11;
+/* THE CARD IS NEVER ALLOWED TO OFFER NOTHING.
+ *
+ * This file used to carry its own idea of how near a rift is near enough —
+ * `const REACH = 11` — while the key that opens one works inside nine metres
+ * (`REACH` in src/world/rifts.js, which is where a reach belongs, because it is
+ * a property of the built place and not of a caption). Two numbers, one
+ * question, and between them a two-metre ring around every rift on this island
+ * where the card printed YOU ARE STANDING IN IT over no distance, no bearing
+ * and no waypoint, while the interact key did nothing at all.
+ *
+ * A cold critic stood in that ring for four minutes:
+ *
+ *   "at 10-11 m the objective card replaces the direction label with YOU ARE
+ *    STANDING IN IT. No rift ring is present, no prompt appears, E is a silent
+ *    no-op, and R returns you to 10 m still standing in it. Probed w/a/s/d:
+ *    11m 'BEHIND YOU', 11m 'TO YOUR RIGHT', 10m 'STANDING IN IT', 10m
+ *    'STANDING IN IT'. Reproduced three separate times."
+ *
+ * That is a lost moment with no way out, and it is the exact automatic-fail
+ * this project has shipped once already.
+ *
+ * The rule this file now holds to, and `tools/critic/coldplay.mjs` now walks
+ * every rift from eight bearings to prove:
+ *
+ *   ON EVERY FRAME THE CARD IS UP, THE PLAYER IS OFFERED EITHER A DIRECTION TO
+ *   WALK OR AN ACTION THAT WORKS. NEVER NEITHER.
+ *
+ * "You are standing in it" is not a distance band. It is the name of one state
+ * — the state in which the key in the prompt would open this exact tear — and
+ * the world answers that question, once, for everybody who asks
+ * (`Rifts.inHand`). Anywhere else, however close, the card says how far and
+ * which way, and the waypoint stays up to be walked at.
+ */
 
 const RANK_TINT = ['#e0a06a', '#d9b48a', '#cfe0ee', '#ffdd8a', '#c9a6ff'];
 const DEG = 180 / Math.PI;
@@ -71,10 +110,17 @@ export function createGuide(opts) {
     <span class="gd-what"></span>
     <span class="gd-where"><b class="gd-dist"></b><i class="gd-dir"></i></span>
     <span class="gd-why"></span>
-    <span class="gd-lines">
-      <span class="gd-pips"></span>
-      <span class="gd-tally"></span>
-    </span>`;
+    <span class="gd-gloss"></span>`;
+  /* THE PROGRESS ROW IS GONE FROM THIS CARD, ON PURPOSE.
+     It carried "0 OF 10 LINES HELD" over ten pips, and a previous pass made it
+     THE progress number — one place, one name, three words. It was still the
+     wrong place. A cold critic counted nine figures on one frame and two of
+     them were here: the tally, and a why-line reading "Hold this one and 2 more
+     lines open". The card's job is DIRECTION — one verb, one line, one distance,
+     one reason to walk there — and a progress figure sitting on it is a second
+     instrument bolted to a signpost. The one progress number is WORLD REPAIRED,
+     on the rig, where it has been since the first frame of the game; lines held
+     is evidence and lives in the report. See src/meta/progress.js. */
   root.appendChild(card);
 
   /* The chapter card sits directly beneath this one, and this one's height is
@@ -94,8 +140,7 @@ export function createGuide(opts) {
     dist: card.querySelector('.gd-dist'),
     dir: card.querySelector('.gd-dir'),
     why: card.querySelector('.gd-why'),
-    pips: card.querySelector('.gd-pips'),
-    tally: card.querySelector('.gd-tally'),
+    gloss: card.querySelector('.gd-gloss'),
   };
 
   // ------------------------------------------------------------- the marker
@@ -199,36 +244,20 @@ export function createGuide(opts) {
     el.verb.textContent = t('guide.verb.' + obj.verb);
     el.what.textContent = t('skills.' + obj.skill);
     el.why.textContent = payLine(obj);
-
-    const total = obj.held + obj.open + obj.locked;
-    if (el.pips.childElementCount !== total) el.pips.innerHTML = '<u></u>'.repeat(total);
-    const pips = el.pips.children;
-    let i = 0;
-    for (; i < obj.held; i++) pips[i].className = 'held';
-    for (; i < obj.held + obj.open; i++) pips[i].className = 'open';
-    for (; i < total; i++) pips[i].className = '';
-    // "0 held · 1 open · 9 locked" was the first place a learner ever read the
-    // word *held*, and nothing on the card said what it meant. While the count
-    // is zero there is no number to lose, so the slot says the word instead.
-    // i18n, additive — both keys are in src/i18n.
-    // The pips above already show held, open and locked as colour. Until the
-    // first line is held, the row below them spends its one line on the word
-    // instead of on a zero.
-    /* THREE STATES, BECAUSE A DEFINITION HAS TO ARRIVE WITH ITS TERM.
-       The empty card used to print "HELD MEANS PROVED FOR GOOD" — the meaning
-       of a word the card had not used and the player had not read. It now says
-       what the marks above it are; the word arrives on the frame where the
-       first line is actually held, with its meaning attached; and from the
-       second one it is a bare count, because by then it is a word he owns.
-       i18n, additive — `guide.tallyFirst` is in all three bundles. */
-    const counts = { held: obj.held, open: obj.open, locked: obj.locked };
-    el.tally.textContent = obj.held === 0 ? t('guide.tallyNew')
-      : obj.held === 1 ? t('guide.tallyFirst', counts)
-        : t('guide.tally', counts);
+    /* The gloss defines the term the card uses, once, while the learner has
+       held nothing yet — so *held* still arrives with its meaning even though
+       the count that used to carry it has moved to the report. */
+    el.gloss.textContent = obj.held === 0 ? t('guide.linesHeldNew') : '';
+    el.gloss.hidden = obj.held !== 0;
   }
 
   function payLine(o) {
-    if (o.pay === 'lines') return t('guide.pay.lines', { n: o.payN });
+    /* "Hold this one and 2 more lines open" was a progress figure on a signpost,
+       and it was one of the nine. What makes a learner walk is that holding this
+       line opens more of the lattice, which the sentence still says; how many
+       more is a fact about the graph, not about them, and it belongs with the
+       rest of the ledger in the report. */
+    if (o.pay === 'lines') return t('guide.pay.linesAny');
     // Name AND meaning. "Hold it and Kite trim is yours" named a thing this
     // game explains only on the card it hands you after you have won it.
     if (o.pay === 'kit') return t('guide.pay.kit', { name: o.payName, gist: o.payGist });
@@ -259,9 +288,21 @@ export function createGuide(opts) {
     node.textContent = text;
   }
 
+  /**
+   * The card's ink is the RANK's ink, read from the one place that sets it.
+   *
+   * This used to derive a rank of its own — `floor(integrity * 5)` — off a
+   * ladder rank is not bought on (`src/meta/arc.js`: rank comes from standing).
+   * So the signpost could be painted copper while the rig above it and the
+   * chapter card below it were both painted bronze, which is three surfaces
+   * disagreeing about one fact in the one channel that carries no words at all.
+   * `src/meta/index.js` writes `--rank-ink` on the UI root when rank changes;
+   * this reads it, and the fallback is only for a frame before the story has
+   * had its first paint.
+   */
   function tint() {
-    const r = Math.max(0, Math.min(4, Math.floor((mastery.integrity?.() || 0) * 5)));
-    return RANK_TINT[r];
+    const v = getComputedStyle(root).getPropertyValue('--rank-ink').trim();
+    return v || RANK_TINT[0];
   }
 
   // ---------------------------------------------------------------------------
@@ -294,25 +335,18 @@ export function createGuide(opts) {
     const W = root.clientWidth || innerWidth;
     const H = root.clientHeight || innerHeight;
 
-    // ---- where the objective is, from here ---------------------------------
-    // The held fallback, for the same reason the card uses it: the waypoint and
-    // the distance must not blink out for the two seconds after a seal either.
-    // Both are measured from the player, so they stay true while they are held.
-    const aim = obj || held;
-    if (aim) {
-      const dist = player.pos.distanceTo(aim.pos);
-      write(el.dist, 'dist', t('guide.metres', { n: num(Math.round(dist)) }));
-      write(el.dir, 'dir', dist < REACH ? t('guide.rel.here') : t('guide.rel.' + relative(aim.pos)));
-      placeMark(aim.aim || aim.pos, W, H, dist);
-    } else {
-      pin.classList.remove('show');
-    }
-
-    // ---- the key ------------------------------------------------------------
-    // `rifts.nearest` is the exact predicate main.js opens on, so the prompt
-    // can never claim a key works where it does not. Walking in works too
+    // ---- the key, FIRST ------------------------------------------------------
+    // `rifts.nearest` is the exact predicate main.js opens on, so the prompt can
+    // never claim a key works where it does not. Walking in works too
     // (src/world/beckon.js) — this is the faster verb, and the only place in
     // the game that has ever named the binding.
+    //
+    // It is read before the card is written, and that order is the fix. The
+    // card's "you are standing in it" is now a *report of this line's answer*
+    // rather than a second, kinder opinion about the same question, so the two
+    // cannot come apart the way they did in the ring between nine and eleven
+    // metres. If there is no working key here, the card owes the player a
+    // direction, and it is about to give one.
     const near = rifts.nearest?.(player.pos) || null;
     if (near) {
       promptKey.textContent = keyLabel();
@@ -320,6 +354,40 @@ export function createGuide(opts) {
       prompt.classList.add('show');
     } else {
       prompt.classList.remove('show');
+    }
+
+    // ---- where the objective is, from here ---------------------------------
+    // The held fallback, for the same reason the card uses it: the waypoint and
+    // the distance must not blink out for the two seconds after a seal either.
+    // Both are measured from the player, so they stay true while they are held.
+    const aim = obj || held;
+    if (aim) {
+      // The metres the world quotes, measured the way the world measures them:
+      // horizontally, to the plate you have to stand on. The straight line to
+      // the plate is a different number on any slope, and a card quoting one
+      // while the key honours the other is a card that lies by a metre or two
+      // at exactly the distance where a metre or two decides whether the key
+      // works. (`Rifts.reachTo`, the one definition.)
+      const dist = rifts.plateDist && aim.rift
+        ? rifts.plateDist(player.pos, aim.rift) : player.pos.distanceTo(aim.pos);
+      // …and whether it is in hand is the WORLD's answer, not this card's.
+      // `Rifts.inHand` is one line and it is the same line the interact key
+      // runs on (`nearest`), which is the whole of the fix: there is no longer
+      // a second opinion for the two to disagree about.
+      const inHand = !!aim.rift && (rifts.inHand
+        ? rifts.inHand(player.pos, aim.rift) : near === aim.rift);
+      write(el.dist, 'dist', t('guide.metres', { n: num(Math.round(dist)) }));
+      // A distance, not a score. Declared so the gate can tell them apart.
+      tagFigure(el.dist, FIG.METRES, Math.round(dist));
+      // …AND THE DIRECTION IS NEVER TAKEN AWAY. The only state that replaces a
+      // bearing with "you are standing in it" is the state in which the prompt
+      // above is up and pointed at this very tear — i.e. the sentence is true
+      // and there is a key on screen to act on it. Every other state, at every
+      // distance, gets metres and a way to face.
+      write(el.dir, 'dir', inHand ? t('guide.rel.here') : t('guide.rel.' + relative(aim.pos)));
+      placeMark(aim.aim || aim.pos, W, H, dist, inHand, aim.skill);
+    } else {
+      pin.classList.remove('show');
     }
 
     lex.update(dt);
@@ -335,9 +403,16 @@ export function createGuide(opts) {
    * is looking at a marker he cannot see. So the arrow rides a rectangle that
    * is the actual free glass, and the ray is cast from *that* rectangle's
    * centre, not the screen's, or the two disagree at the corners.
+   *
+   * …and it stands down for the same one reason the bearing does, and for no
+   * other. It used to disappear inside eleven metres, which is how a player ten
+   * metres from a rift ended up with a card that named no direction and a sky
+   * that carried no marker at the same instant. The diamond is the last thing
+   * on screen that can still say *that way*: it goes when the tear is in hand
+   * and there is a key to press instead.
    */
-  function placeMark(pos, W, H, dist) {
-    if (dist < REACH) { pin.classList.remove('show'); return; }
+  function placeMark(pos, W, H, dist, inHand, skill) {
+    if (inHand) { pin.classList.remove('show'); return; }
     view.copy(pos).applyMatrix4(camera.matrixWorldInverse);
     const front = view.z < 0;
     v.copy(pos).project(camera);
@@ -371,8 +446,19 @@ export function createGuide(opts) {
     // two hundred pixels away saying the same words. Off screen there is no
     // world label to lean on and the card is across the frame, so the name
     // comes back — it is the one state where it is doing work.
-    write(pinName, 'nm', off ? t('skills.' + obj.skill) : '');
+    //
+    // The name is PASSED IN rather than read off `obj`, which is null for the
+    // beat after a seal while `held` carries the card. That line used to say
+    // `obj.skill`, and the only reason it had never thrown is that the marker
+    // was hidden inside eleven metres — exactly the band this file has just
+    // stopped hiding it in. A dead objective card is the defect being fixed
+    // here; a TypeError in the frame that fixes it would be the same defect
+    // wearing a different hat.
+    write(pinName, 'nm', off && skill ? t('skills.' + skill) : '');
     write(pinDist, 'm', t('guide.metres', { n: num(Math.round(dist)) }));
+    // The same metres the card quotes, from the same `dist` — one measurement,
+    // two places, and the gate proves they are still the same number.
+    tagFigure(pinDist, FIG.METRES, Math.round(dist));
     pin.classList.add('show');
   }
 
@@ -400,14 +486,36 @@ export function createGuide(opts) {
       const o = obj || held;
       if (!o) return null;
       const tally = countLines(mastery);
+      const nearNow = rifts.nearest?.(player.pos) || null;
+      const reach = rifts.plateDist && o.rift
+        ? rifts.plateDist(player.pos, o.rift) : player.pos.distanceTo(o.pos);
       return {
         verb: o.verb, skill: o.skill, kind: o.kind,
-        metres: Math.round(player.pos.distanceTo(o.pos)),
+        // The same quantity the card prints and the key honours: horizontal, to
+        // the plate you have to stand on.
+        metres: Math.round(reach),
         where: relative(o.pos),
-        held: tally.held, open: tally.open, locked: tally.locked,
+        // The lattice in three numbers. This card no longer PRINTS any of them
+        // — a signpost carrying a score is two instruments on one sign — but a
+        // critic still needs one place to read them off the live engine, and
+        // this is a read of `countLines`, never a second way of counting.
+        held: tally.held, open: tally.open, locked: tally.locked, total: tally.total,
         marker: pin.classList.contains('show'),
         offScreen: pin.classList.contains('edge'),
         prompt: prompt.classList.contains('show'),
+        /* THE INVARIANT, READABLE OFF THE PAINTED CARD.
+           `offers` is read from the pixels the player is looking at, not from
+           the state they were computed from, and it is what
+           tools/critic/coldplay.mjs asserts on every frame of every approach to
+           every rift from eight bearings: a key that works, or a way to face,
+           and NEVER `nothing`. */
+        inHand: nearNow === o.rift,
+        nearId: nearNow ? nearNow.id : null,
+        here: el.dir.textContent === t('guide.rel.here'),
+        dir: el.dir.textContent,
+        offers: prompt.classList.contains('show') ? 'prompt'
+          : (el.dir.textContent && el.dir.textContent !== t('guide.rel.here')
+            ? 'bearing' : 'nothing'),
         taught: lex.known(),
       };
     },

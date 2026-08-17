@@ -91,6 +91,9 @@ export const GradeShader = {
     uImpact: { value: 0 },
     uImpactBad: { value: 0 },
     uShake: { value: [0, 0] },
+    // THE SEAL. Not the lens kick above — the slow one underneath it, the
+    // half-second where the sky agrees with what the cadet just wrote.
+    uSeal: { value: 0 },
   },
 
   vertexShader: /* glsl */`
@@ -111,7 +114,7 @@ export const GradeShader = {
     uniform float uBloom, uContact, uProjScale;
     uniform float uTime, uExposure, uAberration, uVignette, uGrain, uGrainAnim;
     uniform float uSaturation, uContrast, uBlackPoint, uFocusBlend;
-    uniform float uImpact, uImpactBad, uDebug;
+    uniform float uImpact, uImpactBad, uDebug, uSeal;
 
     const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 
@@ -295,7 +298,14 @@ export const GradeShader = {
       }
 
       // --- exposure, with a slight dip while a rift is talking to you --------
-      float exposure = uExposure * mix(1.0, 0.88, uFocusBlend) * (1.0 + uImpact * 0.30 * (1.0 - uImpactBad));
+      // The seal's lift goes in HERE, before the tone map, and that is the
+      // whole of why it reads as light instead of as a white rectangle laid
+      // over the frame: ACES rolls the highlights off, so the sky bleaches
+      // toward its own colour, the lit faces of the stone go gold, and nothing
+      // clips. Added after the tone map it would be a flashbang.
+      float exposure = uExposure * mix(1.0, 0.88, uFocusBlend)
+        * (1.0 + uImpact * 0.30 * (1.0 - uImpactBad))
+        * (1.0 + uSeal * 0.42);
       col *= exposure;
 
       // --- tone map ---------------------------------------------------------
@@ -344,10 +354,28 @@ export const GradeShader = {
         }
       }
 
+      // --- the seal -----------------------------------------------------------
+      // A statement just became true and the world is agreeing with it. The
+      // light does not come from the lens: it comes from above, it lands on
+      // what is already lit, and it is warm. Three terms, all cheap, and the
+      // branch is on a uniform so a frame with no seal in it pays nothing.
+      if (uSeal > 0.0) {
+        float k = uSeal;
+        float lum = dot(col, LUMA);
+        // sky-down: strongest at the top of the frame, so a cadet looking at
+        // the horizon sees the horizon take it
+        col += vec3(1.00, 0.84, 0.55) * k * (0.028 + 0.085 * lum) * (0.52 + 0.70 * uv.y);
+        // and everything the light touches turns fractionally gold
+        col = mix(col, col * vec3(1.07, 1.01, 0.89), k);
+      }
+
       // --- vignette: elliptical, follows the aspect so it never reads oval --
+      // …and it OPENS on a seal. The frame is not closing in on the learner at
+      // the moment they were right; it is getting wider.
       vec2 vd = d0 * vec2(uAspect, 1.0) / 1.42;
       float vig = 1.0 - smoothstep(0.26, 1.02, length(vd));
-      vig = mix(1.0, vig, uVignette * mix(1.0, 1.30, uFocusBlend) * (1.0 + uImpact * uImpactBad * 0.8));
+      vig = mix(1.0, vig, uVignette * mix(1.0, 1.30, uFocusBlend)
+        * (1.0 + uImpact * uImpactBad * 0.8) * (1.0 - uSeal * 0.45));
       col *= vig;
 
       // --- output transfer, then grain on top so it lives in display space --

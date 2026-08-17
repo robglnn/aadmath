@@ -15,6 +15,7 @@ import { rng } from './noise.js';
 import { installAir } from './air.js';
 import { createRanges, createInversion } from './ranges.js';
 import { createFarlands, FARLANDS } from './farlands.js';
+import { createDeeps } from './deeps.js';
 
 export { ISLAND_R, heightAt, onGround, slopeAt, LAKE, PEAK, FARLANDS };
 
@@ -40,6 +41,12 @@ export function createWorld(scene, quality = 1, camera = null) {
   // each a different colour and a different silhouette — so that whichever way
   // you turn on the plaza, something on the horizon is visibly not this island.
   const farlands = createFarlands(scene, sunDir, quality);
+  // The layer under the horizon. The far worlds are all *above* the skyline, so
+  // the moment a player walked to the coast and looked down into the gulf — the
+  // one thing a floating island invites you to do — the lower half of the frame
+  // was empty cloud deck. See deeps.js: that band is where "beautiful empty
+  // park" was actually coming from.
+  const deeps = createDeeps(scene, sunDir, quality);
   const inversion = createInversion(scene, sunDir, quality);
 
   // ---------------- light ----------------
@@ -173,6 +180,7 @@ export function createWorld(scene, quality = 1, camera = null) {
     sky.update(t);
     inversion.update(t);
     farlands.update(t);
+    deeps.update(dt, t);
 
     // ---------------- the shadow volume ----------------
     //
@@ -266,7 +274,7 @@ export function createWorld(scene, quality = 1, camera = null) {
 
   return {
     update, tuneAtmosphere, sun, ground, sky, sunDir, water, crystals, grass,
-    ranges, farlands,
+    ranges, farlands, deeps,
     /**
      * Tell the world where the shadow volume should be built. `fn` returns a
      * world-space point — the player's feet. Without it the volume falls back

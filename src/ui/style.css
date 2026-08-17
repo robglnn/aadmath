@@ -161,20 +161,11 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
 .rig-pct{font-size:1.16rem;font-weight:700;line-height:1.05;
   font-variant-numeric:tabular-nums;letter-spacing:.01em;color:#f2f8ff;
   text-shadow:0 0 14px color-mix(in srgb,var(--glow-rank) 55%,transparent)}
-/* The delta rides up beside the percentage it just changed, inside the panel.
-   It is a flex item rather than an overlay so it can never land on top of the
-   number, whatever the number's width. */
-.rig-delta{margin:0 .4rem 0 auto;font-size:.62rem;font-weight:700;
-  letter-spacing:.04em;color:var(--ink-rank);opacity:0;pointer-events:none;
-  white-space:nowrap;text-shadow:0 0 10px var(--glow-rank),0 1px 4px rgba(0,0,0,.9)}
-.rig-delta:empty{margin-left:auto;margin-right:0}
-.rig.gain .rig-delta{animation:rigDelta 1.4s cubic-bezier(.2,.8,.2,1) forwards}
-@keyframes rigDelta{
-  0%{opacity:0;translate:0 5px}
-  16%{opacity:1;translate:0 0}
-  66%{opacity:1;translate:0 -8px}
-  100%{opacity:0;translate:0 -15px}
-}
+/* THE DELTA CHIP IS GONE. It printed "+7%" twenty pixels from the figure it was
+   a change in — a second numeral on the one panel that is allowed exactly one.
+   The rise is still felt: the figure counts up to its new value over 620 ms, the
+   meter head flares, and the sweep runs the length of the bar. */
+.rig-pct{margin-left:auto}
 
 /* ---- the meter ----
    Raked 16deg so it reads as an instrument rather than a progress bar, cut
@@ -184,12 +175,11 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
   background:linear-gradient(180deg,rgba(126,170,220,.09),rgba(90,130,180,.05));
   box-shadow:inset 0 0 0 1px rgba(140,195,255,.12),inset 0 2px 7px rgba(0,0,0,.5)}
 .rig-meter > i{position:absolute;top:0;bottom:0;left:0;display:block}
-/* credit still being earned: the ghost that runs ahead of confirmed mastery */
-.rig-meter .soft{width:0;background:linear-gradient(180deg,
-  color-mix(in srgb,var(--ink-rank) 34%,transparent),
-  color-mix(in srgb,var(--ink-rank) 14%,transparent));
-  transition:width .7s cubic-bezier(.2,.8,.2,1)}
-/* mastery the rig will stand behind */
+/* ONE FILL. There used to be a second, dimmer bar under this one for "credit
+   still being earned", running ahead of confirmed mastery — two answers to one
+   question, zero pixels apart. The number this meter now draws is the belief
+   itself, so the ghost's meaning is inside the figure rather than beside it.
+   See src/meta/progress.js. */
 .rig-meter .fill{width:0;background:linear-gradient(180deg,
   color-mix(in srgb,var(--ink-rank) 92%,white),
   var(--ink-rank) 46%,
@@ -206,19 +196,13 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--ink);
   background:repeating-linear-gradient(90deg,
     transparent 0 calc(100% / var(--cells,30) - 1.3px),
     rgba(4,9,18,.5) calc(100% / var(--cells,30) - 1.3px) calc(100% / var(--cells,30)))}
-/* The rank ladder, drawn on the meter at the same 20/40/60/80 the story uses:
-   the bar is visibly five acts long, and you can see the next one coming. */
-.rig-meter .marks{right:0;width:auto}
-.rig-meter .marks u{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;
-  background:rgba(2,6,13,.94);text-decoration:none}
-.rig-meter .marks u::after{content:'';position:absolute;left:1.5px;top:0;bottom:0;width:1px;
-  background:rgba(190,215,245,.34)}
-.rig[data-passed="1"] .marks u:nth-child(1)::after,
-.rig[data-passed="2"] .marks u:nth-child(-n+2)::after,
-.rig[data-passed="3"] .marks u:nth-child(-n+3)::after,
-.rig[data-passed="4"] .marks u::after{background:#fff;
-  box-shadow:0 0 7px 1px var(--glow-rank)}
-/* the gain sweep: a run of light down the meter when integrity rises */
+/* NO RANK LADDER ON THIS METER. It drew gates at 20/40/60/80% and said, in the
+   only language a meter has, "rank arrives at these points on this bar". Rank
+   does not: it is bought with standing (src/meta/arc.js), which is how the rig
+   came to read COPPER on the same frame the chapter card read BRONZE. The rank
+   NAME on this panel is written by src/meta/index.js, which owns rank, and this
+   file no longer has an opinion about where the next one is. */
+/* the gain sweep: a run of light down the meter when the world is repaired */
 .rig-meter .sweep{right:0;width:auto;opacity:0;
   background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.55) 46%,transparent 60%);
   mix-blend-mode:screen}

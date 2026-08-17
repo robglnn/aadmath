@@ -32,7 +32,12 @@ import { t, onLocaleChange } from '../i18n/index.js';
 const CORE = ['move', 'look', 'jump', 'glide', 'interact'];
 // …plus dash, which moved the cadet and appeared on nothing. A critic met it
 // as "an uncommunicated backward dash" and blamed the interact key for it.
-const TAIL = ['build', 'dash', 'recover'];
+// …and sprint, which was on no card at all. A cold critic finished a session
+// and reported "sprint is hidden": the menu prints it, but the menu is the one
+// surface a player has to go and find. Shift is how you cross a shard, and a
+// movement verb that only the pause screen knows about is a movement verb
+// nobody has. (i18n, additive: `firstrun.bind.*.sprint` in all three bundles.)
+const TAIL = ['build', 'sprint', 'dash', 'recover'];
 
 /**
  * How long after the boot curtain the card arrives. Seconds.
@@ -271,6 +276,10 @@ export class ControlsCard {
     // had used it. A checklist with a row that cannot be completed is not a
     // checklist.
     if (inp.ever.dash) this._tick('dash');
+    // Sprint keeps no odometer in src/core/input.js — it is a state, not an
+    // edge. Held while actually moving is the whole verb, so that is the test,
+    // read here rather than by adding a field to somebody else's module.
+    if (inp.sprint && inp.moveMag > 0.2) this._tick('sprint');
 
     /* EVERY CORE VERB IS IN THEIR HANDS. LEAVE, WITHOUT BEING ASKED.
      *

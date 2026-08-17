@@ -230,6 +230,9 @@ export default {
         glide: 'Hold space',
         interact: 'E',
         build: '1–4 · Click · F',
+        // player/ui: sprint was on the pause card and nowhere else. Shift is
+        // how a cadet crosses a shard; the card prints it now.
+        sprint: 'Shift',
         dash: 'C · Left ctrl',
         recover: 'R',
       },
@@ -240,6 +243,7 @@ export default {
         glide: 'Y',
         interact: 'X',
         build: 'LB · RT · D-pad turns',
+        sprint: 'L3 · LT',
         dash: 'B',
         recover: 'Back',
       },
@@ -250,6 +254,7 @@ export default {
         glide: 'Glide',
         interact: 'Interact',
         build: 'Rack · Place',
+        sprint: 'Push the stick',
         dash: 'Dash',
         recover: 'Recover',
       },
@@ -284,6 +289,49 @@ export default {
     restartNo: 'Keep playing',
     now: 'What to do next',
     nowBody: 'A rift is a ring of torn air. Each rift holds a maths statement that is not true yet. Walk into the ring. Press {key}. Make the statement true, and the rift closes for good.',
+
+    /* WORDS — every noun this game coined, one short line each. (src/ui/menu.js)
+
+       A cold critic listed what is on screen at the first frame: LATTICE, RIFT,
+       LINE, CIPHER MOTES, COPPER RANK. Five invented words, and not one of them
+       meant anything yet — rift was defined about thirty-five seconds later,
+       mote only if you walked into the foundry, and rank never.
+
+       The world glosses what the world can (src/meta/lexicon.js names a thing
+       the first time you are looking at one). These are the words that are NOT
+       things you look at: a counter, a rank chip, a title card, a claim the
+       engine makes about you. A caption on a chip has no room for a sentence,
+       so the sentence lives here, one key away from every frame of the game.
+
+       CONTRACT: every `wordIs` line must contain its own term — it is the
+       defining key `tools/lang/rules.mjs` checks, and the gate reads the words
+       as well as the rank. Keep them one line. A definition a player has to
+       scroll is a definition they did not read. */
+    words: 'Words',
+    word: {
+      rift: 'Rift',
+      line: 'Line',
+      held: 'Held',
+      lattice: 'Lattice',
+      mote: 'Cipher mote',
+      rank: 'Rank',
+      band: 'Band',
+      proving: 'Proving run',
+      sounding: 'Sounding',
+      plate: 'Vault plate',
+    },
+    wordIs: {
+      rift: 'A rift is a ring of torn air. Each rift holds one maths statement that is not true yet.',
+      line: 'A line is one idea, and every rift that tests it. You work one line at a time.',
+      held: 'Held means proved for good. A held line never opens again, and nothing you do later takes it back.',
+      lattice: 'The lattice is the argument that holds this world up. Ground stands where the argument still works.',
+      mote: 'Cipher motes are what a sealed rift leaves behind. The foundry takes motes and hands back kit.',
+      rank: 'Your rank is what the order thinks of you. Copper is the first rank. Repair the world to raise it.',
+      band: 'A band is how hard the questions are, from band 1 to band 5. The rig picks your band.',
+      proving: 'A proving run is the run that seals a line. No help while it runs, and harder questions. Miss one and that question leaves the run, and the help comes back.',
+      sounding: 'A sounding walks back down a line you already hold. Each question in it is harder than the last.',
+      plate: 'A vault plate is a piece you can build. Stand on a plate and it throws you straight up.',
+    },
     screen: {
       progress: 'Progress report',
       dossier: 'Cadet dossier',
@@ -317,6 +365,9 @@ export default {
     sealed: 'Lattice sealed',
     shards: 'Motes +{n}',
     trueNow: 'True. The rift closes.',
+    // learn-ux (additive): a proving run gives no help, so a miss inside one
+    // takes the question out of the run before the help arrives.
+    provingOff: 'This question is out of the proving run now. Help is back on.',
     stable: 'Stable',
     critical: 'Critical',
     close: 'Leave the rift',
@@ -334,6 +385,10 @@ export default {
 
     kind: {
       check: 'Proving run · {n} of {m}',
+      // learn-ux (additive): the same item, after its first attempt was spent.
+      // A proving run withholds help while it is live, so the moment help
+      // arrives the chip has to stop making the claim. See `_endProving`.
+      checkOff: 'Off the proving run',
       // pedagogy: the first item a new skill asks, before it teaches anything.
       // Answer it cold and the proving run has already begun.
       probe: 'First sight',
@@ -365,7 +420,13 @@ export default {
       over: 'Fraction bar',
       empty: 'Type a value first',
       narrow: 'Narrow the field',
-      narrowed: 'Three readings survive the noise.',
+      // Counts what is on screen. A distractor the rig refuses — one that is
+      // also correct, or that draws the same glyphs — leaves two readings, and
+      // a lead that said "three" was counting something nobody could see.
+      narrowed: '«n|one:# reading survives|other:# readings survive» the noise.',
+      // A wrong reading costs the whole field, so three readings can never be
+      // walked down to the answer. See `_narrow`.
+      spent: 'Not that reading. The field closes. Type a value and the readings come back.',
     },
 
     plot: {
@@ -534,6 +595,11 @@ export default {
       continue: 'Continue',
       toNext: '{rank} · {n} to go',
       summit: 'Summit of the order',
+      /* NAMES, NOT COUNTDOWNS — see src/meta/quest.js. "BRONZE · 2 TO GO" ran
+         10 → 7 → 2 → 18 → 15 and then became "SILVER · 1 NIGHT HELD": one
+         label, two units, no mark on the glass where the meaning changed. */
+      toNextAny: 'Next rite · {rank}',
+      nextNightAny: '{rank} · waits on a night held',
       // The fast clock: rifts sealed on this shard, which is what turns the
       // chapter. It ticks on every correct answer, so it is the number on the
       // card that is allowed to be large.
@@ -545,6 +611,8 @@ export default {
       chapterNight: '«n|one:# night held|other:# nights held» to Chapter {ch}',
       nextNight: '{rank} · «n|one:# night held|other:# nights held»',
       sealsAll: 'Every chapter open',
+      toChapterAny: 'Next · Chapter {ch}',
+      chapterNightAny: 'Chapter {ch} waits on a night held',
       sealsAt: '«n|one:# rift sealed in all|other:# rifts sealed in all»',
       plusSeal: '+1',
     },
@@ -615,7 +683,12 @@ export default {
 
     marlow: {
       name: 'Marlow',
-      role: 'Navigational intelligence · 61% recovered',
+      /* NO SECOND PERCENTAGE ON THE GLASS. This was flavour — how much of Marlow
+         herself has come back — and it printed a per cent sign on the same live
+         frame as WORLD REPAIRED, which is the one progress number and is also a
+         per cent. Two percentages, one of them fiction, and nothing telling a
+         fourteen-year-old which is which. The fact survives; the figure does not. */
+      role: 'Navigational intelligence · partly recovered',
     },
 
     open: {
@@ -646,7 +719,7 @@ export default {
     ch2: {
       title: 'The cadets before you',
       quest: 'Hundreds stood exactly where you are. Find out where they stopped.',
-      b1: 'Three rifts sealed. The lattice has noticed you — you would be surprised how many cadets it never notices at all.',
+      b1: 'The lattice has noticed you. You would be surprised how many cadets it never notices at all.',
       b2: 'I read the traces the rig digs out of the rifts. Cadets stood exactly where you are standing. Hundreds.',
       b3: 'All capable. All stopped. No record says why, and that is the kind of silence somebody is paying for.',
     },
@@ -656,7 +729,7 @@ export default {
       // src/ui P1 — the chapter is called "The ninth lemma" and the word was
       // never defined. A lemma is one step of a proof; b1 now says so, and is
       // cut to a length that is read rather than skipped.
-      b1: 'Seven sealed statements. Enough to call up the founding proof: four million steps, nine hundred years.',
+      b1: 'Enough sealed statements to call up the founding proof: four million steps, nine hundred years.',
       b1b: 'A lemma is one step of a proof. This one is watertight the whole way down — except at step nine.',
       b2: 'Step nine is not proved. It is assumed. One word in the margin, in somebody’s own hand: suppose.',
       b3: 'Nine thousand worlds stand on a step nobody finished. The rifts are step nine coming back to ask.',
@@ -671,7 +744,7 @@ export default {
     ch5: {
       title: 'Signed',
       quest: 'Write the end of step nine, and a name underneath it.',
-      b1: 'Twenty-eight rifts. Somewhere in there the lattice stopped treating you as weather, and started reading you.',
+      b1: 'Somewhere back there the lattice stopped treating you as weather, and started reading you.',
       b2: 'Finish the rest. A sovereign may add a line to the proof, and whatever that line says, exists. Choose your words.',
     },
     coda: {
@@ -699,6 +772,9 @@ export default {
       // that would name the descent names this instead, until it is done.
       coda: 'The proof closes in «n|one:# night held|other:# nights held»',
       sounding: 'Deepest sounding · {n}',
+      nightsAny: 'Nights held',
+      codaAny: 'The proof closes after more nights held',
+      soundingAny: 'Deepest sounding',
       soundingNone: 'Sound the lattice',
       whenMin: 'in «n|one:# minute|other:# minutes»',
       whenHour: 'in «n|one:# hour|other:# hours»',
@@ -706,10 +782,19 @@ export default {
       whenSoon: 'shortly',
     },
 
+    /* WHAT A RANK MEANS — AND NEVER A COUNT OF ANYTHING.
+       Bronze used to open "Two lines held." It is a description of the rank in
+       the abstract; a cadet reads it as a statement about themselves, and a
+       cold reader read it beside a report saying "1 OF 10 LINES HELD" and
+       called it a contradiction. They were right to. Silver's "Half the proof
+       in your hand" was the same move: rank is bought with standing, not with
+       lines, so neither figure was ever this ceremony's to state. Progress is
+       said in exactly one form, in the words `guide.linesHeld` uses, and a
+       ceremony is not one of the places it is said. */
     cite: {
       copper: 'You can hold a statement true. That is the whole qualification, and few people meet it.',
-      bronze: 'Two lines held. The lattice has begun steering its storms around you instead of through you.',
-      silver: 'Half the proof in your hand. Silver may open the founding text and read what it cost.',
+      bronze: 'The lattice has begun steering its storms around you instead of through you.',
+      silver: 'Silver may open the founding text and read what the proof cost the people who wrote it.',
       gold: 'Gold crosses between shards without an escort. Very little up here is still dangerous to you.',
       sovereign: 'A sovereign may add a line to the proof. Whatever that line says, exists.',
     },
@@ -801,13 +886,13 @@ export default {
       // One clean answer from a line closing. Said once per line, ever.
       close: [
         'One clean answer from holding {skill} for good. Unassisted, or the lattice does not count it — I did not write that rule, I only failed it.',
-        '{skill} is one honest solve from being yours permanently. Nine points of standing sit behind that door.',
+        '{skill} is one honest solve from being yours permanently. There is a great deal of standing behind that door.',
         'You are a single unassisted answer from closing {skill}. Take your time; the line has waited nine hundred years.',
       ],
       // A line closed. {skill} names it.
       held: [
         '{skill} is held. That line will not open again — not for weather, not for time, not for me.',
-        '{skill}, closed. Nine points of standing, and every hedge the rig was keeping about you just went away at once.',
+        '{skill}, closed. Every hedge the rig was keeping about you went away at once.',
         'The lattice has stopped arguing about {skill}. That is a piece of sky that stays up whatever either of us does next.',
       ],
       lineHeld: [
@@ -1017,7 +1102,7 @@ export default {
         working: [
           'One clean answer and {skill} is yours for good. Unassisted only — the lattice does not accept help as evidence.',
           '{skill} is one honest solve from closing. You know the shape of this one. Go and take it.',
-          'One unassisted answer stands between you and {skill}. Nine points of standing sit behind it, and none of them are free.',
+          'One unassisted answer stands between you and {skill}. Everything behind it is standing, and none of it is free.',
         ],
         veteran: [
           '{skill} is one answer from closing. That would be another line the shard never gets back.',
@@ -1033,7 +1118,7 @@ export default {
       held: {
         working: [
           '{skill} is held. That line does not reopen — not for weather, not for time, not for me.',
-          '{skill}, closed. Nine points of standing, and one fewer thing on this shard that can surprise you.',
+          '{skill}, closed. One fewer thing on this shard that can surprise you.',
           'The lattice has stopped arguing about {skill}. Whatever else happens today, that piece of sky stays up.',
         ],
         veteran: [
@@ -1117,10 +1202,10 @@ export default {
        * against this number, and Marlow now counts it out loud.
        */
       night: {
-        n3: 'Three nights held. That is the number the old hands watch for. Anybody can be brilliant once.',
-        n7: 'Seven nights held. A week of knowing it on waking. The shard has started to plan around you.',
+        n3: 'Held overnight, again. That is the mark the old hands watch for. Anybody can be brilliant once.',
+        n7: 'A week of knowing it on waking. The shard has started to plan around you.',
         n14: 'Fourteen nights held. I have stopped writing "provisional" beside your name in the record.',
-        n30: 'Thirty nights held. Thirty separate mornings the sky stayed up because of something you knew. I would call that a career.',
+        n30: 'A month of separate mornings on which the sky stayed up because of something you knew. I would call that a career.',
         on: '«n|one:# night held|other:# nights held». Still here, and still known. I have run out of ways to be surprised, and kept none of my doubts.',
       },
     },
@@ -1138,15 +1223,35 @@ export default {
   session: {
     band: {
       run: 'Run {n}',
-      of: 'of «n|one:# rift|other:# rifts»',
+      /* THE SCOPE IS PART OF THE NOUN — see src/meta/progress.js.
+         This read "of 20 rifts", directly above a chapter card reading "11
+         rifts sealed in all", and a cold reader took the two for one number
+         that could not make up its mind. Both are true; neither said which
+         question it was answering. Every count in this game now carries its own
+         scope — "this run" or "in all" — in the words a learner reads. */
+      of: 'of «n|one:# rift|other:# rifts» this run',
       near: 'Last stretch',
       done: 'Run complete',
-      readout: '{goal}. «n|one:# rift|other:# rifts» sealed of {target}.',
+      readout: '{goal}. «n|one:# rift|other:# rifts» sealed this run, of {target}.',
       // Work done, which the rift count deliberately does not measure. See the
       // note at the top of band.js: a wrong answer costs nothing here, and it
-      // must not therefore show nothing.
-      worked: '«n|one:# question worked|other:# questions worked»',
-      readoutWorked: '{goal}. «n|one:# rift|other:# rifts» sealed of {target}, from {items} worked.',
+      // must not therefore show nothing. Scoped for the same reason as above:
+      // the report's own question count is a lifetime total.
+      worked: '«n|one:# question|other:# questions» this run',
+      readoutWorked: '{goal}. «n|one:# rift|other:# rifts» sealed this run, of {target}, from {items} questions.',
+      /* THE GOAL MOVED, AND THE BAND SAYS SO.
+         Said in full, and left on the band for the rest of the run. A goal that
+         changes in silence makes every earlier statement of it read as a lie —
+         a cold reader found "Seal 16 rifts" on one card and "Seal 20 rifts" on
+         a later one, with nothing anywhere between them. */
+      raised: 'Goal raised: {from} → {to} rifts this run. You asked for one more line, and this is what it costs.',
+      /* WHAT A SCREEN READER IS TOLD, WHICH IS WHAT THE SCREEN SAYS.
+         The band prints no figure any more (see src/session/band.js), so its
+         read may not recite one either — a count issued only to blind learners
+         is a tenth progress number that nothing on the glass can be checked
+         against. */
+      readoutPlain: 'This run. {goal}.',
+      readoutState: 'This run. {goal}. {state}.',
     },
     goal: {
       hold: 'Hold: {skill}',
@@ -1179,12 +1284,24 @@ export default {
       goalHoldN: 'Seal {tears} rifts today. You then hold «n|one:# line|other:# lines» for good. A held line never opens again.',
       goalPush: 'Seal {tears} rifts on {skill}. To drive a line back is to win back ground on one that slipped.',
       goalAny: 'Seal {tears} rifts on this shard. Then we see what the lattice does about it.',
-      willHold: 'should hold',
-      willPush: 'ground gained',
+      /* THE CURE FOR AN UNGLOSSED TERM IS NOT ALWAYS A GLOSS.
+         These two sit on the seam list with no room for a sentence beside them,
+         and a cold critic read SHOULD HOLD and GROUND GAINED as two coined
+         terms defined nowhere. They are not terms and never needed to be: they
+         are what today is for, on that line, in words a reader already owns. */
+      willHold: 'should hold today',
+      willPush: 'win back ground',
       // Two short lines, and the second one is a promise rather than filler.
       // The old pair ran to four sentences of apology and named no action.
       eta: 'About «n|one:# minute|other:# minutes» at your pace. No clock runs here.',
       etaSeed: 'About «n|one:# minute|other:# minutes» — my guess, not yet yours. No clock runs here.',
+      /* WHAT IT COSTS, AS WELL AS WHAT IT BUYS.
+         A rift is a question you got RIGHT, so "seal 16 rifts" was never the
+         amount of work — the projection had planned 24 questions and only the
+         16 was on screen. This line puts the work beside the goal, as the range
+         the projection actually produces, and `session.voice.longer` corrects
+         it out loud if a run goes past the top of it. */
+      work: 'That is about {low} to {high} questions. Not all of them come out right, and the ones that do not are where the teaching is.',
       begin: 'Begin the run',
       // The return beat. Said only when the last run left a record.
       kickBack: 'Run {n} · back again',
@@ -1197,7 +1314,15 @@ export default {
       titleHeld: 'The line holds',
       titleMet: 'The shard is quiet',
       titleEnough: 'Enough for today',
-      tears: '«n|one:rift sealed|other:rifts sealed»',
+      tears: '«n|one:rift sealed|other:rifts sealed» this run',
+      /* THE PROGRESS NUMBER, on the card that closes the run. The same figure
+         and the same three words the objective card has carried all session and
+         the report leads with. Everything else on this card is about the last
+         twenty minutes; this one row is where the learner now stands. */
+      linesHeld: '{n} of {total} lines held',
+      linesHeldNote: 'This is the number. A held line is one this engine will stand behind, and it does not come back.',
+      linesHeldNone: 'No line holds yet. A line takes more than one run, and nothing you did today is lost.',
+      linesHeldAll: 'Every line on this shard is held. The proof is closed.',
       heldLab: 'Held',
       groundLab: 'Ground gained',
       heldNote: 'You proved it with no help, at the top difficulty band, and with no worked examples. The line is yours now.',
@@ -1231,12 +1356,23 @@ export default {
       signHeld: 'That line does not rot, and it does not reset. Everything above it is now within reach.',
       rest: 'Stand down',
       more: 'One more line',
-      aria: 'Run closed. «n|one:# rift|other:# rifts» sealed.',
+      aria: 'Run closed. «n|one:# rift|other:# rifts» sealed this run.',
+      /* THE HEADLINE OF THE RUN RÉSUMÉ IS THE ONE PROGRESS NUMBER — the same
+         figure, the same name and the same unit as the rig has carried all
+         session (src/meta/progress.js). It used to be the run's rift tally,
+         which is a number that resets: the biggest thing on the card that ends
+         a session was a figure the next session throws away. */
+      repairedN: '{n}%',
+      repairedLab: 'of the world repaired',
+      repairedGain: '+{n}% this run',
+      repairedFlat: 'The ground you took today sits under the next line.',
+      ariaRepaired: 'Run closed. The world is {n} per cent repaired.',
+      ariaWorked: 'Run closed. «n|one:# question|other:# questions» worked this run.',
       // A run that sealed nothing leads with the work instead of with a
       // screen-height zero, and the rows below say what the work bought.
-      workedLab: '«n|one:question worked|other:questions worked»',
+      workedLab: '«n|one:question|other:questions» this run',
       workedSub: 'None of them sealed. The shard does not count attempts, and neither do I. But the work bought something, and the rows below say what.',
-      ofWorked: 'from «n|one:# question worked|other:# questions worked»',
+      ofWorked: 'from «n|one:# question|other:# questions» this run',
       echoStrong: '«n|one:# worked solve|other:# worked solves»',
       echoNote: 'A miss is what buys one. Each opened at the exact step your answer went sideways, not at the top of the page.',
       bandStrong: 'The bank re-cut',
@@ -1301,6 +1437,16 @@ export default {
       near: 'Last stretch. Whatever happens now, this run is very nearly yours.',
       resume: 'Picking it up exactly where you left it. Nothing slipped while you were gone; nothing ever does.',
       extend: 'Carrying on, then. Same run, same ledger — the count does not start again just because you asked for more.',
+      // …and the one thing that DID change, said out loud on the frame it
+      // changes. The band keeps it printed; this says it once, in his voice.
+      raised: 'Same run, same ledger. The goal is now {to} rifts instead of {from} — that is what one more line costs, and I would rather say it than let you find it.',
+      // You started before I finished briefing you, which is the correct order
+      // of operations. The goal is said in one line rather than on a card,
+      // because a card would have to stop you to be read. (src/session/index.js)
+      underway: 'You are already working, so I will not stop you to read you the orders. This run is {tears} rifts. The band at the top keeps the count.',
+      // The quoted workload was wrong, said out loud rather than left to be
+      // noticed. (src/session/index.js — see `run.overrun`)
+      longer: 'This one is running longer than I quoted you — past {n} questions. The goal has not moved and nothing is lost. Some lines simply cost more than the projection thought, and I would rather say so than let the number quietly stop being true.',
     },
   },
   // ---------------------------------------------------------------------
@@ -1324,13 +1470,21 @@ export default {
       ofN: 'of {n}',
       mastered: 'Lines held',
       masteredNote: 'Proved, not merely attempted.',
+      /* The one number, on the surface a learner opens on purpose, read from
+         the same repaired() the rig is drawn from — so opening the report can
+         never produce a different answer from the glass behind it. */
+      repairedNote: 'The one number. Every line counts what this engine currently believes about it, and it moves on every seal.',
       time: 'Time on task',
       // Two clocks, and they are meant to differ. This is the smaller one.
       timeNote: 'Measured between answers and capped, so idling never counts as work. It is not the session clock, and it is meant to read lower than it.',
       session: 'This session',
       sessionNote: 'How long you have been sitting here: real time, from when you started, including walking and reading. A session runs 15–25 minutes, then stops cleanly.',
-      items: 'Questions answered',
-      itemsNote: 'Each one generated fresh and re-solved by machine before you saw it.',
+      // A LIFETIME TOTAL, AND IT SAYS SO. Under the bare words "Questions
+      // answered" this tile read 9 while the run band read ten questions this
+      // run, and a cold reader had no way to know they were two different
+      // questions. Same rule as the band: the scope is part of the noun.
+      items: 'Questions answered in all',
+      itemsNote: 'Every question this record has ever seen, across every run. Each one generated fresh and re-solved by machine before you saw it.',
       accuracy: 'Solved unaided',
       accuracyNote: 'Correct first time, with no hint and no worked example, out of every question answered.',
       hollow: 'Claims withdrawn',
@@ -1362,6 +1516,15 @@ export default {
     // A flag, not a state. See `underReopened` in src/report/index.js: the
     // claim on this line stands, and a line it was built on has gone back to
     // being practised after a missed cold re-test.
+    /* THE SHORT FORM, ON THE PAGE. `flagNote` and `roadNote` are the long
+       answers, and they live in `title` attributes — which do not exist on a
+       phone and which no fourteen-year-old has ever found. `flagIs` and
+       `roadIs` are the same facts in one line, printed in the legend under the
+       rows, and only for the words that are actually on the rows today. */
+    /* THE NUMBER ON A ROW, named on the page rather than in a tooltip. See
+       `renderLegend` in src/report/index.js for why it may not stay a tooltip. */
+    pctTerm: 'The percentage',
+    pctIs: 'Your weakest reading on that line, not an average — the question type you are worst at, or your record at the hardest band, whichever is lower. Open a line to see which one it is.',
     flag: { under: 'Ground reopened' },
     flagNote: { under: 'You still hold this line. A line underneath it missed a cold re-test and has gone back to practice, so the rig is re-proving the ground before it sends you back up here.' },
 
@@ -1370,6 +1533,12 @@ export default {
       fast: 'Short road',
       long: 'Long road',
     },
+    roadIs: {
+      sight: 'You answered the first question cold, and that one answer proved the line.',
+      fast: 'One clean solve with no help, at the gate band, opened the proving run.',
+      long: 'Three clean solves with no help opened the proving run, one after another.',
+    },
+    flagIs: { under: 'You still hold this line. The rig is re-proving a line underneath it.' },
     roadNote: {
       // It used to end "Three unassisted items, no practice in front of them",
       // which is the gate's setting quoting itself and was untrue of every run
@@ -1399,6 +1568,11 @@ export default {
       doneWhy: 'Level 1 is complete. What is left is keeping it.',
     },
 
+    /* The hover text on a line's row: what state the line is in, and why the
+       percentage beside it reads what it reads. Composed here rather than in
+       the code so the two clauses can be ordered per language. */
+    rowTitle: '{state} {why}',
+
     state: {
       locked: 'Locked',
       open: 'Open',
@@ -1410,12 +1584,14 @@ export default {
     },
     stateNote: {
       locked: 'This line needs another line first, and you do not hold that one yet.',
-      open: 'Unlocked and untouched.',
+      // The legend under the rows prints these, so each has to be a sentence a
+      // reader can act on and not a two-word status. (src/report/index.js)
+      open: 'This line is open to you. You have not answered a question on it yet.',
       practising: 'Practice under way. Support fades as the model firms up.',
       proving: 'The proving run is live: unassisted, support off, forms you have practised least.',
       mastered: 'Proved, and standing up to cold re-tests.',
       provisional: 'One re-test missed. Miss the next and the claim is withdrawn.',
-      withdrawn: 'Held once, then lost on re-test. Practice has reopened.',
+      withdrawn: 'Held once, then the rig took the claim back — a cold re-test you missed, or a question type you stopped getting right. Practice has reopened. Open the line to see which.',
     },
 
     evidence: {
@@ -1464,6 +1640,27 @@ export default {
       sinceNone: 'No question has been asked on this line since the claim was granted.',
       restsUnknown: 'This build did not record the items behind the claim. You have answered {of} questions on this line.',
       grantedOn: 'Granted {date}.',
+      /* THE ROW THAT AN AGGREGATE CANNOT CARRY. Every other row on this list
+         adds evidence up; this one reports the weakest question type on the
+         line by itself, because a learner who is strong on symbols and cannot
+         read a table adds up to exactly the same total as a learner who is
+         even. (src/report/index.js `formsRow`) */
+      forms: 'Every question type',
+      formsNote: 'You hold a line only after you solve every type of question it puts to you, at least once, with no help. A type starts to count once the rig has put it to you {n} times.',
+      formsNone: 'none yet',
+      formsThin: 'No question type has come up {need} times yet, so the rig is not judging you on any of them so far. Your weakest so far is {rep}: {n} right with no help, out of {of} asked.',
+      formsOk: 'Your weakest type here is {rep}: {n} right with no help, out of {of} asked.',
+      formsHole: 'Not held. On {rep} you have {n} right with no help, out of {of} asked. This line stays open until you get that type right once on your own. An average cannot stand in for a question you never got right.',
+      /* WHY THE PERCENTAGE ON THE ROW IS THE NUMBER IT IS. It is the lowest of
+         the things the engine knows about this line, and this says which one
+         was lowest, because a figure a reader cannot account for is a figure
+         they cannot check. (src/report/index.js `floorOf`) */
+      floorWhy: {
+        pL: 'The figure is the model’s confidence, which is the lowest thing measured here.',
+        form: 'The figure is your weakest question type, not the average. The average is higher.',
+        gate: 'The figure is your record on the hardest band, not the average. The average is higher.',
+        plan: 'The figure is this run’s own odds of closing this line, which are lower than the model’s confidence.',
+      },
     },
 
     fact: {
@@ -1478,6 +1675,9 @@ export default {
       accuracySplit: '{all} — {n} of {of}. Before the claim {before}, since {since}',
       band: 'Difficulty band',
       bandVal: 'Band {n} of 5',
+      // The unit, said once, where the number is printed. BAND was a figure with
+      // no meaning on six surfaces before this line existed.
+      bandIs: 'A band is how hard the questions are, from band 1 to band 5.',
       reps: 'Proved in',
       forms: 'Question types met',
       formsVal: '«n|one:# type|other:# types»',
@@ -1936,7 +2136,16 @@ export default {
     // Why it is worth walking there. One of these, chosen by what is actually
     // downstream of the line — never a generic reward noise.
     pay: {
-      lines: 'Hold it and «n|one:# more line of the lattice opens|other:# more lines of the lattice open».',
+      /* THE WORD, WHERE THE WORD IS SPENT. This is the reason-to-walk line on
+         the objective card, on screen from the fourth second, and it is counted
+         in LINES — a coined noun that used to arrive here with no meaning
+         anywhere on the surface that printed it. Four words buy the meaning. */
+      lines: 'A line is one idea. Hold this one and «n|one:# more line opens|other:# more lines open».', // superseded by linesAny; kept for parity
+      /* NO COUNT. This card is a signpost, and "hold this one and 2 more lines
+         open" was one of the nine figures a cold critic read on a single frame.
+         What makes a learner walk is that holding this opens more of the
+         lattice, which the sentence still says. */
+      linesAny: 'A line is one idea. Hold this one and more of the lattice opens.',
       /* "Hold it and Kite trim is yours" named a reward that the game only
          explains on the card you get AFTER you win it — so the sentence that
          is supposed to make you want the thing is the one sentence that cannot
@@ -1947,28 +2156,30 @@ export default {
       sound: 'You hold this line. A sounding walks back down it, one harder question at a time.',
     },
 
-    /* THE ROW UNDER THE PIPS, AND THE WORD *HELD*.
+    /* THE PROGRESS NUMBER, IN ITS ONE PLACE, UNDER ITS ONE NAME.
      *
-     * This row used to open a fresh save with "HELD MEANS PROVED FOR GOOD",
-     * which is a definition of a word that appears nowhere else on the card
-     * and that the player has not read once. A cold critic read it as a rule
-     * about nothing, and they were right: a definition that arrives before its
-     * term is not teaching, it is a riddle.
+     * This row used to carry three different sentences depending on how far in
+     * the learner was, and the one they read for the whole of a first session
+     * was "ONE MARK FOR EACH RIFT ON THIS LINE" — printed over ten marks that
+     * are neither rifts nor one line. They are the ten lines of the whole
+     * lattice. A cold reader photographed that caption sitting directly under a
+     * banner reading "0 OF 16 RIFTS" and could not tell which number the game
+     * meant, because one of the two captions was simply false.
      *
-     * Three states now, and the word arrives exactly when it first means
-     * something (src/meta/guide.js picks):
-     *   held 0  — nothing is held, so nothing is called held. The row says
-     *             what the marks above it are.
-     *   held 1  — the first line has just been held, and the word and its
-     *             meaning arrive in one breath. It spends its whole line on
-     *             that and drops the other two counts: the pips directly above
-     *             already draw held, open and locked as colour, and a row that
-     *             wraps "PROVED FOR / GOOD" has taught nobody anything.
-     *   held 2+ — the three counts. The word is known.
+     * So the row says one thing, always, in the same three words the report
+     * tile and the close card use: HELD, out of ten. It is this game's single
+     * answer to "how am I doing" and it is on screen for the whole session.
+     * See src/meta/progress.js for the rule the rest of the game follows.
      */
-    tally: '{held} held · {open} open · {locked} locked',
-    tallyNew: 'One mark for each rift on this line',
-    tallyFirst: '{held} held — proved for good',
+    linesHeld: '{n} of {total} lines held',
+    /* …AND WHAT THE MARKS ARE, WHILE THE COUNT IS STILL ZERO.
+       It goes UNDER the number rather than instead of it, so the term still
+       arrives with its meaning attached and the learner never reads a progress
+       row with no progress on it. */
+    /* The marks this named are gone with the pip row (src/meta/guide.js), so the
+       sentence names them no longer. What it is here to do is define HELD, once,
+       before the learner has held anything — the term arrives with its meaning. */
+    linesHeldNew: 'Held means proved for good. A held line never opens again.',
 
     prompt: {
       open: 'Open the rift',
@@ -1997,7 +2208,7 @@ export default {
       anchor: 'A lattice anchor. Nothing reaches one from flat ground, on purpose. Stack two ramps, then touch it.',
       cache: 'A hanging cache. The beam holds a true statement with one weight missing. Stand on the missing weight.',
       updraft: 'That column is an updraft. Fly into it and it lifts you sixty metres, free.',
-      verge: 'That curtain is the verge, where Shard Nine stops. Hold all ten lines and the lattice carries you out.',
+      verge: 'That curtain is the verge, where Shard Nine stops. Hold every line and the lattice carries you out.',
     },
   },
 
@@ -2094,13 +2305,17 @@ export default {
     toTear: 'Next line · {skill} — {n} m',
     toMark: 'Survey mark · {name} — {n} m',
     stay: 'This line is still the best use of your time. Step back onto the plate when you are ready.',
-    rhythm: 'A tear gives three questions, then it settles. Use the gap — there is always something out there worth the walk.',
+    rhythm: 'A tear gives you a handful of questions, then it settles. Use the gap — there is always something out there worth the walk.',
   },
   // --- the affordance layer (src/world/afford.js): what a rift says it will
   // do, the key that does it, and the bearing to the next one -------------
   afford: {
     open: 'Open the rift',
     walkIn: 'Walk into it',
+    // Mid-arrival: an item is finished and the next one of this stint is
+    // waiting to be asked for, rather than arriving on a timer.
+    // (src/session/stint.js)
+    again: 'Next line — same rift',
     sound: 'Sound the line — harder questions, same line',
     shut: 'Sealed shut',
     needs: 'Hold {skill} first',

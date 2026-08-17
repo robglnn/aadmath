@@ -270,6 +270,56 @@ function shuffled(arr, seed) {
   return a;
 }
 
+/** A 32-bit avalanche over a seed and a string, so `% n` reads mixed bits. */
+function mixed(seed, salt) {
+  let h = ((seed >>> 0) ^ 0x9e3779b9) >>> 0;
+  const s = String(salt ?? '');
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0; h = Math.imul(h, 0x7feb352d) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0; h = Math.imul(h, 0x846ca68b) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * Where the key sits among the readings.
+ *
+ * `_readings` builds every option set with the key FIRST, because that is the
+ * only order it can build it in. So the single property the arrangement has to
+ * carry is that it forgets that order completely — and it has to carry it on
+ * every set the rig has ever drawn, not on average.
+ *
+ * A plain shuffle only *usually* does. Where the answer lands is then a
+ * property of how well one particular seed happened to mix, which is a thing
+ * nobody measures and nobody can state. That is not good enough for the one
+ * scaffold that appears when a learner is weakest: a cadet needs to notice the
+ * answer sitting first exactly once to stop reading the options at all, and
+ * from that moment the surface is teaching guessing.
+ *
+ * So the key's slot is not left to fall out of a shuffle. It is CHOSEN — from
+ * an avalanched hash of what makes this option set this option set — and the
+ * distractors are shuffled into the slots left over. The distribution of the
+ * answer's position is then exactly the distribution of that hash modulo the
+ * option count, which is a claim that can be measured on its own and is
+ * measured on every build (`tools/critic/choiceaudit.mjs`, code
+ * `answer-position-biased`).
+ *
+ * @param {Array} pool the readings, KEY FIRST.
+ * @param {number} seed this rift's seed.
+ * @param {string} salt whatever else separates this set from the next one —
+ *                      the answer, and which drawing of the field this is.
+ */
+function arranged(pool, seed, salt) {
+  const n = pool.length;
+  if (n < 2) return pool.slice();
+  const h = mixed(seed, salt);
+  const slot = h % n;
+  const rest = shuffled(pool.slice(1), (h ^ 0x5bd1e995) >>> 0);
+  const out = new Array(n);
+  out[slot] = pool[0];
+  for (let i = 0, j = 0; i < n; i++) if (i !== slot) out[i] = rest[j++];
+  return out;
+}
+
 /**
  * The aperture itself.
  *
@@ -461,49 +511,83 @@ function hitTest(x, y, targets) {
   return null;
 }
 
-function draggable(el, { targets, onDrop, onTap }) {
-  el.addEventListener('pointerdown', (e) => {
-    if (el.disabled || (e.button != null && e.button > 0)) return;
-    e.preventDefault();
-    const sx = e.clientX, sy = e.clientY;
-    let dragging = false, ghost = null, hot = null;
-    try { el.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+/**
+ * ONE POINTER LISTENER FOR EVERY DRAGGABLE CONTROL IN THE RIG.
+ *
+ * The balance rebuilds its tray of moves after every step a learner takes, the
+ * sorting bays rebuild their chips, and each of those controls used to be
+ * handed a `pointerdown` and a `click` listener of its own. Over a real
+ * fifteen-minute session (`tools/critic/sustain.mjs`) that is hundreds of
+ * registrations a minute on nodes that live for one interaction — and the
+ * measurement that matters is not the listener count, it is that the frame's
+ * 1% low was 6.9 fps by minute fifteen while the median said 74. That is a
+ * garbage collector, and this is some of what it was collecting.
+ *
+ * So the document listens once and the controls carry only their options. The
+ * registry is a WeakMap keyed on the element: a control that is thrown away
+ * takes its entry with it, and nothing has to remember to unregister anything.
+ */
+const DRAGGABLE = new WeakMap();
+let dragListening = false;
 
-    const move = (ev) => {
-      if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 7) {
-        dragging = true;
-        el.classList.add('dragging');
-        ghost = document.createElement('div');
-        ghost.className = 'rf-drag-ghost';
-        ghost.innerHTML = el.innerHTML;
-        document.body.appendChild(ghost);
-      }
-      if (!dragging) return;
-      ghost.style.left = `${ev.clientX}px`;
-      ghost.style.top = `${ev.clientY}px`;
-      const under = hitTest(ev.clientX, ev.clientY, targets());
-      if (under !== hot) { hot?.classList.remove('drop-hot'); hot = under; hot?.classList.add('drop-hot'); }
-    };
-    const up = (ev) => {
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-      el.removeEventListener('pointercancel', up);
-      el.classList.remove('dragging');
-      ghost?.remove();
-      hot?.classList.remove('drop-hot');
-      if (dragging) {
-        const target = hitTest(ev.clientX, ev.clientY, targets());
-        if (target) onDrop?.(target);
-      } else {
-        onTap?.();
-      }
-    };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    el.addEventListener('pointercancel', up);
-  });
-  // keyboard-generated clicks only (detail === 0); pointer taps arrive via `up`
-  el.addEventListener('click', (e) => { if (e.detail === 0) onTap?.(); });
+function draggable(el, opts) {
+  if (!dragListening) {
+    dragListening = true;
+    document.addEventListener('pointerdown', (e) => {
+      const hit = e.target?.closest?.('[data-rf-drag]');
+      const o = hit && DRAGGABLE.get(hit);
+      if (o) beginDrag(hit, o, e);
+    });
+    // keyboard-generated clicks only (detail === 0); pointer taps arrive via `up`
+    document.addEventListener('click', (e) => {
+      if (e.detail !== 0) return;
+      const hit = e.target?.closest?.('[data-rf-drag]');
+      if (hit) DRAGGABLE.get(hit)?.onTap?.();
+    });
+  }
+  el.dataset.rfDrag = '1';
+  DRAGGABLE.set(el, opts);
+}
+
+function beginDrag(el, { targets, onDrop, onTap }, e) {
+  if (el.disabled || (e.button != null && e.button > 0)) return;
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY;
+  let dragging = false, ghost = null, hot = null;
+  try { el.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+
+  const move = (ev) => {
+    if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 7) {
+      dragging = true;
+      el.classList.add('dragging');
+      ghost = document.createElement('div');
+      ghost.className = 'rf-drag-ghost';
+      ghost.innerHTML = el.innerHTML;
+      document.body.appendChild(ghost);
+    }
+    if (!dragging) return;
+    ghost.style.left = `${ev.clientX}px`;
+    ghost.style.top = `${ev.clientY}px`;
+    const under = hitTest(ev.clientX, ev.clientY, targets());
+    if (under !== hot) { hot?.classList.remove('drop-hot'); hot = under; hot?.classList.add('drop-hot'); }
+  };
+  const up = (ev) => {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    el.removeEventListener('pointercancel', up);
+    el.classList.remove('dragging');
+    ghost?.remove();
+    hot?.classList.remove('drop-hot');
+    if (dragging) {
+      const target = hitTest(ev.clientX, ev.clientY, targets());
+      if (target) onDrop?.(target);
+    } else {
+      onTap?.();
+    }
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
 }
 
 // ===========================================================================
@@ -583,6 +667,32 @@ export class RiftPanel {
     root.appendChild(this.el);
 
     this.$ = (s) => this.el.querySelector(s);
+
+    /**
+     * ONE CLICK LISTENER FOR EVERY CONTROL THE MODALITIES BUILD.
+     *
+     * `_mount` rebuilds the whole instrument for every item — a keypad is
+     * seventeen buttons, a balance is four movers and an undo, a narrowed field
+     * is four readings — and each of those buttons used to carry a listener and
+     * a closure of its own. Over a real fifteen-minute session that is four and
+     * a half thousand registrations on nodes that are thrown away a minute
+     * later, and `tools/critic/sustain.mjs` measured what it costs: the frame's
+     * 1% low fell to 6.9 fps by minute fifteen, which is a garbage collector
+     * doing the work, not a renderer.
+     *
+     * So the panel listens once, here, and the controls carry only a function.
+     * The registry is a WeakMap keyed on the element, so a control that is
+     * thrown away takes its handler with it and nothing has to remember to
+     * unregister anything — which is the failure mode a manual registry has.
+     */
+    this._clicks = new WeakMap();
+    this.el.addEventListener('click', (e) => {
+      for (let n = e.target; n && n !== this.el; n = n.parentElement) {
+        const fn = this._clicks.get(n);
+        if (fn) { fn(e); return; }
+      }
+    });
+
     this.$('#rf-close').addEventListener('click', () => this.close());
     this._motes();
     this.$('#rf-hint').addEventListener('click', () => this.revealStep(true));
@@ -894,10 +1004,23 @@ export class RiftPanel {
     }
     kindEl.style.display = kindEl.textContent ? '' : 'none';
     this.$('#rf-streak').textContent = opts.streak > 1 ? t('rift.streak', { n: opts.streak }) : '';
+    // A live proving run withholds every scaffold this rig has. See `_proving`.
+    this._proving = kind === 'check';
     this.$('#rf-hint').textContent = t('rift.echo.call');
     this.$('#rf-hint').disabled = false;
+    this.$('#rf-hint').hidden = this._proving;
     this.$('#rf-echo-rail').innerHTML = '';
     this.$('#rf-echo-depth').textContent = '';
+    // …and the trace itself. The rail and the depth badge were cleared here;
+    // the COLUMN was not, so a fresh rift carried the previous rift's worked
+    // echo in its markup until something dug a new one over the top. CSS keeps
+    // `.rf-echo` at `display: none` until a layer is cut, so no cadet has read
+    // it — but a card that says PROVING RUN is a card that must not be holding
+    // an old cadet's solve anywhere, visible or not, and a screen reader does
+    // not consult the stylesheet before it reads. Found by
+    // tools/critic/scaffoldhonesty.mjs, which counts the rows.
+    this.$('#rf-echo').innerHTML = '';
+    this.$('#rf-echo-tail').innerHTML = '';
     this._syncLayout();
 
     const stem = this.$('#rf-stem');
@@ -941,6 +1064,12 @@ export class RiftPanel {
     requestAnimationFrame(() => this._fit());
   }
 
+  /**
+   * Give one control a click handler, without giving it a listener.
+   * See the WeakMap in the constructor for why.
+   */
+  _click(el, fn) { this._clicks.set(el, fn); return el; }
+
   close() {
     if (!this.open) return;
     this.el.classList.remove('show', 'sealing');
@@ -966,6 +1095,21 @@ export class RiftPanel {
    * the cadet has actually taken ground off the tear. A slip does not move it —
    * a meter that drops for a wrong answer and drops for a right one is telling
    * the learner nothing. Slips flare the gauge instead and leave the reading be.
+   *
+   * WHERE IT IS SHOWN AT ALL is decided in `_mount`, and that is the harder
+   * half. Three of the six surfaces take a statement apart into countable
+   * pieces — terms to file, parts of a field to cover, a distance the unknown
+   * still has to travel — and on those the number falls, piece by piece, in
+   * front of the cadet. The other three ask for one action. On those the meter
+   * read `STILL OPEN ▮▮▮▮▮ 100` from the moment the rift opened, sat at 100
+   * through every attempt, and dropped to 0 on the seal: a two-state flag
+   * wearing a hundred graduations, which is a lie about precision the rig does
+   * not have and does not need. So it is not drawn there. A gauge that is
+   * absent claims nothing; a gauge that is present is counting.
+   *
+   * The aperture is a separate matter and still tracks `pressure` everywhere:
+   * the tear knitting shut as the statement comes true is a picture of the
+   * world, not a readout, and it is honest on every surface.
    *
    * @param {number} p 1 = torn wide open, 0 = the statement is true.
    * @param {boolean} reset re-arm the meter for a fresh rift.
@@ -1052,7 +1196,13 @@ export class RiftPanel {
       this.reported++;
       this.opts?.onAnswer?.(false, { assisted: true, misconception: misconception || null });
     }
-    this._say(message || t('marlow.encourage'), true);
+    // The run's claim was on the attempt that has just been spent. It is spent
+    // for this item whatever happens next, so the ladder comes back and the
+    // chip stops calling this a proving run. (see `_endProving`)
+    const wasProving = this._proving;
+    this._endProving();
+    const note = message || t('marlow.encourage');
+    this._say(wasProving ? `${t('rift.provingOff')} ${note}` : note, true);
     this._pulseGauge('hit');
     this._pushEcho(misconception);
   }
@@ -1292,7 +1442,7 @@ export class RiftPanel {
       seg.title = t('rift.echo.depth' + k);
       seg.setAttribute('aria-label', t('rift.echo.depth' + k));
       seg.disabled = k > this.echoTier + 1;
-      seg.addEventListener('click', () => (k <= this.echoTier ? this._showTier(k) : this._digTo(k)));
+      this._click(seg, () => (k <= this.echoTier ? this._showTier(k) : this._digTo(k)));
       bar.appendChild(seg);
     }
     rail.appendChild(bar);
@@ -1419,9 +1569,54 @@ export class RiftPanel {
     }
   }
 
+  /**
+   * THE PROVING RUN'S CONTRACT WITH THE GLOSSARY.
+   *
+   * ESC WORDS says, in three languages: "A proving run is the run that seals a
+   * line. While it is live you get no help." That sentence was not true. Inside
+   * `PROVING RUN · 2 OF 3` the rig handed over the whole ladder — a whisper on
+   * the first miss, four strata of a worked analogue on request, and a drop to
+   * three readings after two attempts. `scaffold: 'none'` on the task only ever
+   * withheld the example printed on the card BEFORE the first attempt; every
+   * other support was live. A glossary that describes a stricter game than the
+   * one being played is worse than no glossary: it is the rig telling a cadet
+   * that a claim about them means something it does not.
+   *
+   * Of the two ways to make them agree — soften the words, or harden the run —
+   * only one of them leaves a gate worth passing, so the run is hardened. While
+   * `_proving` is true: no hint button, no echo, no narrowing to a choice. The
+   * cadet answers it or does not.
+   *
+   * That cannot be the whole rule, though, because the card does not close
+   * until the statement is true. A run that withheld help for ever would be a
+   * wall, and a wall is the failure this product exists to avoid. So the run's
+   * claim is on the FIRST attempt, which is the only attempt that was ever
+   * evidence: any miss sets `assisted`, and `mastery.observe` only advances a
+   * run on `correct && !meta.assisted`. Once the cadet has missed, this item
+   * can no longer count toward the run whatever happens next — so there is
+   * nothing left to protect, and the full ladder comes back at once.
+   *
+   * And the label goes with it. The chip stops saying PROVING RUN the instant
+   * the help arrives, because that is the whole complaint: not that support
+   * exists, but that support arrived under a banner promising there would be
+   * none. What the glossary describes is now exactly what a cadet gets.
+   */
+  _endProving() {
+    if (!this._proving) return;
+    this._proving = false;
+    this.$('#rf-hint').hidden = false;
+    const kindEl = this.$('#rf-kind');
+    kindEl.className = 'rf-kind is-checkoff';
+    kindEl.textContent = t('rift.kind.checkOff');
+    kindEl.style.display = '';
+  }
+
   /** The footer button, and the path a miss takes into the echo. */
   revealStep(manual, misconception) {
     void manual;
+    // Nothing is dug on a live run. The button is hidden, and this is the
+    // second lock on the same door: `_key` and any other caller reach here too.
+    if (this._proving) return;
     if (this.echoTier >= MAX_TIER && !misconception) {
       if (this.echoTier) this._setEchoOpen(true);
       return;
@@ -1449,6 +1644,8 @@ export class RiftPanel {
 
     this._modality = built;
     this.mode = built.name;
+    // A meter is drawn only where it counts something. See `setPressure`.
+    this.$('#rf-gauge-box').hidden = !built.gauge;
     // The footer says what to do, so it has to know WHAT is being asked for.
     // One keypad serves two different tasks — charge a value, or build an
     // expression — and it used to tell every cadet to "type the value that
@@ -1574,6 +1771,47 @@ export class RiftPanel {
     };
     const back = () => { entry = entry.slice(0, -1); charge.classList.remove('bad'); paint(); };
 
+    // Which drawing of the narrowed field this is. A field that has been spent
+    // comes back arranged differently, so nothing a cadet learned by guessing
+    // at the last one survives into the next.
+    let round = 0;
+
+    /** The field is spent. The keypad is the instrument again. */
+    const standDown = () => {
+      extra.innerHTML = '';
+      narrowed = false;
+      self.el.classList.remove('narrowed');
+      self._syncLayout();
+      paint();
+    };
+
+    const tryNarrow = () => {
+      if (narrowed || self.wrongCount < 2) return;
+      // A live proving run withholds every scaffold, and dropping to a choice
+      // is the heaviest one there is. See `_proving`.
+      if (self._proving) return;
+      const took = self._narrow(extra, round, (p, btn) => {
+        if (self._settled) return;
+        // `p.ok` is the key and is never anything else; `_accepts` is the
+        // second opinion. Either is enough, so a blind spot in one of them
+        // can never be the thing that tells a right cadet they are wrong.
+        if (p.ok || self._accepts(p.v)) { btn.classList.add('right'); self._solve(); return; }
+        btn.classList.add('wrong');
+        // Every reading closes, not just the one that was wrong: the field is
+        // spent, and a spent field cannot be walked down to the answer.
+        for (const b of extra.querySelectorAll('.rf-reading')) b.disabled = true;
+        self._miss(p.m || self._mis(p.v), t('rift.keypad.spent'), p.v);
+        setTimeout(() => { if (!self._settled && narrowed) standDown(); }, 900);
+      });
+      if (took) {
+        narrowed = true;
+        round++;
+        entry = '';
+        paint();
+        self.el.classList.add('narrowed');
+      }
+    };
+
     const submit = () => {
       if (self._settled || !entry) return;
       if (self._accepts(entry)) { self._solve(); return; }
@@ -1582,26 +1820,9 @@ export class RiftPanel {
       charge.classList.add('bad');
       self._miss(self._mis(entry), null, entry);
       // Two honest attempts in and the rig stops asking for a value it cannot
-      // help with: the noise clears, three readings remain, and the keypad
+      // help with: the noise clears, a few readings remain, and the keypad
       // stands down rather than competing with them.
-      if (self.wrongCount >= 2 && !narrowed) {
-        const took = self._narrow(extra, (p, btn) => {
-          if (self._settled) return;
-          // `p.ok` is the key and is never anything else; `_accepts` is the
-          // second opinion. Either is enough, so a blind spot in one of them
-          // can never be the thing that tells a right cadet they are wrong.
-          if (p.ok || self._accepts(p.v)) { btn.classList.add('right'); self._solve(); return; }
-          btn.classList.add('wrong');
-          btn.disabled = true;
-          self._miss(p.m || self._mis(p.v), null, p.v);
-        });
-        if (took) {
-          narrowed = true;
-          entry = '';
-          paint();
-          self.el.classList.add('narrowed');
-        }
-      }
+      tryNarrow();
     };
 
     const KEY = (label, fn, cls = '', aria = '') => {
@@ -1611,7 +1832,7 @@ export class RiftPanel {
       b.innerHTML = label;
       if (aria) b.setAttribute('aria-label', aria);
       b.dataset.k = aria || b.textContent.trim();
-      b.addEventListener('click', fn);
+      self._click(b, fn);
       return b;
     };
     const BACK = '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9L2 12z"/><path d="M17 9l-5 6M12 9l5 6"/></svg>';
@@ -1704,29 +1925,48 @@ export class RiftPanel {
   /**
    * The scaffold of last resort. Two real attempts have been spent, so the rig
    * stops asking the cadet to conjure a value out of nothing and clears the
-   * noise down to three readings instead. The keypad goes dark: one instrument
+   * noise down to a few readings instead. The keypad goes dark: one instrument
    * on the surface at a time.
+   *
+   * Two things this field must never be, and both of them are ways to seal a
+   * rift with no mathematics in it:
+   *
+   *   · the answer is never in a place a cadet could learn. The set is built
+   *     key-first and is then ARRANGED, not shuffled — see `arranged`;
+   *   · the field is never a free run down the list. A wrong reading used to
+   *     grey itself out and leave the rest live, which made three readings a
+   *     guaranteed seal in at most three clicks and no algebra at all. The
+   *     field now costs a wrong pick: it stands down, the keypad comes back,
+   *     and the next miss draws it again — in a different arrangement, with
+   *     nothing crossed off. Guessing therefore buys nothing it can keep.
+   *
+   * `round` is which drawing of the field this is; it goes into the
+   * arrangement so a second drawing is not the first one again.
    *
    * Returns false when there is no honest choice to offer — a single reading is
    * not a narrowed field, it is the answer handed over — and the keypad stays.
    */
-  _narrow(host, onPick) {
+  _narrow(host, round, onPick) {
     const pool = this._readings((this.item.distractors || []).slice(0, 2));
     if (pool.length < 2) return false;
     host.innerHTML = '';
     const lab = document.createElement('div');
     lab.className = 'rf-narrow-lead';
-    lab.textContent = t('rift.keypad.narrowed');
+    // The lead says what is on the surface. It used to say "three readings"
+    // whatever was drawn, and a distractor the rig had refused (a second
+    // correct answer, or one that renders the same glyphs) left it counting
+    // two things and naming three.
+    lab.textContent = t('rift.keypad.narrowed', { n: pool.length });
     host.appendChild(lab);
     const box = document.createElement('div');
     box.className = 'rf-narrow';
-    for (const p of shuffled(pool, this.seed + 17)) {
+    for (const p of arranged(pool, this.seed + 17, `${this.item.answer}|${round}`)) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ans rf-reading';
       b.innerHTML = p.html;
       b.dataset.value = p.v;
-      b.addEventListener('click', () => onPick(p, b));
+      this._click(b, () => onPick(p, b));
       box.appendChild(b);
     }
     host.appendChild(box);
@@ -1734,7 +1974,29 @@ export class RiftPanel {
   }
 
   // ------------------------------------------------------- modality: choice
-  /** Some statements really are a choice: which reading is the true one. */
+  /**
+   * Some statements really are a choice: which reading is the true one.
+   *
+   * A NOTE ON GUESSING, because the obvious "fix" here is the wrong one.
+   *
+   * The narrowed keypad field (`_narrow`) spends itself on a wrong pick,
+   * precisely so that three readings cannot be walked down to the answer. This
+   * surface deliberately does NOT, and the difference is that this one is the
+   * QUESTION, not a scaffold offered after it. Closing every reading here
+   * would leave a cadet with a card they cannot answer and cannot leave, which
+   * is the wall this whole product exists to avoid; the keypad field can close
+   * because the keypad is still underneath it.
+   *
+   * What stops guessing here is not the surface, it is the ledger. Every wrong
+   * pick goes through `_miss`, which sets `assisted` — and an assisted seal is
+   * reported as assisted for ever after. `mastery.observe` advances a proving
+   * run only on `correct && !meta.assisted`, so a rift guessed through moves no
+   * gate, closes no line and pays one mote instead of two or four. The
+   * distractors themselves are the second lock: `tools/validate-items.mjs`
+   * measures the surface strategies over the whole bank, and answering by
+   * "the odd one out" or "the longest" scores 5.7% and 0.6% against a 1-in-4
+   * baseline. There is no shape to read here, only the mathematics.
+   */
   _choice(work) {
     const self = this;
     const item = this.item;
@@ -1744,7 +2006,10 @@ export class RiftPanel {
     const box = document.createElement('div');
     box.className = 'rf-readings';
     const picks = [];
-    for (const p of shuffled(pool, this.seed + 5)) {
+    // Arranged, not shuffled: where the true reading lands is a stated,
+    // measured property of this rig, not an accident of one seed. See
+    // `arranged`.
+    for (const p of arranged(pool, this.seed + 5, String(item.answer))) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ans rf-reading';
@@ -1761,7 +2026,7 @@ export class RiftPanel {
         b.disabled = true;
         self._miss(p.m || self._mis(p.v), null, p.v);
       };
-      b.addEventListener('click', take);
+      self._click(b, take);
       picks.push(take);
       box.appendChild(b);
     }
@@ -1947,7 +2212,7 @@ export class RiftPanel {
     undo.className = 'rf-btn';
     undo.textContent = t('rift.balance.undo');
     undo.disabled = true;
-    undo.addEventListener('click', () => {
+    self._click(undo, () => {
       if (!history.length || self._settled) return;
       S = history.pop();
       undo.disabled = !history.length;
@@ -2127,6 +2392,10 @@ export class RiftPanel {
     return {
       name: 'balance',
       owns: true,
+      // The beam measures how far the unknown still has to travel, and that
+      // distance is real, continuous and falls only when a move actually gains
+      // ground. The gauge reads it. (see setPressure)
+      gauge: true,
       stateTex: () => `${sideTex(S.L, v)} = ${sideTex(S.R, v)}`,
       /**
        * A move that is legal but buries the unknown deeper. The scripted hand
@@ -2225,7 +2494,7 @@ export class RiftPanel {
 
     let picked = null;
     for (const bay of [bayV, bayK]) {
-      bay.addEventListener('click', () => {
+      self._click(bay, () => {
         if (!picked) return;
         const { chip, term } = picked;
         picked = null;
@@ -2233,11 +2502,31 @@ export class RiftPanel {
       });
     }
 
+    // Kept here, in the closure, and NOWHERE on the surface.
+    //
+    // Each chip used to carry `data-kind="var"` or `data-kind="num"`, and the
+    // stylesheet painted the two kinds two different colours — the same two
+    // colours the two bay headers were painted. `14a`, `17a` and `-7a` came up
+    // cyan beside a cyan `a TERMS` header; `30` and `18` came up amber beside
+    // an amber `PURE NUMBERS` header. Every chip could be filed by matching a
+    // hue, and a cadet who has never met a like term could clear the board.
+    // A sorter solvable by colour is not a sorter; it is a colour-matching toy
+    // with algebra printed on it.
+    //
+    // So the chips are now one material. Nothing on a loose chip says which
+    // bay it belongs in — not its colour, not an attribute, not a class. The
+    // only way to file `-7a` is to know that `-7a` is a multiple of the
+    // unknown, which is the whole of what this surface teaches. Colour still
+    // does a job here, but it encodes STATE and never kind: loose chips are
+    // one colour, a chip that has been filed goes green, a refused drop flares
+    // red. All three are things the cadet has already done, never a hint about
+    // what to do next.
+    const loose = [];
+
     for (const term of terms) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'rf-chip';
-      chip.dataset.kind = term.kind;
       const s = term.kind === 'var' ? coefStr(term.c, v) : String(term.c);
       chip.innerHTML = texFirst([s]) || s;
       draggable(chip, {
@@ -2251,14 +2540,31 @@ export class RiftPanel {
           picked = { chip, term };
         },
       });
+      loose.push({ chip, term });
       tray.appendChild(chip);
     }
 
     return {
       name: 'sort',
       owns: true,
+      // This surface takes the statement apart into a countable number of
+      // things, so "how much of the tear is still open" counts something a
+      // cadet can point at: the terms still loose in the tray. (see setPressure)
+      gauge: true,
       stateTex: () => illegal,
       stateKey: 'echo.thatMergeSays',
+      /**
+       * File one term in the wrong bay — a real slip, made through the same
+       * `place` a hand makes it through. It lives in the closure because the
+       * surface no longer tells the DOM which bay a chip belongs in: the fact a
+       * harness needs is the same fact a cadet must not be given.
+       */
+      pickBad() {
+        const next = loose.find((x) => !x.chip.disabled);
+        if (!next) return false;
+        place(next.chip, next.term, next.term.kind === 'var' ? bayK : bayV);
+        return true;
+      },
     };
   }
 
@@ -2321,12 +2627,22 @@ export class RiftPanel {
     mkW(coefStr(a, v), 'a', fa);
     mkW(b < 0 ? `- ${Math.abs(b)}` : `+ ${b}`, 'b', 1 - fa);
 
+    // WHAT EACH PART OF THE FIELD IS WORTH LIVES HERE, NOT IN THE MARKUP.
+    //
+    // Each cell used to carry `data-want="6x"`. That is the answer, written on
+    // the surface in full, for both halves of the field — a learner with the
+    // inspector open could fill the field without reading the rectangle at all.
+    // It is the same defect as a chip that tells you its bay by its colour,
+    // one layer down: a support that lets a cadet succeed with no mathematics
+    // in it. The value a cell wants is now closed over, and the DOM says only
+    // that a cell is empty or filled.
+    const wantOf = new Map();
     const mkCell = (want, cls, grow) => {
       const c = document.createElement('div');
       c.className = `rf-cell ${cls}`;
       c.style.flex = `${grow} 1 0`;
       c.innerHTML = `<span class="hintmark">${t('rift.area.slot')}</span>`;
-      c.dataset.want = want;
+      wantOf.set(c, want);
       cells.appendChild(c);
       return c;
     };
@@ -2369,13 +2685,13 @@ export class RiftPanel {
       const got = [cellA, cellB].filter((c) => c.classList.contains('filled'));
       if (!got.length) { total.className = 'rf-assemble none'; total.textContent = t('rift.area.none'); return; }
       total.className = 'rf-assemble';
-      const s = got.length === 2 ? linStr(k * a, v, k * b) : got[0].dataset.want;
+      const s = got.length === 2 ? linStr(k * a, v, k * b) : wantOf.get(got[0]);
       total.innerHTML = texFirst([s]) || s;
     };
 
     const drop = (chip, value, cell) => {
       if (self._settled || chip.disabled || cell.classList.contains('filled')) return;
-      if (value !== cell.dataset.want) {
+      if (value !== wantOf.get(cell)) {
         for (const e of [cell, chip]) { e.classList.remove('reject'); void e.offsetWidth; e.classList.add('reject'); }
         setTimeout(() => { cell.classList.remove('reject'); chip.classList.remove('reject'); }, 460);
         const mis = value === coefStr(a, v) || value === String(b) ? 'partial-distribute'
@@ -2396,7 +2712,7 @@ export class RiftPanel {
 
     let picked = null;
     for (const cell of [cellA, cellB]) {
-      cell.addEventListener('click', () => {
+      self._click(cell, () => {
         if (!picked) return;
         const { chip, value } = picked;
         chip.classList.remove('picked');
@@ -2426,7 +2742,31 @@ export class RiftPanel {
     }
 
     paintTotal();
-    return { name: 'area', owns: true };
+    return {
+      name: 'area',
+      owns: true,
+      // Two parts of the field to cover, and the gauge counts the ones still
+      // bare. (see setPressure)
+      gauge: true,
+      /**
+       * What the two parts of the field are worth — for the answer-integrity
+       * audit, which has to know whether the tray holds a chip for each of
+       * them. It reads the closure because the surface no longer publishes it;
+       * a harness may know the answer, a learner's DOM may not.
+       * (tools/critic/choicelab/lab.js)
+       */
+      wants: () => [wantA, wantB],
+      /** Cover a part of the field with an area it does not carry. */
+      pickBad() {
+        const cell = [cellA, cellB].find((c) => !c.classList.contains('filled'));
+        if (!cell) return false;
+        const want = wantOf.get(cell);
+        const chip = [...tray.querySelectorAll('.rf-chip:not(.placed)')].find((c) => c.dataset.value !== want);
+        if (!chip) return false;
+        drop(chip, chip.dataset.value, cell);
+        return true;
+      },
+    };
   }
 
   // ------------------------------------------------------------ critic hook
@@ -2463,22 +2803,13 @@ export class RiftPanel {
       click(this._modality.pickBad?.() || btns[btns.length - 1] || btns[0]);
       return true;
     }
-    if (this.mode === 'sort') {
-      const chip = this.el.querySelector('.rf-chip:not(.placed)');
-      const bays = [...this.el.querySelectorAll('.rf-bay')];
-      if (!chip || bays.length < 2) return false;
-      click(chip);
-      bays.find((b) => b.dataset.kind !== chip.dataset.kind)?.click();
-      return true;
-    }
-    if (this.mode === 'area') {
-      const cell = this.el.querySelector('.rf-cell:not(.filled)');
-      const bad = [...this.el.querySelectorAll('.rf-chip:not(.placed)')].find((c) => c.dataset.value !== cell?.dataset.want);
-      if (!bad || !cell) return false;
-      click(bad);
-      cell.click();
-      return true;
-    }
+    // The surface no longer publishes which bay a chip belongs in — that was a
+    // giveaway with or without the colour — so the slip is made through the
+    // modality's own closure. (see `_sort`)
+    if (this.mode === 'sort') return !!this._modality?.pickBad?.();
+    // Same reason as the sorting bays: what a cell is worth is no longer
+    // written on the cell, so the slip is made through the modality's closure.
+    if (this.mode === 'area') return !!this._modality?.pickBad?.();
     return false;
   }
 }

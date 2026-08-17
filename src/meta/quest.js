@@ -7,19 +7,39 @@
  * title and the standing question. It flares once when the chapter turns, and
  * it is the click target for the dossier.
  *
- * Below that are the two clocks, and they are the part that earns the pixels.
+ * ---------------------------------------------------------------------------
+ * WHAT THIS CARD USED TO PRINT, AND WHY IT DOES NOT
  *
- *   THE SEAL LEDGER, in numerals large enough to read at a glance: how many
- *   tears you have closed on this shard, and how many more the next chapter
- *   costs. It ticks on *every* correct answer — the number changes, a +1 rises
- *   off it, the bar moves — so the story is visibly nearer than it was ninety
- *   seconds ago. This is the fast clock and it is the hero of the card.
+ * Three of the nine figures a cold critic counted on one frame were on this
+ * card: "2 RIFTS SEALED IN ALL", "1 MORE TO CHAPTER 2" and "BRONZE · 2 TO GO".
+ * All three were true. Together with the run band above them they made a strip
+ * of glass carrying five different answers to "how am I doing", and one of them
+ * — the rung — did something worse than disagree: it ran 10 → 7 → 2 → 18 → 15
+ * and then became "SILVER · 1 NIGHT HELD". That is one label counting standing
+ * points, then counting nights, with nothing on screen marking the moment it
+ * changed what it counted. A counter that changes its unit mid-run is not a
+ * counter; it is noise wearing a number's clothes.
  *
- *   THE RUNG, one hairline under it: standing toward the next rank, which is
- *   the slow, honest one. Named, so you always know which rite is next and how
- *   far it is, and quiet, so it never competes with the seal count.
+ * So the two clocks are still here and they are still both live — they are
+ * genuinely two different things and the design of them is right — but they are
+ * now **instruments rather than readouts**. Each is a bar that moves, with the
+ * NAME of what is next beside it and no figure at all:
+ *
+ *   THE SEAL LEDGER  the bar fills toward the next chapter and flares on every
+ *                    seal, so the story is visibly nearer than it was ninety
+ *                    seconds ago. The line beneath names the chapter that is
+ *                    coming, or says the gate is nights rather than seals.
+ *   THE RUNG         the bar fills toward the next rite; the line names the
+ *                    rank it is toward. Never how far. Never in what.
+ *
+ * The counts themselves are not gone — a teacher can read rifts sealed and
+ * lines held in the report, which is a surface the learner opens on purpose.
+ * The ONE number on the live HUD is WORLD REPAIRED, on the rig, and it is the
+ * only figure in this game that answers "how am I doing". See
+ * `src/meta/progress.js`.
  */
 import { sigilSVG } from './arc.js';
+import { FIG, tagFigure, untagFigure } from './progress.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -52,7 +72,6 @@ export class QuestCard {
       <span class="qbody"></span>
       <span class="qseal">
         <span class="qs-top">
-          <b class="qs-n">0</b>
           <i class="qs-plus"></i>
           <span class="qs-lab"></span>
         </span>
@@ -70,7 +89,7 @@ export class QuestCard {
     this.label = this.el.querySelector('.qlabel');
     this.body = this.el.querySelector('.qbody');
     this.seal = this.el.querySelector('.qseal');
-    this.sn = this.el.querySelector('.qs-n');
+    this.stop = this.el.querySelector('.qs-top');
     this.splus = this.el.querySelector('.qs-plus');
     this.slab = this.el.querySelector('.qs-lab');
     this.sfill = this.el.querySelector('.qs-track b');
@@ -86,7 +105,10 @@ export class QuestCard {
 
   set({ n, rank, title, quest, flare = false }) {
     if (rank !== this._sig) { this.slot.innerHTML = sigilSVG(rank); this._sig = rank; }
+    // "Chapter 3" — the name of the act, declared as an ordinal so a gate that
+    // fails on undeclared digits does not fail on a title.
     this.act.textContent = t('story.hud.act', { n });
+    tagFigure(this.act, FIG.CHAPTER_NO, n);
     this.key.textContent = t('story.hud.hint');
     this.el.setAttribute('aria-label', t('story.hud.dossier'));
     this.title.textContent = title;
@@ -107,24 +129,40 @@ export class QuestCard {
    *          gained:boolean, top:boolean}} s
    */
   setSeals(s) {
-    this.sn.textContent = String(s.tears);
+    /* NO NUMERAL. This row used to lead with the lifetime seal count in
+       display-size numerals — the second-largest figure on the screen, and the
+       one that sat two hundred pixels under the band's "9 OF 20 RIFTS" reading
+       "11 RIFTS SEALED IN ALL". The word "sealed" stays, because the bar under
+       it needs naming; the count is in the report. */
     this.slab.textContent = t('story.hud.sealed');
-    /* WHY THE NEXT CHAPTER HAS NOT TURNED.
-       The tear count can be full and the chapter still shut, because the last
-       two acts also cost nights held (src/meta/shard.js). A bar sitting at
-       100% under "3 more tears" would read as a bug, so the line says the real
-       reason and names the one number that is missing. */
-    const gate = s.gate || { kind: 'tears', need: s.toNext };
+    untagFigure(this.stop);
+    /* WHAT IS COMING, NOT HOW FAR OFF IT IS.
+       "1 MORE TO CHAPTER 2" was a countdown in rifts printed beside a countdown
+       in standing points printed beside a percentage — and the chapter gate is
+       not always rifts at all: the last two acts also cost nights held
+       (src/meta/shard.js), which is how one line came to change what it was
+       counting halfway up the ladder. So the line names the chapter that is
+       next and, when the gate is nights rather than seals, says so — because a
+       bar that has stopped moving without saying why reads as a bug. Neither
+       sentence carries a figure. */
+    const gate = s.gate || { kind: 'tears' };
     this.snext.textContent = s.top
       ? t('story.hud.sealsAll')
       : gate.kind === 'nights'
-        ? t('story.hud.chapterNight', { n: gate.need, ch: s.chapter + 1 })
-        : t('story.hud.toChapter', { n: gate.need, ch: s.chapter + 1 });
+        ? t('story.hud.chapterNightAny', { ch: s.chapter + 1 })
+        : t('story.hud.toChapterAny', { ch: s.chapter + 1 });
+    /* The chapter ordinal inside that sentence is a NAME with a digit in it —
+       "Chapter 2" — not a count of anything, and it is declared as one so the
+       gate can tell the difference without parsing prose in three languages. */
+    untagFigure(this.snext);
+    if (!s.top) tagFigure(this.snext, FIG.CHAPTER_NEXT_NO, s.chapter + 1);
     this.sfill.style.width = `${Math.round(s.frac * 100)}%`;
     this.seal.classList.toggle('full', !!s.top);
     this.seal.classList.toggle('gated', gate.kind === 'nights');
     if (s.gained) {
-      this.splus.textContent = t('story.hud.plusSeal');
+      /* No "+1". A delta is a figure too, and with the total gone from this row
+         it would be a numeral floating over nothing — the flare is the whole
+         signal, and it is the part that was doing the work anyway. */
       this.seal.classList.remove('pop');
       void this.seal.offsetWidth;
       this.seal.classList.add('pop');
@@ -137,15 +175,20 @@ export class QuestCard {
    */
   setRung(s) {
     this.rnow.textContent = s.rankName;
-    /* Same rule as the seal row: Gold and Sovereign also cost nights held, so
-       a cadet who has the standing and not the nights is told which one is
-       missing rather than watching a full bar do nothing. */
-    const gate = s.gate || { kind: 'standing', need: Math.max(0, s.need - s.have) };
+    /* THE ONE THAT CHANGED ITS UNIT. This line read "BRONZE · 2 TO GO" and, over
+       one session, ran 10 → 7 → 2 → 18 → 15 → "SILVER · 1 NIGHT HELD": standing
+       points until the standing gate was met, then nights. Two units, one
+       label, no mark on the glass where the meaning changed — which is the
+       defect P0 names as its fourth rule, and the reason a countdown here
+       cannot be repaired by picking better numbers. It names the rank that is
+       next, and when the gate is nights rather than work it says which, so a
+       full bar that is not moving still explains itself. No figure either way. */
+    const gate = s.gate || { kind: 'standing' };
     this.rnext.textContent = !s.nextName
       ? t('story.hud.summit')
       : gate.kind === 'nights'
-        ? t('story.hud.nextNight', { rank: s.nextName, n: gate.need })
-        : t('story.hud.toNext', { rank: s.nextName, n: gate.need });
+        ? t('story.hud.nextNightAny', { rank: s.nextName })
+        : t('story.hud.toNextAny', { rank: s.nextName });
     this.rfill.style.width = `${Math.round(s.frac * 100)}%`;
     this.rung.classList.toggle('full', !s.nextName);
     this.rung.classList.toggle('gated', gate.kind === 'nights');
@@ -179,14 +222,26 @@ export class QuestCard {
   setWatch(w) {
     this.el.classList.toggle('watch', !!w);
     if (!w) return;
-    this.sn.textContent = String(w.due);
+    /* The watch is the same two rows past the last line, under the same rule:
+       instruments, not readouts. It used to print the count of held lines that
+       had fallen due and the count of nights held — two more figures, arriving
+       at exactly the moment the learner has the most invested in the numbers
+       agreeing. The bar carries how much of the shard is due; the line says
+       whether there is a watch to stand tonight and, if not, when the next one
+       falls. Nights held is in the report. */
     this.slab.textContent = t('story.watch.due');
+    untagFigure(this.stop);
     this.snext.textContent = w.due > 0
       ? t('story.watch.stand')
       : t('story.watch.next', { when: whenText(w.nextInMinutes) });
+    /* `whenText` puts a duration in that sentence — "in four hours", "tomorrow".
+       That is a clock reading about the world, not a count of the learner's
+       progress, and it is declared as one. */
+    untagFigure(this.snext);
+    if (w.due === 0) tagFigure(this.snext, FIG.ELAPSED, Math.round(w.nextInMinutes ?? 0));
     this.sfill.style.width = `${Math.round(100 * (w.held ? Math.min(1, w.due / w.held) : 0))}%`;
     this.seal.classList.toggle('full', w.due === 0);
-    this.rnow.textContent = t('story.watch.nights', { n: w.durable });
+    this.rnow.textContent = t('story.watch.nightsAny');
     /* WHAT THE NIGHTS ARE FOR, WHILE THEY ARE STILL FOR SOMETHING.
        The coda — the last thing the writing has to say — now costs five nights
        held (src/meta/shard.js), because it used to arrive on the afternoon the
@@ -194,9 +249,9 @@ export class QuestCard {
        or it is a wall; so until the proof closes this row says so, and after it
        goes back to the descent. */
     this.rnext.textContent = w.codaIn > 0
-      ? t('story.watch.coda', { n: w.codaIn })
+      ? t('story.watch.codaAny')
       : (w.sounding?.best
-        ? t('story.watch.sounding', { n: w.sounding.best })
+        ? t('story.watch.soundingAny')
         : t('story.watch.soundingNone'));
     this.rfill.style.width = `${Math.round(100 * Math.min(1, (w.sounding?.rung || 0) / 8))}%`;
     this.rung.classList.remove('full');

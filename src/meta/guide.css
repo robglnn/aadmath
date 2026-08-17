@@ -62,28 +62,15 @@
   color: rgba(190, 210, 236, .78);
 }
 
-/* ---- the arc, in ten pips. Held / open / sealed off. --------------------- */
-.gd-lines { display: block; margin-top: .5rem; padding-top: .46rem;
-  border-top: 1px solid rgba(140, 195, 255, .13); }
-.gd-pips { display: flex; gap: 3px; }
-.gd-pips u {
-  flex: 1 1 0; height: 5px; border-radius: 1.5px;
-  background: rgba(255, 255, 255, .07);
-  box-shadow: inset 0 0 0 1px rgba(140, 195, 255, .12);
-  transition: background .5s ease, box-shadow .5s ease;
+/* THE ARC-IN-TEN-PIPS AND THE TALLY UNDER IT ARE GONE FROM THIS CARD.
+   They were a picture of the progress number and the progress number, on a
+   signpost, two hundred pixels from the rig that carries the one the game is
+   built on. See src/meta/guide.js and src/meta/progress.js. */
+.gd-gloss {
+  display: block; margin-top: .16rem; font-size: .58rem; line-height: 1.4;
+  color: rgba(190, 210, 236, .66);
 }
-.gd-pips u.open { background: rgba(127, 214, 255, .30); box-shadow: inset 0 0 0 1px rgba(127, 214, 255, .55); }
-.gd-pips u.held {
-  background: linear-gradient(180deg, #baf3d3, #6fe0a8);
-  box-shadow: 0 0 9px rgba(120, 235, 175, .6);
-}
-/* Three counts and two separators. Polish spells all three words out and needs
-   two lines for them, so it is balanced rather than left to orphan a numeral. */
-.gd-tally {
-  display: block; margin-top: .3rem; font-size: .55rem; letter-spacing: .1em;
-  line-height: 1.55; text-wrap: balance;
-  text-transform: uppercase; color: rgba(159, 179, 208, .62);
-}
+.gd-gloss[hidden] { display: none; }
 
 /* ===========================================================================
    THE WAYPOINT — "it is that way, 140 m".
@@ -205,11 +192,18 @@
 /* ---------------------------------------------------------------- small --
    The left rail is a queue on a small screen: rig, then the progress launcher
    (src/report, which moves to this corner under 720 px), then this, then the
-   chapter card. So the objective drops below the launcher rather than under
-   it, and sheds the two rows a phone can read elsewhere — the reason it is
-   worth doing is one tap away in the panel the launcher opens, and the ten
-   pips are the first thing that panel draws. What never goes is the sentence:
-   the verb, the line, and how far. */
+   chapter card. So the objective drops below the launcher rather than under it,
+   and sheds the rows a phone can read elsewhere.
+
+   WHAT A PHONE SHEDS, AND WHAT IT NEVER SHEDS. The whole block used to go: the
+   pips, and the row under them. That was right when the row was three counts of
+   held / open / locked — decoration a tap away in the report. It is wrong now,
+   because that row is THE progress number, the single answer this game gives to
+   "how am I doing", and a phone player was left reading its gloss with no
+   number above it: "One mark for each line" over no marks and no count.
+
+   So the decoration goes and the figure stays. The pips are a picture of the
+   number; the number is the point, and it is one short line. */
 @media (max-width: 900px) {
   #ui .gd-card { width: min(220px, 58vw); padding: .48rem .6rem .52rem; }
   .gd-verb { font-size: .85rem; }
@@ -220,13 +214,17 @@
 }
 @media (max-width: 720px) {
   #ui .gd-card { top: calc(var(--pad-t) + 112px); }
-  .gd-lines { display: none; }
+  /* the picture of the number goes; the number stays */
+  .gd-gloss { display: none; }
 }
 /* A phone on its side: 390 px of height carries the whole rail, so the card is
    the sentence and nothing else. */
 @media (max-height: 520px) and (orientation: landscape) {
   #ui .gd-card { width: min(196px, 26vw); padding: .4rem .52rem .44rem; }
   .gd-verb { font-size: .76rem; }
-  .gd-lines { display: none; }
+  /* 390 px of height carries the whole rail, so this card is the sentence and
+     the figure — and nothing else. Same rule as the narrow case above: the
+     progress number is the last thing that goes, not the first. */
+  .gd-gloss { display: none; }
 }
 :root[data-touch] .gd-prompt kbd { min-width: 34px; }

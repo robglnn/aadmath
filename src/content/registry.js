@@ -52,9 +52,16 @@ export const FORMS_BY_SKILL = Object.create(null);
 
 /** Called by `generators.js` once, to derive its public summary of a form. */
 let summarise = (f) => ({ id: f.id, rep: f.rep, dMin: f.dMin, dMax: f.dMax });
+/**
+ * The skill is passed as the second argument. A summary that has to say what a
+ * form *asks the learner to do* cannot derive it from the form alone: four
+ * symbolic forms of `eval-expr` are one act and four symbolic forms of
+ * `like-terms` are a different one, and only the key they are filed under says
+ * which. See `actOf` in src/learn/generators.js.
+ */
 export function setFormSummary(fn) {
   summarise = fn;
-  for (const id of SKILLS) FORMS_BY_SKILL[id] = FORMS[id].map(summarise);
+  for (const id of SKILLS) FORMS_BY_SKILL[id] = FORMS[id].map((f) => summarise(f, id));
 }
 
 /** The forms registered for one skill, or undefined. */
@@ -84,7 +91,7 @@ export function registerPack(pack) {
     }
     FORMS[skill] = forms;
     SKILLS.push(skill);
-    FORMS_BY_SKILL[skill] = forms.map(summarise);
+    FORMS_BY_SKILL[skill] = forms.map((f) => summarise(f, skill));
     added.push(skill);
   }
   for (const [loc, bundle] of Object.entries(pack.strings || {})) {

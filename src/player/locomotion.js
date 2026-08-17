@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundUnder, gradientAt, heightAt, RIM } from './terrain.js';
+import { groundUnder, gradientAt, heightAt, onBuilt, RIM } from './terrain.js';
 
 /**
  * The physics half of game feel.
@@ -47,6 +47,30 @@ export const P = {
   skidEnter: 0.62,             // fraction of sprint speed above which a stop skids
   skidTime: 0.55, skidFric: 0.20,
   landTime: 0.36, hardLandTime: 1.15,
+
+  // ---- THE LAUNCH -------------------------------------------------------
+  // A surface that rises under you throws you off its head. Until this
+  // existed, running off the top of a ramp you had just built dropped you
+  // straight down at zero metres a second: the ramp gave back exactly the
+  // height it cost and nothing else, which is why building read as scenery.
+  // Now the ground you leave keeps the part of your speed that was pointing
+  // up. A four-metre ramp climbs one metre per metre travelled, so a sprint
+  // off its head is thrown about seven metres a second upward — a gap you
+  // could not cross on foot, crossed, because you built the lip.
+  launchK: 0.62,               // fraction of the rising speed that becomes lift
+  launchBuilt: 0.80,           // …off a lip you machined yourself
+  launchMin: 0.26,             // metres of rise per metre run: below this, ground
+  launchMax: 9.5,              // and never a rocket
+  launchSpeedMin: 5.0,
+
+  // ---- FLOW -------------------------------------------------------------
+  // Chaining moves — dash into jump, ramp into wing, wing into a running
+  // landing — banks a little speed. It bleeds away the moment you stand
+  // still, so it is carried, never owned.
+  flowTop: 0.17,               // top speed at full flow
+  flowDecay: 0.40,             // per second while still moving
+  flowDrop: 3.4,               // multiplier on that once you stop
+  dashJump: 1.06,              // a jump out of a dash keeps this much of it
 };
 
 const up = new THREE.Vector3(0, 1, 0);
@@ -88,6 +112,12 @@ export class Locomotion {
     this.landT = 0; this.landMax = 1; this.landPower = 0;
     this.glideLoad = 0; this.deployT = 0;
 
+    /** Chained-move charge, 0..1. Read by the camera, the wing and the top
+     *  speed. Banked by linking moves, spent by standing still. */
+    this.flow = 0;
+    /** Strength of the last launch off a rising surface, 0..1. */
+    this.launchPower = 0;
+
     this.ev = {};
     this._wish = new THREE.Vector3();
     this._prev = new THREE.Vector3();
@@ -99,7 +129,7 @@ export class Locomotion {
     const ev = this.ev = {
       landed: 0, jumped: 0, doubleJumped: 0, dashed: 0,
       glideOpened: 0, glideClosed: 0, mantled: 0, wallHit: 0, slideStart: 0,
-      skidStart: 0, sprintOn: 0,
+      skidStart: 0, sprintOn: 0, launched: 0, dashJumped: 0,
     };
     this._prev.copy(this.pos);
 
@@ -121,6 +151,16 @@ export class Locomotion {
 
     // ---------------- dash ----------------
     if (this.dashT > 0) {
+      // THE DASH JUMP — and the reason to time a dash at all.
+      //
+      // A jump pressed during a dash used to be swallowed whole: this block
+      // returns before the jump code ever runs, so the one press every player
+      // makes at the lip of a gap did nothing. Now it *cancels* the dash and
+      // keeps its speed, which is the difference between a dash that is a
+      // panic button and a dash that is the run-up to a jump. Dash at the
+      // wrong moment and you arrive at the edge with the cooldown up; dash
+      // one step before the edge and you clear a gap you cannot walk across.
+      if (ctx.jumpBuffered && !locked && this._dashJump(dt, ctx, ev)) return ev;
       this.dashT -= dt;
       this.vel.x = this.dashDir.x * P.dashSpeed;
       this.vel.z = this.dashDir.z * P.dashSpeed;
@@ -139,10 +179,13 @@ export class Locomotion {
       this.dashDir.copy(wishMag > 0.2 ? wish : this.moveDir).setY(0);
       if (this.dashDir.lengthSq() < 1e-4) this.dashDir.set(Math.sin(ctx.yaw), 0, Math.cos(ctx.yaw));
       this.dashDir.normalize();
-      this.dashT = P.dashTime; this.dashCd = P.dashCool; this.skidT = 0;
+      this.dashT = P.dashTime; this.skidT = 0;
+      // a chained cadet gets the dash back sooner, which is the whole payment
+      this.dashCd = P.dashCool * (1 - 0.32 * this.flow);
       if (!this.grounded) this.airDash = false;
       if (this.gliding) this._closeGlide(ev);
       this.jumps = Math.min(this.jumps, 1);
+      this._flowLink(0.26);
       ev.dashed = 1;
       this.state = 'dash';
     }
@@ -165,14 +208,28 @@ export class Locomotion {
 
     // ---------------- horizontal ----------------
     const stickTop = THREE.MathUtils.lerp(P.walk, P.run, THREE.MathUtils.smoothstep(wishMag, 0.12, 0.92));
-    const top = THREE.MathUtils.lerp(stickTop, P.sprint, this.sprintCharge * (wantSprint ? 1 : 0.55));
+    // Flow is spent here: a chained run is faster than a flat one, and the
+    // only way to hold the extra is to keep chaining.
+    const top = THREE.MathUtils.lerp(stickTop, P.sprint, this.sprintCharge * (wantSprint ? 1 : 0.55))
+      * (1 + P.flowTop * this.flow);
     let target = top * Math.min(1, wishMag * 1.25);
 
-    // slopes: the hill takes something going up and gives it back coming down
+    // Slopes: the hill takes something going up and gives it back coming down.
+    //
+    // A LATTICE RAMP IS NOT A HILL. This is the whole answer to "building asks
+    // nothing and gives nothing". A hillside charges nearly half your speed to
+    // climb; a ramp you set down yourself is machined ground and charges you
+    // almost nothing — so the ramp is not a slower, tidier way up, it is the
+    // *fast* way up, and the head of it then throws you (see `_launch`). One
+    // piece, eleven charge, and a climb that cost you a sprint is a climb you
+    // sprint through and leave the ground at the top of.
+    this.onBuilt = this.grounded && onBuilt(this.pos.x, this.pos.z);
     if (this.grounded && wishMag > 0.05) {
       const g = gradientAt(this.pos.x, this.pos.z);
       const along = g.x * wish.x + g.y * wish.z;
-      target *= THREE.MathUtils.clamp(1 - along * 0.42, 0.5, 1.28);
+      target *= this.onBuilt
+        ? THREE.MathUtils.clamp(1 - along * 0.11, 0.86, 1.34)
+        : THREE.MathUtils.clamp(1 - along * 0.42, 0.5, 1.28);
     }
 
     const vx = this.vel.x, vz = this.vel.z;
@@ -288,6 +345,80 @@ export class Locomotion {
   }
 
   // -------------------------------------------------------------------
+  /**
+   * Bank a link in the chain. `k` is how much of the bar one move is worth.
+   * Nothing here is stored anywhere: flow only survives while you keep going.
+   */
+  _flowLink(k) {
+    this.flow = THREE.MathUtils.clamp(this.flow + k, 0, 1);
+  }
+
+  /**
+   * Cancel a dash into a jump, keeping the speed. Returns true if it fired,
+   * in which case the caller must stop touching this frame.
+   */
+  _dashJump(dt, ctx, ev) {
+    const onFloor = this.grounded || this.coyote > 0;
+    if (!onFloor && this.jumps >= 2) return false;
+    ctx.consumeJump();
+    this.dashT = 0;
+    // The exit cap, plus the small premium for having timed it. A dash is
+    // 22 m/s and that is not a speed a body may leave the ground at; what
+    // survives is a shade over a sprint, which is a long jump.
+    const keep = P.sprint * P.dashExit * P.dashJump;
+    this.vel.x = this.dashDir.x * keep;
+    this.vel.z = this.dashDir.z * keep;
+    this.vel.y = onFloor ? P.jumpV : P.doubleV;
+    this.grounded = false; this.coyote = 0;
+    this.airTime = 0; this._cutArmed = false; this._holdT = 0;
+    this.jumps = onFloor ? 1 : 2;
+    this.state = 'air';
+    if (onFloor) ev.jumped = 1; else ev.doubleJumped = 1;
+    ev.dashJumped = 1;
+    this._flowLink(0.55);
+    this._integrate(dt);
+    this._finish(dt, ctx);
+    return true;
+  }
+
+  /**
+   * The cadet has just left the ground without jumping. If the surface he
+   * left was climbing under him, the climb becomes lift.
+   *
+   * Sampled at the position he held at the START of the frame, because by now
+   * he is over whatever is past the lip — usually nothing at all — and the
+   * gradient out there says nothing about the ramp he was on.
+   */
+  _launch() {
+    if (this.gliding || this.mantleT > 0) return;
+    if (this.vel.y > 1.2) return;          // already climbing: something else did this
+    const planar = Math.hypot(this.vel.x, this.vel.z);
+    if (planar < P.launchSpeedMin) return;
+    // A LAUNCH NEEDS A LIP, AND A LIP NEEDS SOMETHING ON THE FAR SIDE OF IT.
+    //
+    // The coastline of this shard rises before it ends, so without this test a
+    // sprint off the north gate was *thrown* off the world — higher, further
+    // out, and several seconds later into the fall-catch's arms. Running off
+    // the edge of the world is a fall. A fall is not repaid.
+    const dx = this.vel.x / planar, dz = this.vel.z / planar;
+    if (heightAt(this.pos.x + dx * 3.5, this.pos.z + dz * 3.5) === null &&
+        heightAt(this.pos.x + dx * 9, this.pos.z + dz * 9) === null) return;
+
+    const g = gradientAt(this._prev.x, this._prev.z);
+    // metres of rise per metre run, along the way he is actually going
+    const rise = (g.x * this.vel.x + g.y * this.vel.z) / planar;
+    if (rise < P.launchMin) return;
+    // A built lip is a kicker with a machined edge; a knoll is a knoll.
+    const k = onBuilt(this._prev.x, this._prev.z) ? P.launchBuilt : P.launchK;
+    const v = Math.min(P.launchMax, planar * rise * k);
+    if (v < 1.4) return;
+    this.vel.y = Math.max(this.vel.y, v);
+    this.launchPower = THREE.MathUtils.clamp((v - 1.4) / (P.launchMax - 1.4), 0, 1);
+    this.ev.launched = this.launchPower;
+    this._flowLink(0.20 + this.launchPower * 0.30);
+  }
+
+  // -------------------------------------------------------------------
   _openGlide(ev, yaw) {
     if (this.gliding) return;
     // A wing that unfurls half a metre off the plaza is a prop, not a wing.
@@ -300,7 +431,16 @@ export class Locomotion {
     // it spends the first two seconds banking hard for no reason
     this.heading = planar > 1.2 ? Math.atan2(this.vel.x, this.vel.z)
       : (Number.isFinite(yaw) ? yaw : this.facing);
-    this.glideSpeed = Math.max(11, planar);
+    // THE WING REPAYS THE LAUNCH.
+    //
+    // Upward speed is height already paid for. A wing opened at the top of a
+    // ramp launch keeps it as airspeed instead of throwing it away, so the
+    // distance you fly is decided by how well you left the ground rather than
+    // by how high the cliff was. Opening off a standstill still gets the same
+    // eleven metres a second it always did — this only ever adds.
+    const climb = Math.max(0, this.vel.y);
+    this.glideSpeed = THREE.MathUtils.clamp(
+      Math.max(11, planar + climb * 0.85 + this.flow * 4), P.glideMin, P.glideMax);
     this.glidePitch = P.glideBase;
     this._deployT = 0.44;              // the wing catches, then settles
     this.deployT = 0.44;
@@ -416,6 +556,7 @@ export class Locomotion {
       this.mantleT = P.mantleTime;
       this.state = 'mantle';
       this.gliding = false;
+      this._flowLink(0.22);
       this.ev.mantled = 1;
       return true;
     }
@@ -501,10 +642,18 @@ export class Locomotion {
         // landing eats a slice of your speed, more the harder you hit
         const bleed = THREE.MathUtils.clamp(1 - (impact - 12) / 60, 0.55, 1);
         this.vel.x *= bleed; this.vel.z *= bleed;
+        // A LANDING RUN OUT IS A LINK. Touching down still moving, and still
+        // asking to move, is the hardest half of a chain and the half nobody
+        // rewards; a heap on the floor (hardLand) is not.
+        if (this.hardLand <= 0 && Math.hypot(this.vel.x, this.vel.z) > P.run * 0.8) {
+          this._flowLink(0.18 + this.landPower * 0.16);
+        }
       }
       this.groundTime += dt;
     } else {
-      if (wasGrounded) this.groundTime = 0;
+      // Leaving the ground on your own momentum, not on a jump: whatever the
+      // surface was doing under you comes with you.
+      if (wasGrounded) { this.groundTime = 0; this._launch(); }
       this.grounded = false;
       this.skidT = 0;
       this.airTime += dt;
@@ -531,6 +680,10 @@ export class Locomotion {
     const planar = Math.hypot(this.vel.x, this.vel.z);
     this.speed = planar;
     this.speedN = THREE.MathUtils.clamp(planar / P.sprint, 0, 1.4);
+    // Flow bleeds. Keep moving and it lasts a few seconds; stand still, take a
+    // wall, or land in a heap and it is gone almost at once. Nothing saves it.
+    const carrying = planar > P.run * 0.55 && this.hardLand <= 0 && !ev.wallHit;
+    this.flow = Math.max(0, this.flow - dt * P.flowDecay * (carrying ? 1 : P.flowDrop));
     if (planar > 0.35) {
       this.moveDir.set(this.vel.x / planar, 0, this.vel.z / planar);
       const want = Math.atan2(this.vel.x, this.vel.z);

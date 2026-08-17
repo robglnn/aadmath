@@ -17,6 +17,7 @@
 import { ACTS, CODA, RANKS, RANK_AT, sigilSVG } from './arc.js';
 import { breakdown, STANDING_MAX } from './standing.js';
 import { t, pct } from '../i18n/index.js';
+import { FIG, tagFigure } from './progress.js';
 
 export class Dossier {
   constructor(root, { onToggle } = {}) {
@@ -79,8 +80,11 @@ export class Dossier {
     q('.h-stand').textContent = t('story.dossier.standing');
     q('.h-log').textContent = t('story.dossier.log');
     q('.h-lines').textContent = t('story.dossier.lines');
-    q('.i-lab').textContent = t('story.dossier.integrity');
+    /* The same figure, under the same name the rig prints it under, declared so
+       tools/critic/oneprogress.mjs proves the two agree every run. */
+    q('.i-lab').textContent = t('hud.mastery');
     q('.i-val').textContent = pct(s.integrity);
+    tagFigure(q('.i-val'), FIG.REPAIRED, Math.round(s.integrity * 100));
     q('.dos-int .track i').style.width = `${Math.round(s.integrity * 100)}%`;
     q('.dos-foot').textContent = t('story.dossier.footer');
 

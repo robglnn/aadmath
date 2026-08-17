@@ -123,21 +123,15 @@
   transition: width .5s cubic-bezier(.2, .8, .2, 1);
   border-radius: 0 1px 1px 0;
 }
-.ses-band .sb-work {
-  margin-left: auto; font-size: .58rem; letter-spacing: .05em;
-  color: rgba(159, 179, 208, .72); white-space: nowrap;
+/* THE FOOT CARRIES ONE WORD NOW, AND ONLY SOMETIMES.
+   It used to be a row of numerals — the rift count, its target, and the work
+   count beside them. See the header of src/session/band.js for why they are
+   gone. What is left is the state word, which is not a figure: LAST STRETCH,
+   RUN COMPLETE. It sits where the numerals were so the band keeps its height. */
+.ses-band .sb-foot {
+  display: flex; align-items: baseline; gap: .34rem; flex-wrap: wrap;
+  min-height: .78rem;
 }
-.ses-band .sb-foot { display: flex; align-items: baseline; gap: .34rem; flex-wrap: wrap; }
-.ses-band .sb-n {
-  font-size: 1.32rem; line-height: 1; font-weight: 700; color: #f2f8ff;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 16px color-mix(in srgb, var(--rank-glow) 40%, transparent);
-}
-.ses-band .sb-of {
-  font-size: .62rem; letter-spacing: .11em; text-transform: uppercase;
-  color: rgba(159, 179, 208, .72);
-}
-.ses-band .sb-work + .sb-state:not(:empty) { margin-left: .34rem; }
 .ses-band .sb-state {
   margin-left: auto; font-family: var(--meta-mono); font-size: .55rem;
   letter-spacing: .16em; text-transform: uppercase; color: var(--rank-ink);
@@ -145,10 +139,14 @@
 }
 .ses-band.near .sb-state, .ses-band.full .sb-state { opacity: .95; }
 
-/* one tear closed */
-.ses-band.pop .sb-n { animation: sesPop .5s cubic-bezier(.2, .8, .2, 1); }
+/* THE "GOAL RAISED" SENTENCE IS GONE WITH THE NUMBER IT EXPLAINED. It existed
+   because the target was printed here and could move under the learner in
+   silence. No target is printed here now, so nothing can. */
+
+/* one tear closed — the plate answers, since there is no numeral to pop */
+.ses-band.pop .sb-track { animation: sesPop .5s cubic-bezier(.2, .8, .2, 1); }
 @keyframes sesPop {
-  0% { scale: 1 } 34% { scale: 1.22; color: #fff } 100% { scale: 1 }
+  0% { scale: 1 } 34% { scale: 1.03 } 100% { scale: 1 }
 }
 /* "you are near the end of this run", said by the instrument */
 .ses-band.near { animation: sesNear 3.4s ease-in-out infinite; }
@@ -213,8 +211,21 @@
   -webkit-backdrop-filter: blur(2px) saturate(.92);
 }
 
+/* THE CARD IS NEVER TALLER THAN THE GLASS, AND ITS ONE BUTTON IS NEVER BELOW
+   THE FOLD.
+   Measured at 844x390 — a phone held sideways, which is how a phone is held to
+   play this — the orders card came to 465 px in a 390 px frame and BEGIN landed
+   fifteen pixels under the bottom edge. The card is centred in a grid, so the
+   overflow splits and takes the button with it: the only control on the only
+   screen that starts a run was unreachable, and `tools/critic/landscape.mjs`
+   caught it as an un-clickable element rather than as a layout fault, which is
+   why it read as a harness problem for three runs.
+   Capped, scrollable, and the button pinned to the foot of the scroll so it is
+   on the glass whatever the language does to the sentences above it. */
 .ses-charter .sc-card {
+  --sc-pb: 1.35rem;
   position: relative; width: min(560px, 88vw);
+  max-height: calc(100dvh - 1rem);
   padding: 1.5rem 1.7rem 1.35rem;
   background: var(--ses-plate);
   border: 1px solid var(--meta-edge);
@@ -297,6 +308,14 @@
   margin: .95rem 0 0; font-size: .78rem; line-height: 1.5; color: rgba(159, 179, 208, .82);
   text-wrap: pretty;
 }
+/* The workload, under the estimate and in the same register — it is the other
+   half of "here is what you are agreeing to", not a second heading. Tight to
+   the line above it so the two read as one paragraph of terms. */
+.sc-work {
+  margin: .3rem 0 0; font-size: .78rem; line-height: 1.5; color: rgba(159, 179, 208, .82);
+  text-wrap: pretty;
+}
+.sc-work[hidden] { display: none; }
 
 .sc-go, .sx-rest, .sx-more, .sr-again, .sr-off, .sr-skip, .sr-off-frame button {
   appearance: none; font: inherit; cursor: pointer;
@@ -480,6 +499,30 @@
 
 .sx-tally { display: flex; align-items: baseline; justify-content: center; gap: .6rem; opacity: 0; }
 .ses-close.show .sx-tally { animation: sesUp .6s ease forwards calc(var(--sx-t0) + .5s); }
+/* The numeral and its noun are one element, because they are one figure — see
+   the same grouping on the run band. Layout is unchanged: it is a baseline row
+   inside a baseline row. */
+.sx-t-fig { display: inline-flex; align-items: baseline; gap: .6rem; }
+
+/* THE PROGRESS NUMBER on the close card. Quiet beside the run tally above it,
+   because it is the slow figure and it is not what the last twenty minutes
+   bought — it is where the learner now stands. */
+.sx-lines {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center;
+  gap: .5rem; margin-top: .7rem; opacity: 0;
+}
+.ses-close.show .sx-lines { animation: sesUp .6s ease forwards calc(var(--sx-t0) + .62s); }
+.sx-lines[hidden] { display: none; }
+.sx-l-n {
+  font-size: .74rem; letter-spacing: .2em; text-transform: uppercase;
+  font-weight: 700; font-variant-numeric: tabular-nums; color: #dff3e6;
+}
+.sx-l-note {
+  flex: 0 0 100%; width: 100%;
+  padding-inline: max(0px, calc((100% - 52ch) / 2));
+  font-size: .7rem; line-height: 1.45; color: rgba(186, 203, 226, .72);
+  text-wrap: pretty;
+}
 .sx-t-n {
   font-size: clamp(2.4rem, 6vw, 3.6rem); font-weight: 800; line-height: 1;
   color: #fff; font-variant-numeric: tabular-nums;
@@ -817,10 +860,8 @@
      so the stack survives a sentence that wraps to three lines in Polish. */
   #ui:has(.ses-band.show) .gd-card { top: calc(var(--pad-t) + 142px); }
   #ui:has(.ses-band.show) .meta-quest { top: calc(var(--pad-t) + 142px + var(--gd-h, 54px)); }
-  .ses-band .sb-n { font-size: 1.12rem; }
   .ses-band .sb-goal { font-size: .66rem; }
-  .ses-band .sb-work { font-size: .55rem; }
-  .ses-charter .sc-card { padding: 1.1rem 1.1rem 1rem; }
+  .ses-charter .sc-card { --sc-pb: .9rem; padding: 1.1rem 1.1rem .9rem; }
   .ses-close .sx-in { --sx-px: 1rem; --sx-pb: 1.2rem; padding: 1rem var(--sx-px) var(--sx-pb); }
   .sx-blocks { grid-template-columns: 1fr; gap: .55rem; }
   .sx-b { padding: .6rem .7rem .68rem; }
@@ -846,8 +887,23 @@
   #ui.ses-cine .ses-band, #ui:has(.rift.show) .ses-band { translate: -8px 0; }
   #ui:has(.ses-band.show) .meta-quest { top: calc(var(--pad-t) + 132px); }
   .ses-band .sb-track { height: 10px; }
-  .ses-band .sb-n { font-size: 1rem; }
-  .sc-title { font-size: 1.35rem; }
+  /* THE ORDERS CARD FITS ON A PHONE HELD SIDEWAYS.
+     Measured at 844x390 it came to 465 px of card in a 390 px frame, and the
+     BEGIN button — the only control on the only screen that starts a run —
+     landed fifteen pixels below the bottom edge. A cadet on a landscape phone
+     could not begin. It is the same six sentences at a tighter vertical rhythm;
+     nothing is cut, because everything on this card is what the learner is
+     agreeing to. The type sizes are untouched — only the air between them. */
+  .ses-charter .sc-card { padding: .75rem 1.1rem .8rem; }
+  .sc-title { font-size: 1.2rem; }
+  .sc-rule { margin: .5rem 0 .55rem; }
+  .sc-goal { font-size: .95rem; line-height: 1.34; }
+  .sc-seams { margin: .5rem 0 .1rem; gap: .26rem; }
+  .sc-seams li { padding: .26rem .55rem; }
+  .sc-mark { margin: .42rem 0 0; padding-top: .38rem; font-size: .74rem; line-height: 1.34; }
+  .sc-eta { margin: .42rem 0 0; font-size: .72rem; line-height: 1.38; }
+  .sc-work { margin: .18rem 0 0; font-size: .72rem; line-height: 1.38; }
+  .sc-go { margin-top: .55rem; padding: .55rem 1.2rem; font-size: .62rem; }
   .ses-close .sx-in { --sx-px: 1rem; --sx-pb: .8rem; padding: .6rem var(--sx-px) var(--sx-pb); }
   .sx-blocks { grid-template-columns: repeat(3, 1fr); gap: .5rem; }
   .sr-ring { width: min(26vmin, 150px); }
@@ -860,10 +916,11 @@
 @media (prefers-reduced-motion: reduce) {
   .sr-ring i { animation: none !important; scale: .82; opacity: .4; }
   .ses-rest.quiet .sr-say { opacity: 1; }
-  .ses-band.near, .ses-band.near .sb-track, .ses-band.pop .sb-n,
+  .ses-band.near, .ses-band.near .sb-track, .ses-band.pop .sb-track,
   .ses-band.seam .sb-track::after { animation: none !important; }
   .ses-charter.show .sc-card, .ses-close.show .sx-kick, .ses-close.show .sx-title span,
-  .ses-close.show .sx-tally, .ses-close.show .sx-held, .ses-close.show .sx-open,
+  .ses-close.show .sx-tally, .ses-close.show .sx-lines,
+  .ses-close.show .sx-held, .ses-close.show .sx-open,
   .ses-close.show .sx-next, .ses-close.show .sx-sign, .ses-close.show .sx-acts,
   .ses-close.scrolls.show .sx-acts button,
   .ses-close.show .sx-crest-kick, .ses-close.show .sx-crest-name span,

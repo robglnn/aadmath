@@ -72,9 +72,20 @@ export function lexiconOf(w) {
     // player counting two things that were one thing. Now: the world *tears*
     // (a verb, the process, four days old); where it tears, a *rift* opens
     // (the noun, the ring, the only thing anybody counts).
+    /* 62 m, not 40. (i18n/ui — smallest possible edit, and here is why.)
+       The cadet lands 53 metres from the first rift and cannot move for the
+       whole cold open, so at 40 m this line — the definition of the noun the
+       entire game is built on — could not fire until the opening had finished
+       AND he had walked twenty metres. A cold critic measured the result: RIFT
+       is on the objective card from the fourth second and the first thing that
+       says what one is arrives about thirty-five seconds later, out of the
+       story channel. 62 puts the landing site inside range, so the word is
+       defined while he is looking at the thing, which is the whole point of
+       this file. Nothing else changes: it is still once, ever, in view, and
+       behind the same dwell and gap as every other noun. */
     {
       id: 'rift', pri: 0,
-      find: (p) => nearestOpenRift(p, 40),
+      find: (p) => nearestOpenRift(p, 62),
     },
     // --- a cipher mote: the thing he had eight hundred of --------------------
     // Formerly "cipher shard", which collided head-on with Shard Nine, the

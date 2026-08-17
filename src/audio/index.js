@@ -37,6 +37,16 @@ import {
 
 const SPRINT = 11.8;   // matches player/locomotion P.sprint; only used to normalise
 
+/** Eight bearings at twenty-two metres, as flat pairs so nothing is allocated. */
+const RING = (() => {
+  const r = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    r.push(Math.cos(a) * 22, Math.sin(a) * 22);
+  }
+  return r;
+})();
+
 export class AudioDirector {
   constructor(root) {
     this.bus = new Bus();
@@ -206,6 +216,7 @@ export class AudioDirector {
       // score plays the game's home key regardless of which biome bleeds in.
       this._place = r < 32 ? 'home' : z.id;
       this._water = clamp(1 - (Math.hypot(p.x - LAKE.x, p.z - LAKE.z) - LAKE.r) / 26, 0, 1);
+      this._expose = this._exposureAt(p.x, p.z);
     }
 
     const ground = heightAt(p.x, p.z);
@@ -245,6 +256,7 @@ export class AudioDirector {
       this.amb.update(sdt, {
         weights: this._w, alt, speed, glide, fall,
         water: this._water || 0, indoors: this._focus,
+        expose: this._expose ?? 0.5,
       });
       this._riftHum(sdt, p, R, open);
 
@@ -407,6 +419,37 @@ export class AudioDirector {
     if (z5.id === 'badland') return 'dust';
     if (z5.id === 'steppe') return moistAt(x, z) > 0.34 ? 'grass' : 'dust';
     return 'grass';
+  }
+
+  /**
+   * How much of the sky this patch of ground can see.
+   *
+   * Eight probes on a twenty-two metre ring, asking the same height field the
+   * terrain mesh is built from whether the land around here is below you or
+   * above you. One on a summit with everything falling away; nought at the
+   * bottom of a gully with walls on every side; about a half on open rolling
+   * ground, which is most of the island.
+   *
+   * This is the one number that lets the world sound different on a ridge than
+   * in a grove, and it is deliberately geometric rather than a hand-placed
+   * volume: nobody has to remember to mark a hollow, and a piece of terrain
+   * that changes shape changes how it sounds for free. It is sampled only when
+   * the cadet has actually moved a metre and a half — eight noise evaluations
+   * per metre and a half walked is not a cost anybody can measure.
+   */
+  _exposureAt(x, z) {
+    const here = heightAt(x, z);
+    if (here === null) return 1;   // over the edge: nothing but sky
+    let open = 0;
+    for (let i = 0; i < RING.length; i += 2) {
+      const h = heightAt(x + RING[i], z + RING[i + 1]);
+      // A neighbour that is off the island entirely is open air, and open air
+      // is the most exposed thing there is. Otherwise it is a question of how
+      // far below you it stands: graded, not counted, because a flat plain and
+      // a summit are not the same place and a yes/no test calls them both open.
+      open += h === null ? 1 : clamp((here - h + 1.5) / 9, 0, 1);
+    }
+    return clamp(open / (RING.length / 2), 0, 1);
   }
 
   _comms() {

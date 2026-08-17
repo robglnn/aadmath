@@ -2,6 +2,13 @@ import { P } from '../player/locomotion.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 import { SHARD_COST, SPEC } from '../build/pieces.js';
 import { dayNumber } from '../meta/days.js';
+/* hud/progress pass, one import and one call: this chip prints a numeral on the
+   live HUD ("Hold 1 line", "90 motes"), and tools/critic/oneprogress.mjs now
+   fails a build for any numeral on the live HUD that nothing has declared.
+   Declaring it as a PRICE is what tells the gate it is the cost of a thing on a
+   shelf rather than a second reading of the learner's progress. Nothing about
+   the kit changes. */
+import { FIG, tagFigure } from '../meta/progress.js';
 import {
   GRANT_LADDER, CHARTER_EVERY, CHARTER_FROM, STATION_PRICE, chartersAt, charterAt,
 } from './ladder.js';
@@ -438,9 +445,11 @@ export function createKit(opts = {}) {
       // in the HUD from the first second, could not be pressed, and nothing on
       // screen said what would make it pressable. It now names its own price in
       // the only currency that buys it — lines held, never motes.
-      b.querySelector('em').textContent = !on
+      const priceEl = b.querySelector('em');
+      priceEl.textContent = !on
         ? (g.lines != null ? t('kit.nextAtLines', { n: g.lines }) : t('kit.nextAtDepth'))
         : (carried && !held.has(g.id) ? t('kit.carrying', { n: carried }) : costLine(g.id));
+      tagFigure(priceEl, FIG.PRICE, !on ? (g.lines ?? 0) : priceOf(g.id));
       b.title = t(K(g.id, 'what'));
       // …and the same sentence where a screen reader can reach it, composed
       // from one pattern rather than concatenated in English word order.
@@ -720,6 +729,27 @@ export function createKit(opts = {}) {
     audio?.unlocked?.();
     fx?.impact?.('good');
   }
+
+  /**
+   * Wave the grant away.
+   *
+   * LINE SEALED never held the controls — it is a plate at the foot of the
+   * frame with `pointer-events:none` on it — but a beat you cannot end is
+   * still a beat that ends on somebody else's clock, so Escape ends it.
+   *
+   * Escape, and deliberately not "any key". The ceremonies in src/meta are in
+   * the middle of the screen and a cadet who has read one wants it gone; this
+   * one is a caption in the corner of a game the cadet is playing with both
+   * hands, and dismissing it on W would mean nobody ever read the sentence
+   * that says what they just earned. One key that means "dismiss", used the
+   * way the rest of the game already uses it.
+   */
+  addEventListener('keydown', (e) => {
+    if (e.repeat || e.code !== 'Escape' || !live) return;
+    clearTimeout(toast._t);
+    toast.classList.remove('show');
+    live = null;
+  }, true);
 
   /**
    * DEPTH — lines held, plus every spaced re-probe those lines have survived

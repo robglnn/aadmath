@@ -53,6 +53,7 @@ import {
   ACTS, CODA, RANKS, RANK_AT, RANK_NIGHTS, RANK_INK, RANK_GLOW, rankFor, rankGate, rungProgress,
 } from './arc.js';
 import { blankLedger, standingOf } from './standing.js';
+import { repaired } from './progress.js';
 import {
   CHAPTER_AT, CHAPTER_NIGHTS, CODA_NIGHTS, codaReady, codaIn,
   tearsOf, chapterFor, chapterFrac, tearsToNext, chapterGate,
@@ -331,8 +332,19 @@ export function createStory({
     }), 5200);
   }
 
+  /**
+   * WHAT MARLOW KNOWS — and it is exactly what the rig is showing.
+   *
+   * P0 rule 3: he reads the same state the HUD does, and computes no count of
+   * his own. He does not quote any of this (`statesAFigure` in
+   * src/meta/progress.js drops any line that tries), but the register he speaks
+   * in is chosen from it — so a cadet whose glass says the world is nearly whole
+   * must not be addressed by a companion who thinks they have just arrived.
+   * `integrity()` was a second, differently-scaled reading of the same idea:
+   * mastered-over-ten, which is the staircase the rig stopped drawing.
+   */
   function voiceState() {
-    return { tears, lines, chapter, rankIndex: shownRank, integrity: mastery.integrity() };
+    return { tears, lines, chapter, rankIndex: shownRank, integrity: repaired(mastery).frac };
   }
 
   /** Raise the ratchet to whatever the current state has earned. Never lowers. */
@@ -756,7 +768,13 @@ export function createStory({
   // -------------------------------------------------------------------------
   function dossierState() {
     return {
-      integrity: mastery.integrity(),
+      /* THE ONE NUMBER, not a second reading of the same idea. This handed the
+         dossier `mastery.integrity()` — mastered-over-ten — while the rig two
+         hundred pixels behind it was drawing `repaired()`. Both are "how much of
+         the world is whole", they are on screen together the instant the dossier
+         opens, and through most of a first session they disagree by everything:
+         0% against 7%. See src/meta/progress.js. */
+      integrity: repaired(mastery).frac,
       rank: shownRank,
       chapter,
       standing,
@@ -920,6 +938,19 @@ export function createStory({
      * screen.
      */
     setFrameGuard(fn) { frameGuard = typeof fn === 'function' ? fn : () => false; },
+
+    /**
+     * Is the cold open still on screen?
+     *
+     * Read by src/session, which owes the cadet one set of orders and must not
+     * print them through the establishing shot. It used to wait a flat
+     * twenty-five seconds instead — and since the cold open ends the instant
+     * the player takes a step, a cadet who walked immediately spent twenty-two
+     * of those seconds already playing, then got the "before we begin" card
+     * somewhere out in the meadow. Asking the beat itself when it is finished
+     * is the answer that cannot drift.
+     */
+    openingLive: () => !cold.done,
 
     /**
      * Another ceremony is taking the frame *now*. Stand down: the cold open

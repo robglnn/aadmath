@@ -743,4 +743,32 @@ export default {
   'ctx.twoSignals': 'Tę samą wielkość nadano z dwóch masztów, w dwóch zapisach. Osprzęt przyjmie jedną.',
   'ctx.twoChalks': 'Dwie ręce wypisały kredą tę samą wielkość na dwa sposoby. Osprzęt przyjmie jedną linię.',
 
+
+  // ---- znana część obok nieznanej (vm-partWhole) -------------------------
+  'ctx.pwMuster': 'Na pokładzie zbiórki stoi ${v}$ kadetów. Z rampy dołącza jeszcze {c} «c|one:kadet|few:kadetów|many:kadetów».',
+  'ctx.pwReel': 'Szpula niesie ${v}$ metrów liny. Bosman dokłada {c} «c|one:metr|few:metry|many:metrów».',
+  'ctx.pwTank': 'Zbiornik mieści ${v}$ litrów. Pompa wtłacza {c} «c|one:litr|few:litry|many:litrów».',
+  'ctx.pwGlazing': 'Na stojaku jest ${v}$ szyb. Skrzynia dokłada {c} «c|one:szybę|few:szyby|many:szyb».',
+  'ctx.pwBank': 'Bateria ma ${v}$ ogniw. Załoga wstawia {c} «c|one:ogniwo|few:ogniwa|many:ogniw».',
+  'ctx.pwSledRun': 'Sanie mają dziś ${v}$ kilometrów. Kolejny odcinek dokłada {c} «c|one:kilometr|few:kilometry|many:kilometrów».',
+  'ctx.pwScalePan': 'Na szalce leży już ${v}$ gramów. Bosman dosypuje {c} «c|one:gram|few:gramy|many:gramów».',
+  'ctx.pwSeam': 'Jeden szew bierze ${v}$ nitów. Łata obok bierze {c} «c|one:nit|few:nity|many:nitów».',
+  'ctx.pwWatchLog': 'Dziennik ma ${v}$ odczytów. Nocna wachta dopisuje {c} «c|one:odczyt|few:odczyty|many:odczytów».',
+  'ctx.pwLamp': 'Lampa pokładowa daje ${v}$ lumenów. Latarka daje {c} «c|one:lumen|few:lumeny|many:lumenów».',
+  'ctx.pwWarmBay': 'W ładowni jest ${v}$ stopni. Grzejnik podnosi ją o {c} «c|one:stopień|few:stopnie|many:stopni».',
+  'ctx.pwHull': 'Kadłub niesie ${v}$ płatów blachy. Stocznia przykręca {c} «c|one:płat|few:płaty|many:płatów».',
+  // ---- nieznana całość, rozdzielona (vm-share) ---------------------------
+  'ctx.soCable': 'Bosman tnie ${v}$ metrów kabla na {k} «k|one:równy odcinek|few:równe odcinki|many:równych odcinków».',
+  'ctx.soWater': 'Załoga przelewa ${v}$ litrów wody do {k} «k|one:równego bidonu|few:równych bidonów|many:równych bidonów».',
+  'ctx.soRations': 'Kucharz dzieli skrzynię ${v}$ racji na {k} «k|one:koję|few:koje|many:koi».',
+  'ctx.soOre': 'Wózek wysypuje ${v}$ ton rudy na {k} «k|one:równą hałdę|few:równe hałdy|many:równych hałd».',
+  'ctx.soWatch': 'Bosman dzieli wachtę ${v}$ godzin na {k} «k|one:równą zmianę|few:równe zmiany|many:równych zmian».',
+  'ctx.soPower': 'Szyna rozdziela ${v}$ watów równo na {k} «k|one:pokład|few:pokłady|many:pokładów».',
+  'ctx.soSeed': 'Ogrodnik wysiewa ${v}$ nasion równo na {k} «k|one:zagon|few:zagony|many:zagonów».',
+  'ctx.soFuel': 'Mechanik spuszcza ${v}$ litrów paliwa do {k} «k|one:równej beczki|few:równych beczek|many:równych beczek».',
+  'ctx.soCanvas': 'Żaglomistrz tnie ${v}$ metrów płótna na {k} «k|one:równy żagiel|few:równe żagle|many:równych żagli».',
+  'ctx.soSalt': 'Grabie zgarniają ${v}$ kilogramów soli na {k} «k|one:równą kupkę|few:równe kupki|many:równych kupek».',
+  'ctx.soRope': 'Bosman tnie ${v}$ metrów liny na {k} «k|one:równy kawałek|few:równe kawałki|many:równych kawałków».',
+  'ctx.soGrain': 'Zsyp puszcza ${v}$ ton ziarna do {k} «k|one:równego worka|few:równych worków|many:równych worków».',
+  'ask.whichShare': 'Które wyrażenie daje jedną część?',
 };

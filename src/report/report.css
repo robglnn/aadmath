@@ -288,6 +288,36 @@
 .rp-skill[data-state="locked"]{opacity:.55}
 .rp-skill[data-state="locked"] .rp-name{color:var(--ink-mute)}
 
+/* ---------------------------------------------------------------- legend --
+   The words on the rows, defined under the rows. HELD, PROVING, SLIPPING,
+   REOPENED, TESTED OUT and GROUND REOPENED all had a sentence already written;
+   every one of them lived in a `title` attribute, which is not on screen, does
+   not exist on a phone, and no fourteen-year-old has ever found one.
+   Only the words actually printed on today's rows are listed, so this is two
+   lines on a first report and never a wall of vocabulary in advance. */
+.rp-legend{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(min(21rem,100%),1fr));
+  gap:.16rem 1.2rem; margin:.55rem .85rem 0; padding:.6rem 0 0;
+  border-top:1px solid rgba(150,200,255,.1);
+}
+.rp-legend[hidden]{display:none}
+.rp-leg{display:flex; align-items:baseline; gap:.5rem; min-width:0}
+.rp-leg dt{
+  flex:none; font-size:.53rem; letter-spacing:.16em; text-transform:uppercase;
+  font-weight:700; color:var(--ink-mute);
+}
+.rp-leg dd{margin:0; min-width:0; font-size:.72rem; line-height:1.4; color:var(--ink-dim)}
+.rp-leg.s-mastered dt{color:var(--lime)}
+.rp-leg.s-proving dt{color:var(--violet)}
+.rp-leg.s-provisional dt{color:var(--amber)}
+.rp-leg.s-withdrawn dt{color:var(--rose)}
+.rp-leg.r-sight dt{color:#ffd9a8}
+.rp-leg.r-under dt{color:#ffcf9a}
+/* What the number on a row counts. It is not a state and not a road, so it takes
+   the plain reading ink rather than a state colour — and it sits first in the
+   list, because it is the only entry that explains a figure rather than a word. */
+.rp-leg.r-floor dt{color:var(--ink-dim)}
+
 /* ---------------------------------------------------------------- detail -- */
 .rp-detail{
   padding:.2rem .85rem 1rem;
@@ -354,6 +384,12 @@
   color:var(--ink-mute); padding:.2rem 0; font-weight:700;
 }
 .rp-facts dd{margin:0; padding:.2rem 0; font-size:.76rem; color:var(--ink-dim)}
+/* The unit, under the figure. BAND 3 OF 5 was a number with no meaning on six
+   surfaces; this is the one line that says what a band is, where it is read. */
+.rp-facts .rp-fact-note{
+  display:block; font-style:normal; font-size:.68rem; line-height:1.35;
+  color:var(--ink-mute); margin-top:.08rem;
+}
 
 .rp-std{display:flex; flex-direction:column; gap:.35rem}
 .rp-std-grp{display:flex; flex-wrap:wrap; align-items:center; gap:.3rem}

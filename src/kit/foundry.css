@@ -50,6 +50,42 @@
 .hail.warm em { color: #ffd8a2; }
 .hail:hover { border-color: rgba(120, 220, 255, .8); }
 
+/* STANDING ON THE DECK.
+   The shop used to open itself the moment the boots touched the stone, which
+   made it undiscoverable-proof and also made it an ambush: it took the whole
+   screen mid-sprint and mid-build, three times in one session, uninvited.
+   (src/kit/foundry.js says why that is gone.)
+
+   Walking on now does what walking up to anything else in this world does — it
+   makes the prompt impossible to miss and then waits. Bigger, brighter, and
+   breathing, so that "there is a key here and it is E" is the loudest thing on
+   screen while you are standing on the thing; nothing about it takes the frame,
+   and stepping off it costs you nothing at all. */
+.hail.here {
+  padding: .46rem .9rem .46rem .5rem;
+  border-color: rgba(140, 220, 255, .85);
+  background: rgba(8, 20, 38, .92);
+  box-shadow: 0 0 30px rgba(120, 210, 255, .34), 0 8px 30px rgba(0, 0, 0, .55);
+  animation: hailHere 1.9s ease-in-out infinite;
+}
+.hail.here.warm {
+  border-color: rgba(255, 191, 106, .9);
+  box-shadow: 0 0 34px rgba(255, 170, 60, .42), 0 8px 30px rgba(0, 0, 0, .55);
+}
+.hail.here u {
+  min-width: 26px; height: 26px; font-size: .72rem;
+  border-color: rgba(140, 220, 255, .9); background: rgba(140, 220, 255, .3);
+}
+.hail.here b { font-size: .72rem; }
+.hail.here em { font-size: .62rem; }
+@keyframes hailHere {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.045); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hail.here { animation: none; }
+}
+
 /* ---------- the panel ---------- */
 /* `#ui > *{pointer-events:auto}` in src/ui/style.css is an ID selector, so the
    `pointer-events:none` below lost to it and this closed, invisible, full-bleed

@@ -24,7 +24,7 @@
 import {
   gain, filter, noiseSource, clamp, rnd, panner,
 } from './dsp.js';
-import { grain, ping } from './voices.js';
+import { grain, ping, shimmer } from './voices.js';
 
 const ZONES = ['alpine', 'verdant', 'steppe', 'badland', 'mire'];
 
@@ -35,9 +35,22 @@ export class Ambience {
 
     // ---------------- wind ----------------
     this.windSum = gain(ctx, 1);
-    this.windSum.connect(A.amb);
-    this.windAir = A.send(this.windSum, 'air', 0.30);
-    this.windHall = A.send(this.windSum, 'hall', 0.16);
+    // SHELTER. One filter across the whole wind, and it is the difference
+    // between a ridge and a grove.
+    //
+    // The wind on this island does not change strength when you walk into the
+    // trees — it changes *timbre*. Air moving past your ears in the open has
+    // its top end intact; the same air heard from a hollow, a lee slope or
+    // under a canopy has had everything above about a kilohertz taken out of it
+    // by the things standing between you and it. That is a real acoustic fact
+    // and it is the cheapest place-cue there is: one biquad, one target, and a
+    // player who walks over a ridge line hears the world open up without a
+    // single new voice being started.
+    this.windTone = filter(ctx, 'lowpass', 9000, 0.5);
+    this.windSum.connect(this.windTone);
+    this.windTone.connect(A.amb);
+    this.windAir = A.send(this.windTone, 'air', 0.30);
+    this.windHall = A.send(this.windTone, 'hall', 0.16);
 
     const band = (colour, type, freq, Q, rate) => {
       const s = noiseSource(ctx, colour, rate);
@@ -56,10 +69,19 @@ export class Ambience {
     this.wGust = band('pink', 'bandpass', 1100, 3.2, 0.85);
     // the edge tone a wing makes
     this.wEdge = band('pink', 'bandpass', 1900, 9, 1.15);
+    // THE FABRIC. The wing is not a glider, it is a sheet of cloth under
+    // tension, and cloth under tension does not hum — it luffs. A narrow low
+    // band whose gain is a random walk at four to nine flaps a second is what
+    // a canopy sounds like, and it is the one thing that stops a glide from
+    // sounding like a hairdryer. It is silent unless the wing is out.
+    this.wCloth = band('brown', 'bandpass', 300, 1.6, 0.9);
+    this.flapPhase = 0;
+    this.flapTarget = 0;
 
     this.wLow.g.gain.value = 0.10;
     this.gustPhase = 0;
     this.gustTarget = 0;
+    this.ridgePhase = rnd(6, 14);
 
     // ---------------- the five beds ----------------
     this.beds = {};
@@ -120,6 +142,9 @@ export class Ambience {
    *   fall      0..1 how fast the ground is arriving, wing shut
    *   water     0..1 proximity to the lake
    *   indoors   0..1 how much the world is muffled (a rift is open)
+   *   expose    0..1 how much of the sky this patch of ground can see — 1 on a
+   *             ridge line with the land falling away on every side, 0 at the
+   *             bottom of a hollow with the world standing over you
    */
   update(dt, s) {
     const A = this.A;
@@ -131,6 +156,17 @@ export class Ambience {
     const fall = clamp(s.fall || 0, 0, 1);
     const move = clamp(Math.max(s.speed * 0.7, s.glide, fall), 0, 1.4);
     const quiet = 1 - clamp(s.indoors, 0, 1) * 0.55;
+    // Leaving the ground is its own kind of exposure: there is nothing between
+    // you and the sky at a hundred metres whatever the ground below looks like.
+    const expose = clamp(Math.max(s.expose ?? 0.5, alt * 1.2), 0, 1);
+    // How much of the air you are actually standing in. A hollow does not stop
+    // the wind, it stops you being in it.
+    const open = 0.48 + expose * 0.72;
+
+    // The top end of the wind is what the land takes away. Under a canopy or
+    // in a lee this sits at eight hundred hertz and the world sounds close;
+    // out on the Spine it is wide open and the same wind has teeth.
+    set(this.windTone.frequency, 820 + expose * expose * 10500 + alt * 3200, 0.9);
 
     // --- wind ----------------------------------------------------------
     // The low band is the mass of the air; it grows with height but slowly,
@@ -140,7 +176,7 @@ export class Ambience {
     // and it has to arrive in the second it starts and leave in the frame the
     // boots land.
     set(this.wLow.g.gain, (0.030 + alt * 0.045 + move * 0.022 + fall * 0.075) * quiet, fall > 0.05 ? 0.16 : 0.55);
-    set(this.wMid.g.gain, (0.075 + alt * 0.20 + move * 0.26 + fall * 0.30) * quiet, fall > 0.05 ? 0.12 : 0.40);
+    set(this.wMid.g.gain, (0.075 + alt * 0.20 + move * 0.26 + fall * 0.30) * quiet * open, fall > 0.05 ? 0.12 : 0.40);
     set(this.wMid.f.frequency, 620 + alt * 620 + move * 520 - fall * 240, 0.5);
 
     // Gusts are a random walk, not an LFO: real wind is not periodic, and a
@@ -152,12 +188,28 @@ export class Ambience {
       set(this.wGust.f.frequency, rnd(700, 2100), 0.9);
       if (this.wGust.p.pan) set(this.wGust.p.pan, rnd(-0.75, 0.75), 1.2);
     }
-    set(this.wGust.g.gain, this.gustTarget * (0.055 + alt * 0.13 + move * 0.12) * quiet + fall * 0.06 * quiet, fall > 0.05 ? 0.2 : 0.8);
+    set(this.wGust.g.gain, this.gustTarget * (0.055 + alt * 0.13 + move * 0.12) * quiet * open + fall * 0.06 * quiet, fall > 0.05 ? 0.2 : 0.8);
 
     // The wing's edge tone. Its pitch tracks airspeed, so a dive audibly
     // sharpens and a flare audibly drops.
     set(this.wEdge.g.gain, clamp(s.glide - 0.10, 0, 1) * 0.22 * quiet, 0.22);
     set(this.wEdge.f.frequency, 1250 + s.glide * 1800, 0.25);
+
+    // …and under it, the cloth. Four to nine flaps a second, each a different
+    // depth, so no two seconds of a glide are the same. The band it lives in
+    // rises with airspeed because a tighter sheet luffs higher.
+    const wing = clamp(s.glide, 0, 1);
+    if (wing > 0.02) {
+      this.flapPhase -= dt;
+      if (this.flapPhase <= 0) {
+        this.flapPhase = rnd(0.11, 0.26) / (0.55 + wing);
+        this.flapTarget = Math.random() ** 1.6;
+      }
+      set(this.wCloth.g.gain, (0.020 + this.flapTarget * 0.085) * wing * quiet, 0.045);
+      set(this.wCloth.f.frequency, 240 + wing * 420, 0.4);
+    } else {
+      set(this.wCloth.g.gain, 0, 0.15);
+    }
 
     set(this.windAir.gain, 0.22 + alt * 0.35, 0.6);
     set(this.windHall.gain, 0.10 + alt * 0.30, 0.6);
@@ -172,6 +224,23 @@ export class Ambience {
       set(b.lvl.gain, b.base * (w ? w[i] : (i === 0 ? 1 : 0)) * ground, 0.55);
     }
     set(this.waterG.gain, clamp(s.water, 0, 1) * 0.09 * ground, 0.6);
+
+    // A RIDGE SINGS. Standing on an edge with the land gone on every side, the
+    // wind finds something to go around and holds a note on it for four or five
+    // seconds. It happens every ten to twenty seconds and nowhere else on the
+    // island — which is what makes arriving at the top of something feel like
+    // arriving somewhere rather than like being higher up.
+    if (expose > 0.70 && quiet > 0.55) {
+      this.ridgePhase -= dt;
+      if (this.ridgePhase <= 0) {
+        this.ridgePhase = rnd(9, 21);
+        shimmer(A, t, {
+          freq: rnd(1400, 2600), Q: rnd(7, 13), level: 0.028 * (expose - 0.7) / 0.3,
+          rise: rnd(1.4, 2.4), hold: rnd(0.4, 1.2), fall: rnd(2.0, 3.6),
+          sweep: rnd(0.72, 1.35), air: 1, pan: rnd(-0.8, 0.8), bus: A.amb,
+        });
+      }
+    }
 
     // --- events ----------------------------------------------------------
     if (ground > 0.25 && quiet > 0.5) this._events(dt, w, ground);

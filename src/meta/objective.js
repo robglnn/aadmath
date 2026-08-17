@@ -25,6 +25,7 @@
  * cannot tell that he is nearly finished with something.
  */
 import * as THREE from 'three';
+import { linesHeld } from './progress.js';
 
 /** Which verb a scheduler `kind` asks for. */
 const VERB_FOR = {
@@ -104,15 +105,23 @@ export function resolveObjective(ctx) {
   };
 }
 
-/** held / open / locked, across the whole lattice. The arc, in three numbers. */
+/**
+ * held / open / locked, across the whole lattice. The arc, in three numbers.
+ *
+ * `held` is THE progress number and is therefore not counted here: it comes
+ * from `linesHeld()` in src/meta/progress.js, which is the single definition
+ * every surface in the game reads. This function used to count it itself, the
+ * report counted it a second way and the session close a third — three
+ * expressions for one figure, on the one number a teacher is asked to trust.
+ */
 export function countLines(mastery) {
-  let held = 0, open = 0, locked = 0;
+  const { held, total } = linesHeld(mastery);
+  let open = 0;
   for (const n of mastery.graph.nodes) {
-    if (mastery.get(n.id)?.mastered) held++;
-    else if (mastery.isUnlocked(n.id)) open++;
-    else locked++;
+    if (mastery.get(n.id)?.mastered) continue;
+    if (mastery.isUnlocked(n.id)) open++;
   }
-  return { held, open, locked };
+  return { held, open, locked: total - held - open, total };
 }
 
 /**

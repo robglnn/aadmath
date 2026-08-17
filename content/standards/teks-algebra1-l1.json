@@ -41,21 +41,23 @@
       "statement": "The student applies mathematical process standards to use multiple representations to describe algebraic relationships. The student is expected to:",
       "text": "represent a given situation using verbal descriptions, tables, graphs, and equations in the form y = kx or y = x + b.",
       "depth": "core",
-      "caveat": "Claimed narrowly and on purpose. 6.6(C) names only the forms y = kx and y = x + b, so it is cited only for the grouping forms, where a situation such as `k stands, each carrying 2 mills, each mill returning x watts` is recorded as exactly y = kx. Any richer rule — anything of the form mx + b — is cited at 7.7 instead, where TEKS actually puts it. Getting this boundary wrong is the commonest way a vendor alignment sheet stops being true.",
+      "caveat": "Claimed narrowly and on purpose. 6.6(C) names only the forms y = kx and y = x + b, so it is cited only where the item records exactly one of those two. The grouping forms record y = kx — a situation such as `k stands, each carrying 2 mills, each mill returning x watts`. The part-whole form records y = x + b, which is the other half of the standard and had no evidence at all until it existed. The share form records y = kx with k a unit fraction, which is the same equation written over a bar. Any richer rule — anything of the form mx + b — is cited at 7.7 instead, where TEKS actually puts it. Getting this boundary wrong is the commonest way a vendor alignment sheet stops being true.",
       "nodes": [
         "var-meaning"
       ],
       "evidence": [
         "vm-context",
         "vm-choose",
-        "vm-compose"
+        "vm-compose",
+        "vm-partWhole",
+        "vm-share"
       ],
       "i18n": {
         "es": {
-          "caveat": "Lo afirmamos de forma estrecha y a propósito. 6.6(C) nombra solo las formas y = kx e y = x + b. Por eso lo citamos solo en las formas de agrupación, donde una situación como «k puestos, cada uno con 2 molinos, y cada molino devuelve x vatios» se registra exactamente como y = kx. Toda regla más rica, es decir cualquiera de la forma mx + b, se cita en 7.7, que es donde los TEKS la colocan. Equivocar este límite es la manera más común de que una hoja de alineación de un proveedor deje de ser cierta."
+          "caveat": "Lo afirmamos de forma estrecha y a propósito. 6.6(C) nombra solo las formas y = kx e y = x + b. Por eso lo citamos solo donde el ítem registra exactamente una de esas dos. Las formas de agrupación registran y = kx: una situación como «k puestos, cada uno con 2 molinos, y cada molino devuelve x vatios». La forma de parte y todo registra y = x + b, que es la otra mitad del estándar y no tenía ninguna evidencia hasta que esa forma existió. La forma de reparto registra y = kx con k una fracción unitaria, que es la misma ecuación escrita sobre una barra. Toda regla más rica, es decir cualquiera de la forma mx + b, se cita en 7.7, que es donde los TEKS la colocan. Equivocar este límite es la manera más común de que una hoja de alineación de un proveedor deje de ser cierta."
         },
         "pl": {
-          "caveat": "Twierdzimy wąsko i celowo. 6.6(C) wymienia tylko postacie y = kx oraz y = x + b. Dlatego cytujemy je wyłącznie przy formach grupowania, gdzie sytuację taką jak „k stanowisk, każde z 2 młynami, a każdy młyn oddaje x watów” zapisujemy dokładnie jako y = kx. Każdą bogatszą regułę, czyli każdą postaci mx + b, cytujemy przy 7.7, bo tam umieszcza ją TEKS. Pomylenie tej granicy to najczęstszy sposób, w jaki arkusz zgodności dostawcy przestaje być prawdziwy."
+          "caveat": "Twierdzimy wąsko i celowo. 6.6(C) wymienia tylko postacie y = kx oraz y = x + b. Dlatego cytujemy je wyłącznie tam, gdzie zadanie zapisuje dokładnie jedną z nich. Formy grupowania zapisują y = kx: sytuację taką jak „k stanowisk, każde z 2 młynami, a każdy młyn oddaje x watów”. Forma części i całości zapisuje y = x + b, czyli drugą połowę tego standardu, która do tej pory nie miała żadnego dowodu. Forma podziału zapisuje y = kx z k równym ułamkowi jednostkowemu, czyli to samo równanie napisane nad kreską. Każdą bogatszą regułę, czyli każdą postaci mx + b, cytujemy przy 7.7, bo tam umieszcza ją TEKS. Pomylenie tej granicy to najczęstszy sposób, w jaki arkusz zgodności dostawcy przestaje być prawdziwy."
         }
       }
     },
@@ -546,6 +548,7 @@
         "vm-position",
         "vm-table",
         "vm-compose",
+        "vm-partWhole",
         "ee-linear",
         "ee-two-var",
         "ee-fraction",

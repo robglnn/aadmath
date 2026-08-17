@@ -171,21 +171,14 @@
   position: relative; margin-top: .6rem; padding-top: .55rem;
   border-top: 1px solid rgba(140, 195, 255, .13);
 }
+/* THE ROW IS A LABEL OVER A BAR, NOT A NUMBER OVER A BAR.
+   It used to lead with the lifetime seal count in 1.6rem numerals — the
+   second-largest figure on the screen, two hundred pixels under a run band
+   reading "9 OF 20 RIFTS". See the header of src/meta/quest.js. */
 .meta-quest .qs-top { display: flex; align-items: baseline; gap: .44rem; }
-.meta-quest .qs-n {
-  font-size: 1.6rem; line-height: .95; font-weight: 800; font-style: normal;
-  color: #f4f9ff; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
-  text-shadow: 0 0 20px color-mix(in srgb, var(--rank-glow) 55%, transparent);
-}
 .meta-quest .qs-lab {
-  font-size: .5rem; letter-spacing: .2em; text-transform: uppercase; line-height: 1.25;
-  color: rgba(159, 179, 208, .62); max-width: 8.4rem;
-}
-.meta-quest .qs-plus {
-  position: absolute; right: 1px; top: .72rem; font-style: normal;
-  font-family: var(--meta-mono); font-size: .74rem; font-weight: 700;
-  color: var(--rank-ink); opacity: 0; pointer-events: none;
-  text-shadow: 0 0 14px color-mix(in srgb, var(--rank-glow) 70%, transparent);
+  font-size: .58rem; letter-spacing: .2em; text-transform: uppercase; line-height: 1.25;
+  color: rgba(206, 224, 245, .82);
 }
 .meta-quest .qs-track {
   display: block; position: relative; height: 5px; margin-top: .42rem; border-radius: 3px;
@@ -207,22 +200,10 @@
   display: block; margin-top: .34rem; font-size: .53rem; letter-spacing: .13em;
   text-transform: uppercase; color: rgba(159, 179, 208, .66);
 }
-.meta-quest .qseal.pop .qs-n { animation: metaSealN .72s cubic-bezier(.2, .9, .25, 1); }
-.meta-quest .qseal.pop .qs-plus { animation: metaSealPlus 1.05s cubic-bezier(.2, .8, .2, 1); }
 .meta-quest .qseal.pop .qs-track::after {
   content: ''; position: absolute; inset: 0; border-radius: 3px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
   animation: metaTick .8s cubic-bezier(.3, .7, .3, 1);
-}
-@keyframes metaSealN {
-  0% { scale: 1 }
-  26% { scale: 1.22; text-shadow: 0 0 26px var(--rank-glow) }
-  100% { scale: 1 }
-}
-@keyframes metaSealPlus {
-  0% { opacity: 0; translate: 0 6px }
-  18% { opacity: 1; translate: 0 0 }
-  100% { opacity: 0; translate: 0 -16px }
 }
 
 /* The rung meter. Rank used to be a word that changed once every twenty-five
@@ -996,7 +977,6 @@
      mostly there to say how near the next chapter is. */
   .meta-quest .qbody { display: none; }
   .meta-quest .qlabel { display: none; }
-  .meta-quest .qs-n { font-size: 1.35rem; }
   .meta-quest .qs-lab { max-width: 6.4rem; }
   .meta-turn .tn-in { translate: 0 -18vh; }
   /* The seal count rides the right-hand end of the rule, and 52vw of a 414 px
@@ -1039,7 +1019,6 @@
 @media (max-height: 520px) and (orientation: landscape) {
   #ui .meta-quest { top: calc(var(--pad-t) + 82px + var(--gd-h, 0px)); width: min(158px, 20vw); }
   .meta-quest .qtitle { display: none; }
-  .meta-quest .qs-n { font-size: 1.2rem; }
   /* the rank ladder is already the rig's whole left rail, six lines above */
   .meta-quest .qrung { display: none; }
   #ui .meta-comms { padding: .55rem .8rem .62rem .7rem; }
@@ -1059,11 +1038,8 @@
   .meta-rite .rite-sparks { display: none; }
   .meta-rite.show .rite-wave { animation: none; opacity: 0; }
   .meta-rite.show .rite-name span { animation: metaFade .4s ease forwards .3s; }
-  /* the fast clock keeps its numbers and loses its travel */
-  .meta-quest .qseal.pop .qs-n,
-  .meta-quest .qseal.pop .qs-plus,
+  /* the fast clock keeps its reading and loses its travel */
   .meta-quest .qseal.pop .qs-track::after { animation: none !important; }
-  .meta-quest .qseal.pop .qs-plus { opacity: .9; }
   .meta-turn.show .tn-kick,
   .meta-turn.show .tn-seals,
   .meta-turn.show .tn-rule i,

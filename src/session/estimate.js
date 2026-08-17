@@ -251,9 +251,33 @@ export function planRun(mastery, pace, opts = {}) {
   const seconds = complete ? median(runs.map((r) => r.seconds)) : budget;
   const tears = Math.max(1, quantile(runs.map((r) => r.tears), GOAL_Q));
 
+  // --- WHAT THE RUN WILL ACTUALLY COST, AS A RANGE -------------------------
+  // The orders card promised "seal 16 rifts" while this projection had planned
+  // 24 items, and a cold reader called that quoting a player two thirds of the
+  // real workload. Both numbers were right and they are not the same number: a
+  // rift is a question ANSWERED CORRECTLY, and nobody answers everything
+  // correctly, so the goal in tears is always smaller than the questions it
+  // takes to reach it. Nothing on the card said so, and a number a learner
+  // reads as "how much work is this" had better be about how much work it is.
+  //
+  // So the plan now carries the work as well as the goal, and carries it as a
+  // range, because that is what twenty-one trials actually produce. The card
+  // states it out loud, the band draws its work read against the same middle
+  // figure, and `run.overrun` in src/session/index.js says so once when a run
+  // goes past the top of it. A single number here would be a promise the
+  // projection cannot make; a range is one it can.
+  const allItems = runs.map((r) => r.items).sort((a, b) => a - b);
+  const itemsMid = quantile(allItems, 0.5);
+  const itemsLow = Math.min(itemsMid, quantile(allItems, 0.2));
+  const itemsHigh = Math.max(itemsMid, quantile(allItems, 0.8));
   return {
     tears,
-    items: median(runs.map((r) => r.items)),
+    items: itemsMid,
+    // The workload the card quotes. Never below the goal itself: a run cannot
+    // seal sixteen rifts in fourteen questions, and a range that said it could
+    // would be a worse lie than the one it replaced.
+    itemsLow: Math.max(tears, itemsLow),
+    itemsHigh: Math.max(tears, itemsHigh),
     minutes: Math.max(1, Math.round(seconds / 60)),
     seams: seams.length ? seams : fallbackSeam(mastery),
     promised: seams.filter((s) => s.hold).map((s) => s.id),

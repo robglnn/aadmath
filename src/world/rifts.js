@@ -39,6 +39,32 @@ const keyGeo = new THREE.CylinderGeometry(2.34, 2.34, 0.34, 9);
 keyGeo.rotateX(Math.PI / 2);
 const seamGeo = new THREE.BoxGeometry(4.34, 0.26, 0.42);
 
+// ---- HOW FAR AWAY A TEAR IS STILL IN HAND ---------------------------------
+//
+// ONE NUMBER, EXPORTED, BECAUSE TWO SURFACES DISAGREEING ABOUT IT COST A
+// PLAYER FOUR MINUTES.
+//
+// A cold critic walked to within ten metres of the first rift and the game
+// stopped having an opinion. The objective card printed YOU ARE STANDING IN IT
+// — no distance, no bearing, no waypoint — while the interact key did nothing,
+// because the card believed a tear was in hand inside eleven metres and the key
+// knew it was in hand inside nine. Between those two numbers lay a two-metre
+// ring around every rift on the island in which the game offered a player
+// neither a direction to walk nor an action to take. He reproduced it three
+// times and could not get out of it: Recover put him back down in the same
+// ring, and every compass direction from it read either "standing in it" or the
+// distance to a different tear entirely.
+//
+// A reach is a property of the built place, so it lives with the built place,
+// it is exported, and everything that draws a conclusion about "near a rift"
+// asks the same function. `src/meta/guide.js` (the objective card and its
+// waypoint) and `src/world/afford.js` (the plate and the key printed on it)
+// both read these; neither is allowed a threshold of its own ever again.
+/** Metres, horizontal, from the plate you stand on. The dais and its skirt. */
+export const REACH = 9.0;
+/** Metres of height difference above which you are on a different storey. */
+export const REACH_Y = 9;
+
 /**
  * Rifts are the learning sites. One per graph node, laid out so that
  * prerequisite lines run outward from the plaza — the map *is* the knowledge
@@ -524,15 +550,56 @@ export class Rifts {
    * The reach is now the built place itself: stand anywhere on the dais or its
    * skirt and the tear is in hand.
    */
-  nearest(p, range = 9.0) {
+  nearest(p, range = REACH) {
     let best = null, bd = range;
     for (const r of this.list) {
       if (r.locked) continue;
-      const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
-      if (d < bd && Math.abs(p.y - r.foot.y) < 9) { bd = d; best = r; }
+      const d = this.reachTo(p, r);
+      if (d < bd) { bd = d; best = r; }
     }
     return best;
   }
+
+  /**
+   * Metres from a world point to the plate of one tear — the distance every
+   * surface in this game is required to quote, and the distance every surface
+   * is required to draw its conclusions from.
+   *
+   * Horizontal, to the dais, exactly as `nearest()` measures. A cadet standing
+   * beside a rift on sloping ground is not further from it because the ground
+   * fell away, and a card that measures the straight line to the plate while
+   * the key measures the walk to it will print one number and honour another.
+   * A different storey is a different place, so an unreachable height
+   * difference answers Infinity rather than a small number that is a lie.
+   */
+  plateDist(p, r) { return Math.hypot(p.x - r.foot.x, p.z - r.foot.z); }
+
+  /**
+   * The same distance, but answering Infinity across a storey — which is what
+   * "how near am I to using this" means and what `nearest()` sorts on. A cadet
+   * standing on a ridge forty metres above a dais is two metres from it on a
+   * map and cannot touch it, so the two questions get two functions rather than
+   * one function and a footnote nobody reads.
+   */
+  reachTo(p, r) {
+    if (!r) return Infinity;
+    if (Math.abs(p.y - r.foot.y) >= REACH_Y) return Infinity;
+    return this.plateDist(p, r);
+  }
+
+  /**
+   * Is this exact tear in hand from this exact point?
+   *
+   * THE SINGLE SOURCE OF TRUTH FOR "YOU ARE STANDING IN IT", and the reason it
+   * is a question about `nearest()` rather than about a distance: `main.js`
+   * opens `nearest()` on the interact key, so a tear is in hand precisely when
+   * it is the tear `nearest()` would return. Being ten metres from the
+   * objective while standing on somebody else's plate is not being in the
+   * objective — and a surface that decided otherwise, off a threshold of its
+   * own, is how the objective card came to claim a rift the key could not open
+   * and to say so instead of saying which way to walk.
+   */
+  inHand(p, r) { return !!r && !r.locked && this.nearest(p) === r; }
 
   /**
    * Nearest tear that is *live* — open, and not yet held.
@@ -545,12 +612,12 @@ export class Rifts {
    * pulled into a deep sounding he did not ask for. Sounding a held line is a
    * deliberate act, and it has a key printed on the ring.
    */
-  nearestLive(p, range = 9.0) {
+  nearestLive(p, range = REACH) {
     let best = null, bd = range;
     for (const r of this.list) {
       if (r.locked || r.mastered) continue;
-      const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
-      if (d < bd && Math.abs(p.y - r.foot.y) < 9) { bd = d; best = r; }
+      const d = this.reachTo(p, r);
+      if (d < bd) { bd = d; best = r; }
     }
     return best;
   }
@@ -567,8 +634,8 @@ export class Rifts {
   nearestAny(p, range = 7.5) {
     let best = null, bd = range;
     for (const r of this.list) {
-      const d = Math.hypot(p.x - r.foot.x, p.z - r.foot.z);
-      if (d < bd && Math.abs(p.y - r.foot.y) < 9) { bd = d; best = r; }
+      const d = this.reachTo(p, r);
+      if (d < bd) { bd = d; best = r; }
     }
     return best;
   }

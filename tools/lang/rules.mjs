@@ -101,19 +101,84 @@ const L = 'a-zA-Z\\u00C0-\\u024F';
 const w = (body) => new RegExp(`(?<![${L}])(?:${body})(?![${L}])`, 'i');
 
 export const TERMS = [
-  // The two that carry the whole loop. A player who does not know what a rift
-  // and a line are cannot read the objective, the orders, or the report.
+  /* WHY EVERY `def` BELOW IS `menu.wordIs.*`.
+   *
+   * A cold critic counted the invented vocabulary on the first frame of the
+   * game: LATTICE, RIFT, LINE, CIPHER MOTES, COPPER RANK — five coined words,
+   * and not one of them meant anything yet. Each *did* have a definition
+   * somewhere. Rift was defined by the cold open, about thirty-five seconds in.
+   * Mote was defined by the foundry, if you found the foundry. Rank was defined
+   * nowhere at all. The rank table below was already meant to catch exactly
+   * that, and it could not, because the definitions it pointed at were on
+   * surfaces the player reaches later than the words.
+   *
+   * A definition has to be reachable at or before the moment the word lands, so
+   * the defining home for the world's nouns is the surface that is one keypress
+   * from every frame of the game and sits at the same rank as the HUD that
+   * prints them: the menu's WORDS block (src/ui/menu.js). That is a floor, not
+   * a substitute — most of these are ALSO glossed in place, on the objective
+   * card, in the world (src/meta/lexicon.js) and in the report legend — and the
+   * `gloss` rule below is what holds the in-place half honest.
+   */
   {
-    id: 'rift', def: 'menu.nowBody', min: 14,
+    id: 'rift', def: 'menu.wordIs.rift', min: 14,
     en: /\brifts?\b/i,
     es: w('grietas?'),
     pl: w('wyrw(a|y|ę|ie|om|ami|ach)?'),
   },
   {
-    id: 'line', def: 'session.charter.goalHold', min: 14,
+    id: 'line', def: 'menu.wordIs.line', min: 14,
     en: /\b(?:the|a|each|every|that|this|one)\s+lines?\b/i,
     es: w('l[ií]neas?'),
     pl: w('lini(a|i|ę|e|om|ami|ach)'),
+  },
+  /* The world the words are about. Every one of these is printed on the chrome
+     from the first frame — a title card, a counter, a rank chip — where there
+     is no room for a sentence and no object to point at, which is exactly the
+     case `guide.n.*` cannot serve. */
+  {
+    id: 'lattice', def: 'menu.wordIs.lattice', min: 12,
+    en: /\blattices?\b/i,
+    es: w('red(es)?'),
+    pl: w('sie(ć|ci|cią|ciom|ciami|ciach)'),
+  },
+  {
+    id: 'mote', def: 'menu.wordIs.mote', min: 12,
+    en: /\bmotes?\b/i,
+    es: w('motas?'),
+    pl: w('drobin(a|y|ie|ę|ą|om|ami|ach)?'),
+  },
+  {
+    id: 'rank', def: 'menu.wordIs.rank', min: 12,
+    en: /\branks?\b/i,
+    es: w('rangos?'),
+    pl: w('rang(a|i|ę|o|ą|om|ami|ach)'),
+  },
+  /* A vault plate, not a plate: the rift's own standing plate is a different
+     object with the same short name, and one regex for both would report a
+     defect that is really a second one nobody has filed yet. */
+  {
+    id: 'vault plate', def: 'menu.wordIs.plate', min: 12,
+    en: /\bvault plates?\b/i,
+    es: /placas? de impulso/i,
+    pl: /p[łl]yt\w* wyrzutni/i,
+  },
+  /* The run that actually seals a line. It is printed on the rift's own header
+     while the run is live ("Proving run · 2 of 3"), on the objective card and on
+     six report surfaces; the meaning was on none of them. */
+  {
+    id: 'proving run', def: 'menu.wordIs.proving', min: 12,
+    en: /\bproving\b/i,
+    es: /rondas? de prueba/i,
+    pl: /pr[óo]b\w* dowodow\w*/i,
+  },
+  /* Chapter three is called "The ninth lemma". The title card carries the word;
+     the beat that follows it carries the meaning, and they are the same beat. */
+  {
+    id: 'lemma', def: 'story.ch3.b1b', min: 12,
+    en: /\blemmas?\b/i,
+    es: w('lemas?'),
+    pl: w('lemat(u|owi|em|y|ów|om|ami|ach)?'),
   },
   // Things in the world that behave, rather than things that simply are. A mote
   // is understood by picking one up; a surge has to be explained before it hits
@@ -131,7 +196,7 @@ export const TERMS = [
     pl: /(?:kominy? powietrzn|komin(?:a|em|ie|ami)? powietrzn|wznosz[ąa]ce\w* powietrz)/i,
   },
   {
-    id: 'sounding', def: 'guide.pay.sound', min: 12,
+    id: 'sounding', def: 'menu.wordIs.sounding', min: 12,
     en: /\bsoundings?\b/i,
     es: w('sondeos?'),
     pl: w('sondowani[aeu]'),
@@ -159,7 +224,7 @@ export const TERMS = [
      it is a claim the engine makes about you — so it belongs here with the
      rules and the procedures, and the orders card is where it is coined. */
   {
-    id: 'held', def: 'session.charter.goalHold', min: 14,
+    id: 'held', def: 'menu.wordIs.held', min: 14,
     en: /(?<![a-z])held(?![a-z])/i,
     es: w('sostenidas?'),
     pl: w('utrzyman(a|e|ą|ej|ych)'),
@@ -167,13 +232,77 @@ export const TERMS = [
 ];
 
 /**
- * Deliberately NOT checked: mote, lattice, shard, cache, anchor, husk, vein.
- * Every one of those is a thing the player is looking at when the word arrives —
+ * Deliberately NOT checked: shard, cache, anchor, husk, vein. Every one of
+ * those is a thing the player is looking at when the word arrives —
  * `guide.n.*` fires on first sight of the object itself. A word attached to a
- * thing in front of you is defined by the thing. The rule above is for words
- * that name a *rule* or a *procedure*, which is the only kind of jargon a
- * learner can be quietly lost inside.
+ * thing in front of you is defined by the thing.
+ *
+ * Mote, lattice and rank used to be on that list and should never have been:
+ * all three are printed on the HUD from the first frame, where there is no
+ * object to look at and `guide.n.*` cannot fire. They are checked above now.
  */
+
+// ---------------------------------------------------------------------------
+// 3b. LABELS THAT COIN A WORD — the gloss must be on the screen that prints it
+//
+// THE FAILURE THIS RULE EXISTS FOR, IN THE CRITIC'S OWN WORDS:
+//
+//   "One Progress row reads 'Reading a variable — SLIPPING — TESTED OUT — 95%'
+//   simultaneously." … "'Sounding', 'lemma', 'Vault plate', 'band 5',
+//   'GROUND GAINED' vs 'SHOULD HOLD' and 'SLIPPING' / 'PROVING' / 'TESTED OUT'
+//   are never defined at all."
+//
+// The `term` rule above could not have caught any of those, because it works on
+// WORDS and these are LABELS: one to three words, in a chip, naming a state or a
+// road or a rank. There is no room in a chip for a meaning, so the meaning has
+// to be next to it — and in every case above there WAS a sentence written for
+// it, sitting in a `title` attribute. A `title` is not on screen. It does not
+// exist on a phone, it does not exist for a keyboard, and no fourteen-year-old
+// has ever hovered one. The gate cannot tell a definition from a tooltip by
+// reading the bundle, so it asks the only question that separates them:
+//
+//   1. is there a gloss key,
+//   2. is it long enough to be a definition,
+//   3. is it on a surface the player reaches no later than the label, and
+//   4. DOES ANY MODULE IN src/ ACTUALLY RENDER IT?
+//
+// Rule 4 is the one with teeth. `report.stateNote.*` passed 1–3 for months and
+// was read out to nobody.
+//
+// The namespaces below are guarded: EVERY key under one of them must appear as
+// a `label` here or in GLOSS_ALLOW with a reason. That is what stops this
+// returning silently — an eighth report state cannot be added without either a
+// gloss or a written argument for why it does not need one.
+// ---------------------------------------------------------------------------
+export const GLOSS_NAMESPACES = [
+  'report.state.', 'report.road.', 'report.flag.', 'session.charter.will',
+];
+
+/** How many words a gloss needs before it is a definition and not a synonym. */
+export const GLOSS_MIN = 6;
+
+export const GLOSSED = [
+  // The seven states a line can be in, on the Progress rows and in the legend
+  // under them. (src/report/index.js `renderLegend`)
+  { label: 'report.state.locked', gloss: 'report.stateNote.locked' },
+  { label: 'report.state.open', gloss: 'report.stateNote.open' },
+  { label: 'report.state.practising', gloss: 'report.stateNote.practising' },
+  { label: 'report.state.proving', gloss: 'report.stateNote.proving' },
+  { label: 'report.state.mastered', gloss: 'report.stateNote.mastered' },
+  { label: 'report.state.provisional', gloss: 'report.stateNote.provisional' },
+  { label: 'report.state.withdrawn', gloss: 'report.stateNote.withdrawn' },
+  // How a claim was granted. `roadNote` is the long answer and lives in a
+  // `title`; `roadIs` is the one line the legend prints.
+  { label: 'report.road.sight', gloss: 'report.roadIs.sight' },
+  { label: 'report.road.fast', gloss: 'report.roadIs.fast' },
+  { label: 'report.road.long', gloss: 'report.roadIs.long' },
+  { label: 'report.flag.under', gloss: 'report.flagIs.under' },
+];
+
+export const GLOSS_ALLOW = {
+  'session.charter.willHold': 'plain words, not a coined term — "should hold today" needs no gloss',
+  'session.charter.willPush': 'plain words, not a coined term — "win back ground" needs no gloss',
+};
 
 // ---------------------------------------------------------------------------
 // 4. PLAIN WORDS

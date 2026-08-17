@@ -1,37 +1,42 @@
 import { t, pct, num, LOCALES, LOCALE_SWITCH, getLocale, setLocale, onLocaleChange, applyStatic } from '../i18n/index.js';
+import { FIG, tagFigure } from '../meta/progress.js';
 
 /**
- * The rig readout.
+ * The rig readout — and the one place in this game that answers "how am I
+ * doing".
  *
- * The HUD's whole job is to make one number felt: **lattice integrity**. It is
- * the number the world is built out of — the story reads it for the act you
- * are in, the rifts read it for what opens next, and the standard in the plaza
- * is painted in its colour. So it is not a chip with a bar in it. It is an
- * instrument:
+ * THE ONE NUMBER IS **WORLD REPAIRED**, a percentage. See `src/meta/progress.js`
+ * for the whole rule and for why the number is what it is; the part that
+ * belongs here is what this file is now forbidden to do.
  *
+ * A cold critic counted nine progress figures on one frame. Two of them were on
+ * this panel — the percentage, and a rank ladder drawn on the meter implying
+ * the rank came from that percentage when it comes from standing. This panel is
+ * now the single progress instrument, and nothing else on the live HUD prints a
+ * progress figure at all:
+ *
+ *   - The meter carries **ONE value**. It used to carry two — a solid fill for
+ *     mastery and a dimmer ghost ahead of it for "credit still being earned" —
+ *     which is two answers to one question rendered zero pixels apart. The one
+ *     value is now the belief-weighted figure itself, so the ghost's meaning is
+ *     inside the number rather than beside it.
  *   - The meter is **segmented and raked**, so a gain is a count of cells that
- *     lit rather than a rectangle that got wider. You can see three cells go.
- *   - It carries **two values at once**: the solid fill is mastery the rig will
- *     stand behind, and the dimmer ghost ahead of it is credit still being
- *     earned. The gap between them is the honest picture of a session in
- *     progress, and it is the thing that makes you want to close it.
- *   - **The rank ladder is drawn on the meter**, at 20/40/60/80% — exactly
- *     where `src/meta/arc.js` puts the act breaks. You can see the next rank
- *     coming before you reach it.
+ *     lit rather than a rectangle that got wider.
+ *   - **No rank marks.** They said "rank arrives at 20/40/60/80% of this bar",
+ *     and rank does not: it is bought with standing (`src/meta/arc.js`), which
+ *     is why the rig could read COPPER while the chapter card read BRONZE. This
+ *     panel no longer derives a rank at all — `src/meta/index.js` owns rank and
+ *     writes the name here, one source, no second opinion.
  *   - It is **the rank's colour**, live, off the same `--rank-ink` the story
- *     sets. Copper reads as copper. Sovereign reads as violet. Nothing here
- *     can disagree with the chapter card sitting directly beneath it.
- *   - Numbers **travel**. A rise counts up, the meter head flares, and the
- *     delta rides up out of the panel. A number that snaps is a spreadsheet.
+ *     sets. Nothing here can disagree with the chapter card beneath it.
+ *   - Numbers **travel**. A rise counts up and the meter head flares. A number
+ *     that snaps is a spreadsheet.
  *
  * Everything tweened is inside `aria-live="off"`, with one composed label on
  * the panel — otherwise `#ui`'s polite live region would read forty
  * intermediate percentages out loud on every answer.
  */
 
-const RANKS = ['copper', 'bronze', 'silver', 'gold', 'sovereign'];
-/** Integrity at which each rank begins — the same ladder src/meta/arc.js uses. */
-const RANK_AT = [0.2, 0.4, 0.6, 0.8];
 const CELLS = 30;
 
 const easeOut = (x) => 1 - Math.pow(1 - x, 3);
@@ -44,15 +49,19 @@ export class HUD {
         <div class="rig plate" id="rig" role="group" aria-live="off">
           <div class="rig-line">
             <span class="rig-cap" data-i18n="hud.mastery"></span>
-            <span class="rig-delta" id="hud-delta" aria-hidden="true"></span>
+            <!-- THERE IS NO DELTA CHIP HERE ANY MORE. It printed "+7%" beside
+                 the figure it was a change in — a second numeral, twenty pixels
+                 from the one number, on the one panel this whole pass exists to
+                 keep down to one. The gain is still felt: the meter sweeps, the
+                 head flares, and the figure counts up to its new value rather
+                 than snapping. A rise you can watch happen does not need to be
+                 restated as an arithmetic. -->
             <span class="rig-pct" id="hud-int">0%</span>
           </div>
           <div class="rig-meter" id="hud-meter">
-            <i class="soft" id="hud-soft"></i>
             <i class="fill" id="hud-bar"></i>
             <i class="head" id="hud-head"></i>
             <i class="cells"></i>
-            <i class="marks">${RANK_AT.map((v) => `<u style="left:${v * 100}%"></u>`).join('')}</i>
             <i class="sweep"></i>
           </div>
           <div class="rig-line rig-foot">
@@ -77,17 +86,14 @@ export class HUD {
     this.shardCap = root.querySelector('#hud-shardcap');
     this.int = root.querySelector('#hud-int');
     this.bar = root.querySelector('#hud-bar');
-    this.softBar = root.querySelector('#hud-soft');
     this.head = root.querySelector('#hud-head');
-    this.delta = root.querySelector('#hud-delta');
     this.marlow = root.querySelector('#marlow');
     this.toast = root.querySelector('#toast');
 
     this.rig.style.setProperty('--cells', String(CELLS));
 
     // what is currently drawn, so a change can be animated from it
-    this._shown = { integrity: 0, soft: 0, shards: 0 };
-    this._rankIx = -1;
+    this._shown = { repaired: 0, shards: 0 };
     this._flareT = {};
 
     this._platform();
@@ -97,12 +103,11 @@ export class HUD {
     applyStatic(root);
     onLocaleChange(() => {
       applyStatic(root); this._langs(); this._buildbar(); this._order();
-      // The rank name is only rewritten when the rank *changes*, so on a
-      // language switch it would sit there in the old language until the
-      // cadet was promoted. Forget which rank is painted and let render()
-      // write it again. (-1 also keeps the promotion flare from firing.)
-      this._rankIx = -1;
-      this._shown = { integrity: 0, soft: 0, shards: 0 };
+      // The rank NAME is written by src/meta/index.js (`syncChip`), which is the
+      // single owner of rank; it re-says it on a locale change. This panel only
+      // has to forget what it has painted so the figure counts up again in the
+      // new language's numerals.
+      this._shown = { repaired: 0, shards: 0 };
       this.render(this._last || {});
     });
     // A phone that turns sideways is a different machine: the thumbs move, the
@@ -213,31 +218,34 @@ export class HUD {
   // -------------------------------------------------------------------------
   // The readout
   // -------------------------------------------------------------------------
+  /**
+   * @param {{repaired:number, shards:number}} s `repaired` is the 0..1 fraction
+   *   from `repaired()` in src/meta/progress.js — the ONE progress number. This
+   *   panel does not compute it, does not adjust it, and does not derive a
+   *   second figure from it.
+   */
   render(s) {
     this._last = s;
-    const integrity = Math.max(0, Math.min(1, s.integrity || 0));
-    const soft = Math.max(integrity, Math.min(1, s.soft ?? integrity));
+    const repaired = Math.max(0, Math.min(1, s.repaired || 0));
     const shards = s.shards ?? 0;
 
-    const rankIx = Math.min(RANKS.length - 1, Math.floor(integrity * RANKS.length));
-    if (rankIx !== this._rankIx) {
-      const up = rankIx > this._rankIx && this._rankIx >= 0;
-      this._rankIx = rankIx;
-      this.rank.textContent = t('rank.' + RANKS[rankIx]);
-      this.rig.dataset.rank = RANKS[rankIx];
-      if (up) this._flare('rankup', 2400);
-    }
-
     const from = this._shown;
-    const gain = integrity - from.integrity;
-    if (gain > 0.004) {
-      this.delta.textContent = '+' + pct(gain);
-      this._flare('gain', 1500);
-    }
+    if (repaired - from.repaired > 0.004) this._flare('gain', 1500);
     if (shards > from.shards) this._flare('shardup', 900);
 
-    this._tween(from, { integrity, soft, shards });
+    this._tween(from, { repaired, shards });
   }
+
+  /**
+   * A promotion, announced by the one thing that owns rank.
+   *
+   * `src/meta/index.js` writes the rank name and the rank colour onto this
+   * panel (`syncChip`). It calls this when the rank actually went up, so the
+   * flare belongs to a real promotion instead of to a percentage crossing an
+   * imaginary line — which is what it used to belong to, on a ladder that had
+   * nothing to do with how rank is earned.
+   */
+  rankUp() { this._flare('rankup', 2400); }
 
   /** Count the readout across to a new state rather than snapping to it. */
   _tween(from, to) {
@@ -254,8 +262,7 @@ export class HUD {
       const k = Math.min(1, (now - t0) / ms);
       const e = easeOut(k);
       const cur = {
-        integrity: a.integrity + (to.integrity - a.integrity) * e,
-        soft: a.soft + (to.soft - a.soft) * e,
+        repaired: a.repaired + (to.repaired - a.repaired) * e,
         shards: Math.round(a.shards + (to.shards - a.shards) * e),
       };
       this._paint(cur);
@@ -266,19 +273,26 @@ export class HUD {
   }
 
   _paint(v) {
-    const f = v.integrity * 100, g = v.soft * 100;
+    const f = v.repaired * 100;
     this.bar.style.width = `${f}%`;
-    this.softBar.style.width = `${g}%`;
     this.head.style.left = `${f}%`;
     this.head.style.opacity = f > 0.5 ? '1' : '0';
-    this.int.textContent = pct(v.integrity);
+    this.int.textContent = pct(v.repaired);
+    /* THE ONE PROGRESS FIGURE, DECLARED.
+       Tagged with the rounded whole per cent rather than the tweening fraction,
+       because that is what a person reads off the glass: the gate compares the
+       screen against the engine, and it must compare the printed integer, not a
+       number that is mid-animation. */
+    tagFigure(this.int, FIG.REPAIRED, Math.round(v.repaired * 100));
     this.shards.textContent = num(v.shards);
     // A noun after a numeral inflects in Polish — 1 odłamek, 3 odłamki,
     // 12 odłamków — so the caption is drawn with the count, not as a fixed
     // label sitting next to one.
     this.shardCap.textContent = t('hud.shards', { n: v.shards });
-    // Which rank gates are behind us — the ladder lights as it is passed.
-    this.rig.dataset.passed = String(RANK_AT.filter((x) => v.integrity >= x - 1e-6).length);
+    // Motes are spendable, not progress — the foundry trades them for updrafts.
+    // Declared anyway, so the gate can tell an inventory from a fourth opinion
+    // about mastery rather than having to guess from the words.
+    tagFigure(this.shards, FIG.MOTES, v.shards);
   }
 
   /**
@@ -289,7 +303,7 @@ export class HUD {
    */
   _label(v) {
     this.rig.setAttribute('aria-label', t('hud.readout', {
-      pct: pct(v.integrity),
+      pct: pct(v.repaired),
       rank: this.rank.textContent,
       n: num(v.shards),
       shards: t('hud.shards', { n: v.shards }),

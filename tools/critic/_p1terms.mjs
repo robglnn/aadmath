@@ -43,7 +43,12 @@ const TERMS = [
   ['rift',           'story.open.l4',        { en: /statement/i, es: /afirmaci/i, pl: /zdanie/i }],
   ['lattice',        'story.open.l1',        { en: /argument/i,  es: /razonamiento/i, pl: /wywód/i }],
   ['line',           'kit.charterNext',      { en: /one idea/i,  es: /una idea/i, pl: /jedna idea/i }],
-  ['held',           'guide.tallyNew',       { en: /proved/i,    es: /probada/i,  pl: /udowodnion/i }],
+  // `guide.tallyNew` became `guide.linesHeldNew` when the objective card's
+  // tally row was made to carry the progress number itself rather than three
+  // different captions (src/meta/progress.js). The gloss still arrives with
+  // the term, on the same row, while the count is zero — which is what this
+  // check is actually about.
+  ['held',           'guide.linesHeldNew',   { en: /proved/i,    es: /probada/i,  pl: /udowodnion/i }],
   ['sounding',       'guide.pay.sound',      { en: /harder/i,    es: /difícil/i,  pl: /trudniejsz/i }],
   ['descent',        'ledger.first.sound',   { en: /back down/i, es: /vuelta/i,   pl: /w d.ł|powr.t/i }],
   ['cipher vein',    'ledger.first.vein',    { en: /lattice/i,   es: /red/i,      pl: /sieć|sieci/i }],

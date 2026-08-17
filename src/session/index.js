@@ -47,6 +47,7 @@ import { RunBand } from './band.js';
 import { Charter } from './charter.js';
 import { Resolution } from './resolution.js';
 import { Rest } from './rest.js';
+import { linesHeld, repaired } from '../meta/progress.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 
 const KEY = 'ascent.run';
@@ -69,6 +70,12 @@ const MAX_DT = 0.5;
  * at the sea are the game; they are not the Pomodoro.
  */
 const GAP_GRACE = 45;
+/**
+ * Seconds the orders will wait for the cold open to retract before going
+ * anyway. The establishing shot ends on the cadet's first step and has no timer
+ * of its own, so this is the ceiling on "they have not moved yet".
+ */
+const OPEN_WAIT_MAX = 16;
 /** How many times one sitting may be extended before the ceiling is the answer. */
 const MAX_EXTENSIONS = 2;
 /** An extension shorter than this is not worth the card that offers it. */
@@ -110,6 +117,18 @@ export function createSession({
   // work-time accounting (see GAP_GRACE)
   let panelWasOpen = false;
   let gapSpent = 0;
+  /**
+   * Did the cadet answer a question before the orders got out of the door?
+   *
+   * Set in `onAnswer` while this module is still counting down to its opening
+   * beat. `plan()` reads it and declines to take the frame: see the comment
+   * there. It is deliberately never cleared inside a sitting — once a learner
+   * has done mathematics, no card in this file gets to stop them to announce
+   * that they are about to start.
+   */
+  let workedAlready = false;
+  /** Seconds already spent holding the orders back for the cold open. */
+  let openWait = 0;
 
   // ---------------------------------------------------------------------------
   // The answer stream. One wrap, and the run can hear the whole game.
@@ -153,6 +172,13 @@ export function createSession({
 
   function onAnswer(id, correct, meta, res) {
     pace.answered(correct);
+    /* AN ANSWER BEFORE THE ORDERS MEANS THE RUN IS ALREADY UNDER WAY.
+       Latched here rather than on "a panel was open", because those are not
+       the same claim: a card that appeared and was shut again is a glance, and
+       a glance is not grounds for withholding the one beat that states the
+       goal. A question actually answered is. `plan()` reads this and says the
+       goal in a line instead of taking the frame — see the comment there. */
+    if (phase === 'idle' && pending > 0) workedAlready = true;
     if (!run || phase !== 'work') return;
     run.worked[id] = (run.worked[id] || 0) + 1;
     // Work done, which is not the same thing as work that came out right. This
@@ -176,6 +202,19 @@ export function createSession({
       }
     }
     band.work(run.items, run.plannedItems || 0);
+    /* THE QUOTED WORKLOAD IS CORRECTED OUT LOUD WHEN IT IS WRONG.
+       The orders card quotes the questions this run is expected to take, as a
+       range, because twenty-one trials produce a range and not a number. A
+       range still has a top, and a run that goes past it has been mis-quoted —
+       so Marlow says so, once, in the same breath as saying it costs nothing.
+       Saying nothing is what turned "Seal 16 rifts" over a 24-item plan into a
+       thing a cold reader could call quoting a player two thirds of the work. */
+    if (!run.overrun && run.itemsHigh && run.items > run.itemsHigh && run.tears < run.target) {
+      run.overrun = true;
+      story?.comms?.sayKey('session.voice.longer', {
+        tag: 'session-longer', force: true, params: { n: run.itemsHigh },
+      });
+    }
     if (res?.justMastered) {
       if (!run.held.includes(id)) run.held.push(id);
       band.seamHeld();
@@ -202,6 +241,15 @@ export function createSession({
       // what the band's work read is drawn against, and it is never shown as a
       // number: a learner is being told "you are working", not "you are late".
       plannedItems: Math.max(p.tears, Math.round(p.items || p.tears)),
+      // …and the range the same projection produced, which is what the orders
+      // card actually quotes. `plannedItems` is the middle of it. A cold reader
+      // read "Seal 16 rifts" and found the engine had planned 24 questions:
+      // both were true and only one of them was on screen. See `planRun`.
+      itemsLow: Math.max(p.tears, Math.round(p.itemsLow ?? p.items ?? p.tears)),
+      itemsHigh: Math.max(p.tears, Math.round(p.itemsHigh ?? p.items ?? p.tears)),
+      // Said once, out loud, if the run goes past the top of the quoted range.
+      // A promise stated as a range still has to be corrected when it is wrong.
+      overrun: false,
       items: 0,
       misses: 0,
       echoes: 0,
@@ -224,6 +272,12 @@ export function createSession({
       // …and the band each of them was being served at, which is the other
       // thing a hard run really does move.
       startBand: Object.fromEntries(p.seams.map((sm) => [sm.id, mastery.get(sm.id)?.difficulty ?? null])),
+      /* WHERE THE ONE NUMBER STOOD WHEN THIS RUN OPENED.
+         The close card leads with WORLD REPAIRED and how far this sitting moved
+         it, and that delta has to be a difference between two readings of the
+         same figure — not a second figure computed some other way. Saved on the
+         run, so it survives a reload the way the run does. */
+      repairedAt: repaired(mastery).pct,
       chapterAt: s.chapter ?? null,
       rankAt: s.rank ?? null,
       extension: false,
@@ -233,6 +287,42 @@ export function createSession({
     resetWorkClock();
     save();
     paintBand();
+
+    /* ORDERS ARE AN OPENING BEAT, AND AN OPENING CANNOT HAPPEN IN THE MIDDLE.
+       A cold critic wrote "ORDERS re-issued mid-run", and the word "re-issued"
+       is the only inaccurate thing in the sentence — this card was not sent
+       twice, it was sent LATE. It waits for the cold open to finish and then
+       waits again for the learner to be out of a tear, and a learner who walks
+       straight into the first rift is out of it about thirty seconds in. So
+       the beat that exists to happen *before* any mathematics is asked for
+       arrived after the first three items, took the whole screen, and stopped
+       a run that was visibly already going.
+
+       A goal is still owed. It is just no longer owed AS A MODAL, because the
+       player did not ask for one and is demonstrably not waiting for one. The
+       band across the top carries the same goal, the companion says it in one
+       line, and the run starts without anybody's hands being taken. */
+    /* …AND WALKING COUNTS AS BEING UNDER WAY, not only answering.
+       The rule above latches on a question answered. A cold player has not
+       answered anything at twenty-five seconds — they are still crossing the
+       plaza toward the first rift, with a key held down — and this card opened
+       on top of them and took the keyboard mid-stride. `tools/critic/coldplay.mjs`
+       measured the consequence and it is the whole game: "a stranger can WALK to
+       the first rift with WASD alone" failed, and so did "the rift can be opened
+       at all", because W was held BEFORE the card appeared and a key that is
+       already down fires no further keydown for the card's own any-key dismissal
+       to hear. A player who never lifts their finger is never let back in.
+       Hands on the controls is the same claim as an answer already given: this
+       person is playing, and is demonstrably not waiting to be told to start. */
+    const handsOn = (input?.keys?.size || 0) > 0;
+    if (workedAlready || handsOn) {
+      startWork();
+      story?.comms?.sayKey('session.voice.underway', {
+        tag: 'session-underway', force: true, params: { tears: run.target },
+      });
+      return run;
+    }
+
     phase = 'charter';
     takeFloor();
     charter.show({
@@ -241,6 +331,9 @@ export function createSession({
       seams: run.seams,
       minutes: run.minutes,
       seeded: run.seeded && !last,
+      // The workload, quoted beside the goal. See `run.itemsLow` above.
+      itemsLow: run.itemsLow,
+      itemsHigh: run.itemsHigh,
       // A thunk, not a sentence. The orders card lives for sixteen seconds and
       // the language switcher is on screen for all of them; a string rendered
       // here is a string frozen in whatever locale was loaded at the time.
@@ -289,6 +382,10 @@ export function createSession({
       index: run.index,
       tears: run.tears,
       target: run.target,
+      // What the goal was before this run was extended, if it was. The band
+      // prints the raise from this, so a reloaded run still says out loud that
+      // its goal moved — see the note in band.js `set`.
+      targetWas: run.targetWas ?? null,
       items: run.items || 0,
       plannedItems: run.plannedItems || 0,
       goalText: goalShort(run),
@@ -442,7 +539,20 @@ export function createSession({
          number a long sitting cannot move. It goes on every close. */
       nights: s.nights || 0,
       due: watchNow()?.due || 0,
-      lines: [...mastery.state.values()].filter((x) => x.mastered).length,
+      // THE progress number, from the one function that defines it. This used
+      // to walk `mastery.state` while the report walked `graph.nodes` and the
+      // objective card counted a third way — three expressions for the single
+      // figure a teacher is asked to trust. `held` above is a list of the lines
+      // THIS RUN closed and is a different thing entirely, which is why this
+      // one is named for the figure it is. See src/meta/progress.js.
+      lines: linesHeld(mastery).held,
+      linesTotal: linesHeld(mastery).total,
+      /* THE ONE NUMBER, AND WHAT THIS SITTING DID TO IT. The close card's
+         headline. Both readings come from `repaired()` — the same function the
+         rig on the HUD is drawn from — so the résumé cannot claim a different
+         world from the one the player was just looking at. */
+      repaired: repaired(mastery).pct,
+      repairedWas: run.repairedAt ?? null,
       minutes: Math.round(run.focus / 60),
       // Work done. A run that sealed nothing still has these, and they are the
       // difference between an honest close and a screen-height zero.
@@ -592,8 +702,21 @@ export function createSession({
     run.done = false;
     run.report = null;
     run.endedAt = null;
+    /* THE ONE PLACE THE GOAL IS ALLOWED TO MOVE — and it is announced.
+       A cold critic read "Seal 16 rifts" on one card and "Seal 20 rifts" on a
+       later one "without comment", and a target that changes in silence makes
+       every earlier statement of it look like a lie. The band prints the raise
+       from-and-to and keeps it printed for the rest of the run (band.js), and
+       Marlow says it once out loud. The old target is kept on the run so a
+       reloaded session can still say what it was raised from. */
+    run.targetWas = run.target;
     run.target += Math.max(1, p.tears);
     run.plannedItems = (run.plannedItems || 0) + Math.max(1, Math.round(p.items || p.tears));
+    // The workload is re-quoted with the goal, because a raised goal that left
+    // the old workload standing would be the same defect one beat later.
+    run.itemsLow = (run.itemsLow || 0) + Math.max(1, Math.round(p.itemsLow ?? p.items ?? p.tears));
+    run.itemsHigh = (run.itemsHigh || 0) + Math.max(1, Math.round(p.itemsHigh ?? p.items ?? p.tears));
+    run.overrun = false;
     run.minutes += minutes;
     for (const sm of p.seams) {
       const known = run.seams.find((x) => x.id === sm.id);
@@ -610,7 +733,9 @@ export function createSession({
     band.show(true);
     resetWorkClock();
     save();
-    story?.comms?.sayKey('session.voice.extend', { tag: 'session-extend', force: true });
+    story?.comms?.sayKey('session.voice.raised', {
+      tag: 'session-extend', force: true, params: { from: run.targetWas, to: run.target },
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -671,7 +796,16 @@ export function createSession({
    * opening beat, it is a loading error with type on it.
    */
   function begin() {
-    pending = (run && !run.done) || last ? 4.2 : 25;
+    /* A FIRST RUN WAITS FOR THE COLD OPEN, NOT FOR A CLOCK.
+       This was a flat twenty-five seconds, chosen to clear an establishing
+       shot that in practice ends the moment the cadet takes a step
+       (src/meta/opening.js). So a player who walked at three seconds got
+       twenty-two seconds of game and then, out in the meadow with a rift in
+       front of them, the card that exists to be read *before* any of it.
+       `resume()` now holds while `story.openingLive()` is true and delivers
+       the orders a beat after it clears — which is early, at the landing,
+       where an opening beat belongs. */
+    pending = (run && !run.done) || last ? 4.2 : 2.5;
     phase = 'idle';
   }
 
@@ -699,6 +833,19 @@ export function createSession({
     // it is the thing that happens *before* any mathematics is asked for.
     if (isBusy()) { pending = 2; return; }
     if (!worldUp()) { pending = 1.2; return; }
+    /* The establishing shot is the first half of the opening and these orders
+       are the second. Never both at once, and never these first.
+
+       Bounded, because the cold open has no clock of its own — it retracts when
+       the cadet takes a step and not before (src/meta/opening.js). Somebody who
+       sits and looks at the sky for a quarter of a minute has still earned
+       their orders, and a beat that waits forever on another beat is a hang
+       wearing good manners. */
+    if (story?.openingLive?.() && openWait < OPEN_WAIT_MAX) {
+      openWait += 0.8;
+      pending = 0.8;
+      return;
+    }
     if (storyBusy()) { pending = 1.5; return; }
     if (run && !run.done) {
       // A run that survived the break, the bell or a flat battery picks up

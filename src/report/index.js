@@ -74,6 +74,8 @@ import { createTracker } from './track.js';
 import { createTeacher } from './teacher.js';
 import { buildRecord, duration, dateText } from './record.js';
 import { allPrereqs } from '../learn/mastery.js';
+import { FORMS_BY_SKILL } from '../learn/generators.js';
+import { FIG, tagFigure, linesHeld, repaired } from '../meta/progress.js';
 import {
   buildCoverage, buildProcess, createFrameSwitch, depthFor, caveatFor,
   getFramework, onFrameworkChange, shortCode,
@@ -104,6 +106,26 @@ const UNMEASURED = '—';
 const conf = (x) => pct(x >= 1 ? 1 : Math.min(x, 0.99));
 
 /**
+ * THE NUMBER ON THE ROW IS THE LOWER BOUND, NOT THE POSTERIOR.
+ *
+ * A cold reader put three figures side by side that were all about one line and
+ * all told different stories: the row said 99%, the model's posterior was 0.999,
+ * the session planner's own confidence that this line would close was 0.667, and
+ * underneath all three sat a question type standing at nought correct out of
+ * three served. Every one of those numbers was computed correctly. The screen
+ * was still lying, because it printed the highest of them.
+ *
+ * So the percentage is now `mastery.confidence(id).floor` — the smallest of the
+ * posterior, a Wilson lower bound on the weakest question type actually served,
+ * a Wilson lower bound on the gate band, and the planner's confidence when there
+ * is one. The posterior has not gone anywhere: it is on the evidence list inside
+ * the row, labelled as what it is, so a teacher can see both and see which one
+ * the badge is drawn from. A number a reader has to trust is the one you would
+ * defend, not the one you would prefer.
+ */
+const floorOf = (mastery, id, plan) => mastery.confidence(id, { plan }).floor;
+
+/**
  * Coverage depth, for both frameworks, from the same working data the build is
  * gated on.
  *
@@ -117,9 +139,48 @@ const conf = (x) => pct(x >= 1 ? 1 : Math.min(x, 0.99));
  */
 const depthOf = (framework, nodeId, code) => depthFor(framework, nodeId, code);
 
-export function createReport({ root, mastery, graph, isBusy = () => false, onToggle }) {
+/**
+ * Which surface a question type is read off.
+ *
+ * A form id is an internal name — `vm-table`, `ee-graph` — and printing one at a
+ * learner would be worse than printing nothing. The surface is the thing a
+ * reader recognises ("a table", "a situation"), it is already translated in all
+ * three locales, and it is what the weakest-type sentence actually needs to say.
+ */
+const repOfForm = (skillId, formId) => (FORMS_BY_SKILL[skillId] || [])
+  .find((f) => f.id === formId)?.rep || null;
+
+export function createReport({
+  root, mastery, graph, isBusy = () => false, onToggle,
+  /**
+   * The session planner's own confidence, per line, for the run under way:
+   * `[{id, confidence}]` off `planRun` in src/session/estimate.js.
+   *
+   * It is optional and the report works without it — but when it is there, the
+   * badge on the row may not be higher than it. This is the third of the three
+   * figures a cold reader found disagreeing about one line: the row said 99%
+   * while the engine's own projection put this line's chance of closing at
+   * 0.667. Both were computed correctly, and a product that shows a learner the
+   * larger of two numbers it holds about the same thing is advertising.
+   */
+  seams = () => null,
+}) {
   const tracker = createTracker(mastery);
-  const cfg = { pL: 0.95, cleanRun: 3, checkItems: 3, minDifficulty: 3, checkMinDifficulty: 4, ...(graph.mastery || {}) };
+  /** This line's seam confidence, if a run is planned and names it. */
+  const planFor = (id) => {
+    const list = seams();
+    if (!Array.isArray(list)) return undefined;
+    const hit = list.find((x) => x && x.id === id);
+    return hit && Number.isFinite(hit.confidence) ? hit.confidence : undefined;
+  };
+  const cfg = {
+    pL: 0.95, cleanRun: 3, checkItems: 3, minDifficulty: 3, checkMinDifficulty: 4,
+    // The form floor, mirrored from src/learn/mastery.js: how many times a
+    // question type must have been served before this learner can be judged on
+    // it, and how many clean unassisted solves of it a claim requires.
+    formFloor: 3, formNeed: 1,
+    ...(graph.mastery || {}),
+  };
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
 
   // Order is the argument this screen makes about who it is for.
@@ -147,6 +208,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       <div class="rp-next"></div>
       <h3 class="rp-h3 rp-h-skills"></h3>
       <div class="rp-skills"></div>
+      <dl class="rp-legend"></dl>
       <div class="rp-cover-head">
         <h3 class="rp-h3 rp-h-cover"></h3>
         <div class="rp-frame-slot"></div>
@@ -225,6 +287,9 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     btn.title = t('report.openHint');
   }
 
+  /** Our wrapper around `mastery.observe`, live only while the report is open. */
+  let modelWatch = null;
+
   function toggle() { (open.value ? close : show)(); }
 
   function show() {
@@ -233,6 +298,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     open.value = true;
     el.classList.add('show');
     btn.classList.add('on');
+    watchModel(true);
     onToggle?.(true);
   }
 
@@ -241,7 +307,46 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     open.value = false;
     el.classList.remove('show');
     btn.classList.remove('on');
+    watchModel(false);
     onToggle?.(false);
+  }
+
+  /**
+   * A REPORT ON SCREEN IS NEVER OLDER THAN THE SCREEN AROUND IT.
+   *
+   * The cold reading was "the Progress report opened minutes earlier counted
+   * QUESTIONS ANSWERED 9" while the run band beside it read ten. Both were
+   * right when they were written. Only one of them had been written recently.
+   * A figure that was true four minutes ago is, on a live screen, simply a
+   * wrong figure — and it is the exact failure this whole pass is about,
+   * because a stale number looks identical to a contradictory one.
+   *
+   * So while the report is open it recomputes on every answer. It is cheap
+   * (everything on this screen is already a pure read of the learner model, by
+   * design — see `foot`) and it is edge-triggered: nothing runs at all while
+   * the report is closed, which is nearly always.
+   */
+  function watchModel(on) {
+    if (on === !!modelWatch) return;
+    if (!on) {
+      // Only ever unwrap our own wrapper. `src/session` wraps this same call at
+      // boot and something else may wrap it later; restoring a saved reference
+      // blindly would delete whichever wrapper arrived after ours.
+      if (mastery.observe === modelWatch.wrapped) mastery.observe = modelWatch.raw;
+      modelWatch = null;
+      return;
+    }
+    const raw = mastery.observe.bind(mastery);
+    const wrapped = (id, correct, meta) => {
+      const res = raw(id, correct, meta);
+      // Never let a repaint break the answer loop: the learner's answer has
+      // already been recorded by the time this runs, and a report that fails to
+      // redraw is a smaller problem than an answer that fails to land.
+      try { if (open.value) render(); } catch { /* redraw only */ }
+      return res;
+    };
+    modelWatch = { raw, wrapped };
+    mastery.observe = wrapped;
   }
 
   // -------------------------------------------------------------------------
@@ -334,6 +439,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         },
       cleanRow(),
       provingRow(),
+      formsRow(),
       {
         id: 'prereq',
         met: parentsMet ? 'met' : 'no',
@@ -431,6 +537,69 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         met: s.check ? 'part' : 'no',
         value: s.check ? `${num(s.check.done)}/${num(s.check.need)}` : `0/${num(cfg.checkItems)}`,
         detail: t('report.evidence.provingNote', { band: num(cfg.checkMinDifficulty) }),
+      };
+    }
+
+    /**
+     * EVERY QUESTION TYPE THIS LINE HAS ACTUALLY SERVED — the row that did not
+     * exist when the engine certified a learner on reading a variable while the
+     * table form stood at nought correct out of three.
+     *
+     * The four rows above it are aggregates: a posterior, a run length, a count
+     * of prerequisites, a count of re-tests. Every one of them can be carried by
+     * a strong showing on the easy shapes, which is exactly what happened. This
+     * row cannot be: it reports the WEAKEST question type on the line, by name,
+     * with its actual record — and while any served type stands below the floor
+     * the claim is not granted at all (see `formFloor` in src/learn/mastery.js).
+     *
+     * Types the bank never offered this learner are not counted. The engine does
+     * not get to be judged on questions it never asked, and it does not get to
+     * be flattered by them either.
+     */
+    function formsRow() {
+      // `items`, not `seen`: a missed question is re-offered with the worked
+      // step showing and reports again, so `seen` is attempts and only `items`
+      // is questions. The sentence this row prints says "out of {of} asked",
+      // and a learner counting the questions they were asked would not count
+      // the same one three times.
+      const seen = Object.entries(s.formsSeen || {})
+        .map(([f, r]) => ({ f, seen: r?.items ?? r?.seen ?? 0, got: r?.correct || 0 }))
+        .filter((x) => x.seen > 0);
+      if (!seen.length) {
+        return {
+          id: 'forms',
+          met: 'no',
+          value: t('report.evidence.formsNone'),
+          detail: t('report.evidence.formsNote', { n: num(cfg.formFloor) }),
+        };
+      }
+      // Judged only on the types served enough times to be judged on.
+      const judged = seen.filter((x) => x.seen >= cfg.formFloor);
+      const weakest = (judged.length ? judged : seen)
+        .slice().sort((a, b) => (a.got / a.seen) - (b.got / b.seen) || (b.seen - a.seen))[0];
+      const solid = seen.filter((x) => x.got >= cfg.formNeed).length;
+      const holes = judged.filter((x) => x.got < cfg.formNeed);
+      // THREE STATES, AND THE MIDDLE ONE IS THE HONEST "NOT YET".
+      //
+      // A hole fails the row outright. Every type solved at least once passes
+      // it. In between sits the case a first session is nearly always in: no
+      // type has come up `formFloor` times, so the rig is not judging the
+      // learner on any of them — and saying "3/3" in amber with no explanation
+      // is the same shape of defect as the 99% this whole row exists to
+      // correct, a figure whose reader cannot tell what it is about.
+      const rep = t('report.rep.' + (repOfForm(id, weakest.f) || 'symbolic'));
+      const detail = holes.length
+        ? t('report.evidence.formsHole', { rep, n: num(weakest.got), of: num(weakest.seen) })
+        : judged.length
+          ? t('report.evidence.formsOk', { rep, n: num(weakest.got), of: num(weakest.seen) })
+          : t('report.evidence.formsThin', {
+            need: num(cfg.formFloor), rep, n: num(weakest.got), of: num(weakest.seen),
+          });
+      return {
+        id: 'forms',
+        met: holes.length ? 'no' : solid === seen.length ? 'met' : 'part',
+        value: `${num(solid)}/${num(seen.length)}`,
+        detail,
       };
     }
 
@@ -741,15 +910,24 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
   function renderStrip() {
     const host = q('.rp-strip');
     host.innerHTML = '';
-    const total = graph.nodes.length;
-    const done = graph.nodes.filter((n) => mastery.get(n.id).mastered).length;
+    /* THE ONE PROGRESS NUMBER LEADS THE REPORT, because it is the number the
+       learner has been looking at all session and this is the surface where
+       they come to check it. It is read from `repaired()` — the same function
+       `hudState()` in src/main.js draws the rig from — so opening the report
+       cannot produce a different answer from the one on the glass behind it.
+       Everything else here is EVIDENCE: it is what the claim is made of, it is
+       what a teacher checks, and it is on a surface a learner opened on purpose.
+       See src/meta/progress.js. */
+    const rep = repaired(mastery);
+    const { held: done, total } = linesHeld(mastery);
     // Wall clock, from the moment this learner sat down — the number they can
     // check against the clock on the wall, and the number the 15–25 minute
     // session shape is planned in. The capped, answer-to-answer figure is
     // "time on task" in the record below and is deliberately a different tile.
     const sess = duration(tracker.sessionMs());
-    for (const [big, small, lab, tone, tip] of [
-      [num(done), t('report.stat.ofN', { n: total }), t('report.stat.mastered'), 'good', t('report.stat.masteredNote')],
+    for (const [big, small, lab, tone, tip, fig, figV] of [
+      [pct(rep.frac), '', t('hud.mastery'), 'good', t('report.stat.repairedNote'), FIG.REPAIRED, rep.pct],
+      [num(done), t('report.stat.ofN', { n: total }), t('report.stat.mastered'), '', t('report.stat.masteredNote'), FIG.LINES_HELD, done],
       [sess.big, sess.small, t('report.stat.session'), '', t('report.stat.sessionNote')],
     ]) {
       const d = document.createElement('div');
@@ -759,6 +937,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       d.querySelector('i').textContent = small;
       d.querySelector('span').textContent = lab;
       d.title = tip;
+      if (fig) tagFigure(d, fig, figV);
       host.appendChild(d);
     }
   }
@@ -793,8 +972,9 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
   function renderStats() {
     const host = q('.rp-stats');
     host.innerHTML = '';
-    const total = graph.nodes.length;
-    const done = graph.nodes.filter((n) => mastery.get(n.id).mastered).length;
+    // One definition of the progress number, shared with the strip above and
+    // with every other surface in the game. See src/meta/progress.js.
+    const { held: done, total } = linesHeld(mastery);
     const acc = tracker.accuracy();
     const hollow = tracker.hollowRate();
     const msOk = tracker.msTrusted();
@@ -803,7 +983,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
 
     const tiles = [
       {
-        id: 'mastered', tone: 'good',
+        id: 'mastered', tone: 'good', fig: FIG.LINES_HELD, figV: done,
         big: `${num(done)}`, small: t('report.stat.ofN', { n: total }),
         lab: t('report.stat.mastered'),
         note: t('report.stat.masteredNote'),
@@ -816,7 +996,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         note: msOk ? t('report.stat.timeNote') : t('report.stat.timeUnknown'),
       },
       {
-        id: 'items',
+        id: 'items', fig: FIG.ALL_ITEMS, figV: tracker.items(),
         big: num(tracker.items()), small: '',
         lab: t('report.stat.items'),
         note: t('report.stat.itemsNote'),
@@ -855,6 +1035,13 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       d.querySelector('.rp-t-val b').textContent = tile.big;
       d.querySelector('.rp-t-val i').textContent = tile.small;
       d.querySelector('.rp-t-note').textContent = tile.note;
+      /* Two of these tiles are figures the rest of the game also prints, and
+         they are the two the cold critic caught disagreeing with it: LINES HELD
+         is THE progress number and must equal the objective card's, and
+         QUESTIONS ANSWERED IN ALL is a lifetime total that must not be read as
+         the run band's questions-this-run. Tagging the whole tile hands the
+         gate the value and the words together. */
+      if (tile.fig) tagFigure(d, tile.fig, tile.figV);
       host.appendChild(d);
     }
   }
@@ -887,9 +1074,66 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
     host.appendChild(card);
   }
 
+  /**
+   * THE WORDS ON THE ROWS, DEFINED UNDER THE ROWS.
+   *
+   * A cold critic read a Progress row and could not tell what any of it claimed:
+   * HELD, PROVING, SLIPPING, REOPENED, TESTED OUT and GROUND REOPENED were six
+   * coined labels with nothing on the screen that said what they meant. Every
+   * one of them had a sentence already written — it was in a `title` attribute,
+   * which is not on screen, does not exist on a phone, and is not something a
+   * fourteen-year-old has ever discovered.
+   *
+   * So the sentences come out of the tooltips and onto the page. The legend
+   * lists ONLY the words that are on the rows right now, in row order: a first
+   * report shows two lines, and each new word gets defined on the first report
+   * that prints it. That is the whole rule — a word arrives with its meaning,
+   * once, where it lands. Nothing is listed in advance, because a glossary of
+   * states a learner has never reached is the same wall of vocabulary this is
+   * here to remove.
+   */
+  const STATE_ORDER = ['open', 'practising', 'proving', 'mastered', 'provisional', 'withdrawn', 'locked'];
+  const ROAD_ORDER = ['sight', 'fast', 'long'];
+
+  function renderLegend(states, roads, under, measured) {
+    const host = q('.rp-legend');
+    host.innerHTML = '';
+    const rows = [];
+    /* WHAT THE PERCENTAGE IS, said on the page, the first time one is printed.
+       The figure on a row is now the lowest thing measured on that line — the
+       weakest question type, the record at the hardest band, or the model's own
+       confidence, whichever is smallest (src/report/index.js `floorOf`). That is
+       the correction of a screen that printed the largest of them and read 99%
+       over a question type standing at nought for three.
+       It has to be said out loud, and this is where. A held line whose weakest
+       type is running at a third reads HELD and 33%, and those two are only a
+       contradiction while nobody has told the reader what the number counts.
+       With this line they are one sentence: proved, and here is where to go
+       next. Without it, a cold reader is right to file it. */
+    if (measured) rows.push([t('report.pctTerm'), t('report.pctIs'), 'r-floor']);
+    for (const s of STATE_ORDER) if (states.has(s)) rows.push([t('report.state.' + s), t('report.stateNote.' + s), 's-' + s]);
+    for (const r of ROAD_ORDER) if (roads.has(r)) rows.push([t('report.road.' + r), t('report.roadIs.' + r), 'r-' + r]);
+    if (under) rows.push([t('report.flag.under'), t('report.flagIs.under'), 'r-under']);
+    for (const [term, means, cls] of rows) {
+      const box = document.createElement('div');
+      box.className = 'rp-leg ' + cls;
+      const dt = document.createElement('dt');
+      dt.textContent = term;
+      const dd = document.createElement('dd');
+      dd.textContent = means;
+      box.append(dt, dd);
+      host.appendChild(box);
+    }
+    host.hidden = !rows.length;
+  }
+
   function renderSkills() {
     const host = q('.rp-skills');
     host.innerHTML = '';
+    const states = new Set();
+    const roads = new Set();
+    let anyUnder = false;
+    let anyMeasured = false;
     for (const n of graph.nodes) {
       const s = mastery.get(n.id);
       const st = stateOf(n.id);
@@ -910,16 +1154,32 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
 
       art.querySelector('.rp-name').textContent = t('skills.' + n.id);
       art.querySelector('.rp-tag').textContent = t('report.state.' + st);
-      // The road, on the closed row. mastery.js has flagged a claim granted off
-      // the cold sight-read since the sight-read shipped, with a comment saying
-      // a teacher-facing view could say so; no view ever did, so the thinnest
-      // claim in the record looked exactly like the thickest.
-      if (s.mastered && s.provenBy?.road) {
+      states.add(st);
+      /* The road, on the closed row. mastery.js has flagged a claim granted off
+         the cold sight-read since the sight-read shipped, with a comment saying
+         a teacher-facing view could say so; no view ever did, so the thinnest
+         claim in the record looked exactly like the thickest.
+
+         A SKILL CANNOT BE BOTH. A cold critic photographed one row reading
+         "Reading a variable — SLIPPING — TESTED OUT — 95%" and filed it as a
+         contradiction, and it is one. Both halves were true and they are not
+         about the same moment: SLIPPING is where the claim stands right now,
+         TESTED OUT is how it was granted, weeks ago. On one line, at a glance,
+         a badge with no tense reads as present tense — so it says a line is
+         proved and slipping in the same breath.
+
+         The road badge is therefore printed only while the claim is actually
+         standing. Nothing is hidden: on a slipping or withdrawn line the road
+         is still reported, in the past tense and with its date, inside the
+         detail this row opens — which is where a teacher asking "how was this
+         granted?" is already looking, and where there is room to answer. */
+      if (st === 'mastered' && s.provenBy?.road) {
         const road = document.createElement('span');
         road.className = `rp-road r-${s.provenBy.road}`;
         road.textContent = t('report.road.' + s.provenBy.road);
         road.title = t('report.roadNote.' + s.provenBy.road);
         art.querySelector('.rp-flags').appendChild(road);
+        roads.add(s.provenBy.road);
       }
       // Held, on ground that has reopened underneath. See `underReopened`.
       if (underReopened(n.id)) {
@@ -928,6 +1188,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
         flag.textContent = t('report.flag.under');
         flag.title = t('report.flagNote.under');
         art.querySelector('.rp-flags').appendChild(flag);
+        anyUnder = true;
       }
       // THE BAR AND THE NUMBER ONLY EXIST IF SOMETHING WAS MEASURED.
       //
@@ -938,12 +1199,25 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       // as new ground. Eighty per cent of nothing was measured. It is a plan for
       // which band to open at, and it is not this learner's standing on this
       // line, so it does not get this learner's bar.
+      //
+      // …AND THE FIGURE IS THE FLOOR, NOT THE POSTERIOR. See `floorOf`: the
+      // three numbers this screen used to be able to print about one line could
+      // disagree, and the one it printed was always the most flattering. The
+      // bar and the percentage are now the same lower bound, so they cannot
+      // come apart from each other either.
       const measured = st !== 'locked' && s.attempts > 0;
+      if (measured) anyMeasured = true;
+      const c = mastery.confidence(n.id, { plan: planFor(n.id) });
       art.dataset.measured = String(measured);
-      art.querySelector('.rp-bar i').style.width = measured ? `${Math.round(s.pL * 100)}%` : '0%';
-      art.querySelector('.rp-pct').textContent = measured ? conf(s.pL) : UNMEASURED;
+      art.querySelector('.rp-bar i').style.width = measured ? `${Math.round(c.floor * 100)}%` : '0%';
+      art.querySelector('.rp-pct').textContent = measured ? conf(c.floor) : UNMEASURED;
       const row = art.querySelector('.rp-row');
-      row.title = measured ? t('report.stateNote.' + st) : t('report.evidence.posteriorNone');
+      row.title = measured
+        ? t('report.rowTitle', {
+          state: t('report.stateNote.' + st),
+          why: t('report.evidence.floorWhy.' + c.why),
+        })
+        : t('report.evidence.posteriorNone');
       row.addEventListener('click', () => {
         const nowOpen = !expanded.has(n.id);
         if (nowOpen) expanded.add(n.id); else expanded.delete(n.id);
@@ -955,6 +1229,7 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
       if (isOpen) fillDetail(art.querySelector('.rp-detail'), n);
       host.appendChild(art);
     }
+    renderLegend(states, roads, anyUnder, anyMeasured);
   }
 
   function fillDetail(host, n) {
@@ -1053,18 +1328,29 @@ export function createReport({ root, mastery, graph, isBusy = () => false, onTog
             since: pct(split.unaidedSince),
           })
           : t('report.fact.accuracyOf', { all: pct(acc), n: num(right), of: num(asked) })],
-      [t('report.fact.band'), touched ? t('report.fact.bandVal', { n: s.difficulty }) : UNMEASURED],
+      // BAND WAS A NUMBER WITH NO UNIT. "Band 3 of 5" was printed here, on the
+      // orders card, on the close card and six times in the evidence rows, and
+      // nothing anywhere said what a band is. The third element of a row is the
+      // one line that says — printed under the value, not hidden in a `title`.
+      [t('report.fact.band'), touched ? t('report.fact.bandVal', { n: s.difficulty }) : UNMEASURED,
+        touched ? t('report.fact.bandIs') : ''],
       [t('report.fact.reps'), reps.length
         ? reps.map((r) => t('report.rep.' + r)).join(', ')
         : t('report.fact.noneYet')],
       [t('report.fact.forms'), t('report.fact.formsVal', { n: formsMet })],
       [t('report.fact.slip'), slipLabel(n)],
     ];
-    for (const [k, v] of rows) {
+    for (const [k, v, note] of rows) {
       const dt = document.createElement('dt');
       dt.textContent = k;
       const dd = document.createElement('dd');
       dd.textContent = v;
+      if (note) {
+        const em = document.createElement('em');
+        em.className = 'rp-fact-note';
+        em.textContent = note;
+        dd.appendChild(em);
+      }
       facts.append(dt, dd);
     }
     host.appendChild(facts);

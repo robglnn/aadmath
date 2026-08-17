@@ -169,6 +169,29 @@ const DECKS = {
     { ctx: 'ctx.soundBuoys', ask: 'ask.howManySecondsPing' },
     { ctx: 'ctx.spareBolts', ask: 'ask.howManyRivets' },
   ],
+  // A known part beside an unknown one — v of something, and c more of the
+  // same thing. Every question here is one this bank already asks of a
+  // product, so the deck is new and the questions are not: what changes is the
+  // sentence, which is the whole point of it existing. See `vm-partWhole`.
+  partWhole: [
+    { ctx: 'ctx.pwMuster', ask: 'ask.howManyCadets' },
+    { ctx: 'ctx.pwReel', ask: 'ask.howManyMetres' },
+    { ctx: 'ctx.pwTank', ask: 'ask.howManyLitres' },
+    { ctx: 'ctx.pwGlazing', ask: 'ask.howManyPanes' },
+    { ctx: 'ctx.pwBank', ask: 'ask.howManyCells' },
+    { ctx: 'ctx.pwSledRun', ask: 'ask.howManyKilometres' },
+    { ctx: 'ctx.pwScalePan', ask: 'ask.howManyGrams' },
+    { ctx: 'ctx.pwSeam', ask: 'ask.howManyRivets' },
+    { ctx: 'ctx.pwWatchLog', ask: 'ask.howManyReadings' },
+    { ctx: 'ctx.pwLamp', ask: 'ask.howManyLumens' },
+    { ctx: 'ctx.pwWarmBay', ask: 'ask.howManyDegrees' },
+    { ctx: 'ctx.pwHull', ask: 'ask.howManyPlates' },
+  ],
+  // An unknown total, cut into k equal shares. The question is always the same
+  // one — which expression is a single share — so these are plain framings.
+  shareOut: ['ctx.soCable', 'ctx.soWater', 'ctx.soRations', 'ctx.soOre',
+    'ctx.soWatch', 'ctx.soPower', 'ctx.soSeed', 'ctx.soFuel',
+    'ctx.soCanvas', 'ctx.soSalt', 'ctx.soRope', 'ctx.soGrain'],
   // b groups of a groups of v.
   nested: [
     { ctx: 'ctx.nested', ask: 'ask.howManyCadets' },
@@ -731,6 +754,103 @@ const FORMS = {
         };
       },
     },
+    {
+      // WHY THIS FORM EXISTS: a bank can be wide and still be thin.
+      //
+      // Every other contextual reading of this skill is a *product* — k lots of
+      // v, or b lots of a lots of v — so a cadet held at band 1 met "how many
+      // groups, how big is one" and nothing else, dressed in fifty nouns. That
+      // is the reskin a cold critic names, and no amount of new nouns fixes it,
+      // because the sentence pattern never changed.
+      //
+      // This is the other elementary reading, and the one Kuchemann's work puts
+      // at the centre of what a letter means: a known part beside an unknown
+      // one. It is where "letter as object" actually bites — `w + 6` is read as
+      // "w sixes", or as the label "w6", or the letter is dropped and the
+      // answer is 6 — and until now the bank could not ask it at all.
+      id: 'vm-partWhole', rep: 'context', dMin: 1, dMax: 3, distinctNums: true, scenes: 'partWhole',
+      build({ r, d, T, sr }) {
+        const sc = deck(sr, 'partWhole');
+        const v = pick(r, VARS);
+        // The known part, and the value the unknown one turns out to hold.
+        // Neither may be 1 — "one more" makes the whole item countable on a
+        // finger and teaches nothing about substitution.
+        const c = int(r, 2, 4 + d * 3);
+        const val = int(r, 3, band(d).val[1] + d * 2);
+        if (!distinct(c, val)) throw new Error('retry: repeated number');
+        const ans = val + c;
+        // The two readings that make this item worth asking — the pair read as
+        // a single written number, and the sum read as a product — are only
+        // wrong values a learner could actually land on if they are not
+        // themselves the answer.
+        const glued = Number(`${val}${c}`);
+        const expr = lin(1, v, c);
+        return {
+          stem: `${T(sc.ctx, { v, c })} ${T(sc.ask, { v, val })}`,
+          latex: expr,
+          type: 'numeric',
+          answer: String(ans),
+          check: { kind: 'evaluate', math: expr, env: { [v]: val } },
+          steps: [
+            { latex: `${expr} = ${val} + ${c}`, why: T('why.substituteHere', { v, val }) },
+            { latex: `${val} + ${c} = ${ans}`, why: T('why.thenAdd') },
+          ],
+          distractors: [
+            { v: String(glued), m: 'combine-unlike' },
+            { v: String(val * c), m: 'combine-unlike' },
+            { v: String(c), m: 'letter-as-object' },
+            { v: String(val), m: 'partial-rule' },
+            { v: String(val - c), m: 'sign-slip' },
+            { v: String(c - val), m: 'sign-slip' },
+            { v: String(VARS.indexOf(v) + 1 + c), m: 'letter-as-position' },
+            { v: String(ans + 1), m: 'arith-slip' },
+            { v: String(ans - 1), m: 'arith-slip' },
+          ],
+        };
+      },
+    },
+    {
+      // The third elementary reading, and the one this skill had no way to ask:
+      // an unknown total SHARED OUT. Every other item here builds a total up;
+      // this one takes one apart, so the answer is a fraction rather than a
+      // count, and the slip it exists to catch is the one that writes the
+      // division upside down or turns it into a product.
+      //
+      // It is also the only place in Level 1 where a learner meets a letter
+      // under a fraction bar before `one-step-mul` teaches them to undo one,
+      // which is exactly where a modelling item belongs: recognise the
+      // structure first, operate on it later.
+      id: 'vm-share', rep: 'verbal', dMin: 1, dMax: 3, scenes: 'shareOut',
+      build({ r, d, T, sr }) {
+        const sc = deck(sr, 'shareOut');
+        const v = pick(r, VARS);
+        const k = int(r, 2, 3 + d);
+        const ans = `\\frac{${v}}{${k}}`;
+        return {
+          // The reading on screen says only what the situation says: k equal
+          // shares make the whole. The gap is the share, so nothing here can be
+          // answered by copying a symbol off the prompt.
+          stem: `${T(sc, { v, k })} ${T('ask.whichShare')}`,
+          latex: `${k} \\cdot \\square = ${v}`,
+          type: 'expression',
+          answer: ans,
+          check: { kind: 'equivalent', math: `\\frac{${v}}{${k}}`, variable: v, loose: true },
+          steps: [
+            { latex: `${k} \\cdot \\square = ${v}`, why: T('why.shareEqually', { k }) },
+            { latex: `\\square = ${ans}`, why: T('why.thenDivide', { k }) },
+          ],
+          distractors: [
+            { v: `\\frac{${k}}{${v}}`, m: 'div-direction' },
+            { v: co(k, v), m: 'divide-not-multiply' },
+            { v: `${v} - ${k}`, m: 'subtract-not-multiply' },
+            { v: `${v} + ${k}`, m: 'add-not-multiply' },
+            { v: `${k} - ${v}`, m: 'subtract-not-multiply' },
+            { v: `\\frac{${v}}{${k + 1}}`, m: 'arith-slip' },
+            { v: `\\frac{${v}}{${k - 1}}`, m: 'arith-slip' },
+          ],
+        };
+      },
+    },
   ],
 
   // =======================================================================
@@ -1211,7 +1331,7 @@ const FORMS = {
       },
     },
     {
-      id: 'oo-table', rep: 'table', dMin: 2, dMax: 5, scenes: 'flatRate',
+      id: 'oo-table', rep: 'table', dMin: 1, dMax: 5, scenes: 'flatRate',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'flatRate');
         const v = 'n';
@@ -1334,8 +1454,29 @@ const FORMS = {
         // a side cannot say `m + 15` in the sentence and anything else on the
         // drawing, because there is only one string.
         const wide = lin(a, v, b), tall = lin(c, v, e);
-        const expr = `2\\left(${wide}\\right) + 2\\left(${tall}\\right)`;
+        // THE FOUR SIDES, WRITTEN OUT. NOT `2(w) + 2(h)`.
+        //
+        // This item used to read `2\left(2m + 13\right) + 2\left(6m + 10\right)`
+        // and its own first step was "double each side" — which is the
+        // distributive property, and `distribute` stands DOWNSTREAM of this
+        // skill in the graph (its prerequisite is `like-terms`, this node). A
+        // cold reader was served exactly that expression while the progress
+        // report on the same session listed the distributive property as LOCKED.
+        // The graph is the source of truth about what a learner has been taught,
+        // and an item may not need a rule that sits above it in the graph, no
+        // matter how the routing behaved.
+        //
+        // Adding the four sides is what a learner who has met `like-terms` and
+        // has NOT met `distribute` is equipped to do, and it is the same
+        // mathematics: a perimeter is the way round. The answer is unchanged, so
+        // the skill this item measures is unchanged; what is gone is the hidden
+        // dependency. The bracketed sides are grouping, not multiplication —
+        // nothing stands in front of a bracket here.
+        const expr = `\\left(${wide}\\right) + \\left(${tall}\\right)`
+          + ` + \\left(${wide}\\right) + \\left(${tall}\\right)`;
         const ans = lin(2 * (a + c), v, 2 * (b + e));
+        const xs = `${co(a, v)} + ${co(c, v)} + ${co(a, v)} + ${co(c, v)}`;
+        const ks = `${b} + ${e} + ${b} + ${e}`;
         return {
           stem: `${T(sc, { w: `$${wide}$`, h: `$${tall}$` })} ${T('ask.perimeterGather')}`,
           latex: expr,
@@ -1344,28 +1485,51 @@ const FORMS = {
           figure: { kind: 'rect', wLabel: wide, hLabel: tall },
           check: { kind: 'equivalent', math: expr, variable: v },
           steps: [
-            { latex: `${expr} = ${lin(2 * a, v, 2 * b)} + ${lin(2 * c, v, 2 * e)}`, why: T('why.doubleEachSide') },
-            { latex: `${lin(2 * a, v, 2 * b)} + ${lin(2 * c, v, 2 * e)} = ${ans}`, why: T('why.gatherSameKind', { v }) },
+            { latex: `${expr} = \\left(${xs}\\right) + \\left(${ks}\\right)`, why: T('why.gatherSameKind', { v }) },
+            { latex: `\\left(${xs}\\right) + \\left(${ks}\\right) = ${ans}`, why: T('why.addCoefficients') },
           ],
           distractors: [
+            // Round only two sides — the commonest perimeter slip, and the one
+            // this item is actually about.
             { v: lin(a + c, v, b + e), m: 'partial-rule' },
-            { v: lin(2 * (a + c), v, b + e), m: 'partial-distribute' },
+            { v: lin(2 * (a + c), v, b + e), m: 'partial-rule' },
             { v: term(2 * (a + c + b + e), v), m: 'combine-unlike' },
-            { v: lin(2 * a + c, v, 2 * b + e), m: 'partial-distribute' },
-            { v: lin(a + c, v, 2 * (b + e)), m: 'partial-distribute' },
+            { v: lin(2 * a, v, 2 * b), m: 'partial-rule' },
+            { v: lin(a + c, v, 2 * (b + e)), m: 'partial-rule' },
             { v: String(2 * (a + c + b + e)), m: 'combine-unlike' },
           ],
         };
       },
     },
     {
-      id: 'lt-equivalent', rep: 'verbal', dMin: 2, dMax: 3, scenes: 'filedTwice',
+      /* dMax 5, not 3. like-terms above band 3 offered three acts — collect
+         it symbolically, read the plate, read the log — and "were these two
+         entries filed as the same expression?" was withdrawn at exactly the
+         band where the symbolic forms multiply (lt-three, lt-square, lt-four
+         are all one act). Three acts in a six-item window with a cap of two is
+         zero slack, which is where the last of the repeated windows came from.
+         400/400 generate and verify clean at bands 4 and 5, and judging two
+         filings equivalent is harder, not easier, with longer expressions. */
+      id: 'lt-equivalent', rep: 'verbal', dMin: 1, dMax: 5, scenes: 'filedTwice',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'filedTwice');
         const v = pick(r, VARS);
         const a = nz(r, 1, 4 + d), b = Bkonst(r, d), c = nz(r, 1, 4 + d), e = Bkonst(r, d);
-        const expr = `${co(a, v)} ${sg(b)} ${sgc(c, v)} ${sg(e)}`;
-        const ans = lin(a + c, v, b + e);
+        /* THE FILING IS LONGER AT THE TOP TWO BANDS.
+           Opening this form up to bands 4 and 5 gave like-terms the fourth act
+           it needed there — and dropped the measured demand of band 4 to
+           within 0.07 s of band 3, because two terms and a constant is a band-2
+           reading whatever number is on the dial. `tools/validate-items.mjs`
+           caught it: a ladder that does not rise is a mastery gate that proves
+           less than it claims. So the entry being judged carries a third pair
+           at those bands. Same act, same misconceptions, one more thing to
+           hold in your head — which is what a band is. */
+        const wide = d >= 4;
+        const g = wide ? nz(r, 1, 3 + d) : 0;
+        const h = wide ? Bkonst(r, d) : 0;
+        const expr = `${co(a, v)} ${sg(b)} ${sgc(c, v)} ${sg(e)}`
+          + (wide ? ` ${sgc(g, v)} ${sg(h)}` : '');
+        const ans = lin(a + c + g, v, b + e + h);
         return {
           stem: `${T(sc)} ${T('ask.whichEquivalent')}`,
           latex: expr,
@@ -1373,16 +1537,22 @@ const FORMS = {
           answer: ans,
           check: { kind: 'equivalent', math: expr, variable: v },
           steps: [
-            { latex: `${expr} = ${co(a, v)} ${sgc(c, v)} ${sg(b)} ${sg(e)}`, why: T('why.gatherSameKind', { v }) },
-            { latex: `${co(a, v)} ${sgc(c, v)} ${sg(b)} ${sg(e)} = ${ans}`, why: T('why.onlySameKindCombine', { v }) },
+            {
+              latex: `${expr} = ${co(a, v)} ${sgc(c, v)}${wide ? ` ${sgc(g, v)}` : ''} ${sg(b)} ${sg(e)}${wide ? ` ${sg(h)}` : ''}`,
+              why: T('why.gatherSameKind', { v }),
+            },
+            {
+              latex: `${co(a, v)} ${sgc(c, v)}${wide ? ` ${sgc(g, v)}` : ''} ${sg(b)} ${sg(e)}${wide ? ` ${sg(h)}` : ''} = ${ans}`,
+              why: T('why.onlySameKindCombine', { v }),
+            },
           ],
           distractors: [
-            { v: lin(a + c, v, b - e), m: 'coefficient-sign-lost' },
-            { v: term(a + b + c + e, v), m: 'combine-unlike' },
-            { v: lin(a * c, v, b + e), m: 'arith-slip' },
-            { v: lin(a - c, v, b + e), m: 'coefficient-sign-lost' },
-            { v: lin(a + c, v, b * e), m: 'arith-slip' },
-            { v: String(a + b + c + e), m: 'combine-unlike' },
+            { v: lin(a + c + g, v, b - e + h), m: 'coefficient-sign-lost' },
+            { v: term(a + b + c + e + g + h, v), m: 'combine-unlike' },
+            { v: lin(a * c, v, b + e + h), m: 'arith-slip' },
+            { v: lin(a - c + g, v, b + e + h), m: 'coefficient-sign-lost' },
+            { v: lin(a + c + g, v, b * e), m: 'arith-slip' },
+            { v: String(a + b + c + e + g + h), m: 'combine-unlike' },
           ],
         };
       },
@@ -1451,7 +1621,7 @@ const FORMS = {
       },
     },
     {
-      id: 'lt-table', rep: 'table', dMin: 2, dMax: 5, scenes: 'logSum',
+      id: 'lt-table', rep: 'table', dMin: 1, dMax: 5, scenes: 'logSum',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'logSum');
         const v = 'x';
@@ -1700,7 +1870,7 @@ const FORMS = {
       },
     },
     {
-      id: 'ds-table', rep: 'table', dMin: 2, dMax: 5, scenes: 'logScaled',
+      id: 'ds-table', rep: 'table', dMin: 1, dMax: 5, scenes: 'logScaled',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'logScaled');
         const v = 'x';
@@ -2183,7 +2353,7 @@ const FORMS = {
       },
     },
     {
-      id: 'ts-graph', rep: 'graph', dMin: 2, dMax: 5, scenes: 'trace',
+      id: 'ts-graph', rep: 'graph', dMin: 1, dMax: 5, scenes: 'trace',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'trace');
         const R2 = band(d).chart;
@@ -2331,7 +2501,7 @@ const FORMS = {
       },
     },
     {
-      id: 'ms-collect', rep: 'symbolic', dMin: 2, dMax: 5,
+      id: 'ms-collect', rep: 'symbolic', dMin: 1, dMax: 5,
       build({ r, d, T, sr }) {
         const v = pick(r, VARS);
         const a = nz(r, 1, 3 + d), c = nz(r, d >= 3 ? -(3 + d) : 1, 3 + d);
@@ -2365,7 +2535,7 @@ const FORMS = {
       },
     },
     {
-      id: 'ms-context', rep: 'context', dMin: 2, dMax: 5, distinctNums: true, scenes: 'crew',
+      id: 'ms-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true, scenes: 'crew',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'crew');
         const v = 'n';
@@ -2465,7 +2635,15 @@ const FORMS = {
       },
     },
     {
-      id: 'ms-table', rep: 'table', dMin: 3, dMax: 5, scenes: 'logInverse',
+      /* dMin 1, not 3. `tools/validate-items.mjs` counts the distinct ACTS a
+         band can offer and multi-step could offer exactly two below band 3 —
+         "rearrange this symbolically" and "read the crew log" — so a learner
+         held there alternated between two questions and no scheduler could do
+         anything about it. A rule table with one gap is not a hard reading; it
+         is the EASIEST surface this skill has, and holding it back to band 3
+         was starving the bands that needed it most. 400/400 generate and
+         verify clean at band 1. */
+      id: 'ms-table', rep: 'table', dMin: 1, dMax: 5, scenes: 'logInverse',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'logInverse');
         const v = 'x';
@@ -2545,7 +2723,7 @@ const FORMS = {
       },
     },
     {
-      id: 'bs-special', rep: 'symbolic', dMin: 2, dMax: 5,
+      id: 'bs-special', rep: 'symbolic', dMin: 1, dMax: 5,
       build({ r, d, T, sr }) {
         const v = pick(r, ['x', 'n', 'm']);
         const a = nzc(r, 2, 4 + d);
@@ -2614,7 +2792,7 @@ const FORMS = {
       },
     },
     {
-      id: 'bs-context', rep: 'context', dMin: 2, dMax: 5, distinctNums: true, scenes: 'plans',
+      id: 'bs-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true, scenes: 'plans',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'plans');
         const v = 'n';
@@ -2648,7 +2826,12 @@ const FORMS = {
       },
     },
     {
-      id: 'bs-graph', rep: 'graph', dMin: 3, dMax: 5, scenes: 'twoTraces',
+      /* dMin 1, for the same reason and with the same evidence: both-sides
+         below band 3 was "solve it symbolically" or "read the two plans", and
+         nothing else. Two lines crossing is the most concrete picture of what
+         "both sides are equal" MEANS, so serving it only to learners who have
+         already got there was exactly backwards. 400/400 clean at band 1. */
+      id: 'bs-graph', rep: 'graph', dMin: 1, dMax: 5, scenes: 'twoTraces',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'twoTraces');
         const R2 = band(d).chart;
@@ -3361,6 +3544,9 @@ function finalize(raw, meta) {
     skill,
     form: form.id,
     rep: form.rep,
+    // The shape a learner recognises before they read a number, so a caller
+    // that reports an item can report what it repeated. See `skeletonOf`.
+    skeleton: skeletonOf(form),
     difficulty: d,
     seed,
     type: raw.type || 'numeric',
@@ -3547,6 +3733,112 @@ export const DECK_SCENES = Object.fromEntries(
 );
 
 /**
+ * THE SITUATION SKELETON of an item form — what a learner recognises as
+ * "this one again" before they have read a single number.
+ *
+ * WHY A SECOND IDENTITY, WHEN A FORM ALREADY HAS AN ID
+ *
+ * Two mechanisms already fight repetition and neither of them can see this.
+ * The session ledger above cycles a *deck* before it repeats a framing, so no
+ * cadet meets the drop-pods twice — and `tools/scene-audit.mjs` proves it. The
+ * scheduler prefers the *form* a learner has met least on this skill. Between
+ * them a session can still be built entirely out of one sentence pattern:
+ *
+ *     item 4   the skiff starts at 84% and loses 6% a minute — read it at 7
+ *     item 8   the coolant starts at 91 degrees and sheds 5 a minute — at 4
+ *     item 11  the tether starts at 74 m and pays out 8 a minute — at 6
+ *
+ * Every gate passes. Three different framings, three different decks entries,
+ * three different numbers, one form served three times. A cold critic reading
+ * twelve consecutive items called it what it is: a reskin. A cadet stops
+ * reading at the second one and starts pattern-matching for the two numbers,
+ * which is the exact habit a contextual item exists to break.
+ *
+ * WHAT COUNTS AS THE SAME SKELETON
+ *
+ * A situation deck plus the surface it is read off. The deck fixes the shape of
+ * the sentence — "something starts at b and loses a of itself each minute" —
+ * and the surface fixes what the learner is asked to do with it. So:
+ *
+ *   · `holdBack:context` and `holdBack:verbal` are DIFFERENT. Same gauge, but
+ *     one asks for the starting mass and the other asks which equation models
+ *     it, and those are not the same question wearing a hat.
+ *   · `trace:graph` in eval-expr and `trace:graph` in two-step are the SAME,
+ *     across two skills. Reading a value off a straight line drawn for you is
+ *     one item shape however the skill graph files it, and serving both inside
+ *     a handful of items reads as a repeat, because it is one.
+ *   · a form with no situation at all — a bare symbolic reading — is its own
+ *     skeleton, named after itself. There is no sentence to recognise, so the
+ *     only thing that can repeat is the notation.
+ *
+ * `mastery.js` refuses to serve one skeleton twice running and caps how often
+ * one may appear inside a window of items; `tools/validate-items.mjs` plays
+ * twenty-item sessions and fails the build if either is broken. A form is free
+ * to name its own skeleton if the derived one is wrong for it.
+ */
+export function skeletonOf(form) {
+  if (!form) return 'form:?';
+  if (form.skeleton) return form.skeleton;
+  const keys = form.sceneKeys || (form.scenes ? DECK_SCENES[form.scenes] : null);
+  if (form.scenes && keys && keys.length) return `${form.scenes}:${form.rep}`;
+  return `form:${form.id}`;
+}
+
+/**
+ * THE ACT — one grain coarser than the skeleton, and the grain a learner counts.
+ *
+ * WHY THERE IS A SECOND AXIS AT ALL.
+ *
+ * A player who had just finished a real session wrote the count down:
+ *
+ *   "6 of 14 items were 'substitute a value into a monomial/binomial' … 2 of 14
+ *    were 'table with a rule header, one gap'. 8 of 14 across two shapes."
+ *
+ * Every skeleton rule above was satisfied while that happened, and the item
+ * gate passed, because the last clause of `skeletonOf` says a bare symbolic
+ * reading is its own skeleton *named after the form*. In `eval-expr` that is
+ * four separate names —
+ *
+ *     form:ee-linear     substitute into  3x + 5
+ *     form:ee-two-var    substitute into  3x - 2y
+ *     form:ee-fraction   substitute into  (x + 4)/2
+ *     form:ee-square     substitute into  2x^2 - 1
+ *
+ * — for one thing to do: put a number where the letter is and work it out. The
+ * scheduler was correctly told those were four different shapes and correctly
+ * dealt two of each, and the learner correctly counted six of the same
+ * question. The rule was not broken. The rule was measuring notation, and the
+ * player was counting the act.
+ *
+ * WHAT AN ACT IS
+ *
+ * What the learner physically does, independent of what it is dressed in:
+ *
+ *   · every bare symbolic form of one skill is ONE act. `eval-expr` symbolic is
+ *     "substitute and evaluate", whether the expression is a monomial, a
+ *     binomial, a fraction bar or a square. Four notations, one verb.
+ *   · a dressed form keeps its skeleton as its act, because a situation deck
+ *     genuinely changes the reading task: `decay:context` and `flatRate:context`
+ *     are two different things to work out, not one thing in two costumes.
+ *   · the act is keyed to the SKILL for symbolic forms and not to the skill for
+ *     dressed ones — "solve for x symbolically" and "collect like terms
+ *     symbolically" are different acts, while `trace:graph` is the same act
+ *     wherever the graph files it, exactly as it is the same skeleton.
+ *
+ * `mastery.js` enforces adjacency and a window cap on ACTS first and on
+ * skeletons second, and `tools/validate-items.mjs` fails the build on either.
+ * A form may name its own `act` when the derived one is wrong for it.
+ */
+export function actOf(form, skill = '') {
+  if (!form) return 'act:?';
+  if (form.act) return form.act;
+  const sk = skeletonOf(form);
+  // `form:` is the skeleton's way of saying "no situation here" — which is
+  // precisely the case where the notation is not the act.
+  return sk.startsWith('form:') ? `do:${skill || form.skill || 'any'}:${form.rep}` : sk;
+}
+
+/**
  * Every (situation, question) pairing a deck can deal.
  *
  * A deck entry is an object precisely when the question has to agree with the
@@ -3579,14 +3871,24 @@ export const DECK_PAIRS = Object.entries(DECKS).flatMap(([deckName, entries]) =>
  * through `src/content` and appears in the same two exports. Nothing below this
  * line knows how many courses are loaded. See `src/content/registry.js`.
  */
-setFormSummary((f) => ({
+setFormSummary((f, skill = '') => ({
   id: f.id, rep: f.rep, dMin: f.dMin, dMax: f.dMax,
+  skill,
   distinctNums: !!f.distinctNums,
   // Which deck of situations this form is dressed from, and the framings in
   // it. The scheduler reads this to ask "is there a world here this learner
   // has not worked in yet?" without having to generate an item to find out.
   scenes: f.scenes || null,
-  sceneKeys: f.scenes ? DECK_SCENES[f.scenes] || [] : [],
+  sceneKeys: f.sceneKeys || (f.scenes ? DECK_SCENES[f.scenes] || [] : []),
+  // What a learner recognises as "this one again". See `skeletonOf`.
+  skeleton: skeletonOf({
+    ...f, sceneKeys: f.sceneKeys || (f.scenes ? DECK_SCENES[f.scenes] || [] : []),
+  }),
+  // …and what they are actually DOING, which is coarser than the notation and
+  // is the grain the repetition complaint was counted at. See `actOf`.
+  act: actOf({
+    ...f, sceneKeys: f.sceneKeys || (f.scenes ? DECK_SCENES[f.scenes] || [] : []),
+  }, skill),
 }));
 registerPack({ id: 'algebra1-l1', skills: FORMS });
 

@@ -116,7 +116,35 @@
  * skill. It says nothing across skills, and `sightReadBandFor` below is where
  * that gap is closed.
  */
-import { FORMS_BY_SKILL, SKILLS, generate, demandOf } from './generators.js';
+import { FORMS_BY_SKILL, SKILLS, generate, demandOf, skeletonOf, actOf } from './generators.js';
+
+/**
+ * The template a (skill, form) pair arrives as, as the bank defines it.
+ *
+ * `observe` is told which form was served, not which shape it was, because
+ * every caller in the game already has the form id and none of them should
+ * have to know how a skeleton is derived. One lookup keeps that true — and
+ * keeps a single definition of "the same template", in generators.js, where
+ * the situation decks it is derived from live.
+ */
+function skeletonFor(skill, formId) {
+  if (!formId) return null;
+  const f = (FORMS_BY_SKILL[skill] || []).find((x) => x.id === formId);
+  return f ? skeletonOf(f) : `form:${formId}`;
+}
+
+/**
+ * …and the same lookup one grain coarser: what the learner was asked to DO.
+ * See `actOf` in generators.js for why the two are not the same question.
+ */
+function actFor(skill, formId) {
+  if (!formId) return null;
+  const f = (FORMS_BY_SKILL[skill] || []).find((x) => x.id === formId);
+  return f ? (f.act || actOf(f, skill)) : `do:${skill}:?`;
+}
+
+/** The act a form summary carries, or the derived one. */
+const act = (f) => (f && f.act) || actOf(f, f && f.skill);
 
 const DEFAULT_BKT = { pInit: 0.25, pTransit: 0.25, pSlip: 0.1, pGuess: 0.15 };
 const DEFAULT_MASTERY = {
@@ -273,6 +301,42 @@ const DEFAULT_MASTERY = {
   // falls, support comes back and the rift teaches, which is the only road that
   // gets a struggling learner there.
   gateRunCap: 7,
+  // --- the form floor -------------------------------------------------------
+  // NO LINE HOLDS WHILE A SHAPE OF IT IS NOUGHT-FOR-THREE.
+  //
+  // This is the correction of the worst defect this engine has ever shipped. A
+  // cold reader opened the live state and found `var-meaning` reading HELD at a
+  // posterior of 0.999 with `formsSeen['vm-table'] = {seen: 3, correct: 0}` —
+  // the learner had been shown a table three times, had never once read it, and
+  // the engine had certified them on reading a variable. Nothing above this line
+  // could see it, and that is the whole point: every gate in this file is an
+  // *aggregate*. BKT sums evidence; the proving run counts items, surfaces and
+  // one modelling item; the credit ladder counts clean solves. A learner who is
+  // strong on the symbolic form and cannot do the table produces exactly the
+  // same aggregate as a learner who is evenly good, because the aggregate is
+  // what the strong form is carrying.
+  //
+  // So the run gains one closing condition that is NOT an aggregate and cannot
+  // be paid off by strength elsewhere: **every form this learner has actually
+  // been served `formFloor` times must have produced at least `formNeed` clean
+  // unassisted solve.** A form the bank never offered is not a debt — the engine
+  // does not get to be judged on questions it never asked — but a form it asked
+  // three times and never got is a hole, and a claim with a hole in it is not a
+  // claim.
+  //
+  // It is deliberately a *floor* and not a rate. A rate ("70% on every form")
+  // punishes the learner who met a form early, missed it while learning and
+  // went on to solve it four times, which is what learning looks like. One clean
+  // unassisted solve on every shape the engine actually served is the weakest
+  // statement that cannot be satisfied by never being able to do a thing.
+  //
+  // The escape hatch that bounds `ext` deliberately does NOT bound this. A run
+  // may stop extending itself for want of a second surface, because a bank can
+  // run out of surfaces; it may not stop extending itself for want of a shape
+  // the learner has already been shown three times and failed, because that
+  // shape is on the shelf and `checkTask` will now go and get it.
+  formFloor: 3,
+  formNeed: 1,
   // A missed sight-read leaves the ladder at the gate floor rather than at
   // placement's band, for a learner whose record across the lattice reads
   // knower-level. See the block in `observe` that reads it, which is where the
@@ -382,6 +446,81 @@ const DEFAULT_MASTERY = {
   // items in a row in the same representation was already refused; this refuses
   // three in a window of three.
   repWindow: 2,
+  // ---------------------------------------------------------------------
+  // TEMPLATE DIVERSITY — the rule the two above could not reach.
+  //
+  // `shapeWindow` is keyed on the form id and only applies to items served on
+  // a line already proved; `repWindow` is keyed on the surface, and a surface
+  // is far coarser than a template — four different symbolic forms are four
+  // different questions, and refusing all of them because the last item was
+  // also symbolic would be wrong. Between them, a session could still be built
+  // out of one sentence pattern dressed in a different noun each time, which
+  // is what a cold critic reading twelve consecutive items actually found.
+  //
+  // A *skeleton* is the pairing of a situation deck with the surface it is
+  // read off — see `skeletonOf` in generators.js. These two numbers are the
+  // whole rule, and they are deliberately weaker than the form rule above,
+  // because the form rule is what measurably cost the lowest ability quintile
+  // real retention when it was applied to teaching items: repetition is what a
+  // struggling learner needs, and only *undisguised* repetition is the problem.
+  //
+  // So a skeleton is never served twice running, and never more than
+  // `skeletonCap` times inside `skeletonWindow` items. Both are preferences
+  // that give way when the band genuinely has nothing else — a bank too thin
+  // to satisfy them is a content bug, and tools/validate-items.mjs fails on it
+  // rather than letting the scheduler quietly serve a reskin.
+  skeletonWindow: 6,
+  skeletonCap: 2,
+  // THE ACT WINDOW — the same two numbers one grain coarser, and the reason
+  // this section needed a second pair at all.
+  //
+  // A player counted their own session and reported it in the only units that
+  // matter: "6 of 14 items were 'substitute a value into a monomial/binomial'
+  // … 2 of 14 were 'table with a rule header, one gap'. 8 of 14 across two
+  // shapes." Every rule above held while that happened. `eval-expr` carries
+  // seven forms with seven distinct SKELETONS, four of which are the same act
+  // wearing four notations — a monomial, a binomial, a fraction bar and a
+  // square. The scheduler dealt two of each, obeyed every cap it had, and
+  // served six substitutions.
+  //
+  // So the caps are applied to the ACT first and the skeleton second, in that
+  // order, because the coarser grain is the one the learner counts. Six and
+  // two again, and for the same reason: an act may come back, but not three
+  // times inside six questions.
+  //
+  // Every skill in the level offers at least four acts and every (skill, band)
+  // at least three, which is what makes "never twice running, never three in
+  // six" reachable rather than aspirational — tools/validate-items.mjs proves
+  // both, and fails the build if a bank ever thins below it.
+  actWindow: 6,
+  actCap: 2,
+  actAdjacent: 1,
+  // The adjacency half of the rule, and the soft "prefer the shape this learner
+  // has met least this sitting" tie-break, as A/B arms rather than as options
+  // anybody should turn off. `CFG=skeletonAdjacent=0,skeletonCap=0,
+  // preferUnseenShape=0` in tools/simulate.mjs restores the schedule exactly as
+  // it was before template diversity was enforced, so the cost is measured
+  // against the same seeds and the same bank rather than asserted. Both arms,
+  // 2000 learners:
+  //
+  //                                        rule off      shipping
+  //   true mastery of the level             100.0%        100.0%
+  //   every one of the ten                   99.6%         99.7%
+  //   engine declared all ten                99.3%         99.3%
+  //   hollow claims at the buzzer             0.0%          0.0%
+  //   wrong claims, all                      4.18%         4.12%
+  //   wrong claims off the sight-read        0.51%         0.62%
+  //   daily returners, true mastery          90.2%         89.2%
+  //   daily returners, all ten               81.7%         82.2%
+  //   three-day returners, all ten           39.3%         42.0%
+  //
+  // The returning-cohort rows are 600 learners and their lowest-ability
+  // quintile is 120, so anything under about four points there is sampling
+  // noise: measured across two different states of the bank the quintile moved
+  // +2.5 once and -5.9 the other time, on the same rule. What is not noise is
+  // the headline and the calibration, and neither moves.
+  skeletonAdjacent: 1,
+  preferUnseenShape: 1,
 };
 
 export const MASTERY_PL = DEFAULT_MASTERY.pL;
@@ -496,9 +635,36 @@ export class MasteryEngine {
     // beside "0 questions answered" and calls it a record.
     this.recordId = newRecordId();
     this.seq = 0;
+    /**
+     * How many ITEMS this engine has put in front of this learner, ever.
+     *
+     * Not observations. A missed item is re-offered with the worked step on the
+     * screen and reports again, so one item can produce three calls to
+     * `observe` — which is why `formsSeen[f].seen` is an attempt count and not
+     * a question count. The form floor is stated as "nought for three", and
+     * three attempts at one hard question is not three questions, so it needs a
+     * counter that says which. Every served task stamps its own number here and
+     * `observe` records the stamp, so `formsSeen[f].items` is exactly the number
+     * of distinct questions of that shape this learner has been asked.
+     */
+    this.served = 0;
     this.recent = [];       // skills of the last few items, for interleaving
     this.recentReps = [];   // representations of the last few items, so the surface keeps changing
     this.recentForms = [];  // item forms of the last few items, so the shape keeps changing
+    // The situation skeletons of the last few items — the thing a cadet
+    // recognises as "this one again" before reading a number. Global, across
+    // every skill, because a template does not stop being a repeat when the
+    // skill graph files the two items under different nodes. See `varyShape`.
+    this.recentSkeletons = [];
+    // …and the acts, which is the same list at the grain the learner counts:
+    // four notations for "substitute a value into an expression" are four
+    // skeletons and one act. See `actOf` in generators.js.
+    this.recentActs = [];
+    // …and every skeleton this sitting has served at all, so the scheduler can
+    // prefer one this learner has not met yet over one it has merely not met
+    // recently. Cleared with the sitting, like the bank's own situation ledger.
+    this.skeletonsSeen = Object.create(null);
+    this.actsSeen = Object.create(null);
     /**
      * THE SITTING — the stretch of play a held line's budget is measured over.
      *
@@ -560,6 +726,109 @@ export class MasteryEngine {
     return this.graph.nodes.map((n) => n.id).filter((id) => this.isUnlocked(id));
   }
 
+  /** Every skill whose prerequisites are not all held. Nothing may be served here. */
+  lockedSkills() {
+    return this.graph.nodes.map((n) => n.id).filter((id) => !this.isUnlocked(id));
+  }
+
+  // -------------------------------------------------------------------------
+  // The form floor — the one condition that is not an aggregate
+  // -------------------------------------------------------------------------
+
+  /**
+   * Which shapes of this skill this learner has been shown enough times to be
+   * judged on, and has never once got right unaided.
+   *
+   * Read straight off `formsSeen`, which is the counter the miss itself
+   * increments — so this cannot be flattered by anything upstream. `correct` on
+   * that counter is *clean* solves only (see `observe`): an answer produced with
+   * a worked example on the card is not evidence that a learner can read a
+   * table, it is evidence that they can copy one.
+   *
+   * @returns {string[]} form ids, worst first
+   */
+  weakForms(s) {
+    if (!s || !this.cfg.formFloor) return [];
+    const out = [];
+    for (const [fid, rec] of Object.entries(s.formsSeen || {})) {
+      // Questions asked of this shape, not attempts at them — a record written
+      // before `items` existed falls back to the attempt count, which is the
+      // conservative reading for a save that cannot tell the difference.
+      const asked = rec?.items ?? rec?.seen ?? 0;
+      const got = rec?.correct || 0;
+      if (asked >= this.cfg.formFloor && got < this.cfg.formNeed) out.push({ fid, asked, got });
+    }
+    return out.sort((a, b) => (a.got - b.got) || (b.asked - a.asked)).map((x) => x.fid);
+  }
+
+  /**
+   * THE HONEST NUMBER — one figure, and it may not disagree with itself.
+   *
+   * Three quantities used to be printed about one line and all three were true
+   * of different worlds: the BKT posterior `pL` (0.999), the session planner's
+   * seam confidence (0.667 — how often the projection actually closes this line),
+   * and the report's percentage, which was `pL` rounded. A cold reader read all
+   * three in one sitting and asked, correctly, which one the product means.
+   *
+   * The product means the **lower bound**. A mastery claim is a promise, and the
+   * number beside a promise has to be the one you would defend, not the one you
+   * would prefer. So the figure everything now prints is the smallest of the
+   * things the engine actually knows:
+   *
+   *   · `pL`         the posterior, which is an aggregate and therefore the
+   *                  *most* flattering thing available;
+   *   · `form`       the weakest shape actually served, at its shrunk clean rate
+   *                  (see `shrunk`). This is what 0.999 could not see: a shape
+   *                  standing at nought for three reads 0.20 here however well
+   *                  the rest of the line is going, and the row prints that;
+   *   · `gate`       the same rate at the gate band, which is where the claim is
+   *                  actually made;
+   *   · `plan`       the caller's own seam confidence, when it has one, so a
+   *                  planner that does not believe this line will close cannot
+   *                  be contradicted by a badge on the same screen.
+   *
+   * A shrunk rate rather than the raw ratio, because the raw ratio says 100% off
+   * one item and one item is exactly the evidence a hollow claim is made of. See
+   * `shrunk` for why it is not an interval bound either.
+   *
+   * Shapes the bank has asked fewer than `formFloor` times do not speak at all.
+   * A question the engine has barely asked is not evidence in either direction,
+   * and letting it drag the row down would be the mirror of the defect: a figure
+   * about the sample rather than about the learner.
+   *
+   * @param {string} id
+   * @param {{plan?:number}} [opts] the planner's confidence for this line, 0..1
+   * @returns {{pL:number, floor:number, form:number, gate:number,
+   *            weak:string[], measured:boolean, why:string}}
+   */
+  confidence(id, opts = {}) {
+    const s = this.state.get(id);
+    if (!s) return { pL: 0, floor: 0, form: 0, gate: 0, weak: [], measured: false, why: 'none' };
+    const measured = (s.attempts || 0) > 0 && this.isUnlocked(id);
+    const weak = this.weakForms(s);
+    // The weakest shape this learner has actually been asked about. Forms the
+    // bank never offered are not counted: an unasked question is not a failure.
+    let form = 1;
+    for (const rec of Object.values(s.formsSeen || {})) {
+      const asked = rec?.items ?? rec?.seen ?? 0;
+      if (asked < this.cfg.formFloor) continue;
+      form = Math.min(form, shrunk(rec?.correct || 0, asked));
+    }
+    const gate = (s.gateSeen || 0) >= 2 ? shrunk(s.gateClean || 0, s.gateSeen || 0) : 1;
+    // The planner's confidence is "will this line CLOSE during this run", and
+    // that question has no meaning once the line is closed: a held line never
+    // closes again inside a projection, so its seam confidence is 0 by
+    // construction. Letting that bind would print 0% beside HELD — the same
+    // two-figures-two-worlds defect this method exists to end, pointed the
+    // other way. It speaks only about a line still being worked, which is the
+    // only line it is about.
+    const plan = (!s.mastered && Number.isFinite(opts.plan)) ? clamp01(opts.plan) : 1;
+    const parts = [['pL', s.pL], ['form', form], ['gate', gate], ['plan', plan]];
+    let why = 'pL', floor = s.pL;
+    for (const [name, v] of parts) if (v < floor) { floor = v; why = name; }
+    return { pL: s.pL, floor: measured ? clamp01(floor) : 0, form, gate, weak, measured, why };
+  }
+
   // -------------------------------------------------------------------------
   // Scheduling
   // -------------------------------------------------------------------------
@@ -614,6 +883,11 @@ export class MasteryEngine {
     for (const s of this.state.values()) { s.heldServed = 0; s.heldServedClock = null; }
     this.heldItems = 0;
     this.diverts = 0;
+    // A shape met before the break is new again after it. "Prefer one this
+    // learner has not met" is a claim about a sitting, exactly like the bank's
+    // own ledger of framings, which `resetSituations` clears on the same beat.
+    this.skeletonsSeen = Object.create(null);
+    this.actsSeen = Object.create(null);
     return true;
   }
 
@@ -926,8 +1200,8 @@ export class MasteryEngine {
       const modelling = chosen.filter((f) => MODELLING_REPS.has(f.rep));
       if (modelling.length) chosen = modelling;
     }
-    chosen = this.varyShape(chosen);
-    s.lastServed = { difficulty: d, kind: 'deep' };
+    chosen = this.varyShape(chosen, { wider: pool });
+    s.lastServed = { difficulty: d, kind: 'deep', seq: ++this.served };
     // One rung of this sitting's budget for held lines, booked here because
     // this is the only place a rung is actually handed out.
     this.reserve(s);
@@ -965,10 +1239,34 @@ export class MasteryEngine {
    *
    * It is the last preference applied, so it can only ever break a tie that the
    * pedagogical rules above it have already left open.
+   *
+   * THE SKELETON RULES, which run first and apply to every kind of item.
+   *
+   * The form rule below is deliberately not applied to teaching items: graded
+   * in tools/simulate.mjs it took the lowest ability quintile from 6.7% to
+   * 3.3%, because a struggling learner needs the shape again and this moves
+   * them off it. That is a real finding and it is not undone here. What it does
+   * not license is serving the *same sentence pattern* three times in twelve
+   * items with a different noun each time, which is repetition that pretends
+   * not to be — the cadet gets none of the benefit of practice and all of the
+   * insult of wallpaper.
+   *
+   * So the skeleton rules are the narrow version of the same idea:
+   *
+   *   · never the same skeleton twice running;
+   *   · never more than `skeletonCap` of one skeleton inside the last
+   *     `skeletonWindow` items.
+   *
+   * A learner who needs `holdBack` four times in a session still gets it four
+   * times. They get it spread out, and with `flatRate`, `identicals` and a bare
+   * symbolic reading in between, which is what makes the fourth one practice
+   * rather than a reskin. Both give way when the band has nothing else to
+   * offer — that case is a hole in the bank, and the item gate fails on it.
    */
-  varyShape(pool, { forms: useForms = true, reps: repWindow = this.cfg.repWindow } = {}) {
-    if (!pool || pool.length < 2) return pool || [];
-    let out = pool;
+  varyShape(pool, { forms: useForms = true, reps: repWindow = this.cfg.repWindow, wider = null } = {}) {
+    if (!pool || pool.length < 2) return this.varySkeleton(pool || [], wider);
+    let out = this.varySkeleton(pool, wider);
+    if (out.length < 2) return out;
     const w = this.cfg.shapeWindow | 0;
     const shapes = new Set(useForms && w > 0 ? this.recentForms.slice(-w) : []);
     if (shapes.size) {
@@ -982,7 +1280,123 @@ export class MasteryEngine {
       const other = out.filter((f) => !reps.has(f.rep));
       if (other.length) out = other;
     }
-    return out;
+    return this.preferUnseenSkeleton(out);
+  }
+
+  /**
+   * The two hard template rules, in the order they are worth applying.
+   *
+   * Adjacency first, because two identical shapes back to back is the version
+   * a learner cannot miss; then the window cap, which is what stops the shape
+   * arriving on every other item and reading as a loop.
+   *
+   * `wider` is the pool BEFORE the pedagogical preferences narrowed it, and it
+   * exists for one case: those preferences can narrow to a single form, and if
+   * that form carries a shape the learner has just had, no filter over the
+   * narrowed pool can do anything about it. Measured over hundreds of
+   * twenty-item sessions that was the entire residue — every remaining repeat
+   * was a pool of one, and almost all of them were proving runs, which are the
+   * one stretch of the schedule that stays on a single skill for five items.
+   * So both rules may reopen the wider pool rather than give up.
+   *
+   * That is a real reordering and it is worth being explicit about the price:
+   * it says "not this template again yet" outranks "the form this learner has
+   * practised least", for one item at a time. It is not the rule that cost the
+   * lowest ability quintile its retention — that one moved a struggling learner
+   * off a shape for three items at a stretch. This hands back a single item and
+   * the preference resumes on the next one.
+   *
+   * Where even the wider pool has nothing else, both rules give way: the band
+   * genuinely has one shape, which is a hole in the bank rather than something
+   * a scheduler should paper over, and `tools/validate-items.mjs` fails the
+   * build on it.
+   */
+  varySkeleton(pool, wider = null) {
+    const narrow = pool || [];
+    if (!narrow.length) return narrow;
+    const wide = Array.isArray(wider) && wider.length ? wider : [];
+
+    // ---- the four tests, coarse grain first -------------------------------
+    //
+    // ACT before SKELETON, always. A learner who has just been asked to
+    // substitute into a binomial and is now asked to substitute into a
+    // fraction bar has met two skeletons and one question; the rule that can
+    // see that has to run before the rule that cannot.
+    const mk = (recentList, cfgAdjacent, cfgWindow, cfgCap, key) => {
+      const last = cfgAdjacent && recentList.length ? recentList[recentList.length - 1] : null;
+      const w = cfgWindow | 0;
+      const cap = cfgCap | 0;
+      const count = new Map();
+      if (w > 0 && cap > 0) for (const k of recentList.slice(-w)) count.set(k, (count.get(k) || 0) + 1);
+      return {
+        notLast: (f) => !last || key(f) !== last,
+        underCap: (f) => !(w > 0 && cap > 0) || (count.get(key(f)) || 0) < cap,
+      };
+    };
+    const A = mk(this.recentActs, this.cfg.actAdjacent, this.cfg.actWindow, this.cfg.actCap, act);
+    const S = mk(this.recentSkeletons, this.cfg.skeletonAdjacent, this.cfg.skeletonWindow,
+      this.cfg.skeletonCap, skeletonOf);
+
+    // The standards a candidate may be held to, strictest first. Each row
+    // drops the least important surviving test, so a pool that cannot satisfy
+    // everything is asked for the most it *can* satisfy rather than let off
+    // entirely — and adjacency at either grain is the last thing surrendered,
+    // because the same question twice running is the failure a learner cannot
+    // miss. As before, the narrowed pool beats the wider one at every standard:
+    // a pedagogical preference is only overruled by a rule it cannot meet.
+    const all = (...ts) => (f) => ts.every((t) => t(f));
+    const standards = [
+      all(A.notLast, A.underCap, S.notLast, S.underCap),
+      all(A.notLast, A.underCap, S.notLast),
+      all(A.notLast, S.notLast, S.underCap),
+      all(A.notLast, S.notLast),
+      all(A.notLast),
+      all(S.notLast, S.underCap),
+      all(S.notLast),
+      all(A.underCap, S.underCap),
+      all(S.underCap),
+    ];
+    for (const ok of standards) {
+      const n = narrow.filter(ok);
+      if (n.length) return n;
+      const x = wide.filter(ok);
+      if (x.length) return x;
+    }
+    return narrow;
+  }
+
+  /**
+   * …and the soft one: given a choice the rules above have left open, take the
+   * shape this learner has met LEAST this sitting.
+   *
+   * "Unseen" is the case that matters most and it is the case this covers
+   * first, because a shape met zero times has the smallest count there is. But
+   * stopping at unseen leaves the schedule with nothing to say once a learner
+   * has met everything — which is most of a session on one skill — and that is
+   * where five helpings of one shape in twenty items came from. Counting is the
+   * fix, and it is the same fix the bank itself uses for situations: deal the
+   * whole deck before dealing any card twice. Measured over 2100 twenty-item
+   * sessions spanning the ability range, counting instead of merely checking
+   * for zero takes the sessions where any one shape appears more than three
+   * times from 28.4% to 12.0%, and the sessions where one appears five times
+   * from 27 to 1. It costs no pedagogy, because it runs last and can only break
+   * a tie every preference above it has already left open.
+   */
+  preferUnseenSkeleton(pool) {
+    if (!pool || pool.length < 2 || !this.cfg.preferUnseenShape) return pool || [];
+    // The coldest ACT first, for the same reason the hard rules run in that
+    // order: counting notations was what let one question be dealt six times
+    // in fourteen while every counter in this class read "two". Then the
+    // coldest skeleton inside it, so the notation keeps moving as well.
+    let out = pool;
+    for (const [seen, key] of [[this.actsSeen, act], [this.skeletonsSeen, skeletonOf]]) {
+      if (out.length < 2) break;
+      let least = Infinity;
+      for (const f of out) least = Math.min(least, seen[key(f)] || 0);
+      const coldest = out.filter((f) => (seen[key(f)] || 0) === least);
+      if (coldest.length) out = coldest;
+    }
+    return out.length ? out : pool;
   }
 
   /** The policy this replaced: due review first, then the lowest posterior. */
@@ -1114,6 +1528,38 @@ export class MasteryEngine {
   taskFor(skillId, opts = {}) {
     const s = this.state.get(skillId);
     if (!s) return null;
+    // --- NOTHING IS SERVED OUT OF PREREQUISITE ORDER -------------------------
+    // "Nothing is unlocked out of prerequisite order" is invariant 5 of the
+    // brief and it was enforced in exactly one place — `next()`, which filters
+    // to `unlockedSkills()`. Every other way into this method walked straight
+    // past it: `openRiftById`, a rift whose `locked` flag had not been re-synced
+    // since the state changed, and any harness that names a skill. A cold reader
+    // was served `2(2m+13)+2(6m+10)` as item 12 of a session whose own progress
+    // report listed the distributive property as LOCKED on the same screen.
+    //
+    // The gate belongs here, at the one door every caller goes through, and it
+    // does not return null: `src/main.js` reads null as "band-1 practice on this
+    // rift's own skill", which would serve the locked item anyway with the
+    // scheduler's fingerprints wiped off it. So a locked rift is *diverted* to
+    // the highest-leverage line that is genuinely open, exactly as a held one is.
+    //
+    // ONE EXCEPTION, AND IT IS NOT A LOOPHOLE: a line this learner has ALREADY
+    // PROVED, standing on ground that has since reopened underneath it. The
+    // claim on it was granted in order — nothing about it was reached past —
+    // and re-probing it is retention practice on work already done, which is
+    // the opposite of teaching out of order. The report already names that
+    // state ("Ground reopened", `underReopened` in src/report/index.js). What
+    // this gate forbids is what the defect actually was: TEACHING a line the
+    // learner has never proved, whose prerequisites they do not hold. A claim
+    // can never be granted out of order either way — `promote` refuses
+    // outright, with no exception at all.
+    if (!this.isUnlocked(skillId) && !s.mastered) {
+      const away = this.divert(skillId);
+      if (away) { away.lockedFrom = skillId; return away; }
+      // Nothing open anywhere. Refusing is still right — an engine with nothing
+      // legitimate to ask must say so rather than reach past a prerequisite.
+      return null;
+    }
     this.place(s);
     // Has the learner been away long enough that the held-line budgets should
     // start again? Asked here because this is where every routing decision
@@ -1279,6 +1725,28 @@ export class MasteryEngine {
     // asking "is it still there?", not "can you transfer it?".
     const least = eligible.length ? Math.min(...eligible.map(seen)) : 0;
     let chosen = kind === 'learn' ? eligible.filter((f) => seen(f) <= least + 1) : eligible;
+    // …EXCEPT THAT A HOLE OUTRANKS NOVELTY, AND THIS IS NOT ONLY ABOUT THE GATE.
+    //
+    // "The form this learner has met least" is the right default and it has one
+    // perverse case: a shape they have been shown three times and never once got
+    // right has a HIGH `seen`, so the rule that keeps a skill from collapsing
+    // into one template also routes teaching away from the one shape the learner
+    // demonstrably cannot do. The form floor made that visible by refusing to
+    // close the gate over it — measured, leaving this rule alone cost the lowest
+    // ability quintile eight points, and every one of those points was a learner
+    // being held on a gate for a question the teaching kept declining to teach.
+    //
+    // A hole is where the teaching belongs. Support is on, the credit ladder is
+    // where it is, and this is practice rather than a claim — so serving it is
+    // the cheap, kind and correct thing to do, and it is what makes the floor
+    // above a road rather than a wall.
+    if (kind === 'learn') {
+      const holes = new Set(this.weakForms(s));
+      if (holes.size) {
+        const owed = eligible.filter((f) => holes.has(f.id));
+        if (owed.length) chosen = owed;
+      }
+    }
     // The sight-read asks the hardest thing to fake: walk between a situation
     // and the algebra, cold, at the top band. It is the most expensive surface
     // in the bank to read, and it costs the run nothing, because it settles all
@@ -1314,6 +1782,9 @@ export class MasteryEngine {
     chosen = this.varyShape(chosen, {
       forms: heldItem,
       reps: heldItem ? this.cfg.repWindow : 1,
+      // Every form this band can ask, so a "met least" preference that has
+      // narrowed to one form cannot force the same template twice running.
+      wider: eligible,
     });
     const fresh = chosen.map((f) => f.id);
     // An interleaved retrieval item is a held line taking one of this sitting's
@@ -1324,7 +1795,7 @@ export class MasteryEngine {
     // What band this skill was actually asked at, so `observe` can judge the
     // answer against the demand it was given rather than against wherever the
     // ladder has since moved.
-    s.lastServed = { difficulty: d, kind };
+    s.lastServed = { difficulty: d, kind, seq: ++this.served };
     return {
       skill: s.id,
       kind,
@@ -1613,6 +2084,53 @@ export class MasteryEngine {
     // this to be knocked back to the start of the gate. One modelling item
     // settles all three of the closing conditions at once, which is why the
     // scoring below counts debts paid rather than picking one debt to chase.
+    // THE HOLE IS CLAIMED BEFORE ANY OTHER DEBT.
+    //
+    // Everything below this block is a preference about *which* good item to
+    // serve. This is not a preference: the run cannot close until this shape has
+    // produced one clean unassisted solve (see `formFloor`), so serving anything
+    // else is serving an item that cannot end the run. It is also the fair thing
+    // to do — a learner held on an extended run has a right to be asked the
+    // question they are being held for, rather than three more of the ones they
+    // can already do.
+    //
+    // Out-of-band shapes are clamped rather than skipped. A form the learner has
+    // failed three times at band 2 is still the hole even when the gate stands
+    // at band 4, and `gateBandFor` above is a *floor* on the claim, not a
+    // licence to leave the hole unasked. So the item is served at the highest
+    // band that shape offers, and `provenBy` records that it was.
+    const holes = this.weakForms(s);
+    if (holes.length) {
+      const hole = forms.filter((f) => holes.includes(f.id));
+      if (hole.length) {
+        hole.sort((a, b) => holes.indexOf(a.id) - holes.indexOf(b.id));
+        // WHICH hole is asked first is free; WHETHER every hole is asked is
+        // not. This path used to pin `formCandidates` to one form with no
+        // diversity rule applied to it at all, and a proving run on a skill
+        // whose holes are four symbolic forms therefore served four
+        // substitutions in a row — which is most of "6 of 14 items were
+        // 'substitute a value into a monomial'". So the run keeps every hole
+        // and only reorders them: the highest-priority hole that is not the
+        // act just served, falling back to the highest-priority hole when the
+        // run has nothing else left to ask. No hole is skipped, the run is the
+        // same length, and the learner stops being asked one question four
+        // times running.
+        const f = this.varySkeleton(hole, hole)[0] || hole[0];
+        const hd = Math.max(f.dMin, Math.min(f.dMax, d));
+        s.lastServed = { difficulty: hd, kind: 'check', seq: ++this.served };
+        return {
+          skill: s.id,
+          kind: 'check',
+          difficulty: hd,
+          scaffold: 'none',
+          formCandidates: [f.id],
+          reps: null,
+          avoidScenes: Object.keys(s.scenesSeen),
+          check: { done: s.check.done, need: s.check.need, hole: f.id },
+        };
+      }
+    }
+
     const owes = [];
     if (!s.check.modelled) owes.push((f) => MODELLING_REPS.has(f.rep));
     if (!s.check.nonSymbolic) owes.push((f) => f.rep !== 'symbolic');
@@ -1644,7 +2162,28 @@ export class MasteryEngine {
       const dressed = want.filter((f) => (f.sceneKeys || []).length);
       if (dressed.length) want = dressed;
     }
-    s.lastServed = { difficulty: d, kind: 'check' };
+    // And last, the template rules — because a proving run is where they were
+    // being broken.
+    //
+    // Every preference above this line is *per skill*, and a proving run is the
+    // one part of the schedule that stays on one skill for four or five items
+    // in a row. So the run is precisely where "a form you have practised least"
+    // keeps returning the same three shapes, and where a critic reading twelve
+    // consecutive items found the same sentence pattern three times. It is also
+    // the place the rules cost least: a run that owes nothing structural is
+    // choosing between forms it has already ranked equal, and a run that does
+    // owe something keeps every form that settles the debt, because
+    // `varySkeleton` gives way rather than empty a pool. Transfer wants an
+    // unfamiliar shape anyway — this asks for the same thing the run does.
+    // The escape hatch is `eligible`, not `pool`. Late in a run `pool` is what
+    // the run has NOT used yet, and that can be down to a single form — which
+    // is the exact state that served the same template twice running in the
+    // measurements. Reopening to every form the band can ask means the run may
+    // repeat a form it has already used; it would otherwise repeat the
+    // template, which is the same repetition with none of the transfer.
+    want = this.varySkeleton(want, eligible);
+    want = this.preferUnseenSkeleton(want);
+    s.lastServed = { difficulty: d, kind: 'check', seq: ++this.served };
     return {
       skill: s.id,
       kind: 'check',
@@ -1734,6 +2273,25 @@ export class MasteryEngine {
     // even within one skill when the form's own bank of situations keeps it
     // looking novel. See `varyShape`.
     if (meta.form) { this.recentForms.push(meta.form); if (this.recentForms.length > 8) this.recentForms.shift(); }
+    // …and the same thing one level coarser: the sentence pattern, not the
+    // form. Two forms can be one template — a straight trace read at a value
+    // is the same item in eval-expr and in two-step — and a cadet counts
+    // templates, not form ids. See `varySkeleton`.
+    const skeleton = meta.skeleton || skeletonFor(id, meta.form);
+    if (skeleton) {
+      this.recentSkeletons.push(skeleton);
+      if (this.recentSkeletons.length > 16) this.recentSkeletons.shift();
+      this.skeletonsSeen[skeleton] = (this.skeletonsSeen[skeleton] || 0) + 1;
+    }
+    // …and one grain coarser again: what the learner was asked to DO. Four
+    // notations for one substitution are four skeletons and one act, and the
+    // act is the number a learner reports back. See `actOf` in generators.js.
+    const actId = meta.act || actFor(id, meta.form);
+    if (actId) {
+      this.recentActs.push(actId);
+      if (this.recentActs.length > 16) this.recentActs.shift();
+      this.actsSeen[actId] = (this.actsSeen[actId] || 0) + 1;
+    }
     this.dry = meta.scene ? 0 : this.dry + 1;
     this.sceneLog.push(meta.scene ? 1 : 0);
     if (this.sceneLog.length > 12) this.sceneLog.shift();
@@ -1741,6 +2299,15 @@ export class MasteryEngine {
     if (meta.form) {
       const f = (s.formsSeen[meta.form] ||= { seen: 0, correct: 0 });
       f.seen += 1;
+      // Distinct QUESTIONS of this shape, as against attempts at them. See
+      // `this.served`: the form floor says "nought for three" and means three
+      // questions, so a learner who was handed one hard table and missed it
+      // three times has met one table, not three. Counting attempts here would
+      // have let a single bad first encounter open a hole that the gate then
+      // refused to close over — punishing a learner for the hardest question
+      // they have ever been asked.
+      const stamp = s.lastServed?.seq ?? null;
+      if (stamp == null || f.at !== stamp) { f.at = stamp; f.items = (f.items || 0) + 1; }
       if (correct && !meta.assisted) f.correct += 1;
     }
     // Which situations this skill has already been dressed in for this learner.
@@ -1957,9 +2524,27 @@ export class MasteryEngine {
           // stricter gate silently dropping the transfer requirement, which is
           // the exact opposite of what the debt is for.
           const spans = s.check.nonSymbolic && s.check.reps.length >= 2 && s.check.modelled;
-          if (spans || (s.check.ext || 0) >= 2) {
-            this.promote(s);
-            checkEvent = 'passed';
+          // …AND THE HOLE, WHICH OUTRANKS BOTH OF THEM.
+          //
+          // `spans` and the `ext` bound are the transfer conditions, and the
+          // bound exists because a bank can genuinely run out of surfaces. The
+          // form floor is a different kind of debt and takes a different kind
+          // of answer: the shape is *in the bank*, this learner has already been
+          // shown it `formFloor` times, and has never once produced it unaided.
+          // There is nothing to run out of, so there is nothing to bound, and a
+          // run that closed here would be the engine certifying a learner on a
+          // question it had asked three times and never got an answer to. See
+          // `formFloor` in the config for the state that made this necessary.
+          //
+          // `checkTask` reads the same list and goes and serves it, so this
+          // extension is not a wait — it is the run finally asking the question
+          // the claim is about.
+          const holes = this.weakForms(s);
+          if (holes.length) {
+            s.check.need += 1;
+            s.check.formExt = (s.check.formExt || 0) + 1;
+          } else if (spans || (s.check.ext || 0) >= 2) {
+            if (this.promote(s)) checkEvent = 'passed';
           } else {
             s.check.need += 1;
             s.check.ext = (s.check.ext || 0) + 1;
@@ -2176,6 +2761,40 @@ export class MasteryEngine {
     // spending an item asking a question the learner just answered implicitly.
     if (clean && band >= this.cfg.minDifficulty) this.creditParents(id);
 
+    // --- A HOLE THAT OPENS AFTER THE CLAIM STILL UNSEATS IT ------------------
+    // The gate refuses to grant a claim over a shape standing at nought for
+    // three. That is not the whole rule: a held line keeps being served — spaced
+    // re-probes, interleaved retrieval, the endgame descent — and a shape can go
+    // nought for three on a line that was proved honestly last week. A cold
+    // reader looking at the live state cannot tell the two apart and should not
+    // have to: the sentence is "a line cannot be HELD while a shape of it is
+    // nought for three", and it has no clause about when the hole opened.
+    //
+    // So the claim is WITHDRAWN, on the same terms a missed re-probe withdraws
+    // one: the line reopens, the posterior is clipped to where an unproved line
+    // sits, and `reopenedFor` records why so the report can say which shape did
+    // it rather than changing a badge in silence. It is not a punishment and it
+    // is not a reset — `everMastered` and the whole receipt stand, the practice
+    // router now sends teaching straight at that shape (see `task`), and the
+    // line re-proves through the ordinary gate.
+    //
+    // It cannot fire on thin evidence: `weakForms` counts QUESTIONS asked of a
+    // shape, not attempts at them, so three tries at one hard question is not a
+    // hole, and a shape with a single clean unassisted solve behind it can never
+    // become one however many times it is missed afterwards.
+    if (s.mastered && this.weakForms(s).length) {
+      s.mastered = false;
+      s.lapsePending = false;
+      s.reopenedFor = 'formFloor';
+      s.reopenedAt = now;
+      s.pL = Math.min(s.pL, 0.78);
+      s.cleanRun = 0;
+      s.reviewStage = 0;
+      s.dueAt = null;
+      s.dueTime = null;
+      s.check = null;
+    }
+
     return this.report(s, id, wasMastered, checkEvent, landed);
   }
 
@@ -2240,6 +2859,14 @@ export class MasteryEngine {
       pL: s.pL,
       mastered: s.mastered,
       justMastered: !wasMastered && s.mastered,
+      // …and the other direction, which this shape could not say. A claim can be
+      // withdrawn on the item that withdraws it — a missed cold re-probe, or a
+      // question type that has now gone nought for three on a line proved last
+      // week — and a caller that can only hear `justMastered` has to find that
+      // out by diffing state. Additive: nothing reads it yet, and the badge on
+      // the row and the reason in the report are already correct without it.
+      justWithdrawn: wasMastered && !s.mastered,
+      withdrawnFor: wasMastered && !s.mastered ? (s.reopenedFor || 'lapse') : null,
       newlyUnlocked,
       difficulty: s.difficulty,
       check: s.check ? { done: s.check.done, need: s.check.need } : null,
@@ -2281,9 +2908,29 @@ export class MasteryEngine {
   }
 
   promote(s) {
+    // The last door. `taskFor` refuses to serve a locked line at all, so a run
+    // cannot legitimately be open on one — but `observe` is public, every
+    // harness in tools/ calls it directly, and a claim granted on a line whose
+    // prerequisites are not held is the invariant this build exists to defend.
+    // It is cheap to check and it is checked at the point where the claim is
+    // actually made, not at the point where it is routed.
+    if (!this.isUnlocked(s.id)) { s.check = null; return false; }
+    // Belt and braces on the form floor. The run's own closing condition is the
+    // one that does the work; this is the assertion that no future road to
+    // promotion can quietly bypass it.
+    if (this.weakForms(s).length) {
+      if (s.check) { s.check.need += 1; s.check.formExt = (s.check.formExt || 0) + 1; }
+      return false;
+    }
     const regrant = s.everMastered;
     const now = this.now();
     s.mastered = true;
+    // Whatever took the last claim away has been answered. Leaving the reason
+    // standing would have the report explaining a withdrawal that no longer
+    // exists — and, the next time this line lapsed for an ordinary missed
+    // re-probe, blaming a question type that had since been solved.
+    s.reopenedFor = null;
+    s.reopenedAt = null;
     s.everMastered = true;
     s.masteredAt = this.clock;
     s.masteredTime = s.masteredTime ?? now;
@@ -2368,6 +3015,19 @@ export class MasteryEngine {
       attemptsAt,
       firstContact: road === 'sight' && missed === 0 && attemptsAt === items,
       pL: s.pL,
+      // --- THE FORM LEDGER, frozen with the rest of the receipt --------------
+      // What this learner's record looked like *on every shape the engine had
+      // actually served*, at the instant the claim was granted. The report used
+      // to have no way to ask this, which is how a card could read HELD · 99%
+      // over a form standing at nought for three. The weakest of them is printed
+      // beside the claim, and the honest floor below is what the percentage on
+      // the row is drawn from — never `pL`, which is the flattering one.
+      formLedger: Object.fromEntries(Object.entries(s.formsSeen || {})
+        .map(([f, r]) => [f, {
+          items: r?.items ?? r?.seen ?? 0, seen: r?.seen || 0, correct: r?.correct || 0,
+        }])),
+      formExt: c.formExt || 0,
+      floor: this.confidence(s.id).floor,
       regrant,
       clock: this.clock,
       at: Date.now(),
@@ -2376,6 +3036,7 @@ export class MasteryEngine {
     s.reviewStage = 0;
     s.dueTime = now + this.windowMs(s);
     s.dueAt = this.clock + this.floorFor(s);
+    return true;
   }
 
   // -------------------------------------------------------------------------
@@ -2426,6 +3087,8 @@ export class MasteryEngine {
       recent: this.recent.slice(-12),
       recentReps: this.recentReps.slice(-8),
       recentForms: this.recentForms.slice(-8),
+      recentSkeletons: this.recentSkeletons.slice(-16),
+      recentActs: this.recentActs.slice(-16),
       skills: Object.fromEntries([...this.state].map(([k, v]) => [k, v])),
     };
   }
@@ -2444,6 +3107,14 @@ export class MasteryEngine {
     this.recent = Array.isArray(saved.recent) ? saved.recent.slice(-12) : [];
     this.recentReps = Array.isArray(saved.recentReps) ? saved.recentReps.slice(-8) : [];
     this.recentForms = Array.isArray(saved.recentForms) ? saved.recentForms.slice(-8) : [];
+    // The last few templates survive a reload, so closing the tab and coming
+    // straight back cannot hand a learner the shape they just answered. What
+    // does not survive is `skeletonsSeen`: a save is reloaded into a new
+    // sitting, and every shape is worth meeting again after a real break.
+    this.recentSkeletons = Array.isArray(saved.recentSkeletons) ? saved.recentSkeletons.slice(-16) : [];
+    this.recentActs = Array.isArray(saved.recentActs) ? saved.recentActs.slice(-16) : [];
+    this.skeletonsSeen = Object.create(null);
+    this.actsSeen = Object.create(null);
     // A reload is not a sitting. Whatever budget the last one had spent, the
     // gap that reload crossed is measured off `savedAt` by `newSitting`, so the
     // counters come back to zero and the wall clock decides whether they stay
@@ -2481,6 +3152,8 @@ export class MasteryEngine {
         // invented, and inventing one is the whole defect this fixes. It stays
         // null and the report says the evidence predates the record.
         provenBy: v.provenBy ? { ...v.provenBy } : null,
+        reopenedFor: v.reopenedFor ?? null,
+        reopenedAt: v.reopenedAt ?? null,
         durable: v.durable || 0,
         // A save written before held lines had a budget has spent none of it.
         heldServed: v.heldServed || 0,
@@ -2497,6 +3170,33 @@ export class MasteryEngine {
         masteredTime: sane(v.masteredTime, now) ?? null,
         lastTime: sane(v.lastTime, now) ?? null,
       });
+    }
+    // --- CLAIMS ALREADY GRANTED WITH A HOLE IN THEM --------------------------
+    // The form floor stops a hollow claim being made. It does not, by itself,
+    // do anything about the ones already sitting in a save file — and there are
+    // some, because a live record is what the defect was found in. A gate that
+    // only applies to future learners is a gate that tells today's learner the
+    // same lie it told them yesterday.
+    //
+    // So a line loaded as held with a shape standing at nought for `formFloor`
+    // has its claim WITHDRAWN, not hidden: the line reopens, the posterior is
+    // clipped to where an unproved line sits, and `reopenedFor` records why so
+    // the report can say "this was withdrawn, and here is the shape it was
+    // withdrawn over" rather than silently changing a badge overnight. Nothing
+    // else about the record moves — `everMastered`, `provenBy` and the whole
+    // history stay exactly as they were, because the learner did do that work.
+    for (const s of this.state.values()) {
+      if (!s.mastered || !this.weakForms(s).length) continue;
+      s.mastered = false;
+      s.lapsePending = false;
+      s.reopenedFor = 'formFloor';
+      s.reopenedAt = now;
+      s.pL = Math.min(s.pL, 0.78);
+      s.cleanRun = 0;
+      s.reviewStage = 0;
+      s.dueAt = null;
+      s.dueTime = null;
+      s.check = null;
     }
   }
 }
@@ -2587,6 +3287,12 @@ function blank(n) {
     // The receipt written by promote(): what this claim was actually granted
     // on. Null until there is a claim, and never reconstructed from config.
     provenBy: null,
+    // Why a claim that was granted has since been withdrawn, when it was not a
+    // missed re-probe. Today the only value is 'formFloor' — a record loaded
+    // from before the form floor existed, holding a line with a shape standing
+    // at nought for three. Null everywhere else.
+    reopenedFor: null,
+    reopenedAt: null,
     lastServed: null,
     openedAt: null,
     // This sitting's budget for a line that is already held: how many items it
@@ -2613,6 +3319,37 @@ function newRecordId() {
 
 const SEED_CAP = 0.80;
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+/**
+ * How good is this learner at this, on k clean solves out of n questions?
+ *
+ * The mean of a Beta(1,1) posterior — (k+1)/(n+2), Laplace's rule. Three
+ * candidates were tried against the thing this number has to survive, which is
+ * a fourteen-year-old reading it beside the word HELD:
+ *
+ *   · THE RAW RATIO is what got us here. One clean solve out of one is 100% by
+ *     arithmetic and means almost nothing, and a rate of 1.0 on the easy shapes
+ *     is exactly what carried the aggregate over a shape at nought for three.
+ *   · A WILSON LOWER BOUND is statistically the honest answer and was written
+ *     first. Measured on real sessions it turns the row into a SAMPLE-SIZE
+ *     METER rather than a competence one: a proving run is three or four items
+ *     by design, so a learner who answered every one of them cleanly read 43%,
+ *     and one honest miss out of four read 8%. Both figures are true statements
+ *     about how much we know and neither is a statement about the learner, and
+ *     the row has no room to explain the difference.
+ *   · THE SHRUNK RATE says what the row means. 0 of 3 reads 0.20, 1 of 4 reads
+ *     0.33, 3 of 3 reads 0.80, 5 of 5 reads 0.86 — never 100%, never 0%, and
+ *     monotone in both the successes and the evidence.
+ *
+ * It is not an interval bound and this file does not call it one. The honesty in
+ * `confidence` comes from taking the MINIMUM of everything the engine knows
+ * rather than the maximum, which is the defect being fixed; this function's job
+ * is only to make each of those things mean something on its own.
+ */
+function shrunk(k, n) {
+  if (!n) return 0;
+  return clamp01((Math.min(k, n) + 1) / (n + 2));
+}
 
 /**
  * A stored wall-clock stamp, read defensively.

@@ -131,6 +131,15 @@ export function startQuiet({ root = document, budget = BUDGET, every = 110 } = {
     }
 
     const plateUp = found.some((f) => f.id === 'plate');
+    /* STANDING ON THE COUNTER. `.here` is set by src/kit/foundry.js only while
+       the cadet's boots are on the shop deck, which makes the shop — at zero
+       metres — unambiguously the nearer of the two things asking to be walked
+       into. This file's rule is "two world plates never stand together, the
+       nearer thing wins", and this is the one case where the winner is not the
+       rift. Both were briefly on screen at once while this was being fixed, and
+       that frame is the exact complaint the rule was written from: "THE FOUNDRY"
+       and "WALK INTO IT" side by side, two answers to one question. */
+    const onDeck = found.some((f) => f.id === 'hail' && f.el.classList.contains('here'));
     const riftUp = found.some((f) => f.id === 'rift');
     const cardUp = found.some((f) => f.id === 'objective');
     // Heading at something, or working on something.
@@ -142,10 +151,32 @@ export function startQuiet({ root = document, budget = BUDGET, every = 110 } = {
     let room = budget;
     for (const f of found) {
       const dup = f.id === 'label' && cardUp;
-      const far = f.id === 'hail' && plateUp;
+      /* THE KEY FOR THE THING YOU ARE STANDING ON IS A CONTROL, NOT PROSE.
+         `.here` is the hail's own standing-on-the-deck state
+         (src/kit/foundry.js). While it is set, the counter is under the
+         cadet's boots, and this file's own rule — "two world plates never
+         stand together; the nearer thing wins" — makes it the winner rather
+         than the loser of that comparison. It used to lose unconditionally to
+         any rift plate on screen, and rift plates advertise from seventy-eight
+         metres, so the plate that wins was routinely the further thing.
+
+         It also stops being governed by the budget, for the reason the header
+         already gives about the rank strip and the build rack: a control that
+         vanishes is how a player decides the game is broken. This one is the
+         only thing on screen naming the key that opens the shop, now that the
+         shop has stopped opening itself on contact — so hushing it does not
+         make the frame quieter, it makes the counter unreachable.
+
+         A learning surface still outranks it: `behind` applies to everything.
+         (kit — one condition and one exemption; no new surface.) */
+      const onIt = f.id === 'hail' && f.el.classList.contains('here');
+      const far = f.id === 'hail' && plateUp && !onIt;
+      // …and the reverse, when the boots are on the deck: the tear across the
+      // meadow stands down in favour of the thing being stood on.
+      const outranked = f.id === 'plate' && onDeck;
       const behind = riftUp && f.id !== 'rift';
       const aside = busy && STANDS_BACK.has(f.id);
-      if (dup || far || behind || aside || room <= 0) {
+      if (behind || outranked || (!onIt && (dup || far || aside || room <= 0))) {
         f.el.classList.add(HUSH);
         hushed.push(f.id);
         continue;

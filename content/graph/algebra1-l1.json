@@ -80,6 +80,14 @@
           "text": "Reads 4m as a labelled quantity — '4 metres', four of a thing called m — so the letter carries no value of its own and the answer given is simply the 4."
         },
         {
+          "id": "combine-unlike",
+          "text": "Refuses to leave x + 6 as two things: the letter and the bare number are run together into one written quantity, or into a product, because an expression is expected to close on a single answer."
+        },
+        {
+          "id": "div-direction",
+          "text": "Writes a share upside down — the number of shares over the total instead of the total over the number of shares."
+        },
+        {
           "id": "add-not-multiply",
           "text": "Turns 'k groups of v' into k + v: the two quantities are joined by the operation that is easiest to say rather than the one the situation describes."
         },

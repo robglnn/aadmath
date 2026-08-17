@@ -78,6 +78,16 @@ export function createAfford(opts = {}) {
   const {
     uiRoot, scene, camera, player, rifts, mastery, kit = null,
     isBusy = () => false, onOpenRift = () => {},
+    /**
+     * Is this tear mid-stint, with an item finished and another one waiting to
+     * be asked for? (src/session/stint.js)
+     *
+     * The tear no longer re-opens itself between the items of one arrival, so
+     * the plate has to carry the offer instead — and it must say CONTINUE rather
+     * than OPEN, because a cadet who has just answered a question at this ring
+     * is not being asked to open anything. Same key, honest verb.
+     */
+    heldStint = () => false,
   } = opts;
 
   // ------------------------------------------------------------------ layers
@@ -248,9 +258,14 @@ export function createAfford(opts = {}) {
         // have not reached asks to be walked into; step inside reach and it
         // becomes the verb and the key it has always been. After the first
         // seal the mechanic is learned and the plate stops explaining it.
+        // …and a tear the cadet is standing at mid-stint says CONTINUE, because
+        // the item waiting behind it is the second or third of an arrival they
+        // already made. It used to arrive on a timer; it is now asked for, and
+        // this plate is where the asking is advertised. (src/session/stint.js)
         verb: r.locked ? t('afford.shut')
           : (r.mastered ? t('afford.sound')
-            : (!near && !taught ? t('afford.walkIn') : t('afford.open'))),
+            : (heldStint(r.id) ? t('afford.again')
+              : (!near && !taught ? t('afford.walkIn') : t('afford.open')))),
         what: r.locked ? t('afford.needs', { skill: blockerOf(r) }) : skill,
         far: d > REACH + 3 ? t('afford.metres', { n: num(Math.round(d)) }) : '',
         aim: !!(obj && obj.rift === r && !r.locked && !r.mastered),

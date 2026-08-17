@@ -29,6 +29,7 @@ import { analogueFor } from './learn/scaffold.js';
 import { diagnose } from './learn/diagnose.js';
 import { initI18n, t, applyStatic, onLocaleChange, getLocale, setLocale } from './i18n/index.js';
 import { createStory } from './meta/index.js';
+import { repaired } from './meta/progress.js';
 import { createReport } from './report/index.js';
 import { createSession } from './session/index.js';
 // session chaining (src/session/stint.js): how many items ONE arrival at a tear
@@ -317,6 +318,10 @@ const afford = createAfford({
   uiRoot, scene: engine.scene, camera: engine.camera, player, rifts, mastery, kit,
   isBusy: () => panel.open || session.blocking?.() || false,
   onOpenRift: (r) => openRift(r),
+  // …and when an arrival still has items in it, the plate says CONTINUE rather
+  // than OPEN. The tear stopped re-opening itself between them; this is where
+  // the offer is advertised instead. (src/session/stint.js)
+  heldStint: (id) => stint.holdingAt(id),
 });
 
 bootBar.style.width = '100%';
@@ -326,14 +331,14 @@ bootBar.style.width = '100%';
 // ---------------------------------------------------------------------------
 let activeRift = null;
 let chainNext = false;
-// The one thing this file has in flight after a seal. It is held rather than
-// fired-and-forgotten so that a session beat can cancel it: the close card
-// opens on the frame after the panel shuts, and an uncancelled chain painted a
-// live keypad underneath it 460 ms later. (src/session)
-let chainTimer = 0;
-// …and how far that chain is allowed to run. THREE items per arrival, then the
-// world comes back with somewhere to go. A cold critic answered twelve in a row
-// without once choosing to; this is the object that says no. (src/session/stint.js)
+// This file no longer has anything in flight after a seal. There was a 460 ms
+// timer here that re-opened the tear, and it is gone: the next item is offered
+// and waits to be asked for, so there is nothing left for a session beat to
+// race against or cancel. (src/session/stint.js explains the whole argument.)
+//
+// THREE items per arrival, then the world comes back with somewhere to go. A
+// cold critic answered twelve in a row without once choosing to; this is the
+// object that says no — and now says it without ever pressing the key itself.
 const stint = createStint({
   onEnd: (id) => relay.returned(id),
 });
@@ -432,6 +437,9 @@ function openRift(rift, override) {
         kind: task.kind,
       });
       fx.impact(correct ? 'good' : 'bad');
+      // fx/audio: the seal beat is two events, not one — the lens kick above,
+      // and the slow light underneath it that the score lands on. (src/fx)
+      if (correct) fx.seal({ mastery: res.pL, big: !!res.justMastered });
       audio.answered(correct, res);
       let gained = 0;
       if (correct) {
@@ -479,34 +487,34 @@ function openRift(rift, override) {
       audio.riftClosed();
       input.uiOpen = false;
       fx.setDialogue(false);
-      // A solved rift hands you the next card straight away — for THREE items,
-      // and then it stops. `stint.more()` is the whole of the rule: inside an
-      // arrival the scheduler gets its run of items and gets to interleave;
-      // at the end of one the world comes back with somewhere to go, and it is
-      // the player who decides whether to walk there or press the key again.
-      // (src/session/stint.js, src/meta/relay.js)
+      // A solved rift OFFERS the next card. It does not serve it.
+      //
+      // This used to arm a 460 ms timer that re-opened the same tear, up to
+      // three items per arrival, and a cold critic counted the result: "six
+      // items that opened with no travel at all". Two of every three learning
+      // cards in the game were the game's decision.
+      //
+      // The stint is unchanged — same three items, same line, same scheduler
+      // interleaving them. What is gone is the timer. The tear stays live and
+      // goes on carrying its plate and its key (src/world/afford.js, which now
+      // says CONTINUE while a stint is held), and the ordinary interact path
+      // twenty lines below opens the next item the moment the cadet asks for
+      // it. Walk off instead and `stint.watch()` closes the stint out for
+      // real, relay line and all. (src/session/stint.js, src/meta/relay.js)
       const again = chainNext && stint.more();
       chainNext = false;
-      if (again) {
-        clearTimeout(chainTimer);
-        chainTimer = setTimeout(() => {
-          chainTimer = 0;
-          // …unless the run has ended in the meantime and the session owns
-          // the frame. A chained rift behind a resolution card is the reason
-          // this timer is a variable.
-          if (session.blocking()) return;
-          if (!panel.open && nearRift && nearRift.id === rift.id) openRift(rift);
-        }, 460);
-      } else {
-        stint.end();
-      }
+      if (again) stint.hold(); else stint.end();
     },
   });
 
 }
 
 function hudState() {
-  return { shards: wallet.count(), integrity: mastery.integrity(), soft: mastery.softIntegrity() };
+  /* hud: THE ONE PROGRESS NUMBER, from the one function that defines it.
+     This used to hand the rig two figures — `integrity()` and
+     `softIntegrity()` — and the panel drew them as two bars. Two answers to one
+     question, zero pixels apart. See src/meta/progress.js. */
+  return { shards: wallet.count(), repaired: repaired(mastery).frac };
 }
 
 function save() {
@@ -599,7 +607,15 @@ const relay = createRelay({
   comms: story.comms,
   isBusy: () => panel.open || session?.blocking?.() || false,
 });
-engine.add((dt) => { stint.update(dt); relay.update(dt); });
+engine.add((dt) => {
+  stint.update(dt);
+  // Is the cadet still standing at the tear that has an item waiting for them?
+  // Walking away is how they decline it, and declining has to be as easy as
+  // accepting or the offer is a wall with a key on it. `nearRift` is whatever
+  // the frame above resolved, which is the same tear the plate is drawn on.
+  stint.watch(!panel.open && nearRift ? nearRift.id : null, dt);
+  relay.update(dt);
+});
 
 // ---------------------------------------------------------------------------
 // world: THE WARDENS (src/world/warden.js) — the fifth day.
@@ -632,6 +648,13 @@ const report = createReport({
   root: uiRoot, mastery, graph,
   isBusy: () => panel.open,
   onToggle: (on) => { input.uiOpen = on || panel.open; },
+  // report: the session planner's per-line confidence, so the percentage on a
+  // row cannot be higher than the engine's own odds of closing that line. A
+  // thunk because `session` is built below this and the report only reads it
+  // when a learner opens the screen. (src/report/index.js `floorOf`)
+  // (guarded: `session` is in its temporal dead zone until the line below runs,
+  // and a report opened by a harness before boot finishes must not throw.)
+  seams: () => { try { return session?.state?.().run?.seams || null; } catch { return null; } },
 });
 
 // ---------------------------------------------------------------------------
@@ -649,8 +672,11 @@ const session = createSession({
   // buys, instead of printing a rep count at a fourteen-year-old.
   kit,
   isBusy: () => panel.open,
-  // A session beat is taking the frame: drop the queued chain rift.
-  onFloor: () => { clearTimeout(chainTimer); chainTimer = 0; chainNext = false; },
+  // A session beat is taking the frame. There is no queued rift to drop any
+  // more, but a held stint must still be closed out: an offer of "press E for
+  // the next item" that survives underneath a résumé is an offer attached to a
+  // run that has finished.
+  onFloor: () => { chainNext = false; stint.end(); },
 });
 engine.add((dt) => session.update(dt));
 

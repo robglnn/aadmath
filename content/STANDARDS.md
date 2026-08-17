@@ -1,6 +1,6 @@
 # Standards alignment — ASCENT, Algebra I Level 1
 
-*The Cipher Worlds · level `algebra1-level1` · 10 skills, 64 item forms*
+*The Cipher Worlds · level `algebra1-level1` · 10 skills, 66 item forms*
 
 | | |
 |---|---|
@@ -21,7 +21,7 @@ One row per skill, in prerequisite order. Nothing unlocks before everything abov
 
 | # | Skill | Requires | CCSS | TEKS (§111.26–28 / §111.39) | Evidence the game collects |
 |---|---|---|---|---|---|
-| 1 | `var-meaning` | — | 6.EE.A.2.A<br>6.EE.B.6<br>HSA.SSE.A.1.A | 6.6(C) *(core)*<br>7.7 *(supporting)*<br>A.12(B) *(introduced)* | 6 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
+| 1 | `var-meaning` | — | 6.EE.A.2.A<br>6.EE.B.6<br>HSA.SSE.A.1.A | 6.6(C) *(core)*<br>7.7 *(supporting)*<br>A.12(B) *(introduced)* | 8 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 2 | `eval-expr` | `var-meaning` | 6.EE.A.2.C<br>6.EE.C.9<br>7.EE.B.3 | 7.7 *(supporting)*<br>A.12(B) *(introduced)* | 7 item forms across 4 representations (symbolic, contextual, graph, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 3 | `order-ops` | `eval-expr` | 6.EE.A.1<br>6.EE.A.2.C<br>7.EE.B.3 | 6.7(A) *(core)* | 8 item forms across 4 representations (contextual, symbolic, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 4 | `like-terms` | `eval-expr` | 6.EE.A.3<br>6.EE.A.4<br>7.EE.A.1<br>HSA.SSE.A.1.B | 6.7(C) *(core)*<br>6.7(D) *(core)*<br>A.10(A) *(core)* | 7 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
@@ -47,11 +47,11 @@ A code is not a citation. Each block below gives the knowledge-and-skills statem
 
 | TEKS | Depth | 19 TAC citation | Knowledge and skills statement | Student expectation | Evidence in this skill |
 |---|---|---|---|---|---|
-| **6.6(C)** | core | `19 TAC §111.26(b)(6)(C)` | The student applies mathematical process standards to use multiple representations to describe algebraic relationships. The student is expected to: | represent a given situation using verbal descriptions, tables, graphs, and equations in the form y = kx or y = x + b. | `vm-context`, `vm-choose`, `vm-compose` |
+| **6.6(C)** | core | `19 TAC §111.26(b)(6)(C)` | The student applies mathematical process standards to use multiple representations to describe algebraic relationships. The student is expected to: | represent a given situation using verbal descriptions, tables, graphs, and equations in the form y = kx or y = x + b. | `vm-context`, `vm-choose`, `vm-compose`, `vm-partWhole`, `vm-share` |
 | **7.7** | supporting | `19 TAC §111.27(b)(7)` | The student applies mathematical process standards to represent linear relationships using multiple representations. | The student is expected to represent linear relationships using verbal descriptions, tables, graphs, and equations that simplify to the form y = mx + b. | `vm-table` |
-| **A.12(B)** | introduced | `19 TAC §111.39(c)(12)(B)` | The student applies the mathematical process standards and algebraic methods to write, solve, analyze, and evaluate equations, relations, and functions. The student is expected to: | evaluate functions, expressed in function notation, given one or more elements in their domains; | `vm-groups`, `vm-position`, `vm-table`, `vm-compose` |
+| **A.12(B)** | introduced | `19 TAC §111.39(c)(12)(B)` | The student applies the mathematical process standards and algebraic methods to write, solve, analyze, and evaluate equations, relations, and functions. The student is expected to: | evaluate functions, expressed in function notation, given one or more elements in their domains; | `vm-groups`, `vm-position`, `vm-table`, `vm-compose`, `vm-partWhole` |
 
-**6.6(C) — what is and is not claimed.** Claimed narrowly and on purpose. 6.6(C) names only the forms y = kx and y = x + b, so it is cited only for the grouping forms, where a situation such as `k stands, each carrying 2 mills, each mill returning x watts` is recorded as exactly y = kx. Any richer rule — anything of the form mx + b — is cited at 7.7 instead, where TEKS actually puts it. Getting this boundary wrong is the commonest way a vendor alignment sheet stops being true.
+**6.6(C) — what is and is not claimed.** Claimed narrowly and on purpose. 6.6(C) names only the forms y = kx and y = x + b, so it is cited only where the item records exactly one of those two. The grouping forms record y = kx — a situation such as `k stands, each carrying 2 mills, each mill returning x watts`. The part-whole form records y = x + b, which is the other half of the standard and had no evidence at all until it existed. The share form records y = kx with k a unit fraction, which is the same equation written over a bar. Any richer rule — anything of the form mx + b — is cited at 7.7 instead, where TEKS actually puts it. Getting this boundary wrong is the commonest way a vendor alignment sheet stops being true.
 
 **7.7 — what is and is not claimed.** This knowledge-and-skills statement has no lettered student expectations; the expectation is the sentence itself. It is the home of every Level 1 rule of the form mx + b that appears as a table, a trace or a verbal description — which is most of them, and which is why 6.6(C) is claimed so narrowly above. Level 1 supplies the table or the trace and asks the learner to read or complete it; the learner is not asked to construct one, so the producing half belongs to a later level.
 
@@ -312,6 +312,8 @@ An item form that no standard claims is content nobody has justified shipping, a
 | `var-meaning` | `vm-table` | table | 1–5 | 6.EE.B.6 | 7.7, A.12(B) |
 | `var-meaning` | `vm-position` | verbal | 2–5 | 6.EE.B.6, HSA.SSE.A.1.A | A.12(B) |
 | `var-meaning` | `vm-compose` | contextual | 4–5 | HSA.SSE.A.1.A | 6.6(C), A.12(B) |
+| `var-meaning` | `vm-partWhole` | contextual | 1–3 | 6.EE.B.6 | 6.6(C), A.12(B) |
+| `var-meaning` | `vm-share` | verbal | 1–3 | 6.EE.A.2.A, 6.EE.B.6 | 6.6(C) |
 | `eval-expr` | `ee-linear` | symbolic | 1–5 | 6.EE.A.2.C, 7.EE.B.3 | A.12(B) |
 | `eval-expr` | `ee-two-var` | symbolic | 3–5 | 6.EE.A.2.C | A.12(B) |
 | `eval-expr` | `ee-context` | contextual | 1–5 | 6.EE.A.2.C, 6.EE.C.9 | 7.7, A.12(B) |
@@ -326,21 +328,21 @@ An item form that no standard claims is content nobody has justified shipping, a
 | `order-ops` | `oo-fracbar` | symbolic | 3–5 | 6.EE.A.2.C, 7.EE.B.3 | 6.7(A) |
 | `order-ops` | `oo-dispute` | verbal | 2–5 | 7.EE.B.3 | 6.7(A) |
 | `order-ops` | `oo-nested` | symbolic | 4–5 | 6.EE.A.2.C | 6.7(A) |
-| `order-ops` | `oo-table` | table | 2–5 | 6.EE.A.2.C | 6.7(A) |
+| `order-ops` | `oo-table` | table | 1–5 | 6.EE.A.2.C | 6.7(A) |
 | `like-terms` | `lt-collect` | symbolic | 1–5 | 6.EE.A.3, 7.EE.A.1 | 6.7(D), A.10(A) |
 | `like-terms` | `lt-three` | symbolic | 3–5 | 6.EE.A.3 | 6.7(D), A.10(A) |
 | `like-terms` | `lt-perimeter` | contextual | 2–5 | HSA.SSE.A.1.B | 6.7(D), A.10(A) |
-| `like-terms` | `lt-equivalent` | verbal | 2–3 | 6.EE.A.4 | 6.7(C) |
+| `like-terms` | `lt-equivalent` | verbal | 1–5 | 6.EE.A.4 | 6.7(C) |
 | `like-terms` | `lt-square` | symbolic | 4–5 | 7.EE.A.1, HSA.SSE.A.1.B | 6.7(D), A.10(A) |
 | `like-terms` | `lt-four` | symbolic | 5–5 | 7.EE.A.1 | 6.7(D), A.10(A) |
-| `like-terms` | `lt-table` | table | 2–5 | 6.EE.A.4 | A.10(A) |
+| `like-terms` | `lt-table` | table | 1–5 | 6.EE.A.4 | A.10(A) |
 | `distribute` | `ds-expand` | symbolic | 1–5 | 6.EE.A.3, 7.EE.A.1 | 6.7(D), A.10(B), A.10(D) |
 | `distribute` | `ds-negative` | symbolic | 3–5 | 6.EE.A.3 | 6.7(D), A.10(D) |
 | `distribute` | `ds-area` | contextual | 1–5 | 7.EE.A.2 | 6.7(C), A.10(D) |
 | `distribute` | `ds-twoterm` | symbolic | 4–5 | 7.EE.A.1, HSA.SSE.A.2 | 6.7(D), A.10(B), A.10(D) |
 | `distribute` | `ds-factor` | verbal | 3–5 | 7.EE.A.1, 7.EE.A.2, HSA.SSE.A.2 | 6.7(C), A.10(D) |
 | `distribute` | `ds-share` | symbolic | 4–5 | 7.EE.A.1 | 6.7(D), A.10(D) |
-| `distribute` | `ds-table` | table | 2–5 | 7.EE.A.2 | 6.7(D), A.10(D) |
+| `distribute` | `ds-table` | table | 1–5 | 7.EE.A.2 | 6.7(D), A.10(D) |
 | `one-step-add` | `oa-symbolic` | symbolic | 1–5 | 6.EE.B.7, HSA.REI.B.3 | 6.10(A), A.5(A) |
 | `one-step-add` | `oa-context` | contextual | 1–5 | 6.EE.B.7 | 6.10(A) |
 | `one-step-add` | `oa-balance` | graph | 1–3 | 6.EE.B.5 | 6.10(A) |
@@ -354,20 +356,20 @@ An item form that no standard claims is content nobody has justified shipping, a
 | `one-step-mul` | `om-table` | table | 3–5 | 6.EE.B.7 | 6.10(A) |
 | `two-step` | `ts-symbolic` | symbolic | 1–5 | 7.EE.B.4.A, HSA.REI.B.3 | 7.11(A), A.5(A) |
 | `two-step` | `ts-context` | contextual | 1–5 | 7.EE.B.4.A | 7.11(A), A.5(A) |
-| `two-step` | `ts-graph` | graph | 2–5 | 8.EE.B.5 | 7.7, 7.11(A) |
+| `two-step` | `ts-graph` | graph | 1–5 | 8.EE.B.5 | 7.7, 7.11(A) |
 | `two-step` | `ts-model` | verbal | 3–5 | HSA.CED.A.1 | 7.10(A) |
 | `two-step` | `ts-fraction` | symbolic | 4–5 | 7.EE.B.4.A | 7.11(A), A.5(A) |
 | `multi-step` | `ms-bracket` | symbolic | 1–5 | 7.EE.B.4.A, 8.EE.C.7.B, HSA.REI.A.1 | A.5(A), A.10(D) |
-| `multi-step` | `ms-collect` | symbolic | 2–5 | 8.EE.C.7.B | 8.8(C), A.5(A) |
-| `multi-step` | `ms-context` | contextual | 2–5 | 7.EE.B.4.A | 7.11(A), A.5(A) |
+| `multi-step` | `ms-collect` | symbolic | 1–5 | 8.EE.C.7.B | 8.8(C), A.5(A) |
+| `multi-step` | `ms-context` | contextual | 1–5 | 7.EE.B.4.A | 7.11(A), A.5(A) |
 | `multi-step` | `ms-fracbar` | symbolic | 4–5 | 8.EE.C.7.B | A.5(A), A.10(D) |
 | `multi-step` | `ms-dispute` | verbal | 3–5 | HSA.REI.A.1 | A.5(A) |
-| `multi-step` | `ms-table` | table | 3–5 | 7.EE.B.4.A, 8.EE.C.7.B | 7.11(A), A.5(A) |
+| `multi-step` | `ms-table` | table | 1–5 | 7.EE.B.4.A, 8.EE.C.7.B | 7.11(A), A.5(A) |
 | `both-sides` | `bs-symbolic` | symbolic | 1–5 | 8.EE.C.7.B, HSA.REI.B.3 | 8.8(C), A.5(A) |
-| `both-sides` | `bs-special` | symbolic | 2–5 | 8.EE.C.7.A | 8.8(C), A.5(A) |
+| `both-sides` | `bs-special` | symbolic | 1–5 | 8.EE.C.7.A | 8.8(C), A.5(A) |
 | `both-sides` | `bs-collect` | symbolic | 3–5 | 8.EE.C.7.A | 8.8(C), A.5(A) |
-| `both-sides` | `bs-context` | contextual | 2–5 | HSA.CED.A.1 | 8.8(A), 8.8(C), A.5(A) |
-| `both-sides` | `bs-graph` | graph | 3–5 | 8.EE.C.8.A | 8.9 |
+| `both-sides` | `bs-context` | contextual | 1–5 | HSA.CED.A.1 | 8.8(A), 8.8(C), A.5(A) |
+| `both-sides` | `bs-graph` | graph | 1–5 | 8.EE.C.8.A | 8.9 |
 | `both-sides` | `bs-bracket` | symbolic | 4–5 | 8.EE.C.7.B, HSA.REI.B.3 | 8.8(C), A.5(A) |
 | `both-sides` | `bs-dispute` | verbal | 3–5 | HSA.REI.B.3 | 8.8(C), A.5(A) |
 

@@ -131,8 +131,24 @@ class QualityDirector {
     this.tierBad = 0;
     this.tierGood = 0;
     this.changes = 0;
+    // How many tier steps this controller currently OWES the player, and how
+    // many times it has ever had to take one. See `tick` — the first decides
+    // what is handed back, the second decides how patient it is about it.
+    this.tierOwed = 0;
+    this.tierDrops = 0;
     this.enabled = opts.enabled !== false;
   }
+
+  /**
+   * How many comfortable seconds buy the effect tier back.
+   *
+   * Doubling per drop, to a ceiling. A machine that lost the tier once because
+   * a rift opened and a hundred motes spawned should have it back in four
+   * seconds; a machine that genuinely cannot hold it must not spend the rest of
+   * the session flapping between two looks, which is worse to sit in front of
+   * than the lower one.
+   */
+  patience() { return 4 * (1 << Math.min(3, Math.max(0, this.tierDrops - 1))); }
 
   get tierIndex() {
     const name = this.engine.postFX?.tier;
@@ -172,26 +188,73 @@ class QualityDirector {
 
     if (this.bad >= 2) {
       this.bad = 0;
-      this.tierGood = 0;
+      // ONE BAD SECOND DOES NOT ERASE FOUR GOOD ONES.
+      //
+      // This used to be `this.tierGood = 0`, and on a machine with anything
+      // else running that single line is why the effect tier never came back:
+      // restoring it needs several comfortable windows in a row, a shrink
+      // reset the count to zero, and a shrink happens the moment somebody
+      // else's compositor spikes. The counter walks back one step instead, so
+      // four consecutive shrinks still cancel four good windows — the harsh
+      // reading was never the useful one, it was just the easy one to write.
+      this.tierGood = Math.max(0, this.tierGood - 1);
       if (this.cap > this.floor + 0.001) {
         this.setCap(this.cap - (dire ? 0.3 : 0.15));
         this.cool = 1.4;
       } else if (++this.tierBad >= 2 && this.tierIndex > 0) {
         this.tierBad = 0;
         this.engine.postFX?.setTier?.(TIERS[this.tierIndex - 1]);
+        this.tierOwed++;
+        this.tierDrops++;
         this.changes++;
         this.cool = 3.0;
       }
     } else if (this.good >= 3) {
       this.good = 0;
       this.tierBad = 0;
-      if (this.cap < this.ceiling - 0.001) {
+      // ---- GIVE IT BACK IN THE REVERSE OF THE ORDER IT WAS TAKEN ----
+      //
+      // A player reported the game sitting at fxTier 'low' eighteen minutes
+      // in, on an M4. Reproduced over a real fifteen-minute session
+      // (`tools/critic/sustain.mjs`): the tier fell at minute two and was
+      // still down at minute fifteen while the frame rate was back at 90.
+      //
+      // Some of that was leaks elsewhere. This part was here. The ladder DOWN
+      // spends resolution first and the tier last — resolution is cheap and
+      // the tier is the backstop — and the ladder UP used to climb in the same
+      // direction, which means the last thing surrendered was the last thing
+      // returned. Every recovery therefore had to buy back the entire
+      // resolution range at 0.12 a second, reach the ceiling, and hold four
+      // more comfortable seconds before the effects came back at all; any
+      // single late window anywhere in that half-minute reset it to the floor.
+      // On a machine with anything else running, that is never.
+      //
+      // An undo stack is LIFO. The tier was taken last, so it comes back
+      // first — and it is the more visible of the two by a distance, because
+      // it is volumetrics and bloom rather than a fraction of a pixel.
+      if (this.tierOwed > 0 && this.tierIndex < TIERS.length - 1) {
+        if (++this.tierGood >= this.patience()) {
+          this.tierGood = 0;
+          this.tierOwed--;
+          this.engine.postFX?.setTier?.(TIERS[this.tierIndex + 1]);
+          this.changes++;
+          this.cool = 5.0;
+        } else if (this.cap < this.ceiling - 0.001) {
+          // Waiting out the tier's patience is not a reason to keep looking at
+          // a soft image, so resolution climbs while the clock runs — just not
+          // in the big steps, which would spend the headroom the tier needs.
+          this.setCap(this.cap + 0.12);
+          this.cool = 2.0;
+        }
+      } else if (this.cap < this.ceiling - 0.001) {
         // Plenty of headroom buys a bigger step. Sharpness is the only thing
         // resolution is for, and taking twenty seconds to find it wastes the
         // first twenty seconds of the game.
         this.setCap(this.cap + (p50 < 8 ? 0.2 : 0.12));
         this.cool = 2.0;
       } else if (++this.tierGood >= 4 && this.tierIndex < TIERS.length - 1) {
+        // A tier this controller never took: the post stack simply opened
+        // below its ceiling. Climb it the slow way, on a full ceiling.
         this.tierGood = 0;
         this.engine.postFX?.setTier?.(TIERS[this.tierIndex + 1]);
         this.changes++;

@@ -26,6 +26,7 @@
  * translated string can never inject markup.
  */
 import { t } from '../i18n/index.js';
+import { statesAFigure } from './progress.js';
 
 const CPS = 88;                       // characters revealed per second
 
@@ -116,6 +117,24 @@ export class Comms {
   push(resolve, o = {}) {
     const text = render(resolve);
     if (!text) return false;
+    /* MARLOW STATES NO FIGURE — the backstop, at the one door every line comes
+     * through.
+     *
+     * A cold critic caught him saying "Three rifts sealed." on the same frame
+     * the HUD said 4, and "Nine points of standing" — a unit that appears
+     * nowhere on screen at all, in any language, ever. Both were correct
+     * against the model. Both were computed inside the writing rather than read
+     * off the state the HUD reads, and a companion quoting a number is a tenth
+     * readout that nothing compares against.
+     *
+     * The lines themselves were rewritten. This is here because the next one
+     * will not be: a beat written a year from now that quotes a count is
+     * dropped at this line rather than shipped. Dropping is the right failure —
+     * there is always another line, and silence is a thing a person does.
+     * `force` does not override it; forcing is for beats that must not be
+     * deduplicated, not for beats that may contradict the glass.
+     */
+    if (statesAFigure(text)) return false;
     if (!o.force) {
       if (o.tag && (this.cools.get(o.tag) || 0) > 0) return false;
       if (this.spoken.includes(text)) return false;
@@ -193,7 +212,9 @@ export class Comms {
     // screenshot taken a beat late. A channel that is not talking says nothing.
     if (!this.cur) { this.body.textContent = ''; return; }
     const now = this.cur.volatile ? '' : render(this.cur.resolve);
-    if (!now) { this._finish(); return; }
+    // Same guard on the way back through: a line that is figure-free in English
+    // and quotes a count in Polish is still a count on the glass.
+    if (!now || statesAFigure(now)) { this._finish(); return; }
     const frac = this.cur.text.length ? Math.min(1, this.shown / this.cur.text.length) : 1;
     this.cur.text = now;
     this.shown = Math.max(1, Math.round(frac * now.length));

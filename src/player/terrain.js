@@ -30,6 +30,25 @@ export function heightAt(x, z) {
   return g;
 }
 
+/**
+ * Is the surface under this point something a player BUILT, rather than
+ * something the island happens to be doing?
+ *
+ * The boots ask this for one reason, and it is the reason building is worth
+ * doing at all: **a lattice ramp is engineered ground and a hillside is not.**
+ * A hill charges you nearly half your speed to climb it. A ramp you set down
+ * yourself is a machined surface with a lip on the end of it, so it charges
+ * you almost nothing and it throws you off the top — which is what makes
+ * "build a ramp" the fast answer to a climb instead of a slower one.
+ */
+export function onBuilt(x, z) {
+  if (!SOLIDS) return false;
+  const s = SOLIDS.top(x, z);
+  if (s === null) return false;
+  const g = World.heightAt?.(x, z);
+  return !(typeof g === 'number' && Number.isFinite(g) && g > s);
+}
+
 export const RIM = () => (typeof World.ISLAND_R === 'number' ? World.ISLAND_R : 130);
 
 // ---------------------------------------------------------------------------
@@ -93,6 +112,13 @@ export const FLOOR = -420;
 
 let _low = null;
 let _lowAt = -1e9;
+/**
+ * Landing candidates: flat x, h, z triples on an 8 m lattice, built by the same
+ * sweep that finds the lowest ground so the island is only ever walked once.
+ * Declared here, beside the sweep that fills it, rather than beside the
+ * function that reads it — see `reachFloor` for what it is for.
+ */
+let _pads = null;
 
 /**
  * The lowest ground on the island, measured off the live heightfield rather
@@ -127,21 +153,137 @@ export function lowestGround() {
   _lowAt = now;
   const R = RIM() + 10;
   let lo = Infinity;
-  for (let x = -R; x <= R; x += 4) {
-    for (let z = -R; z <= R; z += 4) {
+  const pads = [];
+  let ix = 0;
+  for (let x = -R; x <= R; x += 4, ix++) {
+    let iz = 0;
+    for (let z = -R; z <= R; z += 4, iz++) {
       const h = World.heightAt?.(x, z);
-      if (typeof h === 'number' && Number.isFinite(h) && h < lo) lo = h;
+      if (typeof h === 'number' && Number.isFinite(h)) {
+        if (h < lo) lo = h;
+        // Every other sample on each axis: an 8 m lattice of places a cadet
+        // could put his boots down. See `reachFloor` below for what it is for.
+        if ((ix & 1) === 0 && (iz & 1) === 0) pads.push(x, h, z);
+      }
     }
   }
   // No world yet: answer safely and do NOT cache, so the real island is
   // measured on a later frame instead of a default being frozen in.
   if (!Number.isFinite(lo)) return 0;
   _low = lo;
+  _pads = new Float32Array(pads);
   return _low;
 }
 
 /** Below this, over open air, no cadet can ever get back. */
 export function deck() { return lowestGround() - DECK_MARGIN; }
+
+// ---------------------------------------------------------------------------
+// HOW LONG A FALL IS ALLOWED TO LAST
+//
+// The catch above is correct and it is slow, and the slowness was costing the
+// promise. `deck()` says *you can never get back from below the island's lowest
+// ground*, which is true, and which a cadet who steps off a nine-metre coast
+// with the wing open reaches after six seconds of sinking. The cold-play gate
+// allows six. It was passing at 6.0 s and 5.99 s on the two runs that hold the
+// jump button, which is to say it was passing on the coin toss, and a child who
+// falls off the edge of a shard spent six seconds in a beige void wondering
+// whether the game had ended.
+//
+// Six seconds is not a tuning problem. It is the same category of error the
+// depth test was: **measuring something that only becomes true long after the
+// thing it stands for.** Falling below the lowest ground on the island is
+// *sufficient* proof that you cannot return. It was never *necessary*. A cadet
+// forty metres out and two metres above the coast he just left cannot return
+// either, and the game can know that immediately.
+//
+// So the test is now the actual question, asked directly: **is there anywhere
+// left that this cadet could put his boots down?** The wing is the only thing
+// in this game that converts height into distance, and it does so at a fixed,
+// published rate — `glideBase` holds a steady sink against a steady airspeed
+// (src/player/locomotion.js), about seven and a half metres of run per metre of
+// drop. So a landing site at horizontal distance `d` and height `h` is reachable
+// from `y` only while `y - h` exceeds `d / RUN`. Take the best site on the
+// island and you have the floor beneath which no input can save you.
+//
+// This fires in about a second instead of six, it fires the same second every
+// time — it is a fact about geometry, not a race against a sink rate — and it
+// is *more* permissive than the old rule where being permissive matters: a
+// cadet gliding down the outside of a sixty-metre cliff, whom a "below the
+// lowest ground" rule would happily let float and a "toward the island" ray
+// would wrongly condemn, is holding three hundred metres of glide and is left
+// alone to use it.
+// ---------------------------------------------------------------------------
+
+/**
+ * Metres of run per metre of drop under the wing.
+ *
+ * The real wing does about seven and a half to one — `glideBase` holds a −0.13
+ * pitch, which is a steady sink of roughly 1.8 m/s against 14 m/s of airspeed
+ * (src/player/locomotion.js). Nine is deliberately generous: this number decides
+ * when the game overrules a player, and it should overrule him late rather than
+ * early, so it credits him with a better wing than he is flying.
+ */
+const GLIDE_RUN = 9;
+
+/**
+ * …and the height a cadet spends turning round, which the ratio above does not
+ * charge him for.
+ *
+ * A cadet over open air is, almost by definition, pointed AWAY from the island —
+ * he just walked off it. Before any of that glide ratio is any use to him he has
+ * to reverse course, and the wing turns at about 1.1–1.9 rad/s once the speed
+ * penalty is taken (`glideTurn`, damped by airspeed): call it two seconds for a
+ * half circle, at 1.8 m/s of sink, and the turn alone costs him some four metres
+ * of height before he is even pointed home — plus the width of the turn itself,
+ * which is more distance to cover.
+ *
+ * Six metres, and it is not a fudge factor. Without it the test says "reachable"
+ * about a cadet who is drifting over the gulf a metre above a line he could only
+ * hold by flying a perfect course he is not flying, which is exactly the state
+ * the cold-play gate caught at 3.0 s and 148 m out: technically still airborne,
+ * and to the child holding the jump button, lost.
+ */
+const GLIDE_MARGIN = 6;
+let _floor = { x: 1e9, z: 1e9, at: -1e9, v: -Infinity };
+
+/**
+ * The lowest altitude from which this cadet can still reach ground, from here.
+ *
+ * Recomputed on a clock and only while he is over open air, because it is a few
+ * hundred distance sums and the answer cannot change meaningfully inside a
+ * fifth of a second at any speed this game can produce.
+ */
+export function reachFloor(x, z) {
+  lowestGround();
+  if (!_pads || !_pads.length) return deck();
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (now - _floor.at < 180 && Math.hypot(x - _floor.x, z - _floor.z) < 6) return _floor.v;
+  let best = Infinity;
+  for (let i = 0; i < _pads.length; i += 3) {
+    const dx = _pads[i] - x, dz = _pads[i + 2] - z;
+    const need = _pads[i + 1] + Math.sqrt(dx * dx + dz * dz) / GLIDE_RUN;
+    if (need < best) best = need;
+  }
+  // …and whatever the cadet has BUILT, which the island's own lattice above
+  // knows nothing about. A player who has run a deck out over the gulf has
+  // manufactured ground, and being caught while his own platform is under his
+  // wing would read as the game taking the shard's side. Local, because a piece
+  // you can reach is a piece near you, and `heightAt` — unlike the sweep — sees
+  // the build lattice (src/build).
+  for (let b = 0; b < 8; b++) {
+    const a = (b / 8) * Math.PI * 2, cx = Math.cos(a), cz = Math.sin(a);
+    for (let d = 4; d <= 44; d += 8) {
+      const hh = heightAt(x + cx * d, z + cz * d);
+      if (hh === null) continue;
+      const need = hh + d / GLIDE_RUN;
+      if (need < best) best = need;
+    }
+  }
+  const v = best + GLIDE_MARGIN;
+  _floor = { x, z, at: now, v };
+  return v;
+}
 
 /**
  * Is this point outside the playable volume?
@@ -156,11 +298,44 @@ export function deck() { return lowestGround() - DECK_MARGIN; }
 export function outsideWorld(x, y, z) {
   if (y < FLOOR) return 'void';
   const h = heightAt(x, z);
-  if (h === null) return y < deck() ? 'fell' : null;
+  // Over open air. Two ways of being gone, and the cadet is gone on the first
+  // of them to be true: nothing on the island is inside the wing's reach any
+  // more (fast, and the one that fires in a real fall), or he is under the
+  // lowest ground there is (the old proof, kept as a backstop that needs no
+  // model of the wing at all).
+  if (h === null) return (y < reachFloor(x, z) || y < deck()) ? 'fell' : null;
   // A whole body-height under the surface of the column you are in is not a
   // cave — this world has none — it is the inside of the terrain.
   if (y < h - 2.2) return 'under';
   return null;
+}
+
+/**
+ * Is there anything under this cadet he could simply drop onto — within one
+ * short hop sideways, and below him?
+ *
+ * This island has no holes in it. Sampled at two metres over the whole
+ * playable square, every cell where the heightfield answers nothing is joined
+ * to the open air outside the coastline: there is no interior gap, no crevasse
+ * and no channel, so "over open air" means "off the shard" and never "between
+ * two bits of it". That is what makes the fall test above it safe to make
+ * aggressive.
+ *
+ * The one exception is ground the cadet MADE. A player who has run two decks
+ * out over the gulf and hops from one to the other is over open air with the
+ * wing shut and is not falling off anything, and `heightAt` — unlike the
+ * island's own sweep — sees the build lattice. So the exception asks it.
+ */
+export function landingNear(x, y, z, r = 10) {
+  for (let b = 0; b < 8; b++) {
+    const a = (b / 8) * Math.PI * 2, cx = Math.cos(a), cz = Math.sin(a);
+    for (let k = 1; k <= 2; k++) {
+      const d = (r * k) / 2;
+      const h = heightAt(x + cx * d, z + cz * d);
+      if (h !== null && h < y + 1.5) return true;
+    }
+  }
+  return false;
 }
 
 /** Ground height under a capsule of radius r — takes the highest nearby sample

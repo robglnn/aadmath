@@ -199,6 +199,7 @@ export default {
         glide: 'Przytrzymaj spację',
         interact: 'E',
         build: '1–4 · LPM · F',
+        sprint: 'Shift',
         dash: 'C · Lewy ctrl',
         recover: 'R',
       },
@@ -209,6 +210,7 @@ export default {
         glide: 'Y',
         interact: 'X',
         build: 'LB · RT · Krzyżak obraca',
+        sprint: 'L3 · LT',
         dash: 'B',
         recover: 'Back',
       },
@@ -219,6 +221,7 @@ export default {
         glide: 'Szybowanie',
         interact: 'Interakcja',
         build: 'Stojak · Postaw',
+        sprint: 'Wychyl drążek',
         dash: 'Zryw',
         recover: 'Wydostań się',
       },
@@ -246,11 +249,43 @@ export default {
     outBody: 'Ratunek stawia cię z powrotem na twardym gruncie skądkolwiek: zza krawędzi odłamka, ze środka wzgórza albo ze środka czegoś, co sam zbudowałeś. Nic tutaj nigdy nie wymaga przeładowania strony.',
     recover: 'Ratunek',
     restart: 'Zacznij od nowa',
-    restartAsk: 'Zacząć od nowa? Przepadnie każda zamknięta wyrwa i każdy zdobyty pyłek.',
+    restartAsk: 'Zacząć od nowa? Przepadnie każda zamknięta wyrwa i każda zdobyta drobina.',
     restartYes: 'Zacznij od nowa',
     restartNo: 'Graj dalej',
     now: 'Co robić teraz',
     nowBody: 'Wyrwa to pierścień rozdartego powietrza. Każda wyrwa trzyma zdanie matematyczne, które nie jest jeszcze prawdziwe. Wejdź w pierścień. Naciśnij {key}. Spraw, żeby zdanie stało się prawdziwe, a wyrwa zamknie się na dobre.',
+
+    /* SŁOWA — każda nazwa, którą ta gra wymyśliła, po jednej krótkiej linijce.
+       Na pierwszej klatce gry widać już SIEĆ, WYRWĘ, LINIĘ, DROBINY SZYFRU i
+       RANGĘ MIEDŹ, a żadne z tych słów jeszcze nic nie znaczyło. Tutaj jest
+       znaczenie — o jeden klawisz od każdej klatki gry.
+       UMOWA: każda linijka `wordIs` zawiera własny termin — to jest klucz,
+       który sprawdza tools/lang/rules.mjs. Po jednej linijce na termin. */
+    words: 'Słowa',
+    word: {
+      rift: 'Wyrwa',
+      line: 'Linia',
+      held: 'Utrzymana',
+      lattice: 'Sieć',
+      mote: 'Drobina szyfru',
+      rank: 'Ranga',
+      band: 'Poziom',
+      proving: 'Próba dowodowa',
+      sounding: 'Sondowanie',
+      plate: 'Płyta wyrzutni',
+    },
+    wordIs: {
+      rift: 'Wyrwa to pierścień rozdartego powietrza. Każda wyrwa trzyma jedno zdanie, które nie jest jeszcze prawdziwe.',
+      line: 'Linia to jedna idea i wszystkie wyrwy, które ją sprawdzają. Pracujesz nad jedną linią naraz.',
+      held: 'Utrzymana znaczy dowiedziona na dobre. Utrzymana linia już się nie otwiera i nic później ci jej nie odbierze.',
+      lattice: 'Sieć to wywód, który trzyma ten świat w górze. Grunt jest tam, gdzie wywód wciąż działa.',
+      mote: 'Drobiny szyfru to ślad po zamkniętej wyrwie. Huta bierze drobiny i oddaje za nie sprzęt.',
+      rank: 'Ranga to zdanie zakonu o tobie. Miedź to pierwsza ranga. Napraw świat, żeby ją podnieść.',
+      band: 'Poziom trudności mówi, jak trudne są zadania, od poziomu 1 do poziomu 5. Sprzęt dobiera twój poziom.',
+      proving: 'Próba dowodowa to przebieg, który zamyka linię. Bez pomocy, dopóki trwa, i z trudniejszymi zadaniami. Gdy pomylisz się w jednym, to zadanie wypada z próby, a pomoc wraca.',
+      sounding: 'Sondowanie schodzi w dół po linii, którą już trzymasz. Każde kolejne zadanie jest trudniejsze.',
+      plate: 'Płyta wyrzutni to element, który możesz zbudować. Stań na płycie, a wyrzuci cię prosto w górę.',
+    },
     screen: {
       progress: 'Raport postępów',
       dossier: 'Akta kadeta',
@@ -284,6 +319,9 @@ export default {
     sealed: 'Sieć zamknięta',
     shards: 'Drobiny +{n}',
     trueNow: 'Prawda. Wyrwa się zamyka.',
+    // learn-ux (dodatkowe): próba dowodowa nie daje pomocy, więc pomyłka
+    // wyjmuje pytanie z próby, zanim pomoc się pojawi.
+    provingOff: 'To pytanie już nie liczy się do próby dowodowej. Pomoc znów działa.',
     stable: 'Stabilna',
     critical: 'Krytyczna',
     close: 'Opuść wyrwę',
@@ -297,6 +335,8 @@ export default {
 
     kind: {
       check: 'Próba dowodowa · {n} z {m}',
+      // learn-ux (dodatkowe): to samo pytanie po zużyciu pierwszej próby.
+      checkOff: 'Poza próbą dowodową',
       probe: 'Z marszu',
       review: 'Powrót do niej',
       interleave: 'Z pamięci',
@@ -321,7 +361,12 @@ export default {
       over: 'Kreska ułamkowa',
       empty: 'Najpierw wpisz wartość',
       narrow: 'Zawęź pole',
-      narrowed: 'Z szumu zostają trzy odczyty.',
+      // Liczy to, co jest na ekranie. Gdy układ odrzuci jeden dystraktor,
+      // zostają dwa odczyty, a napis „trzy” liczyłby coś niewidocznego.
+      narrowed: 'Z szumu «n|one:zostaje # odczyt|few:zostają # odczyty|many:zostaje # odczytów».',
+      // Błędny odczyt kosztuje całe pole, więc trzech odczytów nie da się
+      // przejść po kolei aż do odpowiedzi.
+      spent: 'To nie ten odczyt. Pole się zamyka. Wpisz wartość, a odczyty wrócą.',
     },
 
     plot: {
@@ -487,6 +532,8 @@ export default {
       continue: 'Dalej',
       toNext: '{rank} · brakuje {n}',
       summit: 'Szczyt zakonu',
+      toNextAny: 'Następny obrzęd · {rank}',
+      nextNightAny: '{rank} · czeka na utrzymaną noc',
       // Szybszy zegar: wyrwy zamknięte na tym odłamku — to one przewracają
       // rozdział. Rusza przy każdej poprawnej odpowiedzi.
       sealed: 'Zamknięte wyrwy łącznie',
@@ -494,6 +541,8 @@ export default {
       chapterNight: '«n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy» do rozdziału {ch}',
       nextNight: '{rank} · «n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy»',
       sealsAll: 'Wszystkie rozdziały otwarte',
+      toChapterAny: 'Dalej · rozdział {ch}',
+      chapterNightAny: 'Rozdział {ch} czeka na utrzymaną noc',
       sealsAt: '«n|one:# zamknięta wyrwa łącznie|few:# zamknięte wyrwy łącznie|many:# zamkniętych wyrw łącznie»',
       plusSeal: '+1',
     },
@@ -557,7 +606,7 @@ export default {
 
     marlow: {
       name: 'Marlow',
-      role: 'Inteligencja nawigacyjna · odzyskana w 61%',
+      role: 'Inteligencja nawigacyjna · odzyskana częściowo',
     },
 
     open: {
@@ -581,7 +630,7 @@ export default {
     ch2: {
       title: 'Kadeci przed tobą',
       quest: 'Setki stały dokładnie tam, gdzie ty. Dowiedz się, gdzie się zatrzymali.',
-      b1: 'Trzy zamknięte wyrwy. Sieć cię zauważyła — a zdziwiłoby cię, ilu kadetów nie zauważa nigdy.',
+      b1: 'Sieć cię zauważyła — a zdziwiłoby cię, ilu kadetów nie zauważa nigdy.',
       b2: 'Przeczytałam ślady, które osprzęt wygrzebuje z wyrw. Kadeci stali dokładnie tam, gdzie ty. Setki.',
       b3: 'Wszyscy zdolni. Wszyscy się zatrzymali. Żaden zapis nie mówi dlaczego. Ktoś płaci za tę ciszę.',
     },
@@ -590,7 +639,7 @@ export default {
       quest: 'Nikt nigdy nie dokończył jednego kroku dowodu założycielskiego. Wejdź dość wysoko, by go dokończyć.',
       // Zobacz en.js: rozdział nazywa się „Dziewiąty lemat”, a słowo nigdzie
       // nie było wyjaśnione.
-      b1: 'Siedem zamkniętych zdań. Dość, by zażądać dowodu założycielskiego: cztery miliony kroków.',
+      b1: 'Zamkniętych zdań jest już dość, by zażądać dowodu założycielskiego: cztery miliony kroków.',
       b1b: 'Lemat to jeden krok dowodu. Ten jest szczelny na całej długości — poza krokiem dziewiątym.',
       b2: 'Krok dziewiąty nie jest dowiedziony. Jest założony. Jedno słowo na marginesie, czyjąś ręką: załóżmy.',
       b3: 'Dziewięć tysięcy światów stoi na kroku, którego nikt nie dokończył. Wyrwy to ten krok, wracający z pytaniem.',
@@ -605,7 +654,7 @@ export default {
     ch5: {
       title: 'Podpisane',
       quest: 'Dopisz zakończenie kroku dziewiątego, a pod nim nazwisko.',
-      b1: 'Dwadzieścia osiem wyrw. Gdzieś w tym rachunku sieć przestała traktować cię jak pogodę, a zaczęła jak autora.',
+      b1: 'Gdzieś po drodze sieć przestała traktować cię jak pogodę, a zaczęła jak autora.',
       b2: 'Dokończ resztę. Suweren może dopisać wiersz do dowodu, a cokolwiek ten wiersz mówi — istnieje. Dobieraj słowa.',
     },
     coda: {
@@ -625,6 +674,9 @@ export default {
       nights: '«n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy»',
       coda: 'Dowód domknie się za «n|one:# utrzymaną noc|few:# utrzymane noce|many:# utrzymanych nocy»',
       sounding: 'Sondowanie · {n}',
+      nightsAny: 'Utrzymane noce',
+      codaAny: 'Dowód domknie się po kolejnych utrzymanych nocach',
+      soundingAny: 'Najgłębsze sondowanie',
       soundingNone: 'Sonduj sieć',
       whenMin: 'za «n|one:# minutę|few:# minuty|many:# minut»',
       whenHour: 'za «n|one:# godzinę|few:# godziny|many:# godzin»',
@@ -632,10 +684,17 @@ export default {
       whenSoon: 'niebawem',
     },
 
+    /* CO ZNACZY RANGA — I NIGDY ŻADEN LICZNIK.
+       Brąz zaczynał od „Dwie linie utrzymane”. To opis rangi w ogóle, ale kadet
+       czyta to jako zdanie o sobie, a kto przeczytał to obok raportu z napisem
+       „1 Z 10 LINII UTRZYMANYCH”, nazwał to sprzecznością — i miał rację.
+       „Połowa dowodu w twojej dłoni” robiła to samo: rangę kupuje się pozycją,
+       nie liniami. Postęp podaje się w jednej jedynej formie, a ceremonia nie
+       jest jednym z tych miejsc. */
     cite: {
       copper: 'Potrafisz utrzymać zdanie w mocy. Na tym polegają całe wymagane kwalifikacje, a mało kto im sprosta.',
-      bronze: 'Dwie linie utrzymane. Sieć zaczyna prowadzić burze wokół ciebie, a nie przez ciebie.',
-      silver: 'Połowa dowodu w twojej dłoni. Srebro może otworzyć tekst założycielski i przeczytać, ile kosztował.',
+      bronze: 'Sieć zaczyna prowadzić burze wokół ciebie, a nie przez ciebie.',
+      silver: 'Srebro może otworzyć tekst założycielski i przeczytać, ile ten dowód kosztował tych, którzy go pisali.',
       gold: 'Złoto przechodzi między odłamkami bez eskorty. Niewiele tu na górze jest dla ciebie jeszcze groźne.',
       sovereign: 'Suweren może dopisać wiersz do dowodu. Cokolwiek ten wiersz mówi — istnieje.',
     },
@@ -723,12 +782,12 @@ export default {
       nearMastery: 'Sieć jest wzdłuż tej linii prawie cała. Jeszcze jedna i otworzy się ćwiartka nieba.',
       close: [
         'Jedna czysta odpowiedź dzieli cię od utrzymania linii „{skill}” na stałe. Bez wsparcia, inaczej sieć jej nie zaliczy — nie ja pisałam tę regułę, ja ją tylko złamałam.',
-        'Linia „{skill}” jest o jedną uczciwą odpowiedź od bycia twoją na zawsze. Za tymi drzwiami leży dziewięć punktów pozycji.',
+        'Linia „{skill}” jest o jedną uczciwą odpowiedź od bycia twoją na zawsze. Za tymi drzwiami leży spora pozycja.',
         'Brakuje jednej odpowiedzi bez wsparcia, żeby zamknąć linię „{skill}”. Nie spiesz się: ta linia czekała dziewięćset lat.',
       ],
       held: [
         'Linia „{skill}” utrzymana. Już się nie otworzy: ani od pogody, ani od czasu, ani ode mnie.',
-        'Linia „{skill}” zamknięta. Dziewięć punktów pozycji, a wszystkie zastrzeżenia, które osprzęt trzymał wobec ciebie, odpadły naraz.',
+        'Linia „{skill}” zamknięta. Wszystkie zastrzeżenia, które osprzęt trzymał wobec ciebie, odpadły naraz.',
         'Sieć przestała się spierać o linię „{skill}”. To kawałek nieba, który zostaje na górze niezależnie od tego, co zrobimy dalej.',
       ],
       lineHeld: [
@@ -961,7 +1020,7 @@ export default {
         working: [
           'Jedna czysta odpowiedź i linia „{skill}” jest twoja na zawsze. Tylko bez wsparcia — sieć nie uznaje pomocy za dowód.',
           'Linia „{skill}” jest o jedną uczciwą odpowiedź od zamknięcia. Znasz kształt tej jednej. Idź i ją weź.',
-          'Między tobą a linią „{skill}” stoi jedna odpowiedź bez wsparcia. Za nią leży dziewięć punktów pozycji i żaden nie jest darmowy.',
+          'Między tobą a linią „{skill}” stoi jedna odpowiedź bez wsparcia. Za nią leży pozycja i nic z niej nie jest darmowe.',
         ],
         veteran: [
           'Linia „{skill}” jest o jedną odpowiedź od zamknięcia. To byłaby kolejna linia, której odłamek już nie odzyska.',
@@ -977,7 +1036,7 @@ export default {
       held: {
         working: [
           'Linia „{skill}” utrzymana. Ta linia już się nie otworzy: ani od pogody, ani od czasu, ani ode mnie.',
-          'Linia „{skill}” zamknięta. Dziewięć punktów pozycji i o jedną rzecz mniej na tym odłamku, która może cię zaskoczyć.',
+          'Linia „{skill}” zamknięta. O jedną rzecz mniej na tym odłamku, która może cię zaskoczyć.',
           'Sieć przestała się spierać o linię „{skill}”. Cokolwiek się dziś jeszcze wydarzy, ten kawałek nieba zostaje na górze.',
         ],
         veteran: [
@@ -1053,10 +1112,10 @@ export default {
       },
       // Utrzymane noce (src/meta/days.js): poranki, w których to, co wiedziałeś, nadal było wiadome.
       night: {
-        n3: 'Trzy utrzymane noce. Na ten numer patrzą starzy wyjadacze. Błysnąć raz potrafi każdy.',
-        n7: 'Siedem utrzymanych nocy. Tydzień wiedzy zaraz po przebudzeniu. Odłamek zaczął cię wliczać w plany.',
+        n3: 'Znowu utrzymane przez noc. Na to patrzą starzy wyjadacze. Błysnąć raz potrafi każdy.',
+        n7: 'Tydzień wiedzy zaraz po przebudzeniu. Odłamek zaczął cię wliczać w plany.',
         n14: 'Czternaście utrzymanych nocy. Przestałam dopisywać „tymczasowo” obok twojego nazwiska.',
-        n30: 'Trzydzieści utrzymanych nocy. Trzydzieści osobnych poranków, w których niebo stało dzięki temu, co wiesz. To już jest kariera.',
+        n30: 'Miesiąc osobnych poranków, w których niebo stało dzięki temu, co wiesz. To już jest kariera.',
         on: '«n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy». Nadal tu jesteś i nadal to wiesz. Skończyły mi się sposoby na zdziwienie i nie zostawiłam sobie ani jednej wątpliwości.',
       },
     },
@@ -1074,12 +1133,20 @@ export default {
   session: {
     band: {
       run: 'Przebieg {n}',
-      of: 'z «n|one:# wyrwy|few:# wyrw|many:# wyrw»',
+      /* ZAKRES JEST CZĘŚCIĄ NAZWY — zob. src/meta/progress.js.
+         Ten wiersz mówił „z 20 wyrw” tuż nad kartą rozdziału, która mówiła
+         „11 zamkniętych wyrw łącznie”, i kto czytał obie, widział jedną liczbę
+         przeczącą samej sobie. Teraz każdy licznik w grze niesie własny zakres
+         — „w tym przebiegu” albo „łącznie” — w słowach, które gracz czyta. */
+      of: 'z «n|one:# wyrwy|few:# wyrw|many:# wyrw» w tym przebiegu',
       near: 'Ostatnia prosta',
       done: 'Przebieg ukończony',
-      readout: '{goal}. Zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw» z {target}.',
-      worked: '«n|one:# przerobione pytanie|few:# przerobione pytania|many:# przerobionych pytań»',
-      readoutWorked: '{goal}. Zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw» z {target}, z {items} przerobionych.',
+      readout: '{goal}. W tym przebiegu zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw» z {target}.',
+      worked: '«n|one:# pytanie|few:# pytania|many:# pytań» w tym przebiegu',
+      readoutWorked: '{goal}. W tym przebiegu zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw» z {target}, z {items} pytań.',
+      raised: 'Cel podniesiony: {from} → {to} wyrw w tym przebiegu. Poprosiłeś o jeszcze jedną linię, i tyle ona kosztuje.',
+      readoutPlain: 'Ten przebieg. {goal}.',
+      readoutState: 'Ten przebieg. {goal}. {state}.',
     },
     goal: {
       hold: 'Utrzymać: {skill}',
@@ -1105,10 +1172,12 @@ export default {
       goalHoldN: 'Zamknij dziś {tears} wyrw. Utrzymasz wtedy «n|one:# linię|few:# linie|many:# linii» na dobre. Utrzymana linia już się nie otwiera.',
       goalPush: 'Zamknij {tears} wyrw na linii „{skill}”. Odepchnąć linię znaczy odzyskać teren na tej, która się wymknęła.',
       goalAny: 'Zamknij {tears} wyrw na tym odłamku. Potem zobaczymy, co zrobi sieć.',
-      willHold: 'powinna się utrzymać',
-      willPush: 'zdobyty teren',
+      // Powiedziane słowami, które czytelnik już ma, zamiast dwóch nowych terminów.
+      willHold: 'dziś powinna się utrzymać',
+      willPush: 'odzyskać teren',
       eta: '«n|one:Jakaś # minuta|few:Jakieś # minuty|many:Jakieś # minut» w twoim tempie. Żaden zegar tu nie chodzi.',
       etaSeed: '«n|one:Jakaś # minuta|few:Jakieś # minuty|many:Jakieś # minut» — mój szacunek, jeszcze nie twój. Żaden zegar tu nie chodzi.',
+      work: 'To jakieś {low} do {high} pytań. Nie wszystkie wyjdą dobrze, a właśnie w tych, które nie wyjdą, jest nauka.',
       begin: 'Zaczynamy przebieg',
       kickBack: 'Przebieg {n} · powrót',
       backHeld: 'Ostatnim razem zamknąłeś «n|one:# wyrwę|few:# wyrwy|many:# wyrw». Linia „{skill}” trzyma od tamtej pory.',
@@ -1120,7 +1189,11 @@ export default {
       titleHeld: 'Linia trzyma',
       titleMet: 'Odłamek ucichł',
       titleEnough: 'Na dziś wystarczy',
-      tears: '«n|one:zamknięta wyrwa|few:zamknięte wyrwy|many:zamkniętych wyrw»',
+      tears: '«n|one:zamknięta wyrwa|few:zamknięte wyrwy|many:zamkniętych wyrw» w tym przebiegu',
+      linesHeld: '{n} z {total} linii utrzymanych',
+      linesHeldNote: 'To jest ta liczba. Utrzymana linia to taka, za którą ten silnik ręczy, i która już nie wraca.',
+      linesHeldNone: 'Żadna linia jeszcze nie trzyma. Linia kosztuje więcej niż jeden przebieg, a nic z dzisiaj nie przepadło.',
+      linesHeldAll: 'Wszystkie linie tego odłamka są utrzymane. Dowód jest domknięty.',
       heldLab: 'Utrzymane',
       groundLab: 'Zdobyty teren',
       heldNote: 'Dowiedzione bez wsparcia, na najwyższym paśmie trudności i bez żadnego przykładu. Linia jest już twoja.',
@@ -1151,10 +1224,16 @@ export default {
       signHeld: 'Ta linia nie gnije i nie resetuje się. Wszystko, co jest nad nią, masz już w zasięgu.',
       rest: 'Odmelduj się',
       more: 'Jeszcze jedna linia',
-      aria: 'Przebieg domknięty. Zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw».',
-      workedLab: '«n|one:przerobione pytanie|few:przerobione pytania|many:przerobionych pytań»',
+      aria: 'Przebieg domknięty. W tym przebiegu zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw».',
+      repairedN: '{n}%',
+      repairedLab: 'świata naprawione',
+      repairedGain: '+{n}% w tym przebiegu',
+      repairedFlat: 'Grunt, który dziś zdobyłeś, leży pod następną linią.',
+      ariaRepaired: 'Przebieg domknięty. Świat naprawiony w {n} procentach.',
+      ariaWorked: 'Przebieg domknięty. W tym przebiegu «n|one:# przerobione pytanie|few:# przerobione pytania|many:# przerobionych pytań».',
+      workedLab: '«n|one:pytanie|few:pytania|many:pytań» w tym przebiegu',
       workedSub: 'Żadne nie zamknęło wyrwy. Odłamek nie liczy prób i ja też nie. Ale ta praca coś kupiła, a poniżej stoi co.',
-      ofWorked: 'z «n|one:# przerobionego pytania|few:# przerobionych pytań|many:# przerobionych pytań»',
+      ofWorked: 'z «n|one:# pytania|few:# pytań|many:# pytań» w tym przebiegu',
       echoStrong: '«n|one:# rozwiązany przykład|few:# rozwiązane przykłady|many:# rozwiązanych przykładów»',
       echoNote: 'Płaci się za nie pomyłką. Każdy otwierał się dokładnie na tym kroku, na którym twoja odpowiedź skręciła, a nie na początku strony.',
       bandStrong: 'Bank przestrojony',
@@ -1206,6 +1285,12 @@ export default {
       near: 'Ostatnia prosta. Cokolwiek się teraz stanie, ten przebieg jest już prawie twój.',
       resume: 'Podejmuję dokładnie w tym miejscu, w którym przerwaliśmy. Nic się nie osunęło pod twoją nieobecność; nigdy się nie osuwa.',
       extend: 'To lecimy dalej. Ten sam przebieg, ten sam rachunek — licznik nie startuje od nowa dlatego, że chcesz więcej.',
+      raised: 'Ten sam przebieg, ten sam rachunek. Cel to teraz {to} wyrw zamiast {from} — tyle kosztuje jedna linia więcej, i wolę to powiedzieć, niż dać ci to odkryć samemu.',
+      // Zacząłeś, zanim skończyłem odczytywać rozkazy — i to jest właściwa
+      // kolejność. Cel podaję w jednym zdaniu, a nie na karcie, bo karta
+      // musiałaby cię zatrzymać, żebyś ją przeczytał. (src/session/index.js)
+      underway: 'Już pracujesz, więc nie będę cię zatrzymywał, żeby odczytać rozkazy. Ten przebieg to {tears} wyrw. Pasek u góry prowadzi rachunek.',
+      longer: 'Ten przebieg idzie dłużej, niż podałem — już ponad {n} pytań. Cel się nie zmienił i nic nie przepadło. Bywają linie, które kosztują więcej, niż zakładała projekcja, i wolę to powiedzieć, niż pozwolić, żeby liczba po cichu przestała być prawdziwa.',
     },
   },
   // ---------------------------------------------------------------------
@@ -1228,12 +1313,17 @@ export default {
       ofN: 'z {n}',
       mastered: 'Utrzymane linie',
       masteredNote: 'Udowodnione, a nie tylko próbowane.',
+      repairedNote: 'Ta jedna liczba. Każda linia liczy to, w co silnik wierzy o niej teraz, i rusza się przy każdym zamknięciu.',
       time: 'Czas pracy',
       timeNote: 'Mierzony między odpowiedziami i ograniczony z góry, żeby bezczynność nigdy nie liczyła się jako praca. To nie jest zegar sesji i z założenia pokazuje mniej niż on.',
       session: 'Ta sesja',
       sessionNote: 'Ile czasu tu siedzisz: czas rzeczywisty od startu, razem z chodzeniem i czytaniem. Sesja trwa 15–25 minut i kończy się czysto.',
-      items: 'Odpowiedzi',
-      itemsNote: 'Każde zadanie wygenerowane od nowa i rozwiązane maszynowo, zanim je zobaczysz.',
+      // SUMA Z CAŁEJ HISTORII, I TAK JEST PODPISANA. Pod samym słowem
+      // „Odpowiedzi” ta płytka pokazywała 9, a pasek obok — dziesięć pytań w tym
+      // przebiegu: dwie różne liczby, nic ich nie rozróżniało. Ta sama zasada co
+      // na pasku: zakres jest częścią nazwy.
+      items: 'Odpowiedzi łącznie',
+      itemsNote: 'Wszystkie pytania, jakie widział ten zapis, ze wszystkich przebiegów. Każde wygenerowane od nowa i rozwiązane maszynowo, zanim je zobaczysz.',
       accuracy: 'Rozwiązane bez pomocy',
       accuracyNote: 'Poprawnie za pierwszym razem, bez wskazówki i bez rozwiązanego przykładu, w stosunku do wszystkich zadań.',
       hollow: 'Cofnięte potwierdzenia',
@@ -1258,6 +1348,8 @@ export default {
       },
     },
 
+    pctTerm: 'Procent',
+    pctIs: 'Twój najsłabszy odczyt na tej linii, a nie średnia: rodzaj zadania, który idzie ci najgorzej, albo twój wynik na najtrudniejszym poziomie — to, co niższe. Otwórz linię, żeby zobaczyć który.',
     flag: { under: 'Grunt znów otwarty' },
     flagNote: { under: 'Ta linia nadal jest twoja. Linia pod nią nie przeszła sprawdzenia na zimno i wróciła do ćwiczeń, więc sprzęt na nowo dowodzi gruntu, zanim wyśle cię tu z powrotem.' },
 
@@ -1266,6 +1358,14 @@ export default {
       fast: 'Krótsza droga',
       long: 'Dłuższa droga',
     },
+    // Forma krótka, na stronie: `roadNote` i `flagNote` siedzą w atrybutach
+    // `title`, których na telefonie po prostu nie ma. To jest to samo w linijce.
+    roadIs: {
+      sight: 'Rozwiązałeś pierwsze zadanie na zimno, i ta jedna odpowiedź dowiodła całej linii.',
+      fast: 'Jedno czyste rozwiązanie bez pomocy, na poziomie progu, otworzyło próbę dowodową.',
+      long: 'Trzy czyste rozwiązania bez pomocy, jedno po drugim, otworzyły próbę dowodową.',
+    },
+    flagIs: { under: 'Linia nadal jest twoja. Sprzęt dowodzi od nowa linii leżącej pod nią.' },
     roadNote: {
       sight: 'Otwarta na zimno: pierwsze zadanie tej linii zostało rozwiązane na najwyższym poziomie banku, bez niczego uczonego wcześniej, i policzyło się jako pierwsze zadanie próby. Otwórz linię, żeby zobaczyć, ile kosztowała sama próba.',
       fast: 'Jedno czyste rozwiązanie bez pomocy, na progowym paśmie, otworzyło próbę dowodową. Mniej zadań niż dłuższą drogą, i każde trudniejsze.',
@@ -1288,6 +1388,11 @@ export default {
       doneWhy: 'Poziom 1 ukończony. Zostaje utrzymać to, co zdobyte.',
     },
 
+    /* Podpowiedź na wierszu linii: w jakim stanie jest linia i dlaczego procent
+       obok pokazuje to, co pokazuje. Składana tutaj, a nie w kodzie, aby każdy
+       język mógł ustawić oba zdania po swojemu. */
+    rowTitle: '{state} {why}',
+
     state: {
       locked: 'Zablokowana',
       open: 'Otwarta',
@@ -1299,12 +1404,12 @@ export default {
     },
     stateNote: {
       locked: 'Ta linia potrzebuje najpierw innej linii, a tamtej jeszcze nie trzymasz.',
-      open: 'Odblokowana i nietknięta.',
+      open: 'Ta linia jest dla ciebie otwarta. Nie odpowiedziałeś jeszcze na żadne zadanie na niej.',
       practising: 'Ćwiczenia w toku. Wsparcie znika w miarę, jak model się utwierdza.',
       proving: 'Próba trwa: bez pomocy, bez wsparcia, w formach ćwiczonych najrzadziej.',
       mastered: 'Udowodniona i wytrzymuje sprawdzenia na zimno.',
       provisional: 'Jedno sprawdzenie nietrafione. Kolejne nietrafione cofa potwierdzenie.',
-      withdrawn: 'Raz zamknięta, potem przepadła przy sprawdzeniu. Ćwiczenia znów otwarte.',
+      withdrawn: 'Raz zamknięta, potem sprzęt cofnął potwierdzenie: albo nie zdałeś sprawdzenia na zimno, albo przestałeś trafiać jeden rodzaj zadania. Ćwiczenia znów otwarte. Otwórz linię, żeby zobaczyć co.',
     },
 
     evidence: {
@@ -1342,6 +1447,18 @@ export default {
       sinceNone: 'Od przyznania potwierdzenia nie padło na tej linii żadne zadanie.',
       restsUnknown: 'Ta wersja nie zapisała, na których zadaniach opiera się potwierdzenie. Na tej linii rozwiązano {of} zadań.',
       grantedOn: 'Przyznane {date}.',
+      forms: 'Każdy rodzaj zadania',
+      formsNote: 'Opanujesz linię dopiero wtedy, gdy rozwiążesz bez pomocy — choć raz — każdy rodzaj zadania, który ci podaje. Rodzaj zaczyna się liczyć, gdy rig poda ci go {n} razy.',
+      formsNone: 'jeszcze żadnego',
+      formsThin: 'Żaden rodzaj zadania nie pojawił się jeszcze {need} razy, więc sprzęt na razie cię z żadnego nie rozlicza. Najsłabszy jak dotąd to {rep}: {n} dobrze bez pomocy, z {of} podanych.',
+      formsOk: 'Twój najsłabszy rodzaj to tutaj {rep}: {n} dobrze bez pomocy, z {of} podanych.',
+      formsHole: 'Nieopanowana. W rodzaju {rep} masz {n} dobrze bez pomocy, z {of} podanych. Linia zostaje otwarta, dopóki nie zrobisz tego rodzaju dobrze raz, sam. Średnia nie zastąpi zadania, którego nigdy nie zrobiłeś dobrze.',
+      floorWhy: {
+        pL: 'Ta liczba to pewność modelu, czyli najniższa z mierzonych tu wartości.',
+        form: 'Ta liczba to twój najsłabszy rodzaj zadania, a nie średnia. Średnia jest wyższa.',
+        gate: 'Ta liczba to twój wynik na najtrudniejszym poziomie, a nie średnia. Średnia jest wyższa.',
+        plan: 'Ta liczba to szansa tego biegu na domknięcie linii — niższa niż pewność modelu.',
+      },
     },
 
     fact: {
@@ -1351,8 +1468,11 @@ export default {
       accuracy: 'Rozwiązane bez pomocy',
       accuracyOf: '{all} — {n} z {of}',
       accuracySplit: '{all} — {n} z {of}. Przed potwierdzeniem {before}, po nim {since}',
-      band: 'Pasmo trudności',
+      band: 'Poziom trudności',
       bandVal: 'Poziom {n} z 5',
+      // Jednostka, przy samej liczbie. „Poziom 3 z 5” był cyfrą bez znaczenia
+      // na sześciu powierzchniach, dopóki tej linijki nie było.
+      bandIs: 'Poziom trudności mówi, jak trudne są zadania, od poziomu 1 do poziomu 5.',
       reps: 'Udowodniona w',
       forms: 'Poznane typy zadań',
       formsVal: '«n|one:# typ|few:# typy|many:# typów»',
@@ -1674,7 +1794,7 @@ export default {
     vault: {
       name: 'Płyta wyrzutni',
       short: 'Płyta',
-      what: 'Piąty element siatki. Stań na niej, a wyrzuci cię dwanaście metrów w górę.',
+      what: 'Piąty element sieci. Stań na niej, a wyrzuci cię dwanaście metrów w górę.',
       gist: 'wyrzuca cię dwanaście metrów w górę',
     },
     flare: {
@@ -1692,7 +1812,7 @@ export default {
     reserve: {
       name: 'Głęboka rezerwa',
       short: 'Rezerwa',
-      what: 'Zapas siatki więcej niż się podwaja i uzupełnia się o połowę szybciej.',
+      what: 'Zapas sieci więcej niż się podwaja i uzupełnia się o połowę szybciej.',
       gist: 'dwa razy większy zapas, który szybciej się uzupełnia',
     },
     legs: {
@@ -1740,7 +1860,7 @@ export default {
     deepwell: {
       name: 'Głęboka studnia',
       short: 'Studnia',
-      what: 'Zapas siatki sięga trzystu i uzupełnia się dwa razy szybciej. Most nad wąwozem za jednym podejściem.',
+      what: 'Zapas sieci sięga trzystu i uzupełnia się dwa razy szybciej. Most nad wąwozem za jednym podejściem.',
       gist: 'zapas trzystu, uzupełniany dwa razy szybciej',
     },
     station: {
@@ -1798,7 +1918,8 @@ export default {
     },
 
     pay: {
-      lines: 'Utrzymaj ją, a «n|one:otworzy się jeszcze # linia sieci|few:otworzą się jeszcze # linie sieci|many:otworzy się jeszcze # linii sieci».',
+      lines: 'Linia to jedna idea. Utrzymaj tę, a «n|one:otworzy się jeszcze # linia|few:otworzą się jeszcze # linie|many:otworzy się jeszcze # linii».',
+      linesAny: 'Linia to jedna idea. Utrzymaj tę, a otworzy się więcej sieci.',
       /* „Utrzymaj ją, a Lotny trym będzie twój” nazywał nagrodę, którą gra
          tłumaczy dopiero na karcie PO jej zdobyciu. `{gist}` to krótka postać
          `kit.<id>.what`, przekazywana przez src/meta/objective.js: nazwa i to,
@@ -1810,14 +1931,17 @@ export default {
       sound: 'Tę linię już trzymasz. Sondowanie schodzi nią w dół, po jednym trudniejszym zadaniu.',
     },
 
-    /* Wiersz pod znacznikami i słowo *utrzymana*. Wcześniej ten wiersz witał
-       nową grę definicją słowa, którego nie było nigdzie indziej na karcie —
-       zasadą o niczym. Teraz słowo pojawia się wtedy, gdy wreszcie coś znaczy:
-       przy pierwszej utrzymanej linii. Pusta karta mówi, czym są znaczniki.
-       (Wybiera src/meta/guide.js.) */
-    tally: '{held} utrzymane · {open} otwarte · {locked} zamknięte',
-    tallyNew: 'Jeden znacznik na każdą wyrwę tej linii',
-    tallyFirst: '{held} utrzymana — udowodniona na dobre',
+    /* JEDNA LICZBA POSTĘPU, W JEDNYM MIEJSCU, POD JEDNĄ NAZWĄ.
+       Ten wiersz miał wcześniej trzy różne zdania i przez całą pierwszą sesję
+       mówił „jeden znacznik na każdą wyrwę tej linii” — nad dziesięcioma
+       znacznikami, które nie są ani wyrwami, ani jedną linią. To są dziesięć
+       linii całej sieci. Teraz wiersz mówi jedno, zawsze, tymi samymi słowami
+       co raport i karta zamknięcia. (Zob. src/meta/progress.js.) */
+    linesHeld: '{n} z {total} linii utrzymanych',
+    /* …a pod liczbą: czym są te znaczniki, dopóki liczba stoi na zerze.
+       Termin przychodzi razem ze znaczeniem, a wiersz postępu nigdy nie jest
+       pusty. */
+    linesHeldNew: 'Utrzymana znaczy udowodniona na dobre. Utrzymana linia już się nie otwiera.',
 
     prompt: {
       open: 'Otwórz wyrwę',
@@ -1934,13 +2058,16 @@ export default {
     toTear: 'Następna linia · {skill}: {n} m',
     toMark: 'Znak pomiarowy · {name}: {n} m',
     stay: 'Ta linia nadal daje najwięcej. Wróć na płytę, kiedy zechcesz.',
-    rhythm: 'Wyrwa daje trzy pytania, a potem cichnie. Wykorzystaj przerwę — zawsze jest tam coś wartego drogi.',
+    rhythm: 'Wyrwa daje garść pytań, a potem cichnie. Wykorzystaj przerwę — zawsze jest tam coś wartego drogi.',
   },
   // --- warstwa afordancji (src/world/afford.js): co oferuje wyrwa, który
   // klawisz to robi i w którą stronę jest następna -------------------------
   afford: {
     open: 'Otwórz wyrwę',
     walkIn: 'Wejdź w nią',
+    // W trakcie wizyty: jedno zadanie jest zamknięte, a następne czeka, aż
+    // o nie poprosisz, zamiast pojawiać się samo. (src/session/stint.js)
+    again: 'Następna linia — ta sama wyrwa',
     sound: 'Zbadaj linię — trudniejsze pytania, ta sama linia',
     shut: 'Zapieczętowana',
     needs: 'Najpierw opanuj: {skill}',

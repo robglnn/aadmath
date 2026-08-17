@@ -33,7 +33,8 @@
       ],
       "evidence": [
         "vm-choose",
-        "vm-context"
+        "vm-context",
+        "vm-share"
       ]
     },
     {
@@ -105,7 +106,9 @@
       "evidence": [
         "vm-context",
         "vm-position",
-        "vm-table"
+        "vm-table",
+        "vm-partWhole",
+        "vm-share"
       ]
     },
     {

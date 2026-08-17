@@ -171,6 +171,12 @@ export function createFX(engine, world, opts = {}) {
     focusTarget: 0,
     impact: 0,
     impactBad: 0,
+    // the seal: elapsed seconds since the statement held, and how big it was
+    sealT: -1,
+    sealBig: 0,
+    sealAmp: 0,
+    seal: 0,
+    focusEff: 0,
     w: Math.max(2, size.x),
     h: Math.max(2, size.y),
   };
@@ -266,7 +272,49 @@ export function createFX(engine, world, opts = {}) {
     const k = reduced ? 1 : Math.min(1, dt * (state.dialogue ? 4.5 : 16));
     state.focus += (state.focusTarget - state.focus) * k;
     if (!state.dialogue && state.focus < 0.02) state.focus = 0;
-    gu.uFocusBlend.value = state.focus;
+
+    // --- the seal ----------------------------------------------------------
+    // THE moment of this product. A learner answered a hard question and the
+    // statement held; the card says so in words and the sky says so in light.
+    //
+    // The envelope is shaped against the SOUND, note for note. `Stings.seal()`
+    // spends 200 ms drawing breath and lands its chord at +0.20 s — so this
+    // rises over exactly those 200 ms and peaks on the same downbeat, holds
+    // while the harp roll climbs, then leaves over the chord's own release.
+    // Two systems arriving on the same frame is the entire difference between
+    // "a sound played and a thing flashed" and "one event".
+    if (state.sealT >= 0) {
+      state.sealT += dt;
+      const T = state.sealT;
+      const decay = state.sealBig ? 2.9 : 1.55;
+      let e;
+      if (T < 0.20) { const a = T / 0.20; e = a * a * (3 - 2 * a); }   // the inhale
+      else if (T < 0.20 + 0.26) e = 1;                                  // the landing
+      else {
+        const d = (T - 0.46) / decay;
+        e = d >= 1 ? 0 : (1 - d) * (1 - d);                             // the room finishing it
+      }
+      state.seal = e * state.sealAmp;
+      if (T > 0.46 + decay) { state.sealT = -1; state.seal = 0; }
+    }
+    const seal = state.seal;
+    gu.uSeal.value = seal;
+    // While the light is up the bloom pyramid is allowed to run hot, so every
+    // rift column, every crystal and every water glint on the island blooms at
+    // once. This costs nothing: it is one multiply on a pass that was already
+    // running at the same resolution.
+    gu.uBloom.value = tier.bloomStrength * (1 + seal * (state.sealBig ? 0.85 : 0.45));
+    // And the near field lights up — the air itself catches it.
+    atmosphere.setAmount(1 + seal * (state.sealBig ? 1.7 : 0.85));
+
+    // The world steps back while a rift is talking. On the seal it steps
+    // FORWARD again, under the card, for a second and a half: colour returns,
+    // the exposure comes back up, the shafts come back through the conversation.
+    // The learner is looking at their own equation and the island behind it is
+    // visibly reacting to it.
+    const focusEff = state.focus * (1 - seal * 0.78);
+    state.focusEff = focusEff;
+    gu.uFocusBlend.value = focusEff;
 
     // --- the answer beat ---------------------------------------------------
     if (state.impact > 0) {
@@ -301,15 +349,15 @@ export function createFX(engine, world, opts = {}) {
     shafts.setCamera(camera);
     shafts.setSun(sunDir);
     if (world && world.sun) shafts.setLight(world.sun);
-    const volFade = 1 - state.focus * 0.62;
-    gu.uShaftStrength.value = tier.volumeStrength * volFade;
+    const volFade = 1 - state.focusEff * 0.62;
+    gu.uShaftStrength.value = tier.volumeStrength * volFade * (1 + state.seal * 0.55);
     shafts.enabled = shafts.ready && shafts.allowed !== false;
 
     const discFade = smoothstep(-0.02, 0.22, facing) * (1 - smoothstep(0.72, 1.05, off));
     sun.enabled = discFade > 0.004 && sun.allowed !== false;
-    sun.setIntensity(discFade * (1 - state.focus * 0.6));
+    sun.setIntensity(discFade * (1 - state.focusEff * 0.6) * (1 + state.seal * 0.5));
     sun.setSun(ndc.x, ndc.y);
-    gu.uSunVis.value = discFade * (1 - state.focus * 0.8);
+    gu.uSunVis.value = discFade * (1 - state.focusEff * 0.8) * (1 + state.seal * 0.6);
 
   }
 
@@ -367,6 +415,32 @@ export function createFX(engine, world, opts = {}) {
       state.impact = reduced ? 0.45 : 1.0;
       gu.uImpactBad.value = state.impactBad;
       gu.uImpact.value = state.impact * state.impact;
+    },
+
+    /**
+     * A statement held. The world takes the light.
+     *
+     * This is deliberately NOT the same event as `impact('good')` above, and
+     * running both is the point. The impact is a lens kick: 450 ms, a ring out
+     * of the centre, over before you have read the sentence. The seal is the
+     * two seconds underneath it — the sky brightening, the gold arriving in the
+     * highlights, the vignette opening, the shafts coming back through the
+     * conversation. One is a hit; this is the consequence.
+     *
+     * @param {object} o
+     *   mastery 0..1 — how much of this skill now stands. A first correct
+     *           answer on a shaky line gets a real beat but not the big one.
+     *   big     true when this answer closed the skill outright.
+     */
+    seal(o = {}) {
+      const big = !!o.big;
+      const m = Math.max(0, Math.min(1, o.mastery ?? 0.5));
+      state.sealBig = big ? 1 : 0;
+      // Escalation, so the four hundredth seal is not the first one again: an
+      // ordinary correct answer is a glow, an answer that all but finishes a
+      // line is most of the way there, and mastery is the whole sky.
+      state.sealAmp = (big ? 1 : 0.42 + m * 0.34) * (reduced ? 0.45 : 1);
+      state.sealT = 0;
     },
 
     setTier(name) {

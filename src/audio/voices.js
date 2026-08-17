@@ -199,6 +199,102 @@ export function shimmer(A, t0, opts = {}) {
 }
 
 /**
+ * A VOICE. Three singers on one note, through the formants of an open vowel.
+ *
+ * This is the one instrument in the game that is not an object. Everything else
+ * in this file is a thing being struck, blown or plucked; nothing until now was
+ * a person. That is why it is here, and it is spent on exactly one event — a
+ * statement that held — because a choir that turns up for a footstep is not a
+ * choir, it is a preset.
+ *
+ * How it works, and why it is not just a pad with a filter on it:
+ *
+ *   THE SINGERS  three sawtooths, detuned by a few cents *and* started with
+ *                independent phase, because what the ear identifies as "more
+ *                than one person" is the beating between voices that are almost
+ *                but never exactly together.
+ *   THE VOWEL    three bandpass filters in parallel at the first three formants
+ *                of a sung "ah" — about 700, 1150 and 2600 Hz. Formants are
+ *                fixed in *absolute* frequency, not relative to the note: that
+ *                is the whole difference between a choir and a chipmunk, and it
+ *                is why singing the same vowel higher does not raise the vowel.
+ *   THE VIBRATO  arrives late and shallow. A singer does not vibrate on the
+ *                attack; they place the note first and the vibrato grows into
+ *                it. Starting it at full depth is the most recognisable tell of
+ *                a synthesised voice there is.
+ *   THE BREATH   a whisper of noise through the same formants, under everything,
+ *                so the tone has a body producing it.
+ *
+ * @param {number} dur seconds the voice holds before it releases
+ */
+export function choir(A, note, t0, dur, opts = {}) {
+  const ctx = A.ctx;
+  const f = mtof(note);
+  const src = gain(ctx, 0.34);
+  const parts = [];
+
+  for (const cents of [-7.5, 0.5, 8.5]) {
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = f;
+    o.detune.value = cents + (opts.detune || 0);
+    o.connect(src);
+    parts.push(o);
+  }
+
+  // Vibrato, growing in. One oscillator drives all three singers, which is
+  // correct: a section breathes together even when it does not tune together.
+  const vib = ctx.createOscillator();
+  vib.type = 'sine';
+  vib.frequency.value = rnd(4.4, 5.4);
+  const vibDepth = gain(ctx, 0);
+  vib.connect(vibDepth);
+  for (const o of parts) vibDepth.connect(o.detune);
+  parts.push(vib);
+  const atk = opts.attack ?? 0.42;
+  vibDepth.gain.setValueAtTime(0, t0);
+  vibDepth.gain.linearRampToValueAtTime(opts.vibrato ?? 8, t0 + atk + 0.7);
+
+  // Breath. Cheap, quiet, and the difference between a voice and an oscillator.
+  const br = noiseSource(ctx, 'pink', 1, t0);
+  const brG = gain(ctx, 0.055);
+  br.connect(brG); brG.connect(src);
+
+  const g = gain(ctx, 0);
+  const p = panner(ctx, opts.pan ?? rnd(-0.5, 0.5));
+  // "ah" — open, forward, the vowel a held note is sung on.
+  const FORMANTS = [[700, 1.9, 1.0], [1150, 3.4, 0.62], [2620, 5.5, 0.22]];
+  const chain = [];
+  for (const [hz, Q, lv] of FORMANTS) {
+    const bp = filter(ctx, 'bandpass', hz * (opts.vowel ?? 1), Q);
+    const lg = gain(ctx, lv);
+    src.connect(bp); bp.connect(lg); lg.connect(g);
+    chain.push(bp, lg);
+  }
+  // A little of the raw tone under the formants, so low notes keep a body —
+  // three bandpasses on their own throw the fundamental away.
+  const body = filter(ctx, 'lowpass', Math.max(220, f * 1.6), 0.7);
+  const bodyG = gain(ctx, 0.30);
+  src.connect(body); body.connect(bodyG); bodyG.connect(g);
+
+  g.connect(p); p.connect(opts.bus || A.music);
+  const sendHall = A.send(p, 'hall', opts.air ?? 0.85);
+
+  const rel = opts.release ?? 2.2;
+  swell(g.gain, t0, opts.level ?? 0.10, atk, Math.max(0.1, dur - atk), rel);
+
+  const end = t0 + dur + rel + 0.15;
+  for (const o of parts) { o.start(t0); o.stop(end); }
+  br.stop(end);
+  parts[0].onended = () => {
+    for (const n of [src, vibDepth, brG, body, bodyG, g, p, sendHall, ...chain]) {
+      try { n && n.disconnect(); } catch { /* gone */ }
+    }
+  };
+  return end;
+}
+
+/**
  * A body: the low thump under an impact. No pitch to speak of, just a fast
  * downward sine sweep, which is what every kick drum and every boot on packed
  * earth actually is.

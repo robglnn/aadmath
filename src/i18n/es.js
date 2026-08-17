@@ -198,6 +198,7 @@ export default {
         glide: 'Mantén espacio',
         interact: 'E',
         build: '1–4 · Clic · F',
+        sprint: 'Mayús',
         dash: 'C · Ctrl izq.',
         recover: 'R',
       },
@@ -208,6 +209,7 @@ export default {
         glide: 'Y',
         interact: 'X',
         build: 'LB · RT · Cruceta gira',
+        sprint: 'L3 · LT',
         dash: 'B',
         recover: 'Back',
       },
@@ -218,6 +220,7 @@ export default {
         glide: 'Planear',
         interact: 'Interactuar',
         build: 'Soporte · Colocar',
+        sprint: 'Empuja el stick',
         dash: 'Impulso',
         recover: 'Recuperar',
       },
@@ -250,6 +253,38 @@ export default {
     restartNo: 'Seguir jugando',
     now: 'Qué hacer ahora',
     nowBody: 'Una grieta es un anillo de aire desgarrado. Cada grieta sostiene un enunciado de matemáticas que todavía no es verdadero. Métete en el anillo. Pulsa {key}. Haz verdadero el enunciado y la grieta se cierra para siempre.',
+
+    /* PALABRAS — cada nombre que este juego inventó, una línea corta cada uno.
+       En la primera imagen del juego ya se leen RED, GRIETA, LÍNEA, MOTAS DE
+       CIFRA y RANGO COBRE, y ninguna de esas palabras significaba nada todavía.
+       Aquí está el significado, a una tecla de cualquier momento del juego.
+       CONTRATO: cada línea de `wordIs` contiene su propio término — es la clave
+       que comprueba tools/lang/rules.mjs. Una sola línea cada una. */
+    words: 'Palabras',
+    word: {
+      rift: 'Grieta',
+      line: 'Línea',
+      held: 'Sostenida',
+      lattice: 'Red',
+      mote: 'Mota de cifra',
+      rank: 'Rango',
+      band: 'Banda',
+      proving: 'Ronda de prueba',
+      sounding: 'Sondeo',
+      plate: 'Placa de impulso',
+    },
+    wordIs: {
+      rift: 'Una grieta es un anillo de aire desgarrado. Cada grieta sostiene un enunciado que todavía no es verdadero.',
+      line: 'Una línea es una idea, y todas las grietas que la prueban. Trabajas una línea cada vez.',
+      held: 'Sostenida quiere decir demostrada para siempre. Una línea sostenida ya no se abre, y nada de lo que hagas luego te la quita.',
+      lattice: 'La red es el razonamiento que sostiene este mundo. Hay suelo donde el razonamiento aún funciona.',
+      mote: 'Las motas de cifra son lo que deja una grieta sellada. La fundición toma motas y te da equipo.',
+      rank: 'Tu rango es lo que la orden piensa de ti. Cobre es el primer rango. Repara el mundo para subirlo.',
+      band: 'Una banda dice cuánto cuesta una pregunta, de la banda 1 a la banda 5. El equipo elige tu banda.',
+      proving: 'Una ronda de prueba es la que sella una línea. Sin ayuda mientras corre, y preguntas más difíciles. Si fallas una, esa pregunta sale de la ronda y la ayuda vuelve.',
+      sounding: 'Un sondeo recorre hacia abajo una línea que ya sostienes. Cada pregunta es más difícil que la anterior.',
+      plate: 'Una placa de impulso es una pieza que puedes construir. Písala y te lanza recto hacia arriba.',
+    },
     screen: {
       progress: 'Informe de progreso',
       dossier: 'Expediente del cadete',
@@ -283,6 +318,9 @@ export default {
     sealed: 'Red sellada',
     shards: 'Motas +{n}',
     trueNow: 'Verdadero. La grieta se cierra.',
+    // learn-ux (additivo): la ronda de prueba no da ayuda, así que un fallo
+    // saca la pregunta de la ronda antes de que llegue la ayuda.
+    provingOff: 'Esta pregunta ya no cuenta en la ronda de prueba. La ayuda vuelve.',
     stable: 'Estable',
     critical: 'Crítica',
     close: 'Salir de la grieta',
@@ -296,6 +334,8 @@ export default {
 
     kind: {
       check: 'Ronda de prueba · {n} de {m}',
+      // learn-ux (additivo): la misma pregunta, ya gastado su primer intento.
+      checkOff: 'Fuera de la ronda de prueba',
       probe: 'A primera vista',
       review: 'Volviendo a ella',
       interleave: 'De memoria',
@@ -320,7 +360,12 @@ export default {
       over: 'Barra de fracción',
       empty: 'Escribe antes un valor',
       narrow: 'Reducir el campo',
-      narrowed: 'Tres lecturas sobreviven al ruido.',
+      // Cuenta lo que hay en pantalla: si el equipo rechaza un distractor,
+      // quedan dos lecturas y decir «tres» sería contar algo invisible.
+      narrowed: '«n|one:# lectura sobrevive|other:# lecturas sobreviven» al ruido.',
+      // Una lectura errónea cuesta el campo entero, así que tres lecturas
+      // nunca se pueden recorrer hasta dar con la respuesta.
+      spent: 'Esa lectura no es. El campo se cierra. Escribe un valor y las lecturas vuelven.',
     },
 
     plot: {
@@ -486,6 +531,8 @@ export default {
       continue: 'Seguir',
       toNext: '{rank} · «n|one:falta|other:faltan» {n}',
       summit: 'Cima de la orden',
+      toNextAny: 'Siguiente rito · {rank}',
+      nextNightAny: '{rank} · espera una noche en pie',
       // El reloj rápido: grietas selladas en este fragmento, que es lo que hace
       // pasar de capítulo. Avanza con cada respuesta correcta.
       sealed: 'Grietas selladas en total',
@@ -493,6 +540,8 @@ export default {
       chapterNight: '«n|one:# noche en pie|other:# noches en pie» para el Capítulo {ch}',
       nextNight: '{rank} · «n|one:# noche en pie|other:# noches en pie»',
       sealsAll: 'Todos los capítulos abiertos',
+      toChapterAny: 'Siguiente · Capítulo {ch}',
+      chapterNightAny: 'El Capítulo {ch} espera una noche en pie',
       sealsAt: '«n|one:# grieta sellada en total|other:# grietas selladas en total»',
       plusSeal: '+1',
     },
@@ -551,7 +600,7 @@ export default {
 
     marlow: {
       name: 'Marlow',
-      role: 'Inteligencia de navegación · 61 % recuperada',
+      role: 'Inteligencia de navegación · recuperada en parte',
     },
 
     open: {
@@ -578,7 +627,7 @@ export default {
     ch2: {
       title: 'Los cadetes que vinieron antes',
       quest: 'Cientos estuvieron justo donde estás tú. Averigua dónde se pararon.',
-      b1: 'Tres grietas selladas. La red te ha visto, y te sorprendería cuántos cadetes no llegan a que los vea nunca.',
+      b1: 'La red te ha visto, y te sorprendería cuántos cadetes no llegan a que los vea nunca.',
       b2: 'He leído los rastros que el equipo saca de las grietas. Hubo cadetes justo donde estás tú. Cientos.',
       b3: 'Todos capaces. Todos se pararon. Ningún registro dice por qué. Alguien paga ese silencio.',
     },
@@ -587,7 +636,7 @@ export default {
       quest: 'Nadie llegó a terminar un paso de la demostración fundacional. Sube lo bastante alto para terminarlo.',
       // Ver en.js: el capítulo se llama «El noveno lema» y la palabra no se
       // definía en ninguna parte.
-      b1: 'Siete afirmaciones selladas. Bastan para pedir la demostración fundacional: cuatro millones de pasos.',
+      b1: 'Ya hay afirmaciones selladas de sobra para pedir la demostración fundacional: cuatro millones de pasos.',
       b1b: 'Un lema es un paso de una demostración. Esta es estanca de arriba abajo, salvo en el paso nueve.',
       b2: 'El paso nueve no está demostrado. Está supuesto. Una palabra al margen, de puño y letra: supongamos.',
       b3: 'Nueve mil mundos se apoyan en un paso que nadie terminó. Las grietas son ese paso, que vuelve a preguntar.',
@@ -622,6 +671,9 @@ export default {
       nights: '«n|one:# noche en pie|other:# noches en pie»',
       coda: 'La demostración se cierra dentro de «n|one:# noche en pie|other:# noches en pie»',
       sounding: 'Sondeo · {n}',
+      nightsAny: 'Noches en pie',
+      codaAny: 'La demostración se cierra tras más noches en pie',
+      soundingAny: 'Sondeo más hondo',
       soundingNone: 'Sondea el entramado',
       whenMin: 'dentro de «n|one:# minuto|other:# minutos»',
       whenHour: 'dentro de «n|one:# hora|other:# horas»',
@@ -629,10 +681,17 @@ export default {
       whenSoon: 'en breve',
     },
 
+    /* QUÉ SIGNIFICA UN RANGO — Y NUNCA UNA CUENTA DE NADA.
+       El bronce abría con «Dos líneas sostenidas». Es una descripción del rango
+       en abstracto, pero el cadete la lee como una afirmación sobre él, y quien
+       la leyó junto a un informe que decía «1 DE 10 LÍNEAS SOSTENIDAS» la llamó
+       contradicción. Y tenía razón. «Media demostración en la mano» hacía lo
+       mismo: el rango se compra con crédito, no con líneas. El progreso se dice
+       de una sola forma, y una ceremonia no es uno de esos sitios. */
     cite: {
       copper: 'Sabes sostener una afirmación. Esa es toda la cualificación, y muy poca gente la cumple.',
-      bronze: 'Dos líneas sostenidas. La red ha empezado a llevar sus tormentas a tu alrededor y no a través de ti.',
-      silver: 'Media demostración en la mano. La plata puede abrir el texto fundacional y leer lo que costó.',
+      bronze: 'La red ha empezado a llevar sus tormentas a tu alrededor y no a través de ti.',
+      silver: 'La plata puede abrir el texto fundacional y leer lo que la demostración costó a quienes la escribieron.',
       gold: 'El oro cruza entre fragmentos sin escolta. Aquí arriba ya queda muy poco que te resulte peligroso.',
       sovereign: 'Un soberano puede añadir una línea a la demostración. Lo que esa línea diga, existe.',
     },
@@ -720,12 +779,12 @@ export default {
       nearMastery: 'La red está casi entera a lo largo de esta línea. Una más y se abre un cuarto del cielo.',
       close: [
         'Estás a una respuesta limpia de sostener {skill} para siempre. Sin ayuda, o la red no la cuenta; esa regla no la escribí yo, solo la incumplí.',
-        '{skill} está a una respuesta honesta de ser tuya de forma permanente. Detrás de esa puerta hay nueve puntos de posición.',
+        '{skill} está a una respuesta honesta de ser tuya de forma permanente. Detrás de esa puerta hay mucha posición.',
         'Te falta una sola respuesta sin ayuda para cerrar {skill}. Tómate tu tiempo: la línea lleva novecientos años esperando.',
       ],
       held: [
         '{skill} queda sostenida. Esa línea no volverá a abrirse: ni por el tiempo atmosférico, ni por los años, ni por mí.',
-        '{skill}, cerrada. Nueve puntos de posición, y todas las reservas que el equipo guardaba sobre ti se han caído de golpe.',
+        '{skill}, cerrada. Todas las reservas que el equipo guardaba sobre ti se han caído de golpe.',
         'La red ha dejado de discutir sobre {skill}. Eso es un trozo de cielo que se queda arriba hagamos lo que hagamos después.',
       ],
       lineHeld: [
@@ -940,7 +999,7 @@ export default {
         working: [
           'Una respuesta limpia y {skill} es tuya para siempre. Solo sin ayuda: la red no acepta la ayuda como prueba.',
           '{skill} está a una respuesta honesta de cerrarse. Conoces la forma de esta. Ve y llévatela.',
-          'Entre {skill} y tú hay una respuesta sin ayuda. Detrás hay nueve puntos de posición, y ninguno es gratis.',
+          'Entre {skill} y tú hay una respuesta sin ayuda. Detrás hay posición, y nada de eso es gratis.',
         ],
         veteran: [
           '{skill} está a una respuesta de cerrarse. Sería otra línea que el fragmento no recupera.',
@@ -956,7 +1015,7 @@ export default {
       held: {
         working: [
           '{skill} queda sostenida. Esa línea no vuelve a abrirse: ni por el tiempo atmosférico, ni por los años, ni por mí.',
-          '{skill}, cerrada. Nueve puntos de posición, y una cosa menos en este fragmento capaz de sorprenderte.',
+          '{skill}, cerrada. Una cosa menos en este fragmento capaz de sorprenderte.',
           'La red ha dejado de discutir sobre {skill}. Pase lo que pase hoy, ese trozo de cielo se queda arriba.',
         ],
         veteran: [
@@ -1033,10 +1092,10 @@ export default {
       },
       // Noches en pie (src/meta/days.js): mañanas en que lo que sabías seguía sabido.
       night: {
-        n3: 'Tres noches en pie. Ese es el número que vigilan los veteranos. Brillar una vez lo hace cualquiera.',
-        n7: 'Siete noches en pie. Una semana sabiéndolo al despertar. El fragmento ya cuenta contigo.',
+        n3: 'Otra noche en pie. Esa es la marca que vigilan los veteranos. Brillar una vez lo hace cualquiera.',
+        n7: 'Una semana sabiéndolo al despertar. El fragmento ya cuenta contigo.',
         n14: 'Catorce noches en pie. He dejado de escribir «provisional» junto a tu nombre en el registro.',
-        n30: 'Treinta noches en pie. Treinta mañanas distintas en que el cielo siguió arriba por algo que tú sabías. Eso ya es una carrera.',
+        n30: 'Un mes de mañanas distintas en que el cielo siguió arriba por algo que tú sabías. Eso ya es una carrera.',
         on: '«n|one:# noche en pie|other:# noches en pie». Sigues aquí y sigue sabido. Se me acabaron las formas de sorprenderme, y no me guardé ni una duda.',
       },
     },
@@ -1054,12 +1113,23 @@ export default {
   session: {
     band: {
       run: 'Ronda {n}',
-      of: 'de «n|one:# grieta|other:# grietas»',
+      /* EL ALCANCE FORMA PARTE DEL SUSTANTIVO — ver src/meta/progress.js.
+         Esto decía «de 20 grietas» justo encima de una tarjeta de capítulo que
+         decía «11 grietas selladas en total», y quien leía las dos veía un solo
+         número que se contradecía. Ahora cada cuenta del juego lleva su propio
+         alcance —«en esta ronda» o «en total»— en las palabras que se leen. */
+      of: 'de «n|one:# grieta|other:# grietas» en esta ronda',
       near: 'Recta final',
       done: 'Ronda completa',
-      readout: '{goal}. «n|one:# grieta sellada|other:# grietas selladas» de {target}.',
-      worked: '«n|one:# pregunta trabajada|other:# preguntas trabajadas»',
-      readoutWorked: '{goal}. «n|one:# grieta sellada|other:# grietas selladas» de {target}, de {items} trabajadas.',
+      readout: '{goal}. «n|one:# grieta sellada|other:# grietas selladas» en esta ronda, de {target}.',
+      worked: '«n|one:# pregunta|other:# preguntas» en esta ronda',
+      readoutWorked: '{goal}. «n|one:# grieta sellada|other:# grietas selladas» en esta ronda, de {target}, de {items} preguntas.',
+      /* LA META HA CAMBIADO, Y LA BARRA LO DICE. Se dice entera y se queda en
+         la barra el resto de la ronda. Una meta que cambia en silencio deja en
+         mentira todo lo que se dijo antes de ella. */
+      raised: 'Meta subida: {from} → {to} grietas en esta ronda. Has pedido una línea más, y esto es lo que cuesta.',
+      readoutPlain: 'Esta ronda. {goal}.',
+      readoutState: 'Esta ronda. {goal}. {state}.',
     },
     goal: {
       hold: 'Sostener: {skill}',
@@ -1085,10 +1155,12 @@ export default {
       goalHoldN: 'Sella hoy {tears} grietas. Así sostienes «n|one:# línea|other:# líneas» para siempre. Una línea sostenida ya no se abre.',
       goalPush: 'Sella {tears} grietas de {skill}. Hacer retroceder una línea es recuperar terreno en una que se te escapó.',
       goalAny: 'Sella {tears} grietas en este fragmento. Luego vemos qué hace la red.',
-      willHold: 'debería sostenerse',
-      willPush: 'terreno ganado',
+      // Dicho con palabras que el lector ya tiene, en vez de acuñar dos términos.
+      willHold: 'debería sostenerse hoy',
+      willPush: 'recuperar terreno',
       eta: '«n|one:Un # minuto|other:Unos # minutos» a tu ritmo. Aquí no corre ningún reloj.',
       etaSeed: '«n|one:Un # minuto|other:Unos # minutos» — cálculo mío, aún no tuyo. Aquí no corre ningún reloj.',
+      work: 'Serán entre {low} y {high} preguntas. No todas saldrán bien, y en las que no salen es donde está la enseñanza.',
       begin: 'Empezar la ronda',
       kickBack: 'Ronda {n} · de vuelta',
       backHeld: 'La última vez sellaste «n|one:# grieta|other:# grietas». {skill} aguanta desde entonces.',
@@ -1100,7 +1172,14 @@ export default {
       titleHeld: 'La línea aguanta',
       titleMet: 'El fragmento está en calma',
       titleEnough: 'Por hoy ya está bien',
-      tears: '«n|one:grieta sellada|other:grietas selladas»',
+      tears: '«n|one:grieta sellada|other:grietas selladas» en esta ronda',
+      /* EL NÚMERO DEL PROGRESO, en la tarjeta que cierra la ronda. La misma
+         cifra y las mismas palabras que lleva la tarjeta de objetivo toda la
+         sesión y con las que abre el informe. */
+      linesHeld: '{n} de {total} líneas sostenidas',
+      linesHeldNote: 'Este es el número. Una línea sostenida es una que este motor defiende, y no se pierde.',
+      linesHeldNone: 'Todavía no se sostiene ninguna línea. Una línea cuesta más de una ronda, y nada de lo de hoy se ha perdido.',
+      linesHeldAll: 'Se sostienen todas las líneas de este fragmento. La demostración está cerrada.',
       heldLab: 'Sostenidas',
       groundLab: 'Terreno ganado',
       heldNote: 'Lo demostraste sin ayuda, en la banda de dificultad más alta y sin ningún ejemplo resuelto. La línea ya es tuya.',
@@ -1131,10 +1210,16 @@ export default {
       signHeld: 'Esa línea ni se estropea ni se reinicia. Todo lo que hay por encima ya está a tu alcance.',
       rest: 'Retirarse',
       more: 'Una línea más',
-      aria: 'Ronda cerrada. «n|one:# grieta sellada|other:# grietas selladas».',
-      workedLab: '«n|one:pregunta trabajada|other:preguntas trabajadas»',
+      aria: 'Ronda cerrada. «n|one:# grieta sellada|other:# grietas selladas» en esta ronda.',
+      repairedN: '{n} %',
+      repairedLab: 'del mundo reparado',
+      repairedGain: '+{n} % en esta ronda',
+      repairedFlat: 'El terreno que ganaste hoy queda debajo de la próxima línea.',
+      ariaRepaired: 'Ronda cerrada. El mundo está reparado al {n} por ciento.',
+      ariaWorked: 'Ronda cerrada. «n|one:# pregunta trabajada|other:# preguntas trabajadas» en esta ronda.',
+      workedLab: '«n|one:pregunta|other:preguntas» en esta ronda',
       workedSub: 'Ninguna selló. El fragmento no cuenta los intentos, y yo tampoco. Pero el trabajo ha comprado algo, y abajo está el qué.',
-      ofWorked: 'de «n|one:# pregunta trabajada|other:# preguntas trabajadas»',
+      ofWorked: 'de «n|one:# pregunta|other:# preguntas» en esta ronda',
       echoStrong: '«n|one:# ejemplo resuelto|other:# ejemplos resueltos»',
       echoNote: 'Un fallo es lo que paga uno. Cada uno se abrió justo en el paso donde tu respuesta se torció, no al principio de la página.',
       bandStrong: 'El banco, reajustado',
@@ -1186,6 +1271,13 @@ export default {
       near: 'Recta final. Pase lo que pase ahora, esta ronda es casi tuya.',
       resume: 'Lo retomo exactamente donde lo dejaste. Nada se ha movido mientras no estabas; nunca se mueve.',
       extend: 'Seguimos, pues. La misma ronda y la misma cuenta: esto no empieza de cero porque hayas pedido más.',
+      // …y lo único que SÍ ha cambiado, dicho en el momento en que cambia.
+      raised: 'La misma ronda y la misma cuenta. La meta ahora son {to} grietas en vez de {from}: eso cuesta una línea más, y prefiero decírtelo a que lo descubras solo.',
+      // Empezaste antes de que terminara de darte las órdenes, que es el orden
+      // correcto. La meta se dice en una línea y no en una tarjeta, porque una
+      // tarjeta tendría que detenerte para que la leas. (src/session/index.js)
+      underway: 'Ya estás trabajando, así que no voy a detenerte para leerte las órdenes. Esta ronda son {tears} grietas. La banda de arriba lleva la cuenta.',
+      longer: 'Esta ronda se alarga más de lo que te dije: ya pasa de {n} preguntas. La meta no ha cambiado y no se pierde nada. Hay líneas que cuestan más de lo que calculó la proyección, y prefiero decírtelo a dejar que el número deje de ser cierto en silencio.',
     },
   },
   // ---------------------------------------------------------------------
@@ -1208,12 +1300,17 @@ export default {
       ofN: 'de {n}',
       mastered: 'Líneas sostenidas',
       masteredNote: 'Demostradas, no solo intentadas.',
+      repairedNote: 'El número. Cada línea cuenta lo que este motor cree ahora mismo sobre ella, y se mueve con cada sellado.',
       time: 'Tiempo de trabajo',
       timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo. No es el reloj de la sesión, y está pensado para marcar menos que él.',
       session: 'Esta sesión',
       sessionNote: 'Cuánto llevas sentado aquí: tiempo real desde que empezaste, andar y leer incluidos. Una sesión dura de 15 a 25 minutos y luego cierra bien.',
-      items: 'Preguntas respondidas',
-      itemsNote: 'Cada una generada de nuevo y resuelta por máquina antes de llegar a ti.',
+      // UN TOTAL DE TODA LA VIDA, Y LO DICE. Bajo las palabras sueltas
+      // «Preguntas respondidas» esta ficha marcaba 9 mientras la barra marcaba
+      // diez preguntas en esta ronda: dos preguntas distintas, sin nada que las
+      // separase. Misma regla que la barra: el alcance forma parte del nombre.
+      items: 'Preguntas respondidas en total',
+      itemsNote: 'Todas las preguntas que ha visto este registro, en todas las rondas. Cada una generada de nuevo y resuelta por máquina antes de llegar a ti.',
       accuracy: 'Resueltas sin ayuda',
       accuracyNote: 'Correctas a la primera, sin pista y sin ejemplo resuelto, sobre el total de preguntas respondidas.',
       hollow: 'Sellos retirados',
@@ -1238,6 +1335,8 @@ export default {
       },
     },
 
+    pctTerm: 'El porcentaje',
+    pctIs: 'Tu lectura más floja en esa línea, no un promedio: el tipo de pregunta que peor llevas, o tu resultado en el nivel más difícil, lo que sea más bajo. Abre una línea para ver cuál es.',
     flag: { under: 'Terreno reabierto' },
     flagNote: { under: 'Esta línea sigue sellada. Una línea de debajo falló un reexamen en frío y ha vuelto a práctica, así que el equipo está volviendo a demostrar el terreno antes de mandarte otra vez aquí arriba.' },
 
@@ -1246,6 +1345,14 @@ export default {
       fast: 'Camino corto',
       long: 'Camino largo',
     },
+    // La forma corta, en la página: `roadNote` y `flagNote` viven en atributos
+    // `title`, que en un móvil no existen. Esto es lo mismo en una línea.
+    roadIs: {
+      sight: 'Respondiste la primera pregunta sin nada por delante, y esa respuesta demostró la línea.',
+      fast: 'Un acierto limpio, sin ayuda, en la banda de paso, abrió la tanda de prueba.',
+      long: 'Tres aciertos limpios y sin ayuda, uno tras otro, abrieron la tanda de prueba.',
+    },
+    flagIs: { under: 'La línea sigue siendo tuya. El equipo vuelve a demostrar una línea de debajo.' },
     roadNote: {
       sight: 'Abierta en frío: la primera pregunta de esta línea se respondió en lo más alto del banco, sin nada enseñado por delante, y contó como la primera pregunta de la tanda de prueba. Abre la línea para ver lo que costó la tanda.',
       fast: 'Un solo acierto limpio y sin ayuda, en la banda del sello, abrió la tanda de prueba. Menos preguntas que por el camino largo, y cada una más difícil.',
@@ -1268,6 +1375,11 @@ export default {
       doneWhy: 'El nivel 1 está completo. Ahora solo queda mantenerlo.',
     },
 
+    /* El texto emergente de una fila: en qué estado está la línea y por qué el
+       porcentaje dice lo que dice. Se compone aquí, no en el código, para que
+       cada idioma ordene las dos frases a su manera. */
+    rowTitle: '{state} {why}',
+
     state: {
       locked: 'Bloqueada',
       open: 'Abierta',
@@ -1279,12 +1391,12 @@ export default {
     },
     stateNote: {
       locked: 'Esta línea necesita antes otra línea, y esa otra todavía no la tienes.',
-      open: 'Desbloqueada y sin empezar.',
+      open: 'Esta línea está abierta para ti. Todavía no has respondido ninguna pregunta en ella.',
       practising: 'Práctica en marcha. El apoyo se retira a medida que el modelo se afianza.',
       proving: 'La prueba está en curso: sin ayuda, sin apoyo y con las formas que menos has practicado.',
       mastered: 'Demostrada, y aguantando los reexámenes en frío.',
       provisional: 'Un reexamen fallado. Si falla el siguiente, se retira el sello.',
-      withdrawn: 'Estuvo sellada y se perdió en el reexamen. La práctica ha vuelto a abrirse.',
+      withdrawn: 'Estuvo sellada y el equipo retiró la afirmación: o fallaste un reexamen en frío, o dejaste de acertar un tipo de pregunta. La práctica ha vuelto a abrirse. Abre la línea para ver cuál fue.',
     },
 
     evidence: {
@@ -1322,6 +1434,18 @@ export default {
       sinceNone: 'Desde que se concedió el sello no se ha preguntado nada en esta línea.',
       restsUnknown: 'Esta versión no registró en qué preguntas se apoya el sello. En esta línea has respondido {of} preguntas.',
       grantedOn: 'Concedido el {date}.',
+      forms: 'Cada tipo de pregunta',
+      formsNote: 'Dominas una línea solo cuando resuelves sin ayuda, al menos una vez, cada tipo de pregunta que te plantea. Un tipo empieza a contar cuando el equipo te lo plantea {n} veces.',
+      formsNone: 'todavía ninguno',
+      formsThin: 'Ningún tipo de pregunta ha salido {need} veces todavía, así que el equipo aún no te juzga por ninguno. Tu más flojo por ahora es {rep}: {n} bien sin ayuda, de {of} planteadas.',
+      formsOk: 'Tu tipo más flojo aquí es {rep}: {n} bien sin ayuda, de {of} planteadas.',
+      formsHole: 'No dominada. En {rep} llevas {n} bien sin ayuda, de {of} planteadas. Esta línea sigue abierta hasta que aciertes ese tipo una vez por tu cuenta. Un promedio no sustituye a una pregunta que nunca has acertado.',
+      floorWhy: {
+        pL: 'La cifra es la confianza del modelo, que es lo más bajo que se mide aquí.',
+        form: 'La cifra es tu tipo de pregunta más flojo, no el promedio. El promedio es más alto.',
+        gate: 'La cifra es tu resultado en el nivel más difícil, no el promedio. El promedio es más alto.',
+        plan: 'La cifra es la probabilidad que tiene esta sesión de cerrar la línea, más baja que la confianza del modelo.',
+      },
     },
 
     fact: {
@@ -1333,6 +1457,7 @@ export default {
       accuracySplit: '{all}: {n} de {of}. Antes del sello {before}, después {since}',
       band: 'Banda de dificultad',
       bandVal: 'Banda {n} de 5',
+      bandIs: 'Una banda dice cuánto cuesta la pregunta, de la banda 1 a la banda 5.',
       reps: 'Demostrada en',
       forms: 'Tipos de pregunta vistos',
       formsVal: '«n|one:# tipo|other:# tipos»',
@@ -1652,7 +1777,7 @@ export default {
     vault: {
       name: 'Placa de impulso',
       short: 'Placa',
-      what: 'Una quinta pieza para la retícula. Písala y te lanza doce metros hacia arriba.',
+      what: 'Una quinta pieza para la red. Písala y te lanza doce metros hacia arriba.',
       gist: 'te lanza doce metros hacia arriba',
     },
     flare: {
@@ -1670,7 +1795,7 @@ export default {
     reserve: {
       name: 'Reserva profunda',
       short: 'Reserva',
-      what: 'La reserva de la retícula más que se duplica, y se recarga la mitad de rápido otra vez.',
+      what: 'La reserva de la red más que se duplica, y se recarga la mitad de rápido otra vez.',
       gist: 'el doble de reserva, que además se recarga antes',
     },
     legs: {
@@ -1718,7 +1843,7 @@ export default {
     deepwell: {
       name: 'Pozo profundo',
       short: 'Pozo',
-      what: 'La reserva de la retícula llega a trescientos y se recarga el doble de rápido. Puentea un cañón de una sola vez.',
+      what: 'La reserva de la red llega a trescientos y se recarga el doble de rápido. Puentea un cañón de una sola vez.',
       gist: 'una reserva de trescientos que se recarga el doble de rápido',
     },
     station: {
@@ -1729,7 +1854,7 @@ export default {
     },
     charter: {
       name: 'Una cédula de estación',
-      what: 'Una noche sostenida es una línea que se sigue sabiendo tras dejar el juego. Consérvalas de una noche para otra y la retícula te extiende otra cédula.',
+      what: 'Una noche sostenida es una línea que se sigue sabiendo tras dejar el juego. Consérvalas de una noche para otra y la red te extiende otra cédula.',
       gist: 'un pase para una torre',
     },
     chartersHeld: '«n|one:# cédula|other:# cédulas» · {cost}',
@@ -1776,7 +1901,8 @@ export default {
     },
 
     pay: {
-      lines: 'Sostenla y «n|one:se abrirá # línea más de la red|other:se abrirán # líneas más de la red».',
+      lines: 'Una línea es una idea. Sostén esta y «n|one:se abrirá # línea más|other:se abrirán # líneas más».',
+      linesAny: 'Una línea es una idea. Sostén esta y se abre más red.',
       /* «Sostenla y Ala afinada será tuya» nombraba un premio que el juego solo
          explica en la tarjeta que llega DESPUÉS de ganarlo. `{gist}` es la
          forma corta de `kit.<id>.what`, que trae src/meta/objective.js: el
@@ -1789,14 +1915,22 @@ export default {
       sound: 'Ya sostienes esta línea. Un sondeo la recorre hacia abajo, cada pregunta más difícil.',
     },
 
-    /* La fila bajo las marcas, y la palabra *sostenida*. Antes esta fila abría
-       una partida nueva con la definición de una palabra que no aparecía en
-       ninguna otra parte de la tarjeta: una regla sobre nada. Ahora la palabra
-       llega cuando por fin significa algo — al sostener la primera línea — y la
-       tarjeta vacía dice qué son las marcas. (src/meta/guide.js elige.) */
-    tally: '{held} sostenidas · {open} abiertas · {locked} cerradas',
-    tallyNew: 'Una marca por cada grieta de esta línea',
-    tallyFirst: '{held} sostenida — probada para siempre',
+    /* EL NÚMERO DEL PROGRESO, EN SU ÚNICO SITIO Y CON SU ÚNICO NOMBRE.
+     *
+     * Esta fila llevaba tres frases distintas, y la que se leía durante toda
+     * una primera sesión era «una marca por cada grieta de esta línea», escrita
+     * encima de diez marcas que ni son grietas ni son una línea: son las diez
+     * líneas de toda la red. Quien lo leyó junto a una barra que decía «0 de 16
+     * grietas» no podía saber a cuál de los dos números se refería el juego,
+     * porque uno de los dos pies era sencillamente falso.
+     *
+     * Ahora dice una sola cosa, siempre, con las mismas tres palabras que usan
+     * la ficha del informe y la tarjeta de cierre. Ver src/meta/progress.js. */
+    linesHeld: '{n} de {total} líneas sostenidas',
+    /* …y qué son las marcas, mientras la cuenta sigue en cero. Va DEBAJO del
+       número y no en su lugar, para que la palabra llegue con su significado y
+       el cadete nunca lea una fila de progreso sin progreso en ella. */
+    linesHeldNew: 'Sostenida significa probada para siempre. Una línea sostenida ya no se abre.',
 
     prompt: {
       open: 'Abre la grieta',
@@ -1823,7 +1957,7 @@ export default {
       anchor: 'Un ancla de red. Nada la alcanza desde el suelo, y esa es la idea. Apila dos rampas y tócala.',
       cache: 'Una caja colgante. La barra sostiene algo verdadero a lo que le falta una pesa. Métete en esa pesa.',
       updraft: 'Esa columna es una ascendencia. Vuela dentro y te sube sesenta metros gratis.',
-      verge: 'Esa cortina es el borde: ahí se acaba el Fragmento Nueve. Sostén las diez líneas y la red te saca.',
+      verge: 'Esa cortina es el borde: ahí se acaba el Fragmento Nueve. Sostén todas las líneas y la red te saca.',
     },
   },
 
@@ -1913,13 +2047,16 @@ export default {
     toTear: 'Siguiente línea · {skill}: {n} m',
     toMark: 'Hito de prospección · {name}: {n} m',
     stay: 'Esta línea sigue siendo lo que más te conviene. Vuelve a la placa cuando quieras.',
-    rhythm: 'Una grieta da tres preguntas y luego se calma. Aprovecha el hueco: siempre hay algo ahí fuera que merece el paseo.',
+    rhythm: 'Una grieta da un puñado de preguntas y luego se calma. Aprovecha el hueco: siempre hay algo ahí fuera que merece el paseo.',
   },
   // --- la capa de afordancia (src/world/afford.js): qué ofrece una grieta,
   // qué tecla lo hace y hacia dónde queda la siguiente ---------------------
   afford: {
     open: 'Abre la grieta',
     walkIn: 'Entra en ella',
+    // A mitad de la visita: una pregunta ya está resuelta y la siguiente
+    // espera a que la pidas, en vez de llegar sola. (src/session/stint.js)
+    again: 'Siguiente línea — misma grieta',
     sound: 'Sondea la línea — preguntas más duras, misma línea',
     shut: 'Sellada',
     needs: 'Domina antes {skill}',

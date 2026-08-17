@@ -2,7 +2,7 @@
 
 *Standards alignment and mapping note — Algebra I, Level 1: The Language of Balance*
 
-Framework: **Common Core State Standards for Mathematics (CCSS-M)**. Level **algebra1-level1**. 10 skills, 64 item forms, 23 content standards, 7 practice standards.
+Framework: **Common Core State Standards for Mathematics (CCSS-M)**. Level **algebra1-level1**. 10 skills, 66 item forms, 23 content standards, 7 practice standards.
 
 This document is the claim, and content/graph/algebra1-l1.json is the machine-readable copy of it. tools/validate-items.mjs fails the build if a graph node cites a standard that is not listed here, if a listed standard is claimed by no node, or if a node claims a representation that none of its item forms can actually produce. Alignment here is therefore checkable rather than asserted.
 
@@ -57,7 +57,7 @@ Evidence: `oo-power`, `oo-negbase`
 
 Taught in: `var-meaning`
 
-Evidence: `vm-choose`, `vm-context`
+Evidence: `vm-choose`, `vm-context`, `vm-share`
 
 #### 6.EE.A.2.C
 
@@ -89,7 +89,7 @@ Evidence: `lt-equivalent`, `lt-table`
 
 Taught in: `var-meaning`
 
-Evidence: `vm-context`, `vm-position`, `vm-table`
+Evidence: `vm-context`, `vm-position`, `vm-table`, `vm-partWhole`, `vm-share`
 
 #### 6.EE.B.7
 
@@ -255,6 +255,8 @@ An item form that no standard claims is content nobody has justified shipping, s
 | `var-meaning` | `vm-table` | table | 1–5 | 6.EE.B.6 |
 | `var-meaning` | `vm-position` | verbal | 2–5 | 6.EE.B.6, HSA.SSE.A.1.A |
 | `var-meaning` | `vm-compose` | contextual | 4–5 | HSA.SSE.A.1.A |
+| `var-meaning` | `vm-partWhole` | contextual | 1–3 | 6.EE.B.6 |
+| `var-meaning` | `vm-share` | verbal | 1–3 | 6.EE.A.2.A, 6.EE.B.6 |
 | `eval-expr` | `ee-linear` | symbolic | 1–5 | 6.EE.A.2.C, 7.EE.B.3 |
 | `eval-expr` | `ee-two-var` | symbolic | 3–5 | 6.EE.A.2.C |
 | `eval-expr` | `ee-context` | contextual | 1–5 | 6.EE.A.2.C, 6.EE.C.9 |
@@ -269,21 +271,21 @@ An item form that no standard claims is content nobody has justified shipping, s
 | `order-ops` | `oo-fracbar` | symbolic | 3–5 | 6.EE.A.2.C, 7.EE.B.3 |
 | `order-ops` | `oo-dispute` | verbal | 2–5 | 7.EE.B.3 |
 | `order-ops` | `oo-nested` | symbolic | 4–5 | 6.EE.A.2.C |
-| `order-ops` | `oo-table` | table | 2–5 | 6.EE.A.2.C |
+| `order-ops` | `oo-table` | table | 1–5 | 6.EE.A.2.C |
 | `like-terms` | `lt-collect` | symbolic | 1–5 | 6.EE.A.3, 7.EE.A.1 |
 | `like-terms` | `lt-three` | symbolic | 3–5 | 6.EE.A.3 |
 | `like-terms` | `lt-perimeter` | contextual | 2–5 | HSA.SSE.A.1.B |
-| `like-terms` | `lt-equivalent` | verbal | 2–3 | 6.EE.A.4 |
+| `like-terms` | `lt-equivalent` | verbal | 1–5 | 6.EE.A.4 |
 | `like-terms` | `lt-square` | symbolic | 4–5 | 7.EE.A.1, HSA.SSE.A.1.B |
 | `like-terms` | `lt-four` | symbolic | 5–5 | 7.EE.A.1 |
-| `like-terms` | `lt-table` | table | 2–5 | 6.EE.A.4 |
+| `like-terms` | `lt-table` | table | 1–5 | 6.EE.A.4 |
 | `distribute` | `ds-expand` | symbolic | 1–5 | 6.EE.A.3, 7.EE.A.1 |
 | `distribute` | `ds-negative` | symbolic | 3–5 | 6.EE.A.3 |
 | `distribute` | `ds-area` | contextual | 1–5 | 7.EE.A.2 |
 | `distribute` | `ds-twoterm` | symbolic | 4–5 | 7.EE.A.1, HSA.SSE.A.2 |
 | `distribute` | `ds-factor` | verbal | 3–5 | 7.EE.A.1, 7.EE.A.2, HSA.SSE.A.2 |
 | `distribute` | `ds-share` | symbolic | 4–5 | 7.EE.A.1 |
-| `distribute` | `ds-table` | table | 2–5 | 7.EE.A.2 |
+| `distribute` | `ds-table` | table | 1–5 | 7.EE.A.2 |
 | `one-step-add` | `oa-symbolic` | symbolic | 1–5 | 6.EE.B.7, HSA.REI.B.3 |
 | `one-step-add` | `oa-context` | contextual | 1–5 | 6.EE.B.7 |
 | `one-step-add` | `oa-balance` | graph | 1–3 | 6.EE.B.5 |
@@ -297,20 +299,20 @@ An item form that no standard claims is content nobody has justified shipping, s
 | `one-step-mul` | `om-table` | table | 3–5 | 6.EE.B.7 |
 | `two-step` | `ts-symbolic` | symbolic | 1–5 | 7.EE.B.4.A, HSA.REI.B.3 |
 | `two-step` | `ts-context` | contextual | 1–5 | 7.EE.B.4.A |
-| `two-step` | `ts-graph` | graph | 2–5 | 8.EE.B.5 |
+| `two-step` | `ts-graph` | graph | 1–5 | 8.EE.B.5 |
 | `two-step` | `ts-model` | verbal | 3–5 | HSA.CED.A.1 |
 | `two-step` | `ts-fraction` | symbolic | 4–5 | 7.EE.B.4.A |
 | `multi-step` | `ms-bracket` | symbolic | 1–5 | 7.EE.B.4.A, 8.EE.C.7.B, HSA.REI.A.1 |
-| `multi-step` | `ms-collect` | symbolic | 2–5 | 8.EE.C.7.B |
-| `multi-step` | `ms-context` | contextual | 2–5 | 7.EE.B.4.A |
+| `multi-step` | `ms-collect` | symbolic | 1–5 | 8.EE.C.7.B |
+| `multi-step` | `ms-context` | contextual | 1–5 | 7.EE.B.4.A |
 | `multi-step` | `ms-fracbar` | symbolic | 4–5 | 8.EE.C.7.B |
 | `multi-step` | `ms-dispute` | verbal | 3–5 | HSA.REI.A.1 |
-| `multi-step` | `ms-table` | table | 3–5 | 7.EE.B.4.A, 8.EE.C.7.B |
+| `multi-step` | `ms-table` | table | 1–5 | 7.EE.B.4.A, 8.EE.C.7.B |
 | `both-sides` | `bs-symbolic` | symbolic | 1–5 | 8.EE.C.7.B, HSA.REI.B.3 |
-| `both-sides` | `bs-special` | symbolic | 2–5 | 8.EE.C.7.A |
+| `both-sides` | `bs-special` | symbolic | 1–5 | 8.EE.C.7.A |
 | `both-sides` | `bs-collect` | symbolic | 3–5 | 8.EE.C.7.A |
-| `both-sides` | `bs-context` | contextual | 2–5 | HSA.CED.A.1 |
-| `both-sides` | `bs-graph` | graph | 3–5 | 8.EE.C.8.A |
+| `both-sides` | `bs-context` | contextual | 1–5 | HSA.CED.A.1 |
+| `both-sides` | `bs-graph` | graph | 1–5 | 8.EE.C.8.A |
 | `both-sides` | `bs-bracket` | symbolic | 4–5 | 8.EE.C.7.B, HSA.REI.B.3 |
 | `both-sides` | `bs-dispute` | verbal | 3–5 | HSA.REI.B.3 |
 
@@ -321,6 +323,8 @@ A misconception is only ever named to a learner when the value they entered is o
 | Skill | Misconception | What the learner is doing |
 |---|---|---|
 | `var-meaning` | `letter-as-object` | Reads 4m as a labelled quantity — '4 metres', four of a thing called m — so the letter carries no value of its own and the answer given is simply the 4. |
+| `var-meaning` | `combine-unlike` | Refuses to leave x + 6 as two things: the letter and the bare number are run together into one written quantity, or into a product, because an expression is expected to close on a single answer. |
+| `var-meaning` | `div-direction` | Writes a share upside down — the number of shares over the total instead of the total over the number of shares. |
 | `var-meaning` | `add-not-multiply` | Turns 'k groups of v' into k + v: the two quantities are joined by the operation that is easiest to say rather than the one the situation describes. |
 | `var-meaning` | `subtract-not-multiply` | Joins the two quantities by subtraction, often in whichever order they appeared in the sentence. |
 | `var-meaning` | `divide-not-multiply` | Shares the group size out among the groups instead of counting the groups up, so multiplication is replaced by division. |

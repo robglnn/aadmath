@@ -373,7 +373,11 @@ export class CameraRig {
     // eighty-two: a twelve degree swing you feel in your hands, not a rounding
     // error you can only find in telemetry.
     this.fovPunch = damp(this.fovPunch, 0, 7, dt);
-    const fovWant = 70 + this.sprintW * 8 + runN * 2
+    // Flow is the only thing on screen that says a chain is live. It is worth
+    // four degrees — under half of what a sprint is worth, so it reads as the
+    // run getting away from you rather than as a second sprint button.
+    const flow = clamp(s.flow || 0, 0, 1);
+    const fovWant = 70 + this.sprintW * 8 + runN * 2 + flow * 4
       + gW * (4 + dive * 8) + this.fovPunch;
     this.fov = damp(this.fov, fovWant, 6, dt);
     if (Math.abs(this.cam.fov - this.fov) > 0.02) {

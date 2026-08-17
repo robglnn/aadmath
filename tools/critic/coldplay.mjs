@@ -144,7 +144,300 @@ if (target) {
   await shot('03-rift-open');
 }
 
-// --- 5. A player who walks off the edge gets back ---------------------------
+// --- 5. THE CARD NEVER GOES SILENT -----------------------------------------
+//
+// THIS STEP EXISTS BECAUSE THE GAME LOST FOUR MINUTES OF A SESSION TO A
+// TWO-METRE RING OF GROUND.
+//
+// A cold critic walked toward the first rift and, somewhere around ten metres
+// out, the game stopped having an opinion:
+//
+//   "at 10-11 m the objective card replaces the direction label with YOU ARE
+//    STANDING IN IT. No rift ring is present, no 'Open the rift' prompt
+//    appears, E is a silent no-op, and R returns you to 10 m still 'standing in
+//    it'. Probed w/a/s/d from that spot: 11m->21m 'BEHIND YOU', 11m 'TO YOUR
+//    RIGHT', 10m 'STANDING IN IT', 10m 'STANDING IN IT'. Reproduced three
+//    separate times."
+//
+// Two surfaces held two different numbers for one question. The objective card
+// called a rift "in hand" inside eleven metres; the key that opens one works
+// inside nine (src/world/rifts.js). Between them was a ring around EVERY rift
+// on the island in which the player was offered no direction to walk and no
+// action to take, and — because the waypoint also stood down at eleven metres —
+// nothing on screen anywhere pointed at anything.
+//
+// So this is the promise, and it is checked on every frame of every approach:
+//
+//   THE OBJECTIVE ALWAYS OFFERS EITHER A DIRECTION OR AN ACTION THAT WORKS.
+//   NEVER NEITHER. "You are standing in it" is only ever said with a live
+//   prompt beside it.
+//
+// It is checked twice, deliberately.
+//
+// 5a walks the ring with the keyboard, out and back in on eight bearings, which
+//    is the critic's own w/a/s/d probe run sixteen times. Nothing here is
+//    teleported and nothing is asked of the debug API: the cadet turns with the
+//    arrow keys and walks with W, and the card is read off the DOM at 8 Hz all
+//    the way in, through the exact band that swallowed him.
+//
+// 5b then sweeps EVERY rift on the island at every radius across the boundary,
+//    from eight bearings, by standing the cadet at each point. That half cannot
+//    prove an interaction and does not claim to — 5a does that. What it proves
+//    is a property of the *card*, which is a pure function of where the boots
+//    are: that there is nowhere on this island, beside any tear, where it goes
+//    quiet. Ten rifts × thirteen radii × eight bearings is a thousand places no
+//    walk could visit inside a gate's budget.
+{
+
+  const handBack = async () => {
+    for (let i = 0; i < 6; i++) {
+      if (!(await page.evaluate(() => !!window.__ascent.input.uiOpen))) return;
+      let hit = false;
+      for (const sel of ['.sc-go', '.ses-charter button', '.ses-rest button', '.rf-x']) {
+        const b = await page.$(sel);
+        if (b && await b.isVisible()) { await b.click().catch(() => {}); hit = true; break; }
+      }
+      if (!hit) await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
+    }
+  };
+  await handBack();
+
+  // ---- 5a. the critic's own probe, walked, on the keys ---------------------
+  //
+  // THE KEYS ARE PRESSED FROM OUT HERE; THE CARD IS READ FROM IN THERE.
+  //
+  // The first cut of this read the card over the wire once every 110 ms, which
+  // is both too slow to be thorough — a cadet crosses the whole two-metre ring
+  // in about a fifth of a second at a run — and, at some sixty round trips per
+  // approach, heavy enough that on a loaded machine the browser fell over
+  // mid-step and took the gate down with it.
+  //
+  // So a sampler rides inside the page on the frame loop and records EVERY
+  // frame of the walk, and the harness collects it once per approach. Nothing
+  // about the input changes: the cadet still turns with the arrow keys and
+  // walks with W, and the sampler is a pure read of `story.guide()`, which is
+  // itself a read of the painted card. It is roughly sixty times the evidence
+  // for a thirtieth of the traffic.
+  await page.evaluate(() => {
+    const a = window.__ascent;
+    const R = { on: false, tag: '', n: 0, ring: 0, bad: [], minM: 1e9 };
+    window.__ring = R;
+    const tick = () => {
+      try {
+        if (R.on && !a.input.uiOpen && !a.panel?.open) {
+          const g = a.story?.guide?.();
+          if (g) {
+            R.n++;
+            if (g.metres != null && g.metres < R.minM) R.minM = g.metres;
+            // Inside fourteen metres is "in the ring": it brackets the nine
+            // metre reach and the eleven the card used to claim, so the count
+            // proves the walk went through the band that swallowed the critic.
+            if (g.metres != null && g.metres <= 14) R.ring++;
+            // THE INVARIANT. Neither a key nor a bearing is the defect; and
+            // "you are standing in it" with no key on screen is the lie.
+            if (g.offers === 'nothing') {
+              R.bad.push(`${R.tag}: ${g.metres} m from ${g.skill}, card said "${g.dir}" with no prompt`);
+            } else if (g.here && !g.prompt) {
+              R.bad.push(`${R.tag}: "standing in it" at ${g.metres} m with no prompt (nearest ${g.nearId})`);
+            }
+          }
+        }
+      } catch { /* a frame mid-teardown is not evidence */ }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  const home = await page.evaluate(() => {
+    const g = window.__ascent.story?.guide?.();
+    const r = window.__ascent.rifts.list.find((x) => x.id === g?.skill)
+      || window.__ascent.rifts.list.find((x) => !x.locked);
+    return r ? { id: r.id, x: r.foot.x, z: r.foot.z } : null;
+  });
+
+  /** Face a compass bearing using ARROW KEYS ONLY — no pointer lock needed. */
+  const faceYaw = async (want) => {
+    for (let i = 0; i < 14; i++) {
+      const d = await page.evaluate((w) => {
+        let e = ((w - window.__ascent.player.yaw + Math.PI) % (Math.PI * 2)) - Math.PI;
+        if (e < -Math.PI) e += Math.PI * 2;
+        return e;
+      }, want);
+      if (Math.abs(d) < 0.14) return true;
+      const key = d > 0 ? 'ArrowLeft' : 'ArrowRight';
+      await page.keyboard.down(key);
+      await page.waitForTimeout(Math.min(400, Math.max(60, Math.abs(d) / 2.6 * 1000)));
+      await page.keyboard.up(key);
+    }
+    return false;
+  };
+
+  const arm = (tag) => page.evaluate((t) => { window.__ring.tag = t; window.__ring.on = true; }, tag);
+  const disarm = () => page.evaluate(() => { window.__ring.on = false; return { ...window.__ring, bad: window.__ring.bad.slice(0, 3) }; });
+  const spot = () => page.evaluate(() => ({
+    x: window.__ascent.player.pos.x, z: window.__ascent.player.pos.z,
+    ui: !!window.__ascent.input.uiOpen, panel: !!window.__ascent.panel?.open,
+  }));
+
+  // A BUDGET, so the step cannot run away on a loaded machine. Eight bearings
+  // is what it wants; it asserts on however many it got, and refuses to pass on
+  // fewer than three, because a walk that never happened proves nothing.
+  const RING_BUDGET_MS = 130000;
+  const ringT0 = Date.now();
+  let bearings = 0, samples = 0, inRing = 0, worst = null;
+  if (home) {
+    for (let b = 0; b < 8 && !worst; b++) {
+      if (Date.now() - ringT0 > RING_BUDGET_MS) break;
+      await handBack();
+      // OUT: face away from the tear and walk until well clear of the ring.
+      await faceYaw((b / 8) * Math.PI * 2);
+      await arm(`bearing ${b} outbound`);
+      await page.keyboard.down('KeyW');
+      for (let i = 0; i < 12; i++) {
+        await page.waitForTimeout(280);
+        const s = await spot();
+        if (s.ui) { await page.keyboard.up('KeyW'); await handBack(); await page.keyboard.down('KeyW'); continue; }
+        if (Math.hypot(s.x - home.x, s.z - home.z) > 17) break;
+      }
+      await page.keyboard.up('KeyW');
+      let r = await disarm();
+      samples += r.n; inRing += r.ring;
+      if (r.bad.length) worst = r.bad[0];
+      await page.waitForTimeout(200);
+
+      // BACK IN: turn round and walk at it, the card sampled every frame.
+      const s0 = await spot();
+      if (Math.hypot(s0.x - home.x, s0.z - home.z) < 12) continue;
+      await faceYaw(Math.atan2(home.x - s0.x, home.z - s0.z));
+      await arm(`bearing ${b} inbound`);
+      await page.keyboard.down('KeyW');
+      let touched = false;
+      for (let i = 0; i < 14; i++) {
+        await page.waitForTimeout(260);
+        const s = await spot();
+        if (s.panel || s.ui) { touched = true; break; }
+        if (Math.hypot(s.x - home.x, s.z - home.z) < 5) { touched = true; break; }
+      }
+      await page.keyboard.up('KeyW');
+      r = await disarm();
+      samples += r.n; inRing += r.ring;
+      if (!worst && r.bad.length) worst = r.bad[0];
+      bearings++;
+      // …and where the card says the key works, the key has to work.
+      if (touched && !(await page.evaluate(() => !!window.__ascent.panel?.open))) {
+        await page.keyboard.press('KeyE');
+        await page.waitForTimeout(500);
+      }
+      await handBack();
+    }
+  }
+  await shot('04-objective-ring');
+  note(!!home && bearings >= 3 && inRing > 0 && !worst,
+    'walking in on every bearing, the objective never offers nothing',
+    worst || `${samples} frames over ${bearings} walked approaches, `
+      + `${inRing} of them inside 14 m, every one offering a bearing or a key`);
+
+  // ---- 5b. every rift, every radius across the boundary, eight bearings ----
+  const sweep = await page.evaluate(async () => {
+    const a = window.__ascent;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const keep = { x: a.player.pos.x, y: a.player.pos.y, z: a.player.pos.z };
+    const bad = [];
+    let n = 0;
+    // Radii chosen to straddle the reach boundary densely: the defect lived
+    // between 9 and 11 and a coarser sweep would have walked straight over it.
+    const RADII = [4, 6, 7.5, 8.5, 8.9, 9, 9.1, 9.5, 10, 10.5, 11, 12, 16];
+    for (const r of a.rifts.list) {
+      for (const rad of RADII) {
+        for (let b = 0; b < 8; b++) {
+          const th = (b / 8) * Math.PI * 2;
+          const x = r.foot.x + Math.cos(th) * rad, z = r.foot.z + Math.sin(th) * rad;
+          const h = a.islandAt(x, z);
+          if (h === null) continue;
+          a.player.pos.set(x, h + 0.55, z);
+          a.player.vel.set(0, 0, 0);
+          await sleep(34);
+          if (a.input.uiOpen || a.panel?.open) continue;
+          const g = a.story?.guide?.();
+          if (!g) continue;
+          n++;
+          if (g.offers === 'nothing' || (g.here && !g.prompt)) {
+            bad.push(`${r.id} @${rad}m/${b}: "${g.dir}" prompt=${g.prompt}`);
+          }
+        }
+      }
+    }
+    a.player.pos.set(keep.x, keep.y, keep.z);
+    return { n, bad: bad.slice(0, 5), total: bad.length };
+  });
+  note(sweep.n > 200 && sweep.total === 0,
+    'and from a thousand standing places beside every rift, it never does either',
+    sweep.total ? sweep.bad.join(' | ') : `${sweep.n} places checked across ${13} radii, 8 bearings`);
+  await handBack();
+
+  // ---- 5c. …and the way out is a way OUT ----------------------------------
+  //
+  // The other half of the critic's four minutes: *"R (Recover) returns you to
+  // 10 m still standing in it."* Recover only moved the cadet when the game had
+  // already worked out that something had hold of him — and the whole problem
+  // with a state nobody predicted is that nobody predicted it. From anywhere
+  // the game thought was fine, the documented way out put him down on the exact
+  // square metre he pressed it from, three times running, and he wrote it down
+  // as a dead key. He was right to.
+  //
+  // Nobody presses Recover from a place they are happy in. Pressing it IS the
+  // report. So it now always lands the cadet somewhere else, on ground he can
+  // stand on (src/player/controller.js), and this is that promise measured with
+  // the real key from three different kinds of place — including, deliberately,
+  // the ring the defect lived in.
+  const spots = [];
+  const rec = await page.evaluate(() => {
+    const a = window.__ascent;
+    const r = a.rifts.list.find((x) => !x.locked) || a.rifts.list[0];
+    return { x: r.foot.x, z: r.foot.z };
+  });
+  let moved = 0, tried = 0, stillSolid = 0;
+  for (const rad of [10, 9.5, 24]) {
+    // Stand where the defect was, then use nothing but the key a player has.
+    const ok = await page.evaluate(({ rec: c, rad: d }) => {
+      const a = window.__ascent;
+      const x = c.x + d, z = c.z;
+      const h = a.islandAt(x, z);
+      if (h === null) return false;
+      a.player.pos.set(x, h + 0.55, z);
+      a.player.vel.set(0, 0, 0);
+      return true;
+    }, { rec, rad });
+    if (!ok) continue;
+    await page.waitForTimeout(700);
+    await handBack();
+    const before = await page.evaluate(() => {
+      const p = window.__ascent.player;
+      return { x: p.pos.x, z: p.pos.z, n: p.recoveries | 0 };
+    });
+    await page.keyboard.press('KeyR');
+    await page.waitForTimeout(1100);
+    const after = await page.evaluate(() => {
+      const a = window.__ascent, p = a.player;
+      return {
+        x: p.pos.x, z: p.pos.z, n: p.recoveries | 0,
+        ground: a.islandAt(p.pos.x, p.pos.z), grounded: !!p.grounded,
+      };
+    });
+    tried++;
+    const d = Math.hypot(after.x - before.x, after.z - before.z);
+    spots.push(`${rad}m:${d.toFixed(1)}m`);
+    if (after.n > before.n && d > 2) moved++;
+    if (after.ground !== null) stillSolid++;
+  }
+  note(tried > 0 && moved === tried && stillSolid === tried,
+    'Recover always visibly moves you, onto ground you can stand on',
+    `${moved}/${tried} moved (${spots.join(', ')}), ${stillSolid}/${tried} onto solid ground`);
+  await handBack();
+}
+
+// --- 6. A player who walks off the edge gets back ---------------------------
 //
 // THIS STEP EXISTS BECAUSE THE GAME LOST A SESSION TO IT.
 //
@@ -166,8 +459,24 @@ if (target) {
 // panicking player actually does, it is the exact input that defeated the old
 // catch, and a version of this test that does not hold Space would have passed
 // against the broken build.
+//
+// AND THE BAR IS NOW THE PROMISE RATHER THAN THE OLD BEHAVIOUR. It stood at six
+// seconds, and the build passed it at 6.0 s and 5.99 s on the two runs that
+// hold the jump button — which is not passing, it is winning a coin toss, and
+// it flipped tails often enough to be known as "the flaky step". Six seconds is
+// also simply the wrong promise: a child who walks off the edge of a shard
+// should be standing on it again in about two, before they have time to wonder
+// whether the game has ended.
+//
+// The catch was rebuilt to answer the real question — *is there anywhere left
+// this cadet could land?* — instead of waiting for him to sink below the lowest
+// ground on the island (src/player/terrain.js `reachFloor`). It now fires on
+// geometry rather than on a sink rate, so the same fall costs the same time
+// every run. Measured on this build: 0.84 s, 1.00 s, 1.68 s, 1.85 s, the last
+// two under the wing. Three seconds is a bar with real headroom on a software
+// rasteriser; it is not a bar this build can scrape past.
 {
-  const CATCH_S = 6;              // seconds allowed between leaving and landing
+  const CATCH_S = 3;              // seconds allowed between leaving and landing
   const REACH_S = 45;             // seconds allowed to find the coast at all
 
   const facts = () => page.evaluate(() => {
@@ -226,6 +535,9 @@ if (target) {
   ];
 
   let left = 0, saved = 0, wedges = 0, lost = null;
+  // The margin, in seconds, printed on the pass. A gate that says "ok" over a
+  // number nobody can see is how this step stayed marginal for so long.
+  const took = [];
   for (const run of runs) {
     await release();
     await handBack();
@@ -240,7 +552,9 @@ if (target) {
     let off = false, offAt = 0, back = false, wedged = false;
     const t0 = Date.now();
     while ((Date.now() - t0) / 1000 < REACH_S + CATCH_S + 4) {
-      await page.waitForTimeout(250);
+      // 80 ms, not 250: at a three second bar a quarter-second poll is eight
+      // per cent of the budget spent measuring rather than playing.
+      await page.waitForTimeout(80);
       const el = (Date.now() - t0) / 1000;
       const f = await facts();
       if (f.ui) {
@@ -277,7 +591,7 @@ if (target) {
         } else if (el > REACH_S) break;
         continue;
       }
-      if (onSolid(f)) { back = true; saved++; break; }
+      if (onSolid(f)) { back = true; saved++; took.push(el - offAt); break; }
       if (el - offAt > CATCH_S) {
         lost = lost || `${run.label}: still out of the world `
           + `${(el - offAt).toFixed(1)}s after leaving it, at ${Math.hypot(f.x, f.z).toFixed(0)}m out, y=${f.y.toFixed(0)}`;
@@ -290,18 +604,21 @@ if (target) {
     if (lost) break;
   }
 
-  await shot('04-edge');
+  await shot('05-edge');
   // A GATE THAT PROVED NOTHING MUST NOT PASS. If no direction reached open air,
   // the assertion under it never ran, and reporting that as a pass is precisely
   // the shape of every false fix this defect has already survived.
   note(left >= 1, 'a cold player can actually walk off this shard',
     left >= 1 ? `${left} of ${runs.length} directions reach open air, ${wedges} wedge on the way`
       : 'never left the world in any direction — the test below proved nothing');
+  const worst = took.length ? Math.max(...took) : 0;
   note(!lost && saved > 0, 'a player who walks off the edge gets back',
-    lost || `${saved} recoveries (${left} falls, ${wedges} wedges), all onto solid ground inside ${CATCH_S}s`);
+    lost || `${saved} recoveries (${left} falls, ${wedges} wedges), all onto solid ground`
+      + (took.length ? `; slowest fall ${worst.toFixed(2)}s of ${CATCH_S}s allowed `
+        + `(${took.map((x) => x.toFixed(2)).join(', ')})` : ''));
 }
 
-// --- 6. THE SCHOOL LAPTOP: the browser refuses the pointer lock -------------
+// --- 7. THE SCHOOL LAPTOP: the browser refuses the pointer lock -------------
 //
 // THIS SECTION EXISTS BECAUSE THE GAME WAS SILENTLY UNPLAYABLE IN IT.
 //
@@ -372,7 +689,7 @@ if (target) {
     'the game NOTICES that the pointer lock was refused',
     `locked=${mode.locked} lookMode=${mode.mode}`);
 
-  // 6b. It says so, in words, on the card — and the card stops advertising a
+  // 7b. It says so, in words, on the card — and the card stops advertising a
   //     mouse that cannot look. Read as text, in whatever locale is running.
   const card = await p2.evaluate(() => {
     const fc = document.querySelector('#ui .fc');
@@ -392,7 +709,7 @@ if (target) {
     'the player is TOLD, and the card prints controls that actually work',
     `card shown=${card.shown} notice=${card.noted} look row="${card.look.replace(/\n/g, ' · ')}"`);
 
-  // 6c. The arrow keys turn the camera. No mouse is touched.
+  // 7c. The arrow keys turn the camera. No mouse is touched.
   // (A story beat may have taken the frame while the notice was read; the
   //  arrows are correctly deaf behind a panel, so give the world back first.)
   await handBack2();
@@ -410,7 +727,7 @@ if (target) {
   note(turnedKeys > 1.0, 'ARROW KEYS turn the view with no pointer lock',
     `${turnedKeys.toFixed(2)} rad held for 2s`);
 
-  // 6d. …and so does a click-drag, which is what a hand tries first.
+  // 7d. …and so does a click-drag, which is what a hand tries first.
   const yB = await yaw();
   await p2.mouse.move(800, 450);
   await p2.mouse.down();
@@ -421,7 +738,7 @@ if (target) {
   note(turnedDrag > 0.5, 'CLICK-DRAG turns the view with no pointer lock',
     `${turnedDrag.toFixed(2)} rad over 500px`);
 
-  // 6e. THE WHOLE POINT: face a rift you were told about, reach it, seal it —
+  // 7e. THE WHOLE POINT: face a rift you were told about, reach it, seal it —
   //     on a machine where the mouse cannot aim.
   const target = await p2.evaluate(() => {
     const a = window.__ascent;
@@ -482,12 +799,12 @@ if (target) {
       }
     }
   }
-  await p2.screenshot({ path: path.join(OUT, '05-nolock-rift.png') });
+  await p2.screenshot({ path: path.join(OUT, '06-nolock-rift.png') });
   note(arrived && opened2,
     'with NO pointer lock, a player can turn, reach a rift and open it',
     target ? `${target.id}, ${target.dist.toFixed(0)}m away, arrows only` : 'no unlocked rift');
 
-  // 6f. …and finish a piece of mathematics inside it. Reading the answer off
+  // 7f. …and finish a piece of mathematics inside it. Reading the answer off
   //     the live item is reading a fact; every key that follows is pressed.
   let sealed = false;
   if (opened2) {
@@ -522,14 +839,14 @@ if (target) {
       sealed = after !== before;
     }
   }
-  await p2.screenshot({ path: path.join(OUT, '06-nolock-item.png') });
+  await p2.screenshot({ path: path.join(OUT, '07-nolock-item.png') });
   note(sealed, 'with NO pointer lock, a player can complete an item',
     sealed ? 'answered and registered' : 'the item never registered an attempt');
 
   await ctx2.close();
 }
 
-// --- 7. Console health ------------------------------------------------------
+// --- 8. Console health ------------------------------------------------------
 note(errors.length === 0, 'no console errors', errors.slice(0, 3).join(' | '));
 
 const facts = await page.evaluate(() => {

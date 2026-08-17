@@ -745,4 +745,32 @@ export default {
   'ctx.twoSignals': 'La misma cantidad se señaló desde dos mástiles, en dos notaciones. El equipo acepta una.',
   'ctx.twoChalks': 'Dos manos escribieron la misma cantidad de dos formas. El equipo acepta una línea.',
 
+
+  // ---- una parte conocida junto a una desconocida (vm-partWhole) ---------
+  'ctx.pwMuster': 'La cubierta de reunión tiene ${v}$ cadetes. Suben {c} cadetes más por la rampa.',
+  'ctx.pwReel': 'Un carrete lleva ${v}$ metros de cabo. El contramaestre añade {c} metros.',
+  'ctx.pwTank': 'Un depósito tiene ${v}$ litros. La bomba mete {c} litros.',
+  'ctx.pwGlazing': 'El estante guarda ${v}$ cristales. Una caja añade {c} cristales.',
+  'ctx.pwBank': 'Una batería tiene ${v}$ celdas. La tripulación monta {c} celdas.',
+  'ctx.pwSledRun': 'Un trineo lleva ${v}$ kilómetros hoy. El siguiente tramo suma {c} kilómetros.',
+  'ctx.pwScalePan': 'El plato ya tiene ${v}$ gramos. El contramaestre echa {c} gramos.',
+  'ctx.pwSeam': 'Una costura lleva ${v}$ remaches. El parche de al lado lleva {c} remaches.',
+  'ctx.pwWatchLog': 'El registro tiene ${v}$ lecturas. La guardia de noche añade {c} lecturas.',
+  'ctx.pwLamp': 'Una lámpara de cubierta da ${v}$ lúmenes. Una linterna da {c} lúmenes.',
+  'ctx.pwWarmBay': 'La bahía está a ${v}$ grados. El calefactor la sube {c} grados.',
+  'ctx.pwHull': 'El casco lleva ${v}$ planchas. El astillero atornilla {c} planchas.',
+  // ---- un total desconocido, repartido (vm-share) ------------------------
+  'ctx.soCable': 'El contramaestre corta ${v}$ metros de cable en {k} trozos iguales.',
+  'ctx.soWater': 'La tripulación pasa ${v}$ litros de agua a {k} bidones iguales.',
+  'ctx.soRations': 'El cocinero reparte una caja de ${v}$ raciones entre {k} literas.',
+  'ctx.soOre': 'Una vagoneta vuelca ${v}$ toneladas de mineral en {k} montones iguales.',
+  'ctx.soWatch': 'El contramaestre reparte una guardia de ${v}$ horas entre {k} turnos.',
+  'ctx.soPower': 'La barra reparte ${v}$ vatios por igual entre {k} cubiertas.',
+  'ctx.soSeed': 'El hortelano siembra ${v}$ semillas por igual en {k} bancales.',
+  'ctx.soFuel': 'El maquinista vacía ${v}$ litros de fuel en {k} bidones iguales.',
+  'ctx.soCanvas': 'El velero corta ${v}$ metros de lona en {k} velas iguales.',
+  'ctx.soSalt': 'El rastrillo junta ${v}$ kilos de sal en {k} montones iguales.',
+  'ctx.soRope': 'El contramaestre corta ${v}$ metros de cabo en {k} tiras iguales.',
+  'ctx.soGrain': 'La canaleta echa ${v}$ toneladas de grano en {k} sacos iguales.',
+  'ask.whichShare': '¿Qué expresión da una sola parte?',
 };

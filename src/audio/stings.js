@@ -24,7 +24,7 @@
  */
 
 import { sealChord, PLACES } from './theory.js';
-import { pad, sub, bell, pluck, shimmer, thump, grain, ping } from './voices.js';
+import { pad, sub, bell, pluck, shimmer, thump, grain, ping, choir } from './voices.js';
 import { mtof, rnd, clamp } from './dsp.js';
 
 export class Stings {
@@ -48,7 +48,13 @@ export class Stings {
     const t = A.t;
     const LAND = t + 0.20;      // the downbeat everything is aimed at
 
-    A.duck(big ? 0.68 : 0.52, 0.70, 1.6, big ? 0.48 : 0.32);
+    // THE ROOM GOES QUIET FIRST. This is the cheapest and largest thing in the
+    // whole beat and it is not a sound at all: the island's wind, its birds and
+    // its stone are pulled down under the chord and then walk back in over two
+    // and a half seconds. A cadence played on top of a gale is a cadence in a
+    // gale. The same cadence played into a room that just stopped is an event.
+    // Mastery gets the deepest hole and the slowest walk back.
+    A.duck(big ? 0.74 : 0.52, big ? 1.05 : 0.70, big ? 2.6 : 1.6, big ? 0.62 : 0.32);
 
     // --- inhale --------------------------------------------------------
     // Rising air into the landing. It is short, it is quiet, and removing it
@@ -114,6 +120,43 @@ export class Stings {
       bell(A, n, LAND + 0.45 + i * rnd(0.14, 0.34), {
         level: 0.035 * rnd(0.6, 1), decay: rnd(2.2, 4.2), index: 1.8,
         air: 1, pan: rnd(-1, 1), bus: A.sfx,
+      });
+    }
+
+    // --- the voice -----------------------------------------------------
+    // THE PAYLOAD.
+    //
+    // Everything above this line is objects: struck metal, plucked string,
+    // moved air. A person is a different category of thing to hear, and the ear
+    // knows it in one note. So the game holds its only human sound back and
+    // spends it on exactly one meaning — *this held, and it was yours* — which
+    // is why it must not be here for every seal.
+    //
+    // It arrives on a ladder, and the ladder is the answer to a build that was
+    // called flat: an early answer on a shaky line gets no voice at all; as a
+    // line comes together one voice appears under the chord, faintly, and a
+    // learner notices without being able to say what changed; and the answer
+    // that closes the skill gets the full section — root, fifth, octave — held
+    // for four seconds over the bells.
+    //
+    // The attack is slow on purpose. The chord lands, and *then* the voice
+    // grows into the room behind it, which is the difference between a stab and
+    // an arrival. It is also why the frame's light (src/fx `seal()`) is still
+    // up when the voice reaches full: they are the same event.
+    const voices = big ? 3 : (mastery > 0.62 ? 1 : 0);
+    if (voices) {
+      const r = C.notes[big ? 2 : 1];
+      const line = big ? [r, r + 7, r + 12] : [r];
+      line.forEach((n, i) => {
+        choir(A, n, LAND + 0.06 + i * 0.09, big ? 3.4 : 1.9, {
+          level: (big ? 0.075 : 0.030) * (i === 0 ? 1 : 0.72),
+          attack: big ? 0.55 : 0.42,
+          release: big ? 3.0 : 1.8,
+          vibrato: big ? 9 : 6,
+          air: 0.95,
+          pan: line.length > 1 ? (i / (line.length - 1) - 0.5) * 1.15 : 0.06,
+          bus: A.sfx,
+        });
       });
     }
 

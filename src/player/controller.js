@@ -6,7 +6,7 @@ import { Animator } from './animator.js';
 import { CameraRig } from './camera.js';
 import { PlayerFX } from './effects.js';
 import { ScreenFeel } from './screen.js';
-import { heightAt, gradientAt, slopeAt, outsideWorld, deck } from './terrain.js';
+import { heightAt, gradientAt, slopeAt, outsideWorld, deck, landingNear } from './terrain.js';
 import { GrassPush } from './grasspush.js';
 
 const clamp = THREE.MathUtils.clamp;
@@ -222,7 +222,44 @@ export class Player {
    * thing being fixed is a session that ended in a beige void.
    */
   _catch(dt) {
-    const why = outsideWorld(this.pos.x, this.pos.y, this.pos.z);
+    const p = this.pos;
+    let why = outsideWorld(p.x, p.y, p.z);
+
+    // ---- …AND A FALL IS A FALL BEFORE IT IS HOPELESS ----------------------
+    //
+    // `outsideWorld` answers the question *can this cadet ever get back*, and
+    // it answers it exactly (src/player/terrain.js). But exactly is not the
+    // same as soon enough, and the gap between them was costing seconds that
+    // felt like the end of the session.
+    //
+    // Walk off a seventy-metre cliff and, for the whole of the drop, you CAN
+    // still get back: the wing turns height into distance at seven and a half
+    // to one and you have seventy metres of it. The reach test is right to
+    // leave you alone — and a child who has just walked off a cliff and is not
+    // pressing anything does not experience three seconds of "you still have
+    // options", he experiences three seconds of nothing happening. A cold gate
+    // measured that as 3.1 s outside the world and counted it, correctly, as a
+    // failure of the promise.
+    //
+    // So the wing is made the difference, which is what it is for. **Open it
+    // and you are flying**: the reach test governs, the whole glide is yours,
+    // and nothing interrupts it until the island really is out of range.
+    // **Leave it shut and you are falling**, and falling ends the way falling
+    // should end — on solid ground, about a second and a half later, before
+    // there is time to wonder whether the game is over.
+    //
+    // This is only safe because of a fact about this island, and the fact is
+    // checked rather than assumed: it has no holes in it. Every point where the
+    // heightfield answers nothing is joined to the open air outside the
+    // coastline, so there is no gap to jump and no crevasse to drop into —
+    // being over open air here means being off the shard. `landingNear` covers
+    // the one thing that is not the island: a deck the cadet built himself.
+    if (!why && !this.loco.grounded && !this.loco.gliding
+      && this.vel.y < -2 && heightAt(p.x, p.z) === null
+      && !landingNear(p.x, p.y, p.z)) {
+      why = 'fell';
+    }
+
     if (!why) {
       this.falling = false;
       this._fellT = 0;
@@ -232,6 +269,10 @@ export class Player {
     this._fellT += dt;
     // Through the terrain, or under the floor, is answered on the frame it is
     // seen: there is nothing to look at down there and nothing to understand.
+    // A fall gets a beat — long enough to see the shard go past overhead and
+    // to reach for the wing, and not one second longer. Reaching for it works:
+    // the wing clears the test above on the frame it opens, and the beat is
+    // abandoned rather than merely paused.
     const grace = why === 'fell' ? 0.9 : 0;
     if (this._fellT < grace) return;
     this._fellT = 0;
@@ -255,7 +296,24 @@ export class Player {
     // has closed over him. It belongs in this list for exactly the reason the
     // others are here: recovering onto the same square metre, still inside the
     // same four walls, is a button that did nothing.
-    const away = this.stuck || this.boxed || reason === 'buried' || reason === 'fell';
+    //
+    // …AND SO DOES A RECOVERY THE PLAYER ASKED FOR, which is the correction
+    // this line is carrying. `asked` used to land the cadet exactly where he
+    // already stood whenever the ground under him was fine, on the theory that
+    // there was nothing to recover from. But nobody presses Recover from a
+    // place they are happy in. Pressing it *is* the report: "I am somewhere
+    // this game has stopped working and I do not know how to leave." A cold
+    // critic pressed it three separate times from a spot where the objective
+    // card had gone blank, was set down on the same square metre each time, and
+    // logged the key as a no-op — which, from where he was sitting, it was.
+    //
+    // The stranding itself is fixed where it was caused (src/meta/guide.js and
+    // src/world/rifts.js: the card can no longer go quiet). This is the promise
+    // underneath that fix, and it does not depend on having predicted the
+    // state: **the way out always visibly moves you, onto open ground you can
+    // stand on, every single time it is pressed.** It costs a step and a half.
+    const away = this.stuck || this.boxed
+      || reason === 'buried' || reason === 'fell' || reason === 'asked';
     // Off the shard entirely: come back over the lip you left, not to the
     // landing site. Being set down two hundred metres from what you were doing
     // is a second punishment on top of the fall, and it is the one that makes a
@@ -534,7 +592,7 @@ export class Player {
       pos: this.pos, vel: this.vel, yaw: this.yaw, pitch: this.pitch,
       speedN: sn, gliding: L.gliding, glideRoll: L.glideRoll, glidePitch: L.glidePitch,
       dashW: this.dashW, turnRate: L.turnRate, time,
-      grounded: L.grounded, airTime: L.airTime,
+      grounded: L.grounded, airTime: L.airTime, flow: L.flow,
     });
     this.pitch = this.cam.pitch;
 
@@ -564,6 +622,35 @@ export class Player {
       cam.shake(0.10);
       this.anim.squashV += 1.4;              // a little stretch off the ground
       inp.rumble(0.25, 60, 0.15);
+    }
+    // THE LAUNCH. The head of a ramp throws you, and it has to be felt as a
+    // throw and not as a step off a kerb: the boots kick a wedge of grit
+    // backwards off the lip, a ring marks the place you left, and the lens
+    // drops behind you as the ground stops being underneath.
+    if (ev.launched > 0) {
+      const k = ev.launched;
+      const m = Math.max(0.001, L.speed);
+      fx.dust.emit(p.x, p.y + 0.12, p.z, 8 + Math.round(k * 14), {
+        spread: 0.22, out: 1.1, up: 1.4 + k * 1.6, size: 0.22 + k * 0.18,
+        life: 0.58, c: [0.88, 0.84, 0.76], alpha: 0.36 + k * 0.30,
+        dx: -this.vel.x / m * 3.4, dz: -this.vel.z / m * 3.4, grav: 1.1, growth: 2.0,
+      });
+      fx.ring(p.x, p.y, p.z, {
+        s0: 0.6, s1: 1.9 + k * 2.6, dur: 0.32 + k * 0.20,
+        color: 0xdff0ff, a0: 0.26 + k * 0.28, lift: 0.22,
+      });
+      cam.punchFov(-1.6 - k * 3.4);
+      cam.shake(0.06 + k * 0.14);
+      cam.impact(-0.10 - k * 0.22, 0.5);
+      this.anim.squashV += 0.7 + k * 1.1;
+      inp.rumble(0.22 + k * 0.36, 70, 0.14 + k * 0.16);
+    }
+    // A dash cancelled into a jump: the lens snaps wide, because the cadet has
+    // just kept a speed the game would otherwise have taken off him.
+    if (ev.dashJumped) {
+      cam.punchFov(5.5);
+      this.screen.flash(0.16);
+      inp.rumble(0.45, 95, 0.22);
     }
     if (ev.doubleJumped) {
       fx.airJump(p.x, p.y, p.z);

@@ -48,6 +48,7 @@
  */
 import { t, num } from '../i18n/index.js';
 import { RANK_INK, RANK_GLOW, sigilSVG } from '../meta/arc.js';
+import { FIG, tagFigure, untagFigure } from '../meta/progress.js';
 
 export class Resolution {
   constructor(root, { onRest, onMore }) {
@@ -92,10 +93,15 @@ export class Resolution {
         <h2 class="sx-title"><span></span></h2>
         <div class="sx-rule"></div>
         <div class="sx-tally">
-          <span class="sx-t-n"></span>
-          <span class="sx-t-lab"></span>
+          <span class="sx-t-fig"><span class="sx-t-n"></span><span class="sx-t-lab"></span></span>
           <span class="sx-t-sub"></span>
         </div>
+        <!-- The row that used to carry LINES HELD here is gone. This card leads
+             with the one progress number (see retext, below), and printing a second,
+             differently-scaled answer to the same question directly under it is
+             precisely the shape that put nine figures on one frame. Lines held
+             is evidence; it is in the report. -->
+        <div class="sx-lines" hidden><b class="sx-l-n"></b><span class="sx-l-note"></span></div>
         <div class="sx-blocks">
           <section class="sx-b sx-held"><h3></h3><ul></ul></section>
           <section class="sx-b sx-open"><h3></h3><ul></ul></section>
@@ -129,9 +135,13 @@ export class Resolution {
     this.crestCite = this.el.querySelector('.sx-crest-cite');
     this.kick = this.el.querySelector('.sx-kick');
     this.title = this.el.querySelector('.sx-title span');
+    this.tallyFig = this.el.querySelector('.sx-t-fig');
     this.tallyN = this.el.querySelector('.sx-t-n');
     this.tallyLab = this.el.querySelector('.sx-t-lab');
     this.tallySub = this.el.querySelector('.sx-t-sub');
+    this.linesEl = this.el.querySelector('.sx-lines');
+    this.linesN = this.el.querySelector('.sx-l-n');
+    this.linesNote = this.el.querySelector('.sx-l-note');
     this.sign = this.el.querySelector('.sx-sign');
     this.cap = this.el.querySelector('.sx-cap');
     this.rest = this.el.querySelector('.sx-rest');
@@ -255,21 +265,62 @@ export class Resolution {
     this._crest(r.promoted || null);
     const held = r.held.length > 0;
     const items = r.items || 0;
-    // A run that sealed nothing leads with the work, because a screen-height
-    // zero is not a summary of twenty minutes, it is a verdict on them.
-    const leadWork = r.tears === 0 && items > 0;
     this.kick.textContent = t('session.close.kick', { n: r.index });
+    tagFigure(this.kick, FIG.RUN_NO, r.index);
     this.title.textContent = t(
       held ? 'session.close.titleHeld'
         : (r.met ? 'session.close.titleMet' : 'session.close.titleEnough'),
     );
-    this.tallyN.textContent = num(leadWork ? items : r.tears);
-    this.tallyLab.textContent = leadWork
-      ? t('session.close.workedLab', { n: items })
-      : t('session.close.tears', { n: r.tears });
-    this.tallySub.textContent = leadWork
-      ? t('session.close.workedSub')
-      : (items > r.tears ? t('session.close.ofWorked', { n: items }) : '');
+
+    /* THE HEADLINE IS THE ONE NUMBER.
+     *
+     * It used to be the run tally — "9 RIFTS SEALED", screen-height — which is
+     * how the same fact came to be printed three ways within two hundred pixels
+     * ("2 OF 16 RIFTS THIS RUN" on the band, "2 RIFTS SEALED IN ALL" on the
+     * chapter card, Marlow saying "three rifts sealed" over the top). Worse, a
+     * run tally is a number that resets, so the biggest thing on the card that
+     * ends a session was a figure the next session throws away.
+     *
+     * WORLD REPAIRED does not reset, is the same figure the rig has been
+     * carrying all session, and is read from the same `repaired()` — so this
+     * card cannot describe a different world from the one the learner was
+     * looking at four hundred milliseconds ago. Under it, what this sitting was
+     * worth, which is the answer to the question the close beat actually asks:
+     * was that twenty minutes worth anything?
+     *
+     * A run saved by an older build carries no reading. An unknown is reported
+     * by not reporting it, never by printing a zero.
+     */
+    const pctNow = Number.isFinite(r.repaired) ? r.repaired : null;
+    const pctWas = Number.isFinite(r.repairedWas) ? r.repairedWas : null;
+    const gained = pctNow != null && pctWas != null ? Math.max(0, pctNow - pctWas) : null;
+    if (pctNow == null) {
+      // No reading at all: the card leads with the work, which is always known.
+      this.tallyN.textContent = num(items);
+      this.tallyLab.textContent = t('session.close.workedLab', { n: items });
+      tagFigure(this.tallyFig, FIG.RUN_ITEMS, items);
+      this.tallySub.textContent = t('session.close.workedSub');
+      untagFigure(this.tallySub);
+    } else {
+      this.tallyN.textContent = t('session.close.repairedN', { n: pctNow });
+      this.tallyLab.textContent = t('session.close.repairedLab');
+      tagFigure(this.tallyFig, FIG.REPAIRED, pctNow);
+      this.tallySub.textContent = gained == null
+        ? ''
+        : (gained > 0
+          ? t('session.close.repairedGain', { n: gained })
+          : t('session.close.repairedFlat'));
+      // The delta is the same fact read twice, not a second fact — so it is not
+      // a figure of its own and is not declared as one.
+      untagFigure(this.tallySub);
+    }
+    this.linesEl.hidden = true;
+    untagFigure(this.linesN);
+    /* `lead-work` used to mean "this run sealed nothing, so lead with the
+       questions worked". The headline is the one number now and it is never a
+       screen-height zero for a run that did real work — belief moves on every
+       item — so the state stays only for the no-reading fallback above. */
+    const leadWork = pctNow == null;
     this.el.classList.toggle('lead-work', leadWork);
     this.el.classList.toggle('ground', !held);
     // The shard is finished: the third block is now carrying the card, and the
@@ -317,7 +368,14 @@ export class Resolution {
     this.cap.textContent = more
       ? (r.extensions > 0 ? t('session.close.moreLast') : '')
       : t('session.close.capped');
-    this.inn.setAttribute('aria-label', t('session.close.aria', { n: r.tears }));
+    /* THE SCREEN READER IS TOLD THE HEADLINE, NOT A DIFFERENT ONE.
+       This read "Run closed. 9 rifts sealed this run" while the card's headline
+       is a percentage — which is a tenth progress figure issued only to blind
+       learners, and it would disagree with the rig for exactly the reason the
+       printed ones did. Same fact, same words, same number. */
+    this.inn.setAttribute('aria-label', pctNow == null
+      ? t('session.close.ariaWorked', { n: items })
+      : t('session.close.ariaRepaired', { n: pctNow }));
     // Polish is a good deal longer than English on this card, so the answer to
     // "does it overflow" is re-asked every time the language changes.
     this.fit();

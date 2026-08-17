@@ -751,4 +751,38 @@ export default {
   'ctx.twoSignals': 'The same quantity was signalled from two masts, in two notations. The rig takes one.',
   'ctx.twoChalks': 'Two hands chalked the same quantity in two shapes. The rig accepts one line.',
 
+
+  // ---- ADDED: a known part beside an unknown one -------------------------
+  // The deck behind `vm-partWhole`. Every other contextual reading of
+  // var-meaning is a product; this one is a sum, so the sentence a cadet
+  // recognises is a different sentence, not the same one in a new noun.
+  'ctx.pwMuster': 'The muster deck holds ${v}$ cadets. {c} more cadets come up the ramp.',
+  'ctx.pwReel': 'A reel carries ${v}$ metres of line. The mate adds {c} metres.',
+  'ctx.pwTank': 'A tank holds ${v}$ litres. The pump sends in {c} litres.',
+  'ctx.pwGlazing': 'The rack holds ${v}$ panes. A crate adds {c} panes.',
+  'ctx.pwBank': 'A power bank holds ${v}$ cells. The crew fits {c} cells.',
+  'ctx.pwSledRun': 'A sled has run ${v}$ kilometres today. The next leg adds {c} kilometres.',
+  'ctx.pwScalePan': 'The pan already holds ${v}$ grams. The mate drops in {c} grams.',
+  'ctx.pwSeam': 'One seam takes ${v}$ rivets. The patch beside it takes {c} rivets.',
+  'ctx.pwWatchLog': 'The log holds ${v}$ readings. The night watch adds {c} readings.',
+  'ctx.pwLamp': 'A deck lamp gives ${v}$ lumens. A hand torch gives {c} lumens.',
+  'ctx.pwWarmBay': 'The bay sits at ${v}$ degrees. The heater lifts it {c} degrees.',
+  'ctx.pwHull': 'The hull carries ${v}$ plates. The yard bolts on {c} plates.',
+  // ---- ADDED: an unknown total, shared out (vm-share) --------------------
+  // The only place in Level 1 where a whole is taken apart rather than built
+  // up, so the answer is a fraction and the slip is a division written the
+  // wrong way round.
+  'ctx.soCable': 'The mate cuts ${v}$ metres of cable into {k} equal lengths.',
+  'ctx.soWater': 'The crew draws ${v}$ litres of water into {k} equal cans.',
+  'ctx.soRations': 'The cook splits a crate of ${v}$ rations between {k} bunks.',
+  'ctx.soOre': 'A skip tips ${v}$ tonnes of ore into {k} equal heaps.',
+  'ctx.soWatch': 'The mate shares a watch of ${v}$ hours between {k} hands.',
+  'ctx.soPower': 'The bus feeds ${v}$ watts evenly to {k} decks.',
+  'ctx.soSeed': 'The gardener sows ${v}$ seeds evenly across {k} beds.',
+  'ctx.soFuel': 'The engineer drains ${v}$ litres of fuel into {k} equal drums.',
+  'ctx.soCanvas': 'The sailmaker cuts ${v}$ metres of canvas into {k} equal sails.',
+  'ctx.soSalt': 'The rake pulls ${v}$ kilograms of salt into {k} equal piles.',
+  'ctx.soRope': 'The bosun cuts ${v}$ metres of rope into {k} equal falls.',
+  'ctx.soGrain': 'The chute runs ${v}$ tonnes of grain into {k} equal sacks.',
+  'ask.whichShare': 'Which expression gives one share?',
 };

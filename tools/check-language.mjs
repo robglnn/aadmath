@@ -23,13 +23,14 @@
  * plain words only, because that is where the game's voice lives and a gate that
  * sands it flat has made the product worse.
  *
- * THE SIX RULES
+ * THE SEVEN RULES
  *
  *   long      a sentence over 25 words                      (both classes)
  *   passive   passive voice                                 (instructional)
  *   pronoun   a sentence opening on a bare it/this/that      (instructional)
  *   cluster   four or more nouns in a row                    (instructional)
  *   term      a coined word used before it is defined        (both classes)
+ *   gloss     a coined LABEL with no meaning on its own screen (see rules.mjs)
  *   fancy     a long word where a plain one carries it       (both classes)
  *
  * AND TWO MORE, ON THE ITEM BANK
@@ -63,11 +64,12 @@
  */
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { realpathSync } from 'node:fs';
+import { realpathSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import {
   isFlavour, rankOf, TERMS, FANCY, PASSIVE, PASSIVE_EXEMPT, PRONOUN_OPENER,
   NOT_NOUN, CLUSTER_EXEMPT, MAX_SENTENCE_WORDS, AIM_SENTENCE_WORDS, MAX_CLUSTER,
   CLUSTER_MODE, PL_GENITIVE, PL_VERBish, PL_ADJ,
+  GLOSSED, GLOSS_ALLOW, GLOSS_NAMESPACES, GLOSS_MIN,
 } from './lang/rules.mjs';
 import { generate, SKILLS } from '../src/learn/generators.js';
 
@@ -269,6 +271,98 @@ function clustersInPhrase(loc, sentence) {
 }
 
 // ---------------------------------------------------------------------------
+// WHICH KEYS THE GAME ACTUALLY PRINTS
+//
+// A definition nothing renders is not a definition, it is a note to ourselves.
+// `report.stateNote.*` sat in the bundle for months reading like documentation
+// and reached a player only as a `title` attribute — invisible on a phone,
+// invisible to a keyboard, invisible to everybody. So the gloss rule asks the
+// source: does any module ask for this key?
+//
+// Keys are regularly composed (`t('report.stateNote.' + st)`), so a literal that
+// ENDS IN A DOT counts as a claim on everything under it. That is exactly how
+// the game reads them, and it is the only way this can be answered statically.
+// ---------------------------------------------------------------------------
+let _rendered = null;
+function renderedKeys() {
+  if (_rendered) return _rendered;
+  const lits = new Set();
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      if (name === 'node_modules' || name.startsWith('.')) continue;
+      const p = path.join(dir, name);
+      if (statSync(p).isDirectory()) { walk(p); continue; }
+      if (!/\.(js|mjs)$/.test(name)) continue;
+      // The bundles themselves are where the keys are DECLARED. A declaration
+      // is not a use, and counting one would make this rule always pass.
+      if (/src[\\/]i18n[\\/](en|es|pl)\.js$/.test(p)) continue;
+      const src = readFileSync(p, 'utf8');
+      for (const m of src.matchAll(/['"`]([a-zA-Z][\w-]*(?:\.[\w-]*)+)['"`]/g)) lits.add(m[1]);
+    }
+  };
+  walk(path.join(ROOT, 'src'));
+  _rendered = lits;
+  return lits;
+}
+
+/** Does anything in src/ ask for this key, by name or by prefix? */
+function isRendered(key) {
+  const lits = renderedKeys();
+  if (lits.has(key)) return true;
+  for (const l of lits) if (l.endsWith('.') && key.startsWith(l)) return true;
+  return false;
+}
+
+/**
+ * A LABEL THAT COINS A WORD MUST CARRY ITS MEANING ON THE SAME SCREEN.
+ *
+ * See the long note over GLOSSED in tools/lang/rules.mjs. Four questions, and
+ * a namespace guard so a new label cannot be added without answering them.
+ */
+function checkGlosses(loc, byKey) {
+  const out = [];
+  const bad = (key, detail, sample = '') =>
+    out.push({ rule: 'gloss', loc, key, flavour: false, detail, sample });
+
+  const labelled = new Set(GLOSSED.map((g) => g.label));
+  for (const g of GLOSSED) {
+    const label = byKey.get(g.label);
+    if (label === undefined) { bad(g.label, 'the label this gloss is for does not exist'); continue; }
+    const gloss = byKey.get(g.gloss);
+    if (gloss === undefined) {
+      bad(g.label, `"${normalise(label)}" is printed with no gloss — add ${g.gloss}`);
+      continue;
+    }
+    if (g.gloss === g.label) { bad(g.label, 'a label cannot be its own gloss'); continue; }
+    const n = words(normalise(gloss)).length;
+    const min = g.min || GLOSS_MIN;
+    if (n < min) {
+      bad(g.label, `the gloss for "${normalise(label)}" is ${n} words, which is a synonym and not a meaning (needs ${min})`,
+        normalise(gloss).slice(0, 90));
+    }
+    const lr = rankOf(baseKey(g.label));
+    const gr = rankOf(baseKey(g.gloss));
+    if (gr > lr) {
+      bad(g.label, `"${normalise(label)}" is printed at surface rank ${lr}; its meaning does not arrive until rank ${gr} (${g.gloss})`);
+    }
+    // …and the one that has teeth.
+    if (!isRendered(g.gloss)) {
+      bad(g.label, `${g.gloss} is never rendered by anything in src/ — a gloss nothing prints is not a definition`);
+    }
+  }
+
+  // THE GUARD. Every key under a guarded namespace has to be answered for.
+  for (const key of byKey.keys()) {
+    const base = baseKey(key);
+    if (!GLOSS_NAMESPACES.some((ns) => base.startsWith(ns))) continue;
+    if (labelled.has(base) || GLOSS_ALLOW[base]) continue;
+    bad(base, 'a new player-facing label in a guarded namespace: give it a gloss in GLOSSED, '
+      + 'or a written reason in GLOSS_ALLOW', normalise(byKey.get(key)).slice(0, 90));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // The rules
 // ---------------------------------------------------------------------------
 function checkString(loc, key, raw, ctx) {
@@ -368,6 +462,8 @@ function runLocale(loc, bundle) {
     }
     ctx.termRank[term.id] = rankOf(term.def);
   }
+
+  structural.push(...checkGlosses(loc, byKey));
 
   const findings = structural.slice();
   for (const [key, raw] of entries) findings.push(...checkString(loc, key, raw, ctx));
@@ -578,6 +674,55 @@ function selfTest() {
     const hits = checkString(loc, key, text, ctx);
     if (hits.length) { console.error(`SELF-TEST FAIL: ${loc} false positive on clean text: ${JSON.stringify(hits)}`); bad++; }
   }
+  /* THE GLOSS RULE, IN ALL FIVE OF THE WAYS IT HAS TO BE ABLE TO FAIL.
+   *
+   * A gate that cannot be watched failing is a gate nobody should trust, and
+   * this one exists because the previous version of it passed a screen on which
+   * SLIPPING, PROVING and TESTED OUT were all undefined. Each case below is one
+   * of those defects, minimised. `report.state.provisional` is used as the
+   * label under test because it is the exact row the critic photographed. */
+  const gloss = (map, want, why) => {
+    const hits = checkGlosses('en', new Map(Object.entries(map)));
+    const got = hits.filter((h) => h.key === want);
+    if (!got.length) { console.error(`SELF-TEST FAIL: gloss rule silent on ${why}`); bad++; }
+  };
+  const BASE = {
+    'report.state.provisional': 'Slipping',
+    'report.stateNote.provisional': 'One re-test missed. Miss the next and the claim is withdrawn.',
+  };
+  gloss({ 'report.state.provisional': 'Slipping' },
+    'report.state.provisional', 'a label with no gloss key at all');
+  gloss({ ...BASE, 'report.stateNote.provisional': 'It slipped.' },
+    'report.state.provisional', 'a gloss too short to be a meaning');
+  // A brand-new label in a guarded namespace, with nobody having answered for it.
+  gloss({ ...BASE, 'report.state.wobbling': 'Wobbling' },
+    'report.state.wobbling', 'an unanswered new label in a guarded namespace');
+  /* …and the one with teeth: a gloss that exists, reads well, sits at the right
+     rank, and is rendered by nothing. That is what `report.stateNote.*` was
+     before the legend — a definition written for a `title` attribute, which is
+     to say for nobody. Checked through the rule rather than through
+     `isRendered` alone, because the composed-key case (`t('report.state.' + st)`)
+     means a prefix literal in the source is a genuine claim on the whole
+     namespace, and only a namespace nothing asks for can prove the negative. */
+  const NOWHERE = {
+    'report.state.provisional': 'Slipping',
+    'report.glossNobodyPrints.provisional': 'One re-test missed. Miss the next and the claim is withdrawn.',
+  };
+  const saved = GLOSSED.find((g) => g.label === 'report.state.provisional').gloss;
+  GLOSSED.find((g) => g.label === 'report.state.provisional').gloss = 'report.glossNobodyPrints.provisional';
+  gloss(NOWHERE, 'report.state.provisional', 'a gloss no module in src/ renders');
+  GLOSSED.find((g) => g.label === 'report.state.provisional').gloss = saved;
+  if (!isRendered('report.stateNote.provisional')) {
+    console.error('SELF-TEST FAIL: isRendered() says no to a key the report prints');
+    bad++;
+  }
+  // The clean case must stay quiet.
+  if (checkGlosses('en', new Map(Object.entries(BASE)))
+    .some((h) => h.key === 'report.state.provisional')) {
+    console.error('SELF-TEST FAIL: gloss rule false positive on a properly glossed label');
+    bad++;
+  }
+
   // …and the two item rules, on items built by hand so the case is exactly
   // the defect a judge reported rather than whatever the bank happens to deal.
   const ITEMS = [
@@ -628,6 +773,7 @@ const RULE_LABEL = {
   cluster: 'noun cluster over three',
   term: 'term used before it is defined',
   'term-def': 'coined term has no definition',
+  gloss: 'a coined label with no meaning on its own screen',
   fancy: 'a plainer word exists',
 };
 /** `aim` is advice, not a gate. Everything else fails the build. */
@@ -669,7 +815,7 @@ async function main() {
     console.log(`  prose blocks (12+ words): ${stats.proseStrings} · mean ${stats.meanProse} words · p95 ${stats.p95Prose} · longest ${stats.maxProse} · walls over 40 words: ${stats.walls}`);
     const counts = {};
     for (const f of findings) counts[f.rule] = (counts[f.rule] || 0) + 1;
-    const order = ['stem', 'decoy', 'long', 'passive', 'pronoun', 'cluster', 'term', 'term-def', 'fancy', 'aim'];
+    const order = ['stem', 'decoy', 'long', 'passive', 'pronoun', 'cluster', 'term', 'term-def', 'gloss', 'fancy', 'aim'];
     for (const r of order) {
       if (!counts[r]) continue;
       const mark = SOFT.has(r) ? '\x1b[33m·\x1b[0m' : (counts[r] ? '\x1b[31m✗\x1b[0m' : ' ');

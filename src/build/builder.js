@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import './build.css';
 import { t } from '../i18n/index.js';
+/* hud/progress pass, one line: this counter is a numeral on the live HUD, and
+   tools/critic/oneprogress.mjs now fails a build for any numeral on the live
+   HUD that nothing has declared. Declaring it as an inventory (not progress) is
+   what tells the gate it is a count of pieces standing rather than a tenth
+   opinion about mastery. Nothing about the builder changes. */
+import { FIG, tagFigure } from '../meta/progress.js';
 import {
   CELL, LEVEL, KINDS, BASE_KINDS, SHARD_COST, SPEC, TURNS, isEdge, cellIndex,
   originY, surfaceAt, snapTurn, qLevel, clamp, covers, turnOf,
@@ -305,6 +311,19 @@ export class Builder {
    * after you stop.
    */
   arm() { this._armT = 8; }
+
+  /**
+   * Is the cadet's hand out — that is, are they in the middle of building?
+   *
+   * Read by src/world/beckon.js, which must not let a tear open on contact
+   * while a lattice is half up. A cold critic had a rift swallow him while he
+   * was placing walls; the tear is not wrong to be interested, it is wrong to
+   * interrupt. This is deliberately the SAME condition the preview is drawn
+   * from, so "the ghost is on screen" and "the world will not take the frame
+   * off me" are one state a player can see rather than two they cannot.
+   * (world — one accessor, no behaviour change here.)
+   */
+  get busyBuilding() { return (this._armT || 0) > 0 && !!this.handOut; }
 
   /**
    * Pick a piece off the rack — and say so, every single time.
@@ -1128,7 +1147,11 @@ export class Builder {
     // reads as the charge, and a judge read it that way: "BUILD CHARGE 0" on a
     // full gauge. It is the number of pieces standing, so it says so. i18n,
     // additive.
-    if (this._nShown !== n) { this._nShown = n; this.elCount.textContent = t('build.pieces', { n }); }
+    if (this._nShown !== n) {
+      this._nShown = n;
+      this.elCount.textContent = t('build.pieces', { n });
+      tagFigure(this.elCount, FIG.PIECES, n);
+    }
     // The charge gauge belongs to a hand that is out. Before that it is a
     // readout for a verb the player has not been given.
     this.elRoot.classList.toggle('show', on && this.handOut);

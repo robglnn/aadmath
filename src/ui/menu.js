@@ -20,6 +20,10 @@ import { t, onLocaleChange } from '../i18n/index.js';
  *     frame (`input.uiOpen` is the one flag every panel in this game sets), so
  *     it can never steal an Escape from the rift, the report or the dossier.
  *     F1 opens it too, because that is where a hand raised on Windows goes.
+ *     Both paths are covered — see THE ESCAPE THE BROWSER EATS below, which is
+ *     the half that was missing and made the printed key a lie.
+ *   - **It says what the words mean.** Every noun this game coined is on the
+ *     card, one short line each. See WORDS.
  *   - **There is a button.** A key nobody is told about is not an affordance,
  *     so the pill sits under the progress launcher from the first frame and
  *     carries its own binding printed on it.
@@ -55,6 +59,56 @@ const VERBS = [
 /** The screens, and the key that opens each. Keyboard only — see `_screens`. */
 const SCREENS = ['progress', 'dossier', 'controls', 'menu'];
 
+/**
+ * WORDS — every noun this game coined, in the order a player meets it.
+ *
+ * A cold critic counted the vocabulary on screen at the first frame: LATTICE,
+ * RIFT, LINE, CIPHER MOTES, COPPER RANK. Five invented words, before a single
+ * one of them meant anything. Some were defined later — rift about thirty-five
+ * seconds in, mote only if you happened to walk into the foundry — and some
+ * were never defined anywhere.
+ *
+ * The world glosses what the world can: `src/meta/lexicon.js` names a thing the
+ * first time you are actually looking at one, which is the best possible way to
+ * learn a noun. But the five words above are not things you look at. They are
+ * printed on the chrome from the first frame — a counter, a rank chip, a title
+ * card — and a caption on a chip has no room for a sentence.
+ *
+ * So this is the sentence. Ten rows, one line each, on the card that is one
+ * key away from every frame of the game. It sits at the same surface rank as
+ * the HUD that prints the words (`tools/lang/rules.mjs`), so the gate can prove
+ * no term reaches a player earlier than its meaning does.
+ */
+const WORDS = ['rift', 'line', 'held', 'lattice', 'mote', 'rank', 'band', 'proving', 'sounding', 'plate'];
+
+/**
+ * How long after opening a repeat of the opening key is treated as the same
+ * press. Chrome swallows the Escape that releases the pointer; Firefox delivers
+ * it as well. Without this, the browser that does both would open the card on
+ * the lock release and close it again on the keystroke, one millisecond later,
+ * and Escape would look exactly as dead as it did before.
+ */
+const SAME_PRESS_MS = 420;
+
+/**
+ * Ours or theirs?
+ *
+ * A pointer lock ends for two completely different reasons and the browser
+ * reports both the same way. Either the game let it go — a rift opening, a
+ * session beat, this card — or the player pressed Escape. Only the second one
+ * is a request for the menu, so every release the game asks for is stamped
+ * here, once, by wrapping the one method that can ask for it.
+ */
+let letGoAt = -1e9;
+if (typeof document !== 'undefined' && document.exitPointerLock && !document.__ascentExitHooked) {
+  const native = document.exitPointerLock;
+  document.__ascentExitHooked = true;
+  document.exitPointerLock = function (...a) {
+    letGoAt = performance.now();
+    return native.apply(this, a);
+  };
+}
+
 export class Menu {
   /**
    * @param {HTMLElement} root  the `#ui` layer
@@ -69,6 +123,9 @@ export class Menu {
     this.onRestart = onRestart;
     this.open = false;
     this._src = null;
+    this._shownAt = -1e9;
+    this._wasLocked = false;
+    this._byLock = false;
 
     this.el = document.createElement('div');
     this.el.className = 'mnu';
@@ -98,6 +155,10 @@ export class Menu {
             </section>
           </div>
         </div>
+        <section class="mnu-sec mnu-words">
+          <h3></h3>
+          <dl></dl>
+        </section>
         <section class="mnu-sec mnu-out">
           <h3></h3>
           <p class="mnu-out-body"></p>
@@ -127,6 +188,7 @@ export class Menu {
     this.resume = this.el.querySelector('.mnu-resume');
     this.verbList = this.el.querySelector('.mnu-verbs ul');
     this.screenList = this.el.querySelector('.mnu-screens ul');
+    this.wordList = this.el.querySelector('.mnu-words dl');
     this.sens = this.el.querySelector('.mnu-sens');
     this.sensVal = this.el.querySelector('.mnu-val');
     this.toggle = this.el.querySelector('.mnu-toggle');
@@ -142,6 +204,7 @@ export class Menu {
 
     this.verbList.innerHTML = VERBS.map((v) => row(v.id)).join('');
     this.screenList.innerHTML = SCREENS.map((s) => row(s)).join('');
+    this.wordList.innerHTML = WORDS.map((w) => `<div data-w="${w}"><dt></dt><dd></dd></div>`).join('');
 
     // --- wiring ---------------------------------------------------------
     this.pill.addEventListener('click', () => this.toggleOpen());
@@ -188,7 +251,15 @@ export class Menu {
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
       if (e.code !== 'Escape' && e.code !== 'F1') return;
-      if (this.open) { this.hide(); stop(e); return; }
+      if (this.open) {
+        // The card went up on the lock release a moment ago and this is the
+        // very keystroke that released it, arriving second — Chrome swallows
+        // that key, Firefox delivers it, and on Firefox the same press would
+        // otherwise open the card and shut it again inside a millisecond. One
+        // press, one outcome. See THE ESCAPE THE BROWSER EATS.
+        if (this._byLock && performance.now() - this._shownAt < SAME_PRESS_MS) { stop(e); return; }
+        this.hide(); stop(e); return;
+      }
       // Escape belongs to whichever panel is on screen; this one only takes it
       // when the frame is otherwise the world's. (F1 asks the same question a
       // moment later, in `show()`, but never has to compete for its key.)
@@ -200,6 +271,47 @@ export class Menu {
       // away the card without ever choosing to.
       if (this.open) stop(e);
     }, true);
+
+    // --- THE ESCAPE THE BROWSER EATS --------------------------------------
+    //
+    // THIS IS THE HALF THAT WAS MISSING, AND IT MADE A PRINTED KEY A LIE.
+    //
+    // The handler above is correct and it never ran for a real player. The
+    // reason is in the specification, not in this game: while the pointer is
+    // locked, the Escape that releases the lock is consumed by the browser and
+    // **no keydown is delivered to the page at all**. Every player who has
+    // clicked once to look around — which is every player, the game asks them
+    // to — is locked. So the HUD printed MENU · ESC · F1, the card printed
+    // "This menu · ESC · F1", and the first key a stuck fourteen-year-old
+    // reaches for did nothing but take the mouse back. A cold critic pressed it
+    // twice from a clean world, found no menu either time, and was right.
+    //
+    // It cannot be caught with a key listener, because there is no key. What
+    // there is, is the lock ending. So that is what is listened for:
+    //
+    //   the lock ended  +  the game did not end it  =  the player pressed Escape
+    //
+    // `letGoAt` is stamped by the wrapper at the top of this file, so every
+    // release the game asks for — a rift opening, a session beat, this card —
+    // is known to be ours and is ignored. A release that nobody asked for is
+    // theirs. `document.hasFocus()` drops the last case that is neither: a
+    // task switch takes the lock away too, and a pause card discovered on
+    // return from another tab is a surprise, not an answer to a question.
+    //
+    // None of this can open the card over another surface: `show()` refuses
+    // while anything else owns the frame, and every panel in this game sets
+    // `uiOpen` before it releases the pointer, so the flag is already true by
+    // the time this event arrives.
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement) { this._wasLocked = true; return; }
+      if (!this._wasLocked) return;
+      this._wasLocked = false;
+      if (performance.now() - letGoAt < 400) return;   // the game let it go
+      if (!document.hasFocus?.()) return;              // the window did
+      this._byLock = true;                             // the player did
+      this.show();
+      this._byLock = this.open;
+    });
 
     this.retext();
     onLocaleChange(() => { this._src = null; this.retext(); });
@@ -216,6 +328,12 @@ export class Menu {
     this.el.querySelector('.mnu-set h3').textContent = t('menu.settings');
     this.el.querySelector('.mnu-slider .mnu-verb').textContent = t('menu.sens');
     this.el.querySelector('.mnu-set .mnu-row:last-child .mnu-verb').textContent = t('menu.invert');
+    this.el.querySelector('.mnu-words h3').textContent = t('menu.words');
+    for (const w of WORDS) {
+      const box = this.wordList.querySelector(`div[data-w="${w}"]`);
+      box.querySelector('dt').textContent = t('menu.word.' + w);
+      box.querySelector('dd').textContent = t('menu.wordIs.' + w);
+    }
     this.nowH.textContent = t('menu.now');
     this.el.querySelector('.mnu-out h3').textContent = t('menu.out');
     this.el.querySelector('.mnu-out-body').textContent = t('menu.outBody');
@@ -300,6 +418,8 @@ export class Menu {
     // rift. A pause menu that opens on top of a live keypad is not a pause.
     if (this.isBusy() || this.input?.uiOpen) return;
     this.open = true;
+    this._shownAt = performance.now();
+    this._byLock = false;
     this._bindings(this._hands());
     this._paintSettings();
     this._askRestart(false);

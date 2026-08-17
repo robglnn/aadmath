@@ -198,7 +198,6 @@
   /* The minutes line goes with the seal count: the track above it is the run,
      drawn, and the rail below it has three more cards to fit before the
      companion's card starts. */
-  .ses-band .sb-work { display: none; }
   /* "0 of 17 rifts" is the track directly above it, counted, and the chapter
      strip below it, counted again. Three of the same number is what a 390 px
      rail cannot afford. */
@@ -255,7 +254,6 @@
     flex: 0 1 auto; max-width: none; margin: 0 0 0 auto;
     padding: 0; border-top: 0;
   }
-  .meta-quest .qs-n { font-size: .78rem; }
   .meta-quest .qs-lab { max-width: none; font-size: .4rem; letter-spacing: .09em; line-height: 1.2; }
   .meta-quest .qs-track, .meta-quest .qs-next { display: none; }
 

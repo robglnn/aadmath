@@ -229,7 +229,7 @@ function show(item) {
   });
 }
 
-/** Two honest misses, so the keypad narrows to three readings the way it does in play. */
+/** Two honest misses, so the keypad narrows to a few readings the way it does in play. */
 function forceNarrow(item) {
   const wrongs = ['987654', '765432', '654321'];
   for (const w of wrongs) {
@@ -240,6 +240,21 @@ function forceNarrow(item) {
     if (panel.el.querySelector('.rf-narrow')) return true;
   }
   return !!panel.el.querySelector('.rf-narrow');
+}
+
+/**
+ * A NEW narrowed field on the same item, from a fresh card.
+ *
+ * The narrowed field used to grey out a wrong reading and leave the others
+ * live, so the audit could click straight down the row. It no longer does: one
+ * wrong pick spends the whole field and hands the keypad back, because three
+ * readings that can be walked down are a guaranteed seal with no mathematics
+ * in it (src/ui/rift.js `_narrow`). So each option is now probed on its own
+ * field, which is also the more honest test — it is what a cadet gets.
+ */
+function reNarrow(item) {
+  show(item);
+  return forceNarrow(item) ? readOptions('.rf-narrow .rf-reading') : [];
 }
 
 function readOptions(scope) {
@@ -274,7 +289,11 @@ function auditItem(item, locale, ctx) {
   } else if (panel.mode === 'area') {
     // Not a choice set, but the same failure is available to it: if the tray
     // holds no chip for a cell, the correct move is not on the surface.
-    const wants = [...panel.el.querySelectorAll('.rf-cell')].map((c) => c.dataset.want);
+    // Read off the modality's closure, not the markup. The cells used to
+    // carry `data-want="6x"` — the answer, on the surface, for anyone with an
+    // inspector — and they no longer do. The audit is entitled to the fact;
+    // the learner's DOM is not.
+    const wants = panel._modality?.wants?.() || [];
     const have = [...panel.el.querySelectorAll('.rf-chip')].map((c) => c.dataset.value);
     for (const w of wants) if (!have.includes(w)) add('area-missing-chip', `no chip for "${w}" among [${have.join(', ')}]`);
     return { findings: out, mode: 'area' };
@@ -317,24 +336,83 @@ function auditItem(item, locale, ctx) {
     }
   }
 
+  /**
+   * ---- (e) WHERE the answer sits ----
+   *
+   * The one property a choice set cannot be allowed to have, and the one that
+   * generation-level checks cannot see at all: if the correct reading tends to
+   * a slot, the surface is teaching a cadet to pick that slot. A learner needs
+   * to notice it once. This does not judge one set — no single set can be
+   * biased — it hands the position up to the caller, which aggregates hundreds
+   * and tests the distribution (`answer-position-biased`, choiceaudit.mjs).
+   */
+  const pos = trueIdx.length === 1
+    ? { key: `${surface}:${options.length}`, n: options.length, at: trueIdx[0] }
+    : null;
+
   // ---- (d) the surface agrees: real clicks, real settle flag ----
   if (trueIdx.length === 1) {
-    for (let i = 0; i < options.length; i++) {
-      if (i === trueIdx[0]) continue;
-      click(options[i].el);
-      if (panel._settled) {
-        add('wrong-option-accepted', `clicking "${canon(options[i].visible)}" (value "${options[i].value}") sealed the rift`);
-        show(item);
-        return { findings: out, mode: panel.mode, surface };
+    const wrongs = options.map((o, i) => i).filter((i) => i !== trueIdx[0]);
+
+    if (surface !== 'narrow') {
+      // A choice card keeps every reading live, so all of them are probed on
+      // the one card, which is exactly what a cadet can do to it.
+      for (const i of wrongs) {
+        click(options[i].el);
+        if (panel._settled) {
+          add('wrong-option-accepted', `clicking "${canon(options[i].visible)}" (value "${options[i].value}") sealed the rift`);
+          show(item);
+          return { findings: out, mode: panel.mode, surface, pos };
+        }
       }
+      click(options[trueIdx[0]].el);
+      if (!panel._settled) {
+        add('correct-option-rejected', `clicking the correct option "${canon(options[trueIdx[0]].visible)}" (value "${options[trueIdx[0]].value}") did NOT seal the rift`);
+      }
+      return { findings: out, mode: panel.mode, surface, pos };
     }
-    click(options[trueIdx[0]].el);
-    if (!panel._settled) {
-      add('correct-option-rejected', `clicking the correct option "${canon(options[trueIdx[0]].visible)}" (value "${options[trueIdx[0]].value}") did NOT seal the rift`);
+
+    // The narrowed field spends itself on a wrong pick, so each reading would
+    // need a field of its own, and a field of its own costs a whole re-mount
+    // of the card. Probing all of them tripled this gate's runtime, and a gate
+    // slow enough to be skipped protects nothing.
+    //
+    // So ONE wrong reading is probed per item, and WHICH one rotates with the
+    // seed. Every distractor slot is therefore exercised many times over a
+    // sweep of thousands of items, while each item costs one extra field. The
+    // per-option guarantee is not lost either way: a distractor the checker
+    // would accept is dropped by `_readings` before it can render, and (a)
+    // above re-derives the truth of every option independently.
+    const pick = wrongs[(item.seed >>> 0) % wrongs.length];
+    click(options[pick].el);
+    if (panel._settled) {
+      add('wrong-option-accepted', `clicking "${canon(options[pick].visible)}" (value "${options[pick].value}") sealed the rift`);
+      show(item);
+      return { findings: out, mode: panel.mode, surface, pos };
+    }
+    // …and the wrong pick must have spent the WHOLE field. Anything still
+    // clickable is a free walk down the readings to the answer, which is the
+    // guaranteed seal with no mathematics in it that this rig used to offer.
+    const live = [...panel.el.querySelectorAll('.rf-narrow .rf-reading')].filter((b) => !b.disabled);
+    if (live.length) {
+      add('narrow-survives-wrong-pick',
+        `a wrong reading left ${live.length} of ${options.length} readings still clickable — the field can be walked down to the answer`);
+    }
+
+    // The key, on a field the guess has not spent.
+    const again = reNarrow(item);
+    const right = again.find((o) => o.value === options[trueIdx[0]].value);
+    if (!right) {
+      add('answer-missing-on-redraw', `the redrawn field does not contain "${options[trueIdx[0]].value}"`);
+    } else {
+      click(right.el);
+      if (!panel._settled) {
+        add('correct-option-rejected', `clicking the correct option "${canon(right.visible)}" (value "${right.value}") did NOT seal the rift`);
+      }
     }
   }
 
-  return { findings: out, mode: panel.mode, surface };
+  return { findings: out, mode: panel.mode, surface, pos };
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +473,19 @@ function combos({ locales, skills, difficulties }) {
   }
   return out;
 }
+
+/**
+ * Which option sets have already been counted toward the position tally.
+ *
+ * The sweep renders every item once per locale, and where the answer lands
+ * does not depend on the locale — it is a function of the item's seed and its
+ * answer (src/ui/rift.js `arranged`). Counting all three would treat one draw
+ * as three independent observations and inflate the chi-square statistic by
+ * about a factor of three, which is a gate that goes red on a rig doing
+ * nothing wrong. So a set is counted once, under whichever locale reached it
+ * first. Module scope, because the page survives between `run()` chunks.
+ */
+const POS_SEEN = new Set();
 
 window.__lab = {
   SKILLS,
@@ -460,6 +551,10 @@ window.__lab = {
     const seed0 = opts.seed0 ?? 1000;
     const findings = [];
     const modes = {};
+    // Where the correct reading landed, tallied per surface and per option
+    // count: `{ 'narrow:3': [n0, n1, n2] }`. The caller sums these across every
+    // chunk and tests the distribution — see `auditItem` (e).
+    const positions = {};
     let items = 0, skipped = 0;
 
     for (const c of plan.slice(from, to)) {
@@ -477,6 +572,14 @@ window.__lab = {
           show(item);
           const r = auditItem(item, c.locale, ctx);
           modes[r.surface || r.mode] = (modes[r.surface || r.mode] || 0) + 1;
+          if (r.pos) {
+            const id = `${c.skill}|${c.form}|${c.difficulty}|${seed}|${r.pos.key}`;
+            if (!POS_SEEN.has(id)) {
+              POS_SEEN.add(id);
+              const row = (positions[r.pos.key] ||= new Array(r.pos.n).fill(0));
+              row[r.pos.at]++;
+            }
+          }
           findings.push(...r.findings);
           if (opts.checking) findings.push(...auditChecking(item, c.locale, ctx));
         } catch (e) {
@@ -485,7 +588,7 @@ window.__lab = {
         panel.close();
       }
     }
-    return { total: plan.length, from, to, items, skipped, modes, findings };
+    return { total: plan.length, from, to, items, skipped, modes, positions, findings };
   },
 };
 document.title = 'choicelab ready';

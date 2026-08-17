@@ -22,16 +22,30 @@
  * the card leads with what that run left standing, by name, and the estimate
  * stops apologising for being a stranger's.
  *
- * It never becomes a wall. Any key dismisses it, a click outside it dismisses
- * it, and if nobody touches it at all the run simply begins on its own after
- * sixteen seconds. A card that stands between a fourteen-year-old and the game
- * until they find the right button is not an opening beat, it is a licence
- * agreement.
+ * It never becomes a wall. **Any** key dismisses it, a click anywhere outside
+ * it dismisses it, and BEGIN THE RUN takes focus the moment it opens, so Enter
+ * and a pad's A both work without aiming at anything. A card that stands
+ * between a fourteen-year-old and the game until they find the right button is
+ * not an opening beat, it is a licence agreement.
+ *
+ * IT NO LONGER DISMISSES ITSELF, and that is the correction of a real defect.
+ * This card used to start the run on its own after sixteen seconds — the
+ * friendly-sounding version of taking a decision away from the person whose
+ * decision it is. A cold critic met the consequence in the exact words that
+ * make it indefensible:
+ *
+ *   "ORDERS re-issued mid-run and auto-dismissed before I could click
+ *    BEGIN THE RUN."
+ *
+ * Sixteen seconds is a long time to stare at a card and no time at all to read
+ * one in your second language, decide, and reach for the mouse. The one screen
+ * in the game that asks *do you want to start this* is the last screen that
+ * should answer for you. A beat with a button on it waits for the button. The
+ * escape hatch was never the timer anyway: it is that literally any input
+ * clears this card, which is why it cannot become a wall.
  */
 import { t } from '../i18n/index.js';
-
-/** Untouched, the orders stand down and the run starts. Milliseconds. */
-const AUTO_BEGIN = 16000;
+import { FIG, tagFigure } from '../meta/progress.js';
 
 export class Charter {
   constructor(root, { onBegin }) {
@@ -48,6 +62,7 @@ export class Charter {
         <ul class="sc-seams"></ul>
         <p class="sc-mark"></p>
         <p class="sc-eta"></p>
+        <p class="sc-work"></p>
         <button type="button" class="sc-go"></button>
       </div>`;
     this.card = this.el.querySelector('.sc-card');
@@ -58,6 +73,7 @@ export class Charter {
     this.seams = this.el.querySelector('.sc-seams');
     this.mark = this.el.querySelector('.sc-mark');
     this.eta = this.el.querySelector('.sc-eta');
+    this.work = this.el.querySelector('.sc-work');
     this.go = this.el.querySelector('.sc-go');
     this.go.addEventListener('click', () => this.begin());
     this.el.addEventListener('click', (e) => { if (e.target === this.el || e.target.className === 'sc-dim') this.begin(); });
@@ -87,9 +103,10 @@ export class Charter {
     this._live = plan;
     this.retext();
     this.el.classList.add('show');
+    // Focus, and no timer. The run starts when the cadet says so — see the
+    // header for why the sixteen-second auto-begin that used to live on this
+    // line is gone.
     requestAnimationFrame(() => this.go.focus({ preventScroll: true }));
-    clearTimeout(this._auto);
-    this._auto = setTimeout(() => this.begin(), AUTO_BEGIN);
   }
 
   retext() {
@@ -103,6 +120,12 @@ export class Charter {
     // A thunk re-renders in the locale that is loaded *now*; a plain string is
     // whatever locale was loaded when the card opened.
     this.goal.textContent = typeof p.goalText === 'function' ? p.goalText() : p.goalText;
+    /* The goal sentence names how many rifts this run asks for, and that number
+       is the same `run.target` the band prints for the next twenty minutes. It
+       is tagged so tools/critic/oneprogress.mjs can prove the two agree — the
+       cold critic read "Seal 16 rifts" here and a band that said something else
+       later, and nothing in the build had ever compared them. */
+    tagFigure(this.goal, FIG.RUN_TARGET, p.target);
     this.seams.innerHTML = p.seams.map((s) => `
       <li class="${s.hold ? 'hold' : ''}">
         <i aria-hidden="true"></i>
@@ -125,6 +148,21 @@ export class Charter {
     this.eta.textContent = t(p.seeded ? 'session.charter.etaSeed' : 'session.charter.eta', {
       n: p.minutes, tears: p.target,
     });
+    /* …AND WHAT IT COSTS, NOT ONLY WHAT IT BUYS.
+       "Seal 16 rifts" is the goal, and a rift is a question ANSWERED CORRECTLY,
+       so it was never the amount of work: the projection that produced the 16
+       had planned 24 questions and only the 16 was ever on this card. A cold
+       reader called that quoting a player two thirds of the real workload, and
+       they are right — a fourteen-year-old deciding whether to start is reading
+       this number as "how much is this going to be".
+       It is a range because twenty-one trials of the real engine produce a
+       range, and `session.voice.longer` corrects it out loud if the run passes
+       the top of it. A single number here would be a promise the projection is
+       not entitled to make. (src/session/estimate.js, src/session/index.js) */
+    const lo = p.itemsLow, hi = p.itemsHigh;
+    const hasWork = Number.isFinite(lo) && Number.isFinite(hi) && hi >= lo && hi > 0;
+    this.work.textContent = hasWork ? t('session.charter.work', { low: lo, high: hi }) : '';
+    this.work.hidden = !hasWork;
     this.go.textContent = t('session.charter.begin');
   }
 
@@ -135,7 +173,6 @@ export class Charter {
   }
 
   hide() {
-    clearTimeout(this._auto);
     this.el.classList.remove('show');
     this._live = null;
   }

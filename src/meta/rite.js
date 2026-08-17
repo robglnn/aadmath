@@ -61,6 +61,27 @@ export class Rite {
     this.next = this.el.querySelector('.rite-next');
     root.appendChild(this.el);
     this._live = null;
+
+    /* SKIP. The rite has never taken the controls — you can walk through your
+       own promotion, the layer is `pointer-events:none`, and the HUD it stands
+       down comes straight back. What it could not do until now is STOP, and a
+       five-second ceremony you cannot end is still five seconds of the game
+       deciding what you are looking at. A cadet who has read it presses
+       anything and gets the frame back.
+
+       Captured on the window rather than bound to the layer, since the layer
+       is deliberately untouchable, and nothing is swallowed on the way past:
+       the key that ends the rite is still the key that does its usual job. */
+    this._armAt = 0;
+    // `e.repeat` is not a decision. A cadet crossing the plateau with W
+    // held down emits a keydown every 30 ms, and a ceremony that counted
+    // those would not be skippable — it would be un-seeable.
+    this._skip = (e) => {
+      if (e && e.repeat) return;
+      if (this.playing && performance.now() > this._armAt) this.hide();
+    };
+    addEventListener('keydown', this._skip, true);
+    addEventListener('mousedown', this._skip, true);
   }
 
   /** Is the rite holding the frame right now? */
@@ -135,6 +156,11 @@ export class Rite {
     this.el.classList.remove('show');
     void this.el.offsetWidth;              // restart every animation on the layer
     this.el.classList.add('show');
+    // Peak is at 0.75 s and the rank's name is not readable before it. Arming
+    // the skip at 0.9 s means the first thing a player can dismiss is a
+    // ceremony they have actually seen — and a cadet mid-sprint, holding three
+    // keys down, does not delete their own promotion by accident.
+    this._armAt = performance.now() + 900;
     clearTimeout(this._t);
     clearTimeout(this._t2);
     this._t = setTimeout(() => this.el.classList.add('out'), 4600);

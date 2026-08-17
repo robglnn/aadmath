@@ -20,6 +20,29 @@ import { SPEC } from './pieces.js';
  */
 const RANGE = 24;
 const TILE_MAX = 128;
+/**
+ * HOW MANY APPARATUS MAY STAND AT ONCE, AND WHY THERE IS A NUMBER AT ALL.
+ *
+ * A player reported the game auto-degrading to the lowest effect tier and
+ * 44.9 fps after eighteen minutes, against a benchmark that reports 91.7 on a
+ * fresh scene. Measured over a real fifteen-minute session
+ * (`tools/critic/sustain.mjs`), this class was one of the two largest sources
+ * of the slope: every beam or floor set near a rift added a `THREE.Group` of
+ * meshes to the scene AND a handful of KaTeX-rendered label divs to the
+ * overlay, and NOTHING ever took one away except the player deleting the piece
+ * by hand. Nobody deletes a beam. So the count only ever went up: nineteen rigs
+ * and a hundred and twenty-one live tags inside five minutes of play — a
+ * doubling of the frame's draw calls, and a KaTeX subtree per tag for the
+ * browser to lay out on every resize for the rest of the session.
+ *
+ * The apparatus is a *teaching overlay on the rift you are standing at*, not
+ * scenery. Three is the most a learner can be looking at, so the oldest is
+ * retired when a fourth is raised: its meshes leave the scene, its owned
+ * materials are disposed, and its tags leave the DOM. The player's actual
+ * BEAM is untouched — the piece stays exactly where they built it, and it is
+ * still a beam. Only the explanatory rig hanging off it goes.
+ */
+const LIVE_MAX = 3;
 
 export class Manipulatives {
   constructor(scene, uiRoot) {
@@ -89,18 +112,38 @@ export class Manipulatives {
     const c = this.ctx.get(rift.id) || seededContext(rift.id);
     try {
       const item = piece.kind === 'beam' ? this._balance(piece, c) : this._area(piece, c);
-      if (item) { this.items.push(item); piece.tone = 1; this._rebuildTags(); }
+      if (item) {
+        this.items.push(item);
+        piece.tone = 1;
+        // Raising a fourth rig retires the first. See LIVE_MAX.
+        while (this.items.length > LIVE_MAX) this._retire(this.items[0]);
+        this._rebuildTags();
+      }
     } catch { /* apparatus is a bonus; never let it cost you the piece */ }
   }
 
   onRemoved(piece) {
-    const i = this.items.findIndex((m) => m.piece === piece);
+    const m = this.items.find((x) => x.piece === piece);
+    if (m) { this._retire(m); this._rebuildTags(); }
+  }
+
+  /**
+   * Take one apparatus down and give back everything it was holding.
+   *
+   * The meshes leave the scene graph, the materials this rig owns are disposed,
+   * and the tags are dropped on the next `_rebuildTags`. Geometry is not
+   * disposed and must not be: `fulcrumGeo`, `panGeo`, `hangGeo` and `plateGeo`
+   * are shared by every rig this class will ever build, and disposing one of
+   * them here would take the next apparatus down with it. `owned` is the list
+   * of things this rig alone made, which is exactly what may be freed.
+   */
+  _retire(m) {
+    const i = this.items.indexOf(m);
     if (i < 0) return;
-    const m = this.items[i];
     this.group.remove(m.group);
     for (const mat of m.owned || []) mat.dispose();
+    if (m.piece) m.piece.tone = 0;
     this.items.splice(i, 1);
-    this._rebuildTags();
   }
 
   // ------------------------------------------------------------------ rigs

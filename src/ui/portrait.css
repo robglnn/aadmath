@@ -158,7 +158,15 @@
      once there is a chapter. Anything that is not on screen contributes
      nothing, so the column closes up rather than leaving a hole where a panel
      used to be. */
-  #ui:has(.ses-band.show) { --pt-band: 58px; }
+  /* MEASURED, like the objective card below it, and for the same reason.
+     This was a constant 58px, which held for exactly as long as the band never
+     changed height — and it changes the first time a run's goal is raised,
+     because the announcement that says so is two lines of prose. At 390x844 the
+     sentence then landed underneath the MENU pill: the one line whose whole job
+     is to stop a number moving in silence, hidden by the ladder. src/session
+     now publishes `--sb-h` the way src/meta publishes `--gd-h`. (One-line edit
+     from the session/report pass; the constant is kept as the fallback.) */
+  #ui:has(.ses-band.show) { --pt-band: var(--sb-h, 58px); }
   #ui:has(.gd-card.show) { --pt-obj: var(--gd-h, 94px); }
   #ui:has(.meta-quest.show) { --pt-chap: 36px; }
 
@@ -331,7 +339,6 @@
     flex: 0 1 auto; max-width: none; margin: 0 0 0 auto;
     padding: 0; border-top: 0;
   }
-  .meta-quest .qs-n { font-size: .9rem; }
   .meta-quest .qs-lab { max-width: none; font-size: .42rem; letter-spacing: .1em; line-height: 1.2; }
   .meta-quest .qs-track, .meta-quest .qs-next { display: none; }
   /* …and the rank ladder goes. COPPER → IRON with a track under it is the rig's

@@ -83,6 +83,9 @@ import { fileURLToPath } from 'node:url';
 import { MasteryEngine, itemSeconds } from '../src/learn/mastery.js';
 import { FORMS_BY_SKILL, generate, demandOf } from '../src/learn/generators.js';
 import { echoScript } from '../src/learn/echo.js';
+// The REAL session planner, so the workload assertion below is about the plan
+// the orders card is actually built from and not a restatement of it.
+import { planRun } from '../src/session/estimate.js';
 import enItems from '../content/lang/items.en.js';
 import { allUnits, loadUnit, loadCourse, standalone } from './_courses.mjs';
 
@@ -127,6 +130,139 @@ const TRUE_MASTERY = 0.85;   // hidden competence that counts as "really knows i
 // a proportion so a lattice of a different size gets the same standard.
 const SKILLS_NEEDED = Math.max(1, Math.round(0.9 * graph.nodes.length));
 const HOLLOW = 0.75;         // engine says mastered but truth is below this
+
+// ---------------------------------------------------------------------------
+// THE INVARIANTS — asserted on every item and every claim of every cohort.
+//
+// Everything else in this file is a measurement. These four are not: they are
+// statements the product makes about itself, and a run in which any of them is
+// non-zero is a run that must not ship, whatever the headline says. They exist
+// because all four were violated at once in one live session that a cold reader
+// opened and read out:
+//
+//   HOLLOW-FORM    "Reading a variable — HELD — 99%" with
+//                  formsSeen['vm-table'] = {seen: 3, correct: 0}. A line was
+//                  certified on a question type it had asked three times and
+//                  never once had answered. Every gate in the engine was an
+//                  aggregate, so the strong types carried the weak one.
+//   LOCKED-SERVE   item 12 of that session was the distributive property while
+//                  the same session's report listed the distributive property
+//                  as LOCKED. Prerequisite order is invariant 5 of the brief.
+//   PREREQ-CONTENT the item that did it was `2(2m+13) + 2(6m+10)`, served on
+//                  `like-terms`, whose own worked step read "double each side" —
+//                  the distributive property, which stands DOWNSTREAM of
+//                  like-terms in the graph. Routing was not the only way to
+//                  break the order; the bank could break it from inside a
+//                  legally-served item.
+//   WORKLOAD       the orders card promised "seal 16 rifts" over a projection
+//                  that had planned 24 items. Both numbers were right and only
+//                  the flattering one was on screen.
+//
+// Each counts violations across every learner run below and prints the count.
+// Zero is the only passing value and the file says so in those words.
+// ---------------------------------------------------------------------------
+const VIOLATIONS = {
+  hollowForm: 0,   // a claim granted with a served form standing at 0-for-formFloor
+  lockedServe: 0,  // an item served from a skill whose prerequisites are not held
+  prereqContent: 0, // an item needing a rule that sits above its own skill in the graph
+  workload: 0,     // a goal quoted outside the workload the same projection planned
+  confidence: 0,   // a reported confidence above the honest lower bound
+};
+const FIRST = {};
+const violate = (kind, detail) => { VIOLATIONS[kind]++; FIRST[kind] ??= detail; };
+/**
+ * Items served on a line the learner HAS proved, whose ground has since reopened
+ * under it. Legitimate — the claim was granted in order and this is retention on
+ * work already done — but counted and printed rather than left invisible, because
+ * "legitimate" is exactly the word the nine items in the original defect hid behind.
+ */
+let underReopened = 0;
+
+/** The form floor, read off the graph rather than restated here. */
+const FORM_FLOOR = (graph.mastery || {}).formFloor ?? 3;
+const FORM_NEED = (graph.mastery || {}).formNeed ?? 1;
+
+/**
+ * Question types this learner has been ASKED `FORM_FLOOR` times and has never
+ * once solved unaided — read straight off the engine's raw counters rather than
+ * through `engine.weakForms`.
+ *
+ * The distinction is the whole point of the A/B. `weakForms` honours
+ * `engine.cfg.formFloor`, so `CFG=formFloor=0` — the arm that restores the gate
+ * exactly as it shipped when the defect was found — would make the engine's own
+ * answer vacuously empty and the measurement would flatter the very build it is
+ * supposed to indict. The audit has to be able to see a hole that the gate has
+ * been told to ignore, or it is not an audit.
+ *
+ * `items` and not `seen`: a missed question is re-offered with the worked step
+ * showing and reports again, so `seen` counts attempts. Older records that
+ * predate `items` fall back to `seen`, which is the conservative reading.
+ */
+function holesOf(st) {
+  const out = [];
+  for (const [fid, rec] of Object.entries(st?.formsSeen || {})) {
+    const asked = rec?.items ?? rec?.seen ?? 0;
+    if (asked >= FORM_FLOOR && (rec?.correct || 0) < FORM_NEED) out.push(fid);
+  }
+  return out;
+}
+
+/** Every skill at or below `id` in the graph — what an item on `id` may use. */
+const CONE = new Map();
+{
+  const prereqs = new Map(graph.nodes.map((n) => [n.id, n.prereqs || []]));
+  const walk = (id, out) => {
+    for (const p of prereqs.get(id) || []) if (!out.has(p)) { out.add(p); walk(p, out); }
+    return out;
+  };
+  for (const n of graph.nodes) CONE.set(n.id, walk(n.id, new Set([n.id])));
+}
+
+/**
+ * Does this expression require the learner to distribute?
+ *
+ * Not "does it contain a bracket" — `6(8 + 5 · 2)` is order of operations and
+ * `7(4m)` is one multiplication. Distribution is specifically *something
+ * multiplying a bracketed sum that contains a letter*, and that is what this
+ * looks for: a bracket with a variable and a `+` or `-` in it, with a number, a
+ * letter or a closing bracket immediately in front of it.
+ *
+ * LaTeX control words are stripped first, or `\cdot` reads as four variables.
+ */
+function needsDistribution(latex) {
+  const s = String(latex || '')
+    .replace(/\\left/g, '(').replace(/\\right/g, ')').replace(/\\[a-zA-Z]+/g, ' ');
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== '(') continue;
+    let j = i - 1;
+    while (j >= 0 && /\s/.test(s[j])) j--;
+    if (j < 0 || !/[0-9a-zA-Z)]/.test(s[j])) continue;   // nothing multiplies it
+    let depth = 0, end = -1;
+    for (let k = i; k < s.length; k++) {
+      if (s[k] === '(') depth++;
+      else if (s[k] === ')') { depth--; if (!depth) { end = k; break; } }
+    }
+    if (end < 0) continue;
+    const inner = s.slice(i + 1, end);
+    if (!/[a-zA-Z]/.test(inner)) continue;                // purely numeric
+    if (!/[+\-]/.test(inner.replace(/^\s*-/, ''))) continue; // a single term
+    return s.slice(Math.max(0, j), end + 1);
+  }
+  return null;
+}
+
+/**
+ * The competence a learner actually has ON ONE SURFACE, which is the thing the
+ * engine's aggregate could not see.
+ *
+ * The learner model already charges an unfamiliar representation real accuracy
+ * (`novelty` in the item loop) and then relaxes that charge as exposures build.
+ * That penalty is a fact about the simulated learner, not about the engine, so
+ * it is exactly the right thing to judge a per-surface claim against: a learner
+ * at hidden competence 0.90 who has never once solved a table reads 0.90 on the
+ * aggregate and 0.765 on the surface they are being certified on.
+ */
+const surfaceTruth = (k, exposures) => k * (1 - 0.15 * Math.exp(-0.7 * exposures));
 
 // ---------------------------------------------------------------------------
 // The difficulty ladder, measured off the shipping item bank.
@@ -562,6 +698,11 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   const worked = new Map(SKILLS.map((s) => [s, new Set()]));
   const run = new Map();
   let runOf = null;
+  // Every surface this skill has actually been SERVED on, whether or not the
+  // learner ever got one right. `repSeen` counts solves; the strict hollow test
+  // has to know about the ones that were asked and missed, because those are
+  // precisely the surfaces a hollow claim is made over.
+  const repServed = new Map(SKILLS.map((s) => [s, new Set()]));
 
   for (let step = 0; step < budget; step++) {
     let task;
@@ -586,6 +727,34 @@ function runLearner(seed, policy = 'engine', opts = {}) {
       : forms.filter((f) => task.difficulty >= f.dMin && task.difficulty <= f.dMax).map((f) => f.id);
     const form = pool[Math.floor(rnd() * pool.length)] || forms[0].id;
     const rep = REP_OF[`${task.skill}/${form}`] || 'symbolic';
+    repServed.get(task.skill).add(rep);
+    // --- INVARIANT: nothing is served out of prerequisite order --------------
+    // Asked of the REAL engine, on the skill it actually chose, on every item of
+    // every cohort — the routing invariant that the scheduler used to enforce in
+    // exactly one place (`next()`), which every other door walked past.
+    // A line the learner has ALREADY PROVED, standing on ground that has since
+    // reopened under it, is not a violation and is counted separately below: the
+    // claim was granted in order and re-probing it is retention on work already
+    // done. What is forbidden is teaching a line they have never proved and
+    // whose prerequisites they do not hold — which is exactly what a cold reader
+    // was served as item 12 of a session.
+    // …and the standing form-floor invariant, asked of every line on every item
+    // rather than only at the moment a claim is made. A hole can open on a line
+    // that was proved honestly last week — the endgame descent keeps serving it
+    // — and "a line cannot be HELD while a shape of it is nought for three" has
+    // no clause about when the hole opened.
+    if (policy === 'engine') {
+      for (const sk of SKILLS) {
+        const st2 = engine.get(sk);
+        if (st2?.mastered && holesOf(st2).length) {
+          violate('hollowForm', `${sk} standing HELD with ${holesOf(st2).join(', ')} at 0 of ${FORM_FLOOR}`);
+        }
+      }
+    }
+    if (policy === 'engine' && !engine.isUnlocked(task.skill)) {
+      if (engine.get(task.skill)?.mastered) underReopened++;
+      else violate('lockedServe', `${task.skill} served at item ${items + 1}, never proved, prereqs unheld`);
+    }
     // Which world the item arrives in. The engine names the framings it does
     // not want; a bank with nothing else to offer serves one anyway, exactly
     // as generate() does when its retry budget runs out.
@@ -736,9 +905,39 @@ function runLearner(seed, policy = 'engine', opts = {}) {
       // against where the learner ends up after another two hundred items.
       if (res?.justMastered) {
         if (runOf) { runOf.passed = true; runOf = null; }
+        // --- WHAT THE CLAIM LOOKS LIKE UNDER THE STRICTER DEFINITION --------
+        // The old test was `k < HOLLOW`: one aggregate about the learner
+        // compared with one aggregate about the engine. It could not see the
+        // defect, because the defect IS an aggregate hiding a hole. Three
+        // things are recorded here that it could not:
+        //
+        //   holes    question types the engine had served `formFloor` times and
+        //            never once had answered unaided, at the instant of the
+        //            claim. Read straight off the engine's own counter, so this
+        //            is the same evidence the report prints, not a proxy.
+        //   surface  the learner's TRUE competence on the weakest surface this
+        //            skill was actually served on — see `surfaceTruth`. A
+        //            learner may be genuinely at 0.90 in the aggregate and
+        //            genuinely below the bar on tables, and only one of those
+        //            two numbers used to be able to make a claim hollow.
+        //   reps     how many surfaces this skill was served on at all, which is
+        //            what makes `surface` a fair test rather than a hard one: a
+        //            claim over one surface is judged on that one surface.
+        const st = engine.get(task.skill);
+        const holes = holesOf(st);
+        if (holes.length) {
+          violate('hollowForm', `${task.skill} claimed with ${holes.join(', ')} at 0 of ${FORM_FLOOR}`);
+        }
+        const served = [...repServed.get(task.skill)];
+        const surface = served.length
+          ? Math.min(...served.map((rp) => surfaceTruth(k.get(task.skill), repSeen.get(task.skill)[rp] || 0)))
+          : k.get(task.skill);
         claims.push({
           skill: task.skill,
           k: k.get(task.skill),
+          holes: holes.length,
+          surface,
+          reps: served.length,
           sightRead: !!engine.get(task.skill).viaSightRead,
           items: spent.get(task.skill).items + 1,
           seconds: spent.get(task.skill).seconds
@@ -791,7 +990,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
       starve = Math.max(starve, step - lastTouch.get(s));
     }
 
-    if (CHECKPOINTS.includes(step + 1)) trace.push({ at: step + 1, ...score(engine, k) });
+    if (CHECKPOINTS.includes(step + 1)) trace.push({ at: step + 1, ...score(engine, k, { repServed, repSeen }) });
 
     // --- the end of a sitting ------------------------------------------------
     // The learner shuts the laptop. Time passes — the only thing in this file
@@ -801,7 +1000,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     if (sessions && sessionSeconds >= sessionCap) {
       sessionTrace.push({
         n: sitting, items: items, seconds, reviews: reviewItems, deep: deepItems,
-        durable: engine.durableCount(), ...score(engine, k),
+        durable: engine.durableCount(), ...score(engine, k, { repServed, repSeen }),
       });
       if (sitting >= sessions) break;
       sitting++;
@@ -825,7 +1024,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   if (sessions && sessionTrace.length < sitting) {
     sessionTrace.push({
       n: sitting, items, seconds, reviews: reviewItems, deep: deepItems,
-      durable: engine.durableCount(), ...score(engine, k),
+      durable: engine.durableCount(), ...score(engine, k, { repServed, repSeen }),
     });
   }
   if (record) for (const cur of run.values()) closeRun(cur);
@@ -839,9 +1038,17 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // again a week later without being taught anything in between.
     k, peak, strength, gapPow: gpow, perma,
     lapsed: SKILLS.filter((s) => engine.get(s).everMastered && !engine.get(s).mastered).length,
-    ...score(engine, k),
+    // The engine's own save, so the invariant block below can re-open this exact
+    // learner and put the real session planner in front of the real state.
+    save: engine.save(),
+    ...score(engine, k, { repServed, repSeen }),
+    // The surface ledger, kept so the retention test a week later can apply the
+    // same strict definition rather than falling back to the aggregate.
+    repServed, repSeen,
     engineMasteredSet: new Set(SKILLS.filter((s) => engine.get(s).mastered)),
     hollowAtEnd: SKILLS.filter((s) => engine.get(s).mastered && k.get(s) < HOLLOW),
+    hollowAtEndStrict: SKILLS.filter((s) => engine.get(s).mastered
+      && strictTruth(k.get(s), s, { repServed, repSeen }) < HOLLOW),
   };
 }
 
@@ -857,7 +1064,8 @@ function runLearner(seed, policy = 'engine', opts = {}) {
  * their re-probes actually bought them, and the level is scored again.
  */
 function scoreAfter(r, days) {
-  let trueMastered = 0, hollow = 0, sum = 0;
+  let trueMastered = 0, hollow = 0, hollowStrict = 0, sum = 0;
+  const ctx = { repServed: r.repServed, repSeen: r.repSeen };
   for (const s of SKILLS) {
     const floor = (r.perma ?? PERMA) * (r.peak.get(s) || 0);
     const keep = Math.pow(1 + (days * 24) / (GAP_HOURS * r.strength.get(s)), -(r.gapPow ?? GAP_POW));
@@ -865,21 +1073,179 @@ function scoreAfter(r, days) {
     sum += kk;
     if (kk >= TRUE_MASTERY) trueMastered++;
     if (r.engineMasteredSet.has(s) && kk < HOLLOW) hollow++;
+    if (r.engineMasteredSet.has(s) && strictTruth(kk, s, ctx) < HOLLOW) hollowStrict++;
   }
-  return { trueMastered, hollow, avg: sum / SKILLS.length };
+  return { trueMastered, hollow, hollowStrict, avg: sum / SKILLS.length };
 }
 
-function score(engine, k) {
-  let trueMastered = 0, engineMastered = 0, hollow = 0;
+/**
+ * @param {MasteryEngine} engine
+ * @param {Map<string,number>} k       hidden competence, per skill
+ * @param {{repServed?:Map<string,Set<string>>, repSeen?:Map<string,object>}} [ctx]
+ *
+ * `hollow` is the definition this file has always used: the engine says
+ * mastered and the aggregate hidden competence is below the bar. It is kept,
+ * unchanged and still printed, because every figure this build has ever been
+ * judged against was measured with it and a stricter number that quietly
+ * replaced it would be unreadable.
+ *
+ * `hollowStrict` is the definition the defect requires. A claim is hollow if the
+ * aggregate is below the bar OR the learner's true competence on the WEAKEST
+ * SURFACE this skill was actually served on is below the bar. An aggregate that
+ * a strong showing on symbols can carry is exactly the thing that certified a
+ * learner who could not read a table, so the strict test refuses to average.
+ * It is the harder number and it is the honest one; both are printed.
+ */
+function score(engine, k, ctx) {
+  let trueMastered = 0, engineMastered = 0, hollow = 0, hollowStrict = 0;
   for (const s of SKILLS) {
     const kk = k.get(s);
     const m = engine.get(s).mastered;
     if (kk >= TRUE_MASTERY) trueMastered++;
     if (m) engineMastered++;
     if (m && kk < HOLLOW) hollow++;
+    if (m && strictTruth(kk, s, ctx) < HOLLOW) hollowStrict++;
   }
   const avg = SKILLS.reduce((a, s) => a + k.get(s), 0) / SKILLS.length;
-  return { trueMastered, engineMastered, hollow, avg };
+  return { trueMastered, engineMastered, hollow, hollowStrict, avg };
+}
+
+/**
+ * What this learner is really worth on the weakest surface this skill has
+ * actually been served on. Falls back to the aggregate when the caller kept no
+ * surface ledger, so every existing call site keeps its old meaning.
+ */
+function strictTruth(kk, skill, ctx) {
+  const served = ctx?.repServed?.get(skill);
+  if (!served || !served.size) return kk;
+  let worst = kk;
+  for (const rp of served) {
+    const v = surfaceTruth(kk, ctx.repSeen?.get(skill)?.[rp] || 0);
+    if (v < worst) worst = v;
+  }
+  return worst;
+}
+
+// ---------------------------------------------------------------------------
+// SELF-TEST — `node tools/simulate.mjs --self-test`
+//
+// An assertion that has never failed has never been tested. Each invariant
+// above is fed a state it must pass and a state it must catch, driven through
+// the real engine, so the four sentences this file prints PASS beside are
+// sentences it can also print FAIL beside.
+//
+// It runs in a second and it does not touch the cohorts below it.
+// ---------------------------------------------------------------------------
+if (process.argv.includes('--self-test')) {
+  const out = [];
+  const ok = (name, pass, detail = '') => {
+    out.push({ name, pass, detail });
+    console.log(`  ${pass ? ' ok ' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
+  };
+  const ROOT_SKILL = SKILLS[0];
+  const rootForm = FORMS_BY_SKILL[ROOT_SKILL][0].id;
+  const fresh = () => new MasteryEngine(graph, null);
+
+  // 1a. A hole is a hole: three questions of one shape, none of them right.
+  {
+    const m = fresh();
+    const st = m.get(ROOT_SKILL);
+    st.formsSeen[rootForm] = { seen: 3, items: 3, correct: 0 };
+    ok('a shape at 0 of 3 is named as a hole',
+      m.weakForms(st).includes(rootForm) && holesOf(st).includes(rootForm));
+  }
+  // 1b. …and three ATTEMPTS at ONE question is not three questions.
+  {
+    const m = fresh();
+    const st = m.get(ROOT_SKILL);
+    st.formsSeen[rootForm] = { seen: 3, items: 1, correct: 0 };
+    ok('three tries at one question is not a hole',
+      !m.weakForms(st).length && !holesOf(st).length);
+  }
+  // 1c. The gate refuses to close over one, however good everything else is.
+  {
+    const m = fresh();
+    const st = m.get(ROOT_SKILL);
+    st.pL = 0.999;
+    st.check = {
+      done: 9, need: 3, base: 3, missed: 0, ext: 9, forms: [], reps: ['symbolic', 'table'],
+      nonSymbolic: true, modelled: true, novel: true, band: 5, road: 'long',
+    };
+    st.formsSeen[rootForm] = { seen: 3, items: 3, correct: 0 };
+    const granted = m.promote(st);
+    ok('a claim cannot be granted over a hole', granted === false && !st.mastered,
+      `pL ${st.pL}, run 9 of 3, every transfer condition met`);
+  }
+  // 1d. Clear the hole and the same state promotes.
+  {
+    const m = fresh();
+    const st = m.get(ROOT_SKILL);
+    st.pL = 0.999;
+    st.check = {
+      done: 9, need: 3, base: 3, missed: 0, ext: 9, forms: [], reps: ['symbolic', 'table'],
+      nonSymbolic: true, modelled: true, novel: true, band: 5, road: 'long',
+    };
+    st.formsSeen[rootForm] = { seen: 3, items: 3, correct: 1 };
+    ok('the same claim is granted once the hole is filled',
+      m.promote(st) === true && st.mastered);
+  }
+  // 1e. A record already holding a hollow claim is reopened, not hidden.
+  {
+    const m = fresh();
+    const saved = m.save();
+    saved.skills[ROOT_SKILL] = {
+      ...saved.skills[ROOT_SKILL],
+      mastered: true, everMastered: true, attempts: 12, pL: 0.999,
+      formsSeen: { [rootForm]: { seen: 3, items: 3, correct: 0 } },
+    };
+    const back = new MasteryEngine(graph, saved);
+    const st = back.get(ROOT_SKILL);
+    ok('a saved hollow claim is withdrawn on load',
+      st.mastered === false && st.reopenedFor === 'formFloor' && st.everMastered === true);
+  }
+  // 2. Nothing is taught out of prerequisite order.
+  {
+    const m = fresh();
+    const locked = graph.nodes.find((n) => (n.prereqs || []).length)?.id;
+    const t = locked ? m.taskFor(locked) : null;
+    ok('a locked line is never taught',
+      !!locked && (!t || m.isUnlocked(t.skill)),
+      locked ? `asked for ${locked}, served ${t ? t.skill : 'nothing'}` : 'no locked node in this graph');
+  }
+  // 3. The content check can see the shape it was written for.
+  {
+    const caught = needsDistribution('2\\left(2m + 13\\right) + 2\\left(6m + 10\\right)');
+    const spared = [
+      '6\\left(8 + 5 \\cdot 2\\right)',           // order of operations, no letter
+      '7\\left(4m\\right)',                        // one term, not a sum
+      '\\left(2m + 13\\right) + \\left(6m + 10\\right)', // the fixed perimeter item
+    ].every((x) => !needsDistribution(x));
+    ok('the distributive-property check catches it and only it', !!caught && spared,
+      caught ? `caught ${caught}` : 'missed the expression it exists for');
+  }
+  // 4. The workload range is honest about the goal it is quoted beside.
+  {
+    const m = fresh();
+    const p = planRun(m, { factor: 1, accuracy: 0.72, seeded: true }, { minutes: 20 });
+    ok('the quoted workload contains the planned workload',
+      p.itemsLow <= p.items && p.items <= p.itemsHigh && p.itemsLow >= p.tears,
+      `goal ${p.tears} rifts, quoted ${p.itemsLow}-${p.itemsHigh} questions, planned ${p.items}`);
+  }
+  // 5. The reported figure is a floor and behaves like one.
+  {
+    const m = fresh();
+    const st = m.get(ROOT_SKILL);
+    st.attempts = 12;
+    st.pL = 0.999;
+    st.formsSeen[rootForm] = { seen: 3, items: 3, correct: 0 };
+    const c = m.confidence(ROOT_SKILL, { plan: 0.6666 });
+    ok('the reported figure is the lowest thing measured, not the posterior',
+      c.floor <= c.pL && c.floor <= 0.6666 && c.floor < 0.5 && c.why === 'form',
+      `pL ${c.pL.toFixed(3)}, plan 0.667, printed ${c.floor.toFixed(3)} (${c.why})`);
+  }
+  const bad = out.filter((x) => !x.pass).length;
+  console.log(bad ? `\nself-test FAILED — ${bad} of ${out.length}` : `\nself-test passed — ${out.length} assertions`);
+  process.exit(bad ? 1 : 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1263,6 +1629,9 @@ const reached = results.filter((r) => r.trueMastered >= SKILLS_NEEDED).length;
 const allTen = results.filter((r) => r.trueMastered === SKILLS.length).length;
 const engineAll = results.filter((r) => r.engineMastered === SKILLS.length).length;
 const anyHollow = results.filter((r) => r.hollow > 0).length;
+// The same count under the stricter definition — see `score`. It is expected to
+// be the larger of the two and it is the one to believe.
+const anyHollowStrict = results.filter((r) => r.hollowStrict > 0).length;
 
 console.log('growth of true mastery (hidden competence >= ' + TRUE_MASTERY + ' on >= ' + SKILLS_NEEDED + '/' + SKILLS.length + ' skills)');
 for (const c of CHECKPOINTS) {
@@ -1467,7 +1836,12 @@ for (const gap of [24, 72]) {
   const q1 = fifth.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / fifth.length;
   const claims = rows.flatMap((r) => r.claims);
   const wrong = claims.filter((c) => c.k < HOLLOW).length;
+  // …and the same claims under the stricter definition, on the cohort that
+  // actually plays in sittings. See `score`: a hole, or the weakest surface
+  // this skill was really served on, rather than the mean across all of them.
+  const wrongStrict = claims.filter((c) => c.k < HOLLOW || c.holes > 0 || c.surface < HOLLOW).length;
   const anyH = rows.filter((r) => r.hollow > 0).length;
+  const anyHS = rows.filter((r) => r.hollowStrict > 0).length;
   const sittings = rows.map((r) => r.sessionTrace.length);
   const toMastery = rows
     .map((r) => r.sessionTrace.findIndex((s2) => s2.trueMastered >= SKILLS_NEEDED) + 1)
@@ -1476,8 +1850,8 @@ for (const gap of [24, 72]) {
   console.log(`\n  ${label} (${gap} h between sittings, ${RETURN_N} learners)`);
   console.log(`    true mastery of the level          ${(100 * got / rows.length).toFixed(1)}%   (all ten skills ${(100 * all / rows.length).toFixed(1)}%)`);
   console.log(`    lowest ability quintile            ${(100 * q1).toFixed(1)}%`);
-  console.log(`    hollow claims, judged when made    ${(100 * wrong / Math.max(1, claims.length)).toFixed(2)}%   (${wrong} of ${claims.length})`);
-  console.log(`    learners with any hollow claim     ${(100 * anyH / rows.length).toFixed(1)}%`);
+  console.log(`    hollow claims, judged when made    OLD ${(100 * wrong / Math.max(1, claims.length)).toFixed(2)}%   NEW ${(100 * wrongStrict / Math.max(1, claims.length)).toFixed(2)}%   (${wrong} / ${wrongStrict} of ${claims.length})`);
+  console.log(`    learners with any hollow claim     OLD ${(100 * anyH / rows.length).toFixed(1)}%   NEW ${(100 * anyHS / rows.length).toFixed(1)}%`);
   console.log(`    sittings to true mastery           median ${median(toMastery).toFixed(0)}   p90 ${quantile(toMastery, 0.9)}   (of ${median(sittings).toFixed(0)} played)`);
   console.log(`    re-probes that crossed a real gap  median ${median(rows.map((r) => r.durable)).toFixed(0)} per learner   (${(rows.reduce((a, r) => a + r.durable, 0) / rows.length).toFixed(1)} mean)`);
   console.log(`    lines caught lapsing and reopened  ${(rows.reduce((a, r) => a + r.lapsed, 0) / rows.length).toFixed(2)} per learner at the end`);
@@ -1506,9 +1880,10 @@ console.log('\n  the retention test — the same learners asked again a week lat
     const mo = rows.map((r) => scoreAfter(r, 30));
     const of = (xs) => xs.filter((x) => x.trueMastered >= SKILLS_NEEDED).length / xs.length;
     const hol = (xs) => xs.filter((x) => x.hollow > 0).length / xs.length;
+    const holS = (xs) => xs.filter((x) => x.hollowStrict > 0).length / xs.length;
     const bar = (x) => '█'.repeat(Math.round(24 * x)).padEnd(24, '·');
     console.log(`    ${label.padEnd(30)} ${bar(at)} ${(100 * at).toFixed(1)}%  ->  a week later ${(100 * of(wk)).toFixed(1)}%   a month later ${(100 * of(mo)).toFixed(1)}%`);
-    console.log(`    ${' '.repeat(30)} ${' '.repeat(24)}          hollow at a week ${(100 * hol(wk)).toFixed(1)}% of learners`);
+    console.log(`    ${' '.repeat(30)} ${' '.repeat(24)}          hollow at a week  OLD ${(100 * hol(wk)).toFixed(1)}%  NEW ${(100 * holS(wk)).toFixed(1)}% of learners`);
   };
   row('one unbroken sitting', results.slice(0, RETURN_N));
   row('sittings a day apart', returners[24]);
@@ -1585,6 +1960,36 @@ console.log('\nfalse positives — how often a mastery claim is wrong');
   const claimsMain = results.reduce((a, r) => a + r.claims.length, 0);
   console.log(`    of the ordinary population, claims still wrong at the end of the session ${rate(stillWrong, claimsMain)}%`);
   console.log(`    (a wrong claim is not permanent: the spacing schedule re-probes it, and a second miss demotes it)`);
+
+  // --- THE SAME CLAIMS, UNDER THE STRICTER DEFINITION ----------------------
+  // The rate above is the one this file has always printed and it is an
+  // aggregate on both sides: engine-says-mastered against mean hidden
+  // competence. It cannot see the defect that made this work necessary,
+  // because the defect is an aggregate carrying a hole. The rate below adds
+  // the two tests that can:
+  //
+  //   · a HOLE — a question type the engine served `formFloor` times and never
+  //     once got right unaided, standing under the claim at the moment it was
+  //     granted. The form floor in src/learn/mastery.js now makes this
+  //     impossible, so this column is an assertion and not a measurement, and
+  //     it is printed rather than merely checked so that the day it stops being
+  //     zero, somebody sees it;
+  //   · the WEAKEST SURFACE — the learner's true competence on the surface this
+  //     skill was actually served on that they are worst at, rather than their
+  //     mean across all of them. This is a genuinely harder bar and it is
+  //     EXPECTED TO RAISE THE RATE. The number below is the true one.
+  const badStrict = (xs) => xs.filter((c) => c.k < HOLLOW || c.holes > 0 || c.surface < HOLLOW).length;
+  const holed = all.filter((c) => c.holes > 0).length;
+  const surfaced = all.filter((c) => c.k >= HOLLOW && c.surface < HOLLOW).length;
+  console.log('');
+  console.log(`  the same claims under the stricter definition — no aggregate may stand in for a surface`);
+  console.log(`    all claims                 ${String(all.length).padStart(7)}   hollow (OLD: mean competence < ${HOLLOW})        ${rate(bad(all), all.length)}%`);
+  console.log(`    all claims                 ${String(all.length).padStart(7)}   hollow (NEW: + hole, + weakest surface)  ${rate(badStrict(all), all.length)}%`);
+  console.log(`    of which, granted over a question type standing at 0 of ${FORM_FLOOR}   ${holed}   <- must stay 0`);
+  console.log(`    of which, granted over a surface the learner is below ${HOLLOW} on   ${surfaced}   (${rate(surfaced, all.length)}% of all claims)`);
+  console.log(`    claims off the sight-read  ${String(viaSight.length).padStart(7)}   hollow (NEW)                             ${rate(badStrict(viaSight), viaSight.length)}%`);
+  const strictEnd = results.reduce((a, r) => a + r.hollowAtEndStrict.length, 0);
+  console.log(`    of the ordinary population, claims still hollow at the end of the session   OLD ${rate(stillWrong, claimsMain)}%   NEW ${rate(strictEnd, claimsMain)}%`);
 }
 
 console.log('\n  the gate as a classifier — learners frozen at a known competence, so only the gate moves');
@@ -1669,10 +2074,103 @@ console.log('\nnever abandoned — is any learner ever routed off a topic they h
   console.log('  the only ways out are the proving run and the sight-read, and both are the same bar.');
 }
 
+// ---------------------------------------------------------------------------
+// THE INVARIANTS — the four things this build is not allowed to do.
+//
+// Not measurements. Each one is a sentence the product says about itself, each
+// one was found false in one live session, and each is now checked on every
+// item and every claim of every cohort above. Zero is the only passing value.
+// ---------------------------------------------------------------------------
+console.log('\nthe invariants — asserted on every item and every claim above, not sampled');
+{
+  // --- 3. PREREQUISITE ORDER, INSIDE THE ITEM ------------------------------
+  // The routing invariant is checked in the item loop. This is the other half,
+  // and the half that was actually broken: an item served legally on `like-terms`
+  // whose own first worked step was the distributive property, which stands
+  // DOWNSTREAM of like-terms in the graph. The whole bank is re-derived here —
+  // every form, every band, every step — and asked whether it needs a rule that
+  // sits above its own skill.
+  let scanned = 0;
+  for (const skill of SKILLS) {
+    const cone = CONE.get(skill) || new Set([skill]);
+    if (cone.has('distribute')) continue;   // the rule is at or below this line
+    for (const f of FORMS_BY_SKILL[skill]) {
+      for (let d = f.dMin; d <= f.dMax; d++) {
+        for (let i = 0; i < 24; i++) {
+          let it;
+          try { it = generate(skill, d, i * 7919 + d * 131, { locale: 'en', form: f.id }); }
+          catch { continue; }
+          scanned++;
+          for (const tx of [it.latex, ...(it.steps || []).map((x) => x.latex)]) {
+            const hit = needsDistribution(tx);
+            if (hit) violate('prereqContent', `${skill}/${f.id} band ${d}: ${hit}`);
+          }
+        }
+      }
+    }
+  }
+
+  // --- 4. THE PROMISED WORKLOAD IS THE PLANNED WORKLOAD --------------------
+  // `planRun` quotes a goal in TEARS — questions answered correctly — and plans
+  // a workload in ITEMS. They are different numbers and only the smaller was on
+  // the orders card, which is how a player came to be quoted two thirds of the
+  // work. The plan now carries the workload as a range and the card states it,
+  // so the assertion is that the range is honest: it must contain the same
+  // projection's own median item count, and its floor may not be below the goal
+  // (nobody seals sixteen rifts in fourteen questions).
+  let plans = 0;
+  for (let i = 0; i < 60; i++) {
+    const r = runLearner((i * 2654435761 + 99991) >>> 0, 'engine', { budget: 40 + (i % 5) * 30, record: false });
+    const eng = new MasteryEngine(graph, JSON.parse(JSON.stringify(r.save)));
+    const p = planRun(eng, { factor: 1, accuracy: 0.72, seeded: false }, { minutes: 20, seed: 0x5eed + i });
+    plans++;
+    if (!(p.itemsLow <= p.items && p.items <= p.itemsHigh)) {
+      violate('workload', `quoted ${p.itemsLow}-${p.itemsHigh} does not contain the planned ${p.items}`);
+    }
+    if (p.itemsLow < p.tears) {
+      violate('workload', `quoted floor ${p.itemsLow} questions below the goal of ${p.tears} rifts`);
+    }
+    // --- 5. ONE FIGURE, THE LOWER BOUND -------------------------------------
+    // pL, the planner's seam confidence and the number on the progress row used
+    // to be three figures about one line that could disagree, and the screen
+    // printed the largest. The report now prints `confidence().floor`, and the
+    // assertion is that the floor is never above any of the things it is a
+    // floor under.
+    for (const sm of p.seams) {
+      const c = eng.confidence(sm.id, { plan: sm.confidence });
+      const st = eng.get(sm.id);
+      // A held line's seam confidence is 0 by construction (it never closes
+      // again inside a projection), so it is not a bound on anything and
+      // `confidence` correctly ignores it. See the note there.
+      if (!st.attempts || st.mastered) continue;
+      if (c.floor > c.pL + 1e-9 || c.floor > sm.confidence + 1e-9) {
+        violate('confidence', `${sm.id}: floor ${c.floor.toFixed(3)} above pL ${c.pL.toFixed(3)} / plan ${sm.confidence.toFixed(3)}`);
+      }
+      if (st.mastered && holesOf(st).length) {
+        violate('hollowForm', `${sm.id} held at load with ${holesOf(st).join(', ')} at 0 of ${FORM_FLOOR}`);
+      }
+    }
+  }
+
+  const line = (label, kind, note) => {
+    const n = VIOLATIONS[kind];
+    const mark = n === 0 ? 'PASS' : 'FAIL';
+    console.log(`  ${mark}  ${label.padEnd(52)} ${String(n).padStart(6)}   ${note}`);
+    if (n) console.log(`        first: ${FIRST[kind]}`);
+  };
+  line('a claim granted over a question type at 0 of ' + FORM_FLOOR, 'hollowForm', 'must be 0');
+  line('an item taught on an unproved skill with unheld prereqs', 'lockedServe', 'must be 0');
+  console.log(`        (re-probes of an already-proved line whose ground reopened: ${underReopened} — in order when granted, counted here so it is not invisible)`);
+  line('an item needing a rule above its own skill in the graph', 'prereqContent', `must be 0 (${scanned} items re-derived)`);
+  line('a goal quoted outside the workload the plan produced', 'workload', `must be 0 (${plans} plans)`);
+  line('a confidence printed above its own lower bound', 'confidence', 'must be 0');
+}
+
 const meanAvg = results.reduce((a, r) => a + r.avg, 0) / results.length;
 console.log('\ncalibration — is the engine telling the truth?');
 console.log(`  engine declared all ${SKILLS.length} skills mastered   ${pct(engineAll)}`);
-console.log(`  learners with any hollow mastery claim   ${pct(anyHollow)}  (engine says mastered, hidden competence < ${HOLLOW})`);
+console.log(`  learners with any hollow mastery claim   ${pct(anyHollow)}  (OLD: engine says mastered, mean hidden competence < ${HOLLOW})`);
+console.log(`  learners with any hollow claim, STRICT   ${pct(anyHollowStrict)}  (NEW: + a hole, + the weakest surface actually served)`);
 console.log(`  mean hidden competence across all skills ${meanAvg.toFixed(3)}`);
 
 console.log('\nRESULT');
