@@ -77,7 +77,16 @@
   display:flex; align-items:flex-start; gap:1rem;
   padding:1.05rem 1.15rem .9rem;
   border-bottom:1px solid var(--rp-line);
+  /* IT WRAPS, the way `.rp-doc-head` already does. On a 320-wide phone the
+     Spanish title runs to three lines and the two buttons beside it — TEACHER
+     RECORD and CLOSE — were pushed off the right edge, so CERRAR printed as
+     "CERR" and the way out of the report was half a word hanging over the
+     bezel. `tools/critic/notruncate.mjs` caught it in es at 320x640; the same
+     row is fine in English, which is why it shipped. `min-width:0` lets the
+     titles give up the width instead of the buttons. */
+  flex-wrap:wrap;
 }
+.rp-titles{min-width:0}
 .rp-h{
   margin:0; font-size:.94rem; font-weight:700;
   letter-spacing:.3em; text-transform:uppercase;
@@ -95,7 +104,7 @@
   border:1px solid var(--rp-line); border-radius:6px;
 }
 .rp-x:hover,.rp-x:focus-visible{color:var(--ink); border-color:rgba(95,230,255,.5)}
-.rp-head-acts{margin-left:auto; display:flex; align-items:center; gap:.4rem; flex:none}
+.rp-head-acts{margin-left:auto; display:flex; align-items:center; gap:.4rem; flex:0 0 auto; flex-wrap:wrap}
 .rp-head-acts .rp-x{margin-left:0}
 .rp-teacher{
   padding:.4rem .8rem; min-height:34px;

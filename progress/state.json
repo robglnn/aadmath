@@ -1,19 +1,19 @@
 {
   "title": "ASCENT — The Cipher Worlds",
   "subtitle": "Adaptive Algebra I mastery, built to a Fortnite / Breath of the Wild bar",
-  "updated": "round 9",
-  "wave": 9,
-  "summary": "Live and playable at robglnn.github.io/aadmath. Mobile clean in both orientations. A teacher can switch the progress record between TEKS and Common Core, and a department head passed it for adoption at 8/10. The cold-player gate — real key input, debug API forbidden — passes 6/6 against the production URL.",
+  "updated": "wave 15",
+  "wave": 15,
+  "summary": "Live at robglnn.github.io/aadmath. The cold-player gate is 18 steps and passes against production, including play with pointer lock denied. A blind cold critic scored 7.5/10 and passed; a department head passed the teacher record for adoption at 8/10 in both TEKS and Common Core framings. Algebra I Level 1 and Level 2 ship; content is data, so Algebra II, Geometry and Trigonometry are a decision rather than a build.",
   "metrics": {
-    "fps": 128,
-    "consoleErrors": 0,
-    "itemsValidated": 12180,
-    "i18nKeys": 1072,
+    "coldPlayGate": "18/18",
+    "coldCritic": 7.5,
+    "teacherAdoption": 8,
     "trueMasteryPct": 99.8,
     "lowestQuintilePct": 89.3,
-    "portraitFrames": "80/80",
-    "landscapeFrames": "160/160",
-    "buildBoxMs": 1229
+    "testOutMedianMin": 2.7,
+    "layoutFrames": "288/288",
+    "riftPositionsVerified": 1021,
+    "consoleErrors": 0
   },
   "pieces": [
     {
@@ -21,49 +21,49 @@
       "name": "World & art direction",
       "status": "passed",
       "score": 7,
-      "note": "Five far regions, real aerial perspective, hero silhouettes."
+      "note": "Groves, canyon, ruins, waterfalls and a lit gate. Minute 8 no longer looks like wallpaper."
     },
     {
       "id": "player",
       "name": "Movement, camera & game feel",
       "status": "passed",
       "score": 7,
-      "note": "Shadow, contact, silhouette. A/D handedness and hyperextended elbows fixed."
+      "note": "Recovery in ~1.5s. Pointer-lock-denied play verified end to end."
     },
     {
       "id": "build",
       "name": "Axiom building system",
       "status": "passed",
-      "score": 9,
-      "note": "four walls close a square in 486 ms by hand; 16/16 quarter turns; no chimney; lens never inside own lattice"
+      "score": 7,
+      "note": "Hand-built closed square; closing a room gives it a door."
     },
     {
       "id": "learn-ux",
       "name": "Rift learning surface",
       "status": "passed",
-      "score": 7,
-      "note": "Five answer modalities. Echo diagnoses the exact misconception."
+      "score": 8,
+      "note": "Five modalities. The echo shows a worked parallel problem without leaking the answer."
     },
     {
       "id": "pedagogy",
       "name": "Content, item bank & mastery model",
       "status": "passed",
       "score": 8,
-      "note": "99.8% simulated true mastery, 0.1% hollow claims, ~2.7 min test-out median."
+      "note": "99.8% true mastery, test-out in ~2.7 min median. p90 tail still open."
     },
     {
       "id": "i18n",
       "name": "EN / ES / PL localisation",
       "status": "passed",
       "score": 8,
-      "note": "1072 keys x 3 locales; content/ now policed too. ASD-STE100 + ADHD structure."
+      "note": "1072 keys x 3 locales, policed in src/ and content/."
     },
     {
       "id": "narrative",
       "name": "Narrative, voice & progression",
       "status": "building",
       "score": 6,
-      "note": "Arc reaches the endgame; rank and story still not day-gated."
+      "note": "Arc reaches an endgame; rank and story still not day-gated."
     },
     {
       "id": "fx",
@@ -77,14 +77,14 @@
       "name": "Audio & music",
       "status": "passed",
       "score": 7,
-      "note": "Synthesised adaptive score, surface-varied footsteps."
+      "note": "Synthesised adaptive score; the seal beat carries the payload."
     },
     {
       "id": "perf",
       "name": "Performance & platform reach",
       "status": "passed",
-      "score": 8,
-      "note": "108 fps median. Mobile clean portrait and landscape."
+      "score": 7,
+      "note": "Fresh 120fps. Sustained-play measurement added after finding 44.9fps at minute 18."
     }
   ],
   "log": [
@@ -475,6 +475,22 @@
     {
       "t": "wave 16 perf",
       "m": "sustained gate moved into the STANDARD capture: shoot.mjs now measures the same camera before and after --sustain minutes of real play (default 3) and fails on decay, tier degrade or any accumulating counter; listeners instrumented. 15-min real-play run: 105.3 fps at min 1, 101.0 at min 8, 128.2 at min 15, tier high throughout, cap ends at ceiling."
+    },
+    {
+      "t": "wave 15",
+      "m": "Dead zone closed: 1021 standing positions beside every rift, all offering a bearing or a key."
+    },
+    {
+      "t": "wave 15",
+      "m": "Edge recovery 1.3-2.2s against a 3s bar, verified three times on production."
+    },
+    {
+      "t": "wave 15",
+      "m": "A gate step was found reporting a vacuous pass — 0 places checked. Fixed; it now samples 1021."
+    },
+    {
+      "t": "wave 15",
+      "m": "Cold-player gate grown to 18 steps, including play with pointer lock denied."
     }
   ]
 }

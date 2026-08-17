@@ -680,10 +680,28 @@
   background: linear-gradient(0deg, rgba(30, 18, 62, .55), transparent);
 }
 .rf-strata-bar { display: flex; gap: 3px; flex: 0 0 auto; }
+/* THE NAME OF THE DEPTH, WHOLE OR NOT AT ALL.
+   This carried `text-overflow: ellipsis`, and an ellipsis is a truncation with
+   a dot on it — src/ui/landscape.css and src/kit/ledger.css both say so in
+   their own comments, and `tools/critic/notruncate.mjs` caught this one on a
+   740x360 landscape phone in Polish, where WYJAŚNIENIE KROK PO KROKU is half
+   again the width of the English. The rail's numbered chips carry the whole
+   meaning on their own — they are the pressable control, and each one has the
+   depth's name as its title and its aria-label. So the name WRAPS where there
+   is room for it and is simply not printed where there is not, rather than
+   being printed as a fragment. `--rf-u` is the rig's own fitted unit, so the
+   line count moves with the size the fit pass settled on. */
 .rf-strata-name {
   font-family: var(--rf-mono); font-size: calc(.5rem * var(--rf-u)); letter-spacing: .18em;
   text-transform: uppercase; color: #cdbcff; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: normal; overflow: visible; text-overflow: clip;
+  line-height: 1.2;
+}
+/* Under about 420 px of height there is not room for a word of it in the longest
+   of the three languages, and half a word is worth less than none. */
+
+@media (max-height: 420px) and (orientation: landscape) {
+  .rf-strata-name { display: none; }
 }
 .rf-stratum {
   appearance: none; width: calc(22px * var(--rf-u)); height: calc(26px * var(--rf-u));

@@ -470,11 +470,22 @@ for (const [room, w, h, touch] of ROOMS.filter((r) => !ONLY_ROOMS.length || ONLY
       await scan(`${loc}-${name}`);
       // Escape is the pause key. Pressing it on the bare HUD would OPEN the
       // menu rather than close anything, and the next scan would photograph it.
+      //
+      // And Escape does not reach the teacher record at all: it is its own
+      // document over the report, with its own close button. Left open it rode
+      // into every later scan and got them all blamed on whatever surface the
+      // harness thought it was looking at — which is a harness telling you
+      // about its own bug in the voice of the game.
       if (closes) {
-        for (let i = 0; i < 3; i++) {
-          if (!(await page.evaluate(() => !!window.__ascent.input.uiOpen))) break;
+        for (let i = 0; i < 4; i++) {
+          const gone = await page.evaluate(() => {
+            const doc = document.querySelector('.rp-doc-host.show');
+            if (doc) { doc.querySelector('.rp-doc-x')?.click(); return false; }
+            return !window.__ascent.input.uiOpen && !document.querySelector('.rp-card.show, .mnu.show, .fdy.show');
+          });
+          if (gone) break;
           await page.keyboard.press('Escape');
-          await page.waitForTimeout(350);
+          await page.waitForTimeout(320);
         }
       }
     }
