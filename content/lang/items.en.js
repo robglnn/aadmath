@@ -785,4 +785,163 @@ export default {
   'ctx.soRope': 'The bosun cuts ${v}$ metres of rope into {k} equal falls.',
   'ctx.soGrain': 'The chute runs ${v}$ tonnes of grain into {k} equal sacks.',
   'ask.whichShare': 'Which expression gives one share?',
+
+  // ---- WIDENING, WAVE 16 -------------------------------------------------
+  //
+  // Two cold critics counted the same thing and wrote down the same number.
+  // "19 distinct situation skeletons across the first 45 scheduled items."
+  // "8 of 14 items were two templates." The session ledger in `deck()` already
+  // cycles a deck before it repeats, so nothing was served twice inside one
+  // sitting — but a deck of twelve dealt three times a session is a deck a
+  // cadet has seen all of by their fourth sitting, and the fourth sitting is
+  // where a game either keeps somebody or loses them.
+  //
+  // So the decks under the heaviest load are widened here. `draws/held` from
+  // tools/situationspread.mjs is the number that picked them: shareOut 2.67,
+  // partWhole 3.00, nested 2.13, claim 1.77 — every one of them dealing each
+  // framing more than once per run of sessions.
+  //
+  // The standard the existing entries set is kept exactly: ONE short sentence
+  // of situation, every slot in it used by the mathematics, no decoy number,
+  // no joke that costs a line. A framing earns its place by being a different
+  // instrument in a different part of the shard — not by being the same
+  // instrument with a funnier name.
+
+  // an unknown total, cut into k equal shares
+  'ctx.soIce': 'The cutter breaks ${v}$ kilograms of ice into {k} equal blocks.',
+  'ctx.soAir': 'The compressor splits ${v}$ litres of air between {k} equal bottles.',
+  'ctx.soWire': 'The fitter cuts ${v}$ metres of wire into {k} equal leads.',
+  'ctx.soCoal': 'The stoker shovels ${v}$ kilograms of coal into {k} equal buckets.',
+  'ctx.soPaint': 'The painter pours ${v}$ litres of paint into {k} equal pots.',
+  'ctx.soClay': 'The potter cuts ${v}$ kilograms of clay into {k} equal balls.',
+  'ctx.soThread': 'The weaver winds ${v}$ metres of thread onto {k} equal bobbins.',
+  'ctx.soSoup': 'The cook ladles ${v}$ litres of broth into {k} equal bowls.',
+  'ctx.soSand': 'A barge tips ${v}$ tonnes of sand into {k} equal bays.',
+  'ctx.soCredit': 'The purser splits a prize of ${v}$ credits between {k} equal shares.',
+  'ctx.soCuttings': 'The gardener sets ${v}$ cuttings out across {k} equal frames.',
+  'ctx.soSamples': 'The lab divides ${v}$ samples between {k} equal trays.',
+  'ctx.soTape': 'The archivist cuts ${v}$ metres of tape into {k} equal reels.',
+  'ctx.soChain': 'The smith cuts ${v}$ links of chain into {k} equal lengths.',
+  'ctx.soAsh': 'The furnace drops ${v}$ kilograms of ash into {k} equal skips.',
+  'ctx.soDoses': 'The medic divides ${v}$ doses between {k} equal packs.',
+
+  // somebody has decided a letter is worth its place in the alphabet
+  'ctx.claimNotebook': 'Cadet {who} copied a numbered alphabet into a notebook and trusts it. The manifest says ${v} = {val}$.',
+  'ctx.claimGame': 'Cadet {who} learnt the alphabet trick from a puzzle game. The manifest says ${v} = {val}$.',
+  'ctx.claimSign': 'A numbered alphabet is bolted over the workshop door, and Cadet {who} used it. The manifest reads ${v} = {val}$.',
+  'ctx.claimHabit': 'Cadet {who} counts the alphabet every time, out of habit. The manifest says ${v} = {val}$.',
+  'ctx.claimFirst': 'Cadet {who} answered first, and answered from the alphabet. The manifest says ${v} = {val}$.',
+  'ctx.claimCousin': 'A cousin on another shard swears by the alphabet rule. The manifest reads ${v} = {val}$.',
+  'ctx.claimCrate': 'The crate is stencilled ${v}$, so Cadet {who} counted the alphabet. The manifest says ${v} = {val}$.',
+  'ctx.claimCallSign': 'A call-sign alphabet made Cadet {who} sure of the value. The manifest says ${v} = {val}$.',
+  'ctx.claimNotes': 'Cadet {who} found the alphabet rule in a borrowed set of notes. The manifest says ${v} = {val}$.',
+  'ctx.claimDoors': 'Cadet {who} read the value off the numbered door plates. The manifest reads ${v} = {val}$.',
+  'ctx.claimBadge': 'Cadet {who} counted the letters on a badge to get the value. The manifest says ${v} = {val}$.',
+  'ctx.claimBar': 'Cadet {who} bet a ration bar on the alphabet answer. The manifest reads ${v} = {val}$.',
+
+  // a known part beside an unknown one
+  'ctx.pwNursery': 'The nursery bench raises ${v}$ seedlings. A new tray adds {c} seedlings.',
+  'ctx.pwLarder': 'The larder is signed out for ${v}$ days. A late crate adds {c} days.',
+  'ctx.pwFlare': 'One flare burns for ${v}$ seconds. A second flare adds {c} seconds.',
+  'ctx.pwKeel': 'The keel already carries ${v}$ tonnes. The crane lowers in {c} tonnes.',
+  'ctx.pwArray': 'The array returns ${v}$ watts. A new string adds {c} watts.',
+  'ctx.pwCoreRack': 'The rack holds ${v}$ samples. The morning core adds {c} samples.',
+  'ctx.pwCandle': 'An oxy candle runs for ${v}$ minutes. The spare adds {c} minutes.',
+  'ctx.pwRelay': 'The relay has passed ${v}$ packets. The next window adds {c} packets.',
+  'ctx.pwKilnRun': 'The kiln has fired ${v}$ bricks. The last pour adds {c} bricks.',
+  'ctx.pwWatchGlass': 'The glass has run ${v}$ hours. The next turn adds {c} hours.',
+  'ctx.pwFilm': 'The reel holds ${v}$ frames. The night pass adds {c} frames.',
+  'ctx.pwMedChest': 'The chest holds ${v}$ doses. The drop adds {c} doses.',
+  'ctx.pwLadder': 'The ladder stands ${v}$ metres tall. One more section adds {c} metres.',
+  'ctx.pwRainTank': 'The rain tank holds ${v}$ litres. The gutter brings in {c} litres.',
+
+  // b groups of a groups of v
+  'ctx.nestedRivets': 'One seam takes ${v}$ rivets. A panel has {a} seams. The hull needs {b} panels.',
+  'ctx.nestedCrucibles': 'One crucible takes ${v}$ grams. A tray holds {a} crucibles. {b} trays go in.',
+  'ctx.nestedWatches': 'One watch runs ${v}$ hours. A rotation is {a} watches. The voyage is {b} rotations.',
+  'ctx.nestedSondes': 'A sonde returns ${v}$ readings. A cast drops {a} sondes. {b} casts are logged.',
+  'ctx.nestedLegs': 'A sled leg runs ${v}$ kilometres. A day is {a} legs. The crossing is {b} days.',
+  'ctx.nestedSkips': 'One skip lifts ${v}$ tonnes. A hoist raises {a} skips. {b} hoists ran today.',
+  'ctx.nestedMantles': 'One mantle gives ${v}$ lumens. A lamp takes {a} mantles. {b} lamps are lit.',
+  'ctx.nestedWindows': 'One window passes ${v}$ packets. A pass has {a} windows. {b} passes are booked.',
+  'ctx.nestedCandles': 'One candle burns for ${v}$ minutes. A locker holds {a} candles. {b} lockers are sealed.',
+  'ctx.nestedBlocks': 'One ration block feeds ${v}$ days. A crate holds {a} blocks. {b} crates came down.',
+  'ctx.nestedPlates': 'One plate holds ${v}$ frames. A cassette takes {a} plates. {b} cassettes are loaded.',
+  'ctx.nestedPots': 'One pot raises ${v}$ seedlings. A flat takes {a} pots. {b} flats stand ready.',
+
+  // one rule at the head of a column, four rows, one reading destroyed
+  'ctx.logKelp': 'The kelp line log made every row from the rule at the top. One row has gone.',
+  'ctx.logVane': 'The wind vane log derives every row from the rule in its header. One row washed out.',
+  'ctx.logSeedDrill': 'The seed drill log computes every row from the rule above it. One row is blank.',
+  'ctx.logRopeWalk': 'The rope walk log made every row from the rule at the top. One row tore off.',
+  'ctx.logTannery': 'The tannery log derives every row from the rule in its header. One row is missing.',
+  'ctx.logIceSaw': 'The ice saw log computes every row from the rule above it. One row has gone.',
+  'ctx.logPumpHouse': 'The pump house log made every row from the rule at the top. One row is unreadable.',
+  'ctx.logQuarry': 'The quarry log derives every row from the rule in its header. One row was lost.',
+  'ctx.logSmokeHouse': 'The smokehouse log computes every row from the rule above it. One row is blank.',
+  'ctx.logBoiler': 'The boiler log made every row from the rule at the top. One row scorched away.',
+  'ctx.logLathe': 'The lathe log derives every row from the rule in its header. One row is missing.',
+  'ctx.logBellTower': 'The bell tower log computes every row from the rule above it. One row has gone.',
+  'ctx.logTram': 'The tram log made every row from the rule at the top. One row rubbed out.',
+  'ctx.logGantry': 'The gantry log derives every row from the rule in its header. One row is blank.',
+  'ctx.logNetLoft': 'The net loft log computes every row from the rule above it. One row was lost.',
+  'ctx.logRainGauge': 'The rain gauge log made every row from the rule at the top. One row is missing.',
+
+  // something that starts at b and loses a of itself every minute
+  'ctx.oxyBottle': 'The bottle comes off the rack at {b} and vents {a} every minute.',
+  'ctx.battBank': 'The power bank sits at {b} and drains {a} every minute under load.',
+  'ctx.tideFlat': 'The flat stands at {b} and falls {a} every minute on the ebb.',
+  'ctx.brineLevel': 'The brine reads {b} and drops {a} every minute the pan runs.',
+  'ctx.sandGlass': 'The glass reads {b} and runs down {a} every minute.',
+  'ctx.wheelPress': 'The wheel reads {b} and lets go {a} every minute through the split.',
+  'ctx.grainChute': 'The chute reads {b} and empties {a} every minute the gate stays up.',
+  'ctx.dyeVat': 'The vat reads {b} and fades {a} every minute in the sun.',
+  'ctx.ropeStrand': 'The strand holds {b} and gives up {a} every minute under the load.',
+  'ctx.wickLamp': 'The lamp reads {b} and burns {a} every minute on the low wick.',
+
+  // one straight trace, drawn for you, all the way along
+  'ctx.railChart': 'A rail trolley ran the spine at one pace, and the plotter drew it all.',
+  'ctx.ferryChart': 'A ferry crossed at one pace, and the chart kept every minute.',
+  'ctx.liftChart': 'A shaft lift ran at one pace, and the recorder drew the whole run.',
+  'ctx.creepChart': 'The scarp crept at one pace, and the plotter drew it all.',
+  'ctx.thawChart': 'The thaw front moved at one pace, and the chart kept every minute.',
+  'ctx.spoolChart': 'A spool paid out at one pace, and the recorder drew the whole run.',
+  'ctx.dustChart': 'The dust front rolled in at one pace, and the plotter drew it all.',
+  'ctx.gaugeChart': 'A tide gauge rose at one pace, and the chart kept every minute.',
+
+  // k identical groups of v
+  'ctx.wickBundles': 'A bundle burns for ${v}$ hours of lamp light. {k} bundles hang in the store.',
+  'ctx.tarBarrels': 'A barrel seals ${v}$ plates of decking. {k} barrels came off the barge.',
+  'ctx.pressCakes': 'A press cake yields ${v}$ litres of oil. {k} cakes wait at the mill.',
+  'ctx.signalKites': 'A kite holds the line for ${v}$ minutes. {k} kites are rigged and ready.',
+  'ctx.stoveBricks': 'A stove brick throws ${v}$ degrees into the bunk room. {k} bricks are in the fire.',
+  'ctx.roeTrays': 'A hatchery tray brings on ${v}$ seedlings of kelp. {k} trays line the wall.',
+  'ctx.sparRods': 'A spar rod measures ${v}$ metres end to end. {k} rods are lashed together.',
+  'ctx.beltLinks': 'A belt link carries ${v}$ tonnes down to the barge. {k} links are on the run.',
+  'ctx.gasMantle': 'A mantle burns at ${v}$ lumens all night. {k} mantles are lit along the gallery.',
+  'ctx.tallyBoards': 'A tally board records ${v}$ readings a shift. {k} boards came in tonight.',
+  'ctx.dripFeeds': 'A drip feed delivers ${v}$ doses a round. {k} feeds are running in the ward.',
+  'ctx.spoilCarts': 'A haul cart runs ${v}$ kilometres of the spoil line. {k} carts went out today.',
+  'ctx.pinionGears': 'A pinion turns ${v}$ watts into the shaft. {k} pinions are engaged.',
+  'ctx.saltCribs': 'A crib dries ${v}$ grams of salt a tide. {k} cribs are laid out on the flat.',
+
+  // a gauge that reads the present and never recorded the past
+  'ctx.hopperBin': 'The hopper shows a level and keeps no log. {b} tonnes went down the chute; it reads {c}.',
+  'ctx.peatStack': 'The peat stack is measured, never remembered. {b} tonnes were cut away; it stands at {c}.',
+  'ctx.oreBunk': 'The ore bunk has a scale and no history. {b} tonnes were drawn off; it reads {c}.',
+  'ctx.mealSilo': 'The meal silo reports depth and nothing else. {b} tonnes were milled; it sits at {c}.',
+  'ctx.snowLoad': 'The roof gauge reads now, never before. {b} tonnes slid off; it reads {c}.',
+  'ctx.ballastHold': 'The ballast hold is sounded, never logged. {b} tonnes were pumped out; it stands at {c}.',
+  'ask.startingHopper': 'What did the hopper hold before the chute ran?',
+  'ask.startingPeat': 'How big was the stack before the cut?',
+  'ask.startingOreBunk': 'What was in the bunk before it was drawn off?',
+  'ask.startingMeal': 'How deep was the silo before milling?',
+  'ask.startingSnow': 'What did the roof carry before the slide?',
+  'ask.startingBallast': 'What did the ballast hold carry before the pump?',
+  'ask.whichEquationHopper': 'Which equation says what happened in the hopper?',
+  'ask.whichEquationPeat': 'Which equation says what happened to the stack?',
+  'ask.whichEquationOreBunk': 'Which equation says what happened in the bunk?',
+  'ask.whichEquationMeal': 'Which equation says what happened in the silo?',
+  'ask.whichEquationSnow': 'Which equation says what happened on the roof?',
+  'ask.whichEquationBallast': 'Which equation says what happened in the ballast hold?',
 };

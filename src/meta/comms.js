@@ -56,6 +56,10 @@ const CPS = 88;                       // characters revealed per second
  */
 const READ_CPS = 17;
 const HOLD_MIN = 1.5, HOLD_MAX = 6.2;
+/* What an interrupted line is still owed. See `Comms._yield`. Short, because
+   the thing interrupting it is by definition more urgent — and never zero,
+   because zero is the defect. */
+const CUT_HOLD_MIN = 0.7, CUT_HOLD_MAX = 2.6;
 const MEMORY = 8;                     // lines of "do not say that again"
 
 /** Seconds a fully-typed line stays on screen. */
@@ -146,7 +150,7 @@ export class Comms {
     if (o.now) {
       this.queue.unshift(item);
       this.gap = 0;
-      if (this.cur) this._finish();
+      if (this.cur) this._yield();
     } else {
       this.queue.push(item);
     }
@@ -178,9 +182,16 @@ export class Comms {
     for (const k of keys) this.push(() => t(k, params), { tag: k, force: true });
   }
 
+  /**
+   * Drop everything waiting to be said.
+   *
+   * It does NOT cut the sentence that is currently being typed. See `_yield`:
+   * a chapter turn arriving one character into "…it shows you a statement"
+   * is why the player read "Walk in and it shows you a statemen".
+   */
   clear() {
     this.queue.length = 0;
-    this._finish();
+    this._yield();
   }
 
   get busy() { return !!this.cur || this.queue.length > 0; }
@@ -229,6 +240,45 @@ export class Comms {
     this.cur = null;
     this.el.classList.remove('show', 'talk');
     this.caret.style.display = 'none';
+  }
+
+  /**
+   * SOMETHING MORE URGENT WANTS THE CHANNEL. GIVE IT UP — BUT FINISH THE WORD.
+   *
+   * A player typed out where the companion stopped:
+   *
+   *   "No rush. Though I will point out that the sky is on fire, in a slow"
+   *   "Walk in and it shows you a statemen"
+   *
+   * The second stops in the middle of a word, and no box was ever too short
+   * for either of them. Both are this method's absence. A line is revealed one
+   * character at a time, and both `clear()` and a `now` beat used to call
+   * `_finish()` — which sets `cur = null` and takes the `show` class off the
+   * panel on the same frame. Whatever had been revealed at that instant is
+   * what the player was left holding, which for a 34-character reveal of a
+   * 61-character sentence is "…a statemen". A chapter turn, a run resolving,
+   * an urgent beat: every one of them could land on any character of any line.
+   *
+   * The rule is now the one a person would use: you may interrupt, you may not
+   * cut a sentence in half. So a line that has not finished revealing is
+   * SNAPPED to its full text and held for as long as the part nobody had seen
+   * yet costs to read — the urgent line waits that long and no longer, and the
+   * queue behind it is already gone. A line that HAS finished revealing is
+   * dropped immediately, exactly as before; it has been read.
+   */
+  _yield() {
+    const cur = this.cur;
+    if (!cur) { this._finish(); return; }
+    const full = cur.text;
+    const unseen = full.length - Math.floor(this.shown);
+    if (unseen <= 0) { this._finish(); return; }
+    this.shown = full.length;
+    this.body.textContent = full;
+    this.el.classList.remove('talk');
+    this.caret.style.display = 'none';
+    // Only the part they had not reached costs anything — they have been
+    // reading the rest of it since it appeared.
+    this.hold = Math.min(CUT_HOLD_MAX, Math.max(CUT_HOLD_MIN, unseen / READ_CPS));
   }
 
   _start(item) {

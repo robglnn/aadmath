@@ -202,6 +202,105 @@ const SCANNER = `(TOL) => {
   return out;
 }`;
 
+/**
+ * THE SECOND KIND OF TRUNCATION: A BOX THAT FITS, AND A SENTENCE TAKEN AWAY.
+ *
+ * The SCANNER above measures boxes, and the two lines the player typed out are
+ * not box defects at all:
+ *
+ *   "No rush. Though I will point out that the sky is on fire, in a slow"
+ *   "Walk in and it shows you a statemen"
+ *
+ * The companion channel reveals a line one character at a time. Whatever it
+ * had revealed at the instant something else wanted the channel — a chapter
+ * turn, a run resolving, any urgent beat — was the whole of what the player
+ * ever got, and the panel went dark on that character. `scrollWidth` equals
+ * `clientWidth` the entire time, because the text node genuinely IS "…a
+ * statemen". No box gate can see this, and that is exactly why it survived one.
+ *
+ * So this recorder watches the channel itself, every animation frame, and asks
+ * the only question that matters: did a line ever leave the screen while it was
+ * still a strict prefix of itself? It reads the live line off the channel's own
+ * state, so it needs no list of sentences and covers a line written next month.
+ */
+const CUTWATCH = `(() => {
+  const R = { cuts: [], frames: 0 };
+  window.__cutwatch = R;
+  let prev = null;
+  const tick = () => {
+    const el = document.querySelector('.meta-comms');
+    const body = document.querySelector('.meta-comms .body');
+    let cur = null;
+    try { cur = window.__ascent.story.comms.cur; } catch {}
+    const now = {
+      showing: !!(el && el.classList.contains('show')),
+      shown: body ? body.textContent : '',
+      full: cur ? cur.text : null,
+    };
+    R.frames++;
+    if (prev && prev.full && prev.showing && prev.shown.length < prev.full.length) {
+      // The line that was mid-reveal a frame ago: is it still on screen, and
+      // still the same line? Either answer of "no" means it was taken away
+      // with words in it the player never saw.
+      const gone = !now.showing || now.full !== prev.full;
+      if (gone) {
+        R.cuts.push({
+          at: Math.round(performance.now()),
+          shown: prev.shown, full: prev.full,
+          missing: prev.full.length - prev.shown.length,
+          became: now.full || (now.showing ? '(same line, blank)' : '(panel hidden)'),
+        });
+      }
+    }
+    prev = now;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})()`;
+
+/**
+ * Drive the barge-ins that used to cut a line in half, and report what the
+ * recorder saw. Every one of these is a real path through the shipping code:
+ * nothing is stubbed and nothing is faked — the only privilege taken is
+ * choosing WHEN the interruption lands, which in a real session is chance.
+ */
+async function cutRun(page, locales) {
+  const LONG = {
+    en: 'That ring is a rift. Walk in and it shows you a statement. Make it true and the hole closes.',
+    es: 'Ese anillo es una brecha. Entra y te muestra un enunciado. Hazlo verdadero y el hueco se cierra.',
+    pl: 'Ten pierścień to wyrwa. Wejdź w niego, a pokaże ci zdanie. Spraw, by było prawdziwe, a dziura się zamknie.',
+  };
+  const found = [];
+  for (const loc of locales) {
+    await page.evaluate((l) => window.__ascent.setLocale(l), loc);
+    await page.waitForTimeout(400);
+    // Four interruptions, at four different points of the reveal, through the
+    // two doors every barge-in in the game goes through.
+    for (const [delay, how] of [[220, 'clear'], [520, 'clear'], [300, 'now'], [900, 'now']]) {
+      await page.evaluate(() => { window.__cutwatch.cuts.length = 0; });
+      await page.evaluate((tx) => {
+        const c = window.__ascent.story.comms;
+        c.queue.length = 0;
+        c.clear();
+        c.say(tx, { force: true, now: true });
+      }, LONG[loc]);
+      await page.waitForTimeout(delay);
+      await page.evaluate((h) => {
+        const c = window.__ascent.story.comms;
+        if (h === 'clear') c.clear();
+        else c.say('Interrupting.', { force: true, now: true });   // i18n-allow: critic-only probe string
+      }, how);
+      await page.waitForTimeout(1200);
+      const cuts = await page.evaluate(() => window.__cutwatch.cuts.slice());
+      for (const c of cuts) found.push({ loc, how, delay, ...c });
+      // Let the channel drain so the next probe starts from silence.
+      await page.evaluate(() => { const c = window.__ascent.story.comms; c.queue.length = 0; });
+      await page.waitForTimeout(2800);
+    }
+  }
+  return found;
+}
+
 // --------------------------------------------------------------- self-test
 //
 // A gate nobody has ever seen fail is a gate nobody has tested. This builds a
@@ -263,6 +362,10 @@ const ROOMS = [
 ];
 
 const findings = [];
+/** Lines taken off the glass before the player had all of them. See CUTWATCH. */
+const cutFindings = [];
+/** Set when the cut recorder cannot even see a planted cut. */
+let blindGate = false;
 const shot = new Set();
 let scans = 0;
 
@@ -272,6 +375,9 @@ for (const [room, w, h, touch] of ROOMS.filter((r) => !ONLY_ROOMS.length || ONLY
     hasTouch: touch, isMobile: touch,
   });
   const page = await ctx.newPage();
+  // Installed before a line of the game has run, and it survives the reload
+  // below, so no frame of the companion channel goes unwatched.
+  await page.addInitScript(CUTWATCH);
   await page.goto(URL, { waitUntil: 'networkidle' });
   await page.evaluate(() => { try { localStorage.clear(); } catch {} });
   await page.reload({ waitUntil: 'networkidle' });
@@ -372,6 +478,33 @@ for (const [room, w, h, touch] of ROOMS.filter((r) => !ONLY_ROOMS.length || ONLY
         }
       }
     }
+    /* ---- 4. the companion channel, interrupted ---------------------------
+       Layout-independent, so it is measured once rather than six times — but
+       it is measured on the desktop frame, because the desktop is where the
+       player read the half sentence. */
+    if (room === 'desktop') {
+      /* THE INSTRUMENT IS PROVED BEFORE IT IS BELIEVED.
+         `_finish()` mid-reveal is exactly what the shipping code used to do,
+         and it is the defect in one line. If the recorder cannot see that, it
+         cannot see anything, and a silent pass here would mean nothing. */
+      await page.evaluate((tx) => {
+        const c = window.__ascent.story.comms;
+        c.queue.length = 0; c.clear();
+        c.say(tx, { force: true, now: true });
+        // i18n-allow: a critic-only probe, never rendered in a real session.
+      }, 'A deliberately planted cut, written long enough that the typewriter cannot possibly have finished revealing all of it yet.');
+      await page.waitForTimeout(400);
+      await page.evaluate(() => { window.__cutwatch.cuts.length = 0; });
+      await page.evaluate(() => window.__ascent.story.comms._finish());
+      await page.waitForTimeout(300);
+      const planted = await page.evaluate(() => window.__cutwatch.cuts.length);
+      console.log(`${planted ? '  ok  ' : ' FAIL '} self-test: a planted mid-word cut is caught`);
+      if (!planted) blindGate = true;
+      await page.waitForTimeout(600);
+
+      const cuts = await cutRun(page, ONLY_LOCALES.length ? ONLY_LOCALES : ['en', 'es', 'pl']);
+      for (const c of cuts) cutFindings.push(c);
+    }
   }
   await ctx.close();
 }
@@ -385,10 +518,24 @@ for (const f of findings) {
   byBox.get(k).push(f);
 }
 console.log(`${scans} surfaces scanned across ${ROOMS.length} rooms x 3 locales`);
-await writeFile(path.join(OUT, 'notruncate.json'), JSON.stringify({ scans, findings }, null, 2));
+await writeFile(path.join(OUT, 'notruncate.json'),
+  JSON.stringify({ scans, findings, cuts: cutFindings }, null, 2));
 
+if (blindGate) {
+  console.log('\nFAIL — the mid-word recorder did not see a planted cut. It is measuring nothing.\n');
+  process.exit(1);
+}
+if (cutFindings.length) {
+  console.log(`\nFAIL — ${cutFindings.length} line(s) taken off the glass mid-word:\n`);
+  for (const c of cutFindings.slice(0, 8)) {
+    console.log(`  [${c.loc}] interrupted by ${c.how} at ${c.delay} ms — ${c.missing} characters never shown`);
+    console.log(`    read: "${c.shown}"`);
+    console.log(`    was:  "${c.full}"`);
+  }
+  process.exit(1);
+}
 if (!findings.length) {
-  console.log('\nno player-facing text is clipped anywhere.\n');
+  console.log('\nno player-facing text is clipped anywhere, and no line is taken away mid-word.\n');
   process.exit(0);
 }
 console.log(`\nFAIL — ${findings.length} clipped text node(s) in ${byBox.size} box(es):\n`);

@@ -82,7 +82,7 @@ class FrameLog {
  * one knob oscillate, so this one takes the wheel: it pins the stack's scale
  * to 1 on every window and does the deciding itself.
  */
-class QualityDirector {
+export class QualityDirector {
   constructor(engine, opts = {}) {
     this.engine = engine;
     const dpr = Math.min(devicePixelRatio || 1, 3);
@@ -122,6 +122,10 @@ class QualityDirector {
     this.direMs = opts.direMs ?? 26;
     this.fastMs = opts.fastMs ?? 11.5;
     this.calmMs = opts.calmMs ?? 21;
+    // Comfortable, but not luxurious: a median under this is a machine holding
+    // well above 60 with room to spare, and it is allowed to climb back out of
+    // a degrade on it — at half speed. See `tick`, THE DEAD ZONE.
+    this.mildMs = opts.mildMs ?? 13.5;
 
     this.window = [];
     this.acc = 0;
@@ -136,7 +140,21 @@ class QualityDirector {
     // what is handed back, the second decides how patient it is about it.
     this.tierOwed = 0;
     this.tierDrops = 0;
+    // Consecutive windows whose p95 was late, and consecutive windows that were
+    // outright comfortable. One hitch is an event; a run of them is a load.
+    this.spikeRun = 0;
+    this.calmRun = 0;
     this.enabled = opts.enabled !== false;
+  }
+
+  /** Forget the shape of the last few seconds. Called when the clock jumps. */
+  forget() {
+    this.window.length = 0;
+    this.acc = 0;
+    this.bad = 0;
+    this.good = 0;
+    this.spikeRun = 0;
+    this.calmRun = 0;
   }
 
   /**
@@ -177,12 +195,72 @@ class QualityDirector {
     const fx = this.engine.postFX;
     if (fx && fx.renderScale !== undefined && Math.abs(fx.renderScale - 1) > 0.001) fx.pinScale?.(1);
 
-    const late = p50 > this.slowMs || (p95 > this.spikeMs && p50 > this.fastMs);
+    // ---- THE DEAD ZONE, AND WHY THE TIER NEVER CAME BACK ----------------
+    //
+    // A fifteen-minute session (`tools/critic/sustain.mjs`) put this machine at
+    // fxTier 'low' with the resolution cap pinned at its floor from minute two
+    // to minute fifteen — while the median frame rate over that whole stretch
+    // was 96 to 108 fps. The controller was not fighting a slow machine. It was
+    // stuck.
+    //
+    // Both tests below used to be absolute AND unforgiving of a single window:
+    //
+    //     late = p50 > 16.5  ||  (p95 > 32 && p50 > 11.5)
+    //     easy = p50 < 11.5  &&   p95 < 21
+    //
+    // At 100 fps the median is 10 ms, so `late` is false. But a real session
+    // never stops producing one-frame hitches — a card laying out KaTeX, a
+    // shader compiling the first time a biome is seen, a texture upload, the
+    // collector. Any one of those puts p95 over 21 ms, so `easy` is false too.
+    // Neither branch fires, both counters reset, and the controller sits in the
+    // `else` forever at whatever quality the first bad minute knocked it down
+    // to. The longer the session runs the likelier every single window contains
+    // at least one hitch, which is precisely why this only appeared at minute
+    // fifteen and never at second five.
+    //
+    // Measured off the real session: the median frame time in those windows was
+    // 7 to 9 ms — 110 to 140 fps — while the p95 was 21 to 75 ms in EVERY ONE
+    // of them. So `p95 < calmMs` was never once true after minute two, and the
+    // climb was gated on it.
+    //
+    // The deciding argument is what the knob actually does. The resolution cap
+    // and the effect tier are FILL-RATE knobs. A 60 ms hitch caused by KaTeX
+    // laying out a card, a shader compiling, or the collector running is not
+    // fill rate, and shrinking the drawing buffer does not shorten it by a
+    // microsecond — it just makes the other 95% of the session blurry to pay
+    // for an event it cannot fix. A median of 8 ms is a machine with enormous
+    // headroom, whatever its p95 says, and it should be allowed to spend it.
+    //
+    // So the median alone decides the climb. The p95 keeps its veto exactly
+    // where it is a fill signal — in `late` below, which already requires the
+    // median to be elevated too — and it still holds back the half-credit band,
+    // where the headroom is thin enough for spikes to matter.
+    const spiky = p95 > this.calmMs;
+    this.spikeRun = spiky ? this.spikeRun + 1 : 0;
+
+    // One late window is an event; two in a row is a load. Without this a
+    // single card opening costs resolution the session then has to buy back.
+    const late = p50 > this.slowMs || (p95 > this.spikeMs && p50 > this.fastMs && this.spikeRun >= 2);
     const dire = p50 > this.direMs;
-    const easy = p50 < this.fastMs && p95 < this.calmMs;
+    const easy = p50 < this.fastMs;
+    // The band between "fast" and "comfortable" is no longer a hole to fall
+    // into. It climbs, at half credit, so a machine sitting at 80 fps still
+    // gets its effects back — it just takes six windows instead of three.
+    const okish = p50 < this.mildMs && !spiky;
+
     if (late) { this.bad += dire ? 2 : 1; this.good = 0; }
     else if (easy) { this.good++; this.bad = 0; }
+    else if (okish) { this.good += 0.5; this.bad = 0; }
     else { this.bad = 0; this.good = 0; }
+
+    // A machine that has been comfortable for half a minute is not the machine
+    // that lost the tier three times during the opening stream-in. Without this
+    // the doubling in `patience()` is permanent: three early drops mean every
+    // later recovery needs thirty-two unbroken comfortable seconds, and over a
+    // long session it never gets them.
+    if (easy) {
+      if (++this.calmRun >= 30) { this.calmRun = 0; this.tierDrops = Math.max(0, this.tierDrops - 1); }
+    } else this.calmRun = 0;
 
     if (this.cool > 0) return;
 
@@ -434,8 +512,7 @@ export class Engine {
     this.paused = false;
     this.clock.getDelta();       // swallow the gap
     this.log.reset();
-    this.quality.window.length = 0;
-    this.quality.acc = 0;
+    this.quality.forget();
     this.quality.cool = 1.0;
     if (this._started) this._loop();
   }

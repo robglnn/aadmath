@@ -61,6 +61,12 @@ const URL = arg('url', 'http://127.0.0.1:5173');
 const OUT = path.resolve(arg('out', 'shots/latest'));
 const W = Number(arg('w', 1600));
 const H = Number(arg('h', 900));
+/* How many minutes of REAL play sit between the two frame-rate measurements.
+   Three is the smallest number that has ever caught the reported defect on
+   this machine — the tier fell at minute two — and it is short enough that the
+   standard album run stays a thing a builder will actually run. `--sustain 15`
+   is the full gate; `--sustain 0` skips the pass and the perf verdict with it. */
+const SUSTAIN_MIN = Number(arg('sustain', 3));
 
 await mkdir(OUT, { recursive: true });
 
@@ -81,6 +87,17 @@ const browser = await chromium.launch({
   ],
 });
 const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
+/* Event-listener bookkeeping, installed before a line of the game runs so
+   nothing it does can hide a registration from the count. A listener left on
+   `window` every time a card opens is invisible to every other counter here —
+   the DOM node goes away and the leak does not — and it is the one kind of
+   accumulation a screenshot can never show. */
+await ctx.addInitScript(() => {
+  window.__L = { add: 0, rm: 0 };
+  const A = EventTarget.prototype.addEventListener, R = EventTarget.prototype.removeEventListener;
+  EventTarget.prototype.addEventListener = function (t, f, o) { window.__L.add++; return A.call(this, t, f, o); };
+  EventTarget.prototype.removeEventListener = function (t, f, o) { window.__L.rm++; return R.call(this, t, f, o); };
+});
 const page = await ctx.newPage();
 
 const logs = [];
@@ -385,13 +402,50 @@ await shot('13-seal', 700, {
 });
 await ax(() => window.__ascent.panel.close());
 
-// --- telemetry ---------------------------------------------------------
-// Measured HERE, before the mobile page exists. A second WebGL context running
-// the same game in the same browser competes for the same GPU, and measuring
-// through it was reporting roughly half the real frame rate — a number about
-// the harness, not about the game.
+/* --- telemetry -----------------------------------------------------------
+ *
+ * THE NUMBER THIS FILE REPORTS IS NO LONGER A NUMBER ABOUT SECOND FIVE.
+ *
+ * Every frame-rate figure this repo has ever quoted came out of `report.json`
+ * as `perf.fps`, and until now that field was produced by exactly one thing:
+ * teleport to the plaza, wait 900 ms, count 140 frames. On a scene that had
+ * been alive for about a minute, had never had a beacon planted in it, and had
+ * never been walked far enough to compile a shader for a biome it had not
+ * reached. It was the cheapest this game would ever be, and it was the headline.
+ *
+ * A player reported the other number: "after 18 minutes of real play the game
+ * had auto-degraded to fxTier 'low' at 44.9 fps on an M4, not the 91.7 the
+ * benchmark reports." Both numbers were true. Because the standard capture
+ * never looked past the opening, a controller that sank to its floor at minute
+ * two and sat there for the next thirteen minutes was invisible to every gate
+ * in this repo — the leak did not have to hide, there was simply nothing
+ * looking.
+ *
+ * So the capture now measures the SAME CAMERA TWICE, `--sustain` minutes of
+ * REAL PLAY apart. Identical spot, identical facing, identical work: the only
+ * difference between the two numbers is that a session happened, so the delta
+ * IS the session. Both are written to `report.json`, and `perf.fps` — the field
+ * everything downstream quotes — is the SECOND one. If a number is going to be
+ * repeated, it should be the one a player would recognise.
+ *
+ * The play between them uses real keys and never teleports. Teleporting past
+ * the world is precisely how a session avoids accumulating the thing being
+ * measured; the two measurements may teleport because they are deliberately
+ * photographing one fixed frame twice.
+ *
+ *   node tools/critic/shoot.mjs                  # album + 3 minutes sustained
+ *   node tools/critic/shoot.mjs --sustain 15     # the full gate
+ *   node tools/critic/shoot.mjs --sustain 0      # album only, no perf verdict
+ *
+ * Measured on THIS page, before the mobile page exists. A second WebGL context
+ * running the same game in the same browser competes for the same GPU, and
+ * measuring through it reported roughly half the real frame rate — a number
+ * about the harness, not about the game.
+ */
 const state = await ax(() => window.__ascent.state());
-const perf = await page.evaluate(async () => {
+
+/** One fixed-camera sample: frame-time percentiles plus everything that accumulates. */
+const measurePlaza = () => page.evaluate(async () => {
   const a = window.__ascent;
   a.player.pos.set(0, (a.player.groundAt(0, 26) ?? 12) + 0.4, 26);
   a.player.vel.set(0, 0, 0); a.player.yaw = Math.PI; a.player.pitch = -0.14;
@@ -407,11 +461,23 @@ const perf = await page.evaluate(async () => {
   });
   const s = dts.slice(30).sort((x, y) => x - y);
   const q = (p) => s[Math.min(s.length - 1, Math.floor(s.length * p))];
-  const r = a.engine.renderer.info.render;
+  const info = a.engine.renderer.info;
+  const r = info.render;
+  let sceneObjects = 0; a.engine.scene.traverse(() => { sceneObjects++; });
   return {
     fps: 1000 / q(0.5), fpsLow: 1000 / q(0.99), frameMs: q(0.5), p95Ms: q(0.95),
     draws: r.calls, tris: r.triangles,
     pixelRatio: a.engine.renderer.getPixelRatio(), renderScale: a.fx.renderScale,
+    // What a session accumulates. Reported at both ends so the delta has a name
+    // when it moves; see BOUNDED in tools/critic/sustain.mjs for the same list.
+    tier: a.state().fxTier, pixelCap: a.state().perf.pixelCap,
+    sceneObjects,
+    geometries: info.memory.geometries, textures: info.memory.textures,
+    programs: info.programs ? info.programs.length : 0,
+    updaters: a.engine.updaters.size,
+    domNodes: document.getElementsByTagName('*').length,
+    listeners: window.__L ? window.__L.add - window.__L.rm : null,
+    heapMB: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null,
     renderer: (() => {
       const gl = a.engine.renderer.getContext();
       const dbg = gl.getExtension('WEBGL_debug_renderer_info');
@@ -419,6 +485,60 @@ const perf = await page.evaluate(async () => {
     })(),
   };
 });
+
+/**
+ * Play, with real keys, for a while. No teleport, no debug API except to READ
+ * what the card in front of us says — the same rule coldplay.mjs works under.
+ */
+async function playFor(minutes) {
+  const t0 = Date.now();
+  let laps = 0;
+  await page.mouse.click(W / 2, H / 2);
+  while (Date.now() - t0 < minutes * 60000) {
+    await page.keyboard.down('KeyW'); await page.keyboard.down('ShiftLeft');
+    await page.waitForTimeout(2200);
+    const turn = laps % 2 ? 'ArrowRight' : 'ArrowLeft';
+    await page.keyboard.down(turn); await page.waitForTimeout(260); await page.keyboard.up(turn);
+    await page.waitForTimeout(1600);
+    await page.keyboard.up('KeyW'); await page.keyboard.up('ShiftLeft');
+    await page.keyboard.press('KeyE');
+    await page.waitForTimeout(450);
+    const ans = await page.evaluate(() => {
+      const p = window.__ascent.panel;
+      return (p?.open && p.item) ? String(p.item.answer) : null;
+    }).catch(() => null);
+    if (ans) {
+      for (const ch of ans) {
+        if (ch === '-') await page.keyboard.press('Minus');
+        else if (ch === '/') await page.keyboard.press('Slash');
+        else if (ch === '.') await page.keyboard.press('Period');
+        else await page.keyboard.press(ch).catch(() => {});
+        await page.waitForTimeout(30);
+      }
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(1100);
+    }
+    for (let i = 0; i < 4; i++) {
+      if (!(await page.evaluate(() => !!window.__ascent.input.uiOpen).catch(() => false))) break;
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(280);
+    }
+    laps++;
+  }
+  for (const k of ['KeyW', 'ShiftLeft', 'ArrowLeft', 'ArrowRight']) await page.keyboard.up(k).catch(() => {});
+  await clearBeats();
+}
+
+const opening = await measurePlaza();
+let perf = opening;
+let sustained = null;
+if (SUSTAIN_MIN > 0) {
+  console.log(`\nsustained pass: playing ${SUSTAIN_MIN} min with real keys, then re-measuring the same camera…`);
+  await playFor(SUSTAIN_MIN);
+  sustained = await measurePlaza();
+  // The headline is the one a player would recognise.
+  perf = { ...sustained, opening, sustainedMinutes: SUSTAIN_MIN };
+}
 
 // --- 6. mobile portrait ---
 const mob = await ctx.newPage();
@@ -638,6 +758,56 @@ const nearest = frames.map((f) => {
   };
 });
 
+/* ---- THE SUSTAINED VERDICT ------------------------------------------------
+ *
+ * The two measurements are of one camera looking at one thing, so the only way
+ * they can disagree is that the session cost something. Three bars, and each
+ * one exists because of a specific way the reported defect stayed hidden:
+ *
+ *   decay      the frame rate itself. A quarter is the allowance, the same
+ *              number sustain.mjs uses, and for the same reason: a session
+ *              legitimately walks into dearer parts of the island. Losing two
+ *              fifths of it, which is what the reported session did, is not a
+ *              location.
+ *   degrade    the effect tier ending below where it started. A controller that
+ *              holds the frame rate by spending the picture has HIDDEN this
+ *              defect rather than fixed it, and the decay bar alone would have
+ *              let it through — that is exactly what 'low' at minute 18 was.
+ *   growth     anything that accumulates. Scene objects, geometries, textures,
+ *              shader programs, per-frame updaters, DOM nodes, net listeners.
+ *              These are the *cause*; the two above are the symptom, and a run
+ *              on a fast enough machine can pass both while leaking, right up
+ *              until it meets a Chromebook.
+ */
+const GROWTH_MAX = 0.25, DECAY_MAX = 0.25;
+const BOUNDED = {
+  sceneObjects: 'objects in the scene graph',
+  geometries: 'live GPU geometries',
+  textures: 'live GPU textures',
+  programs: 'compiled shader programs',
+  updaters: 'per-frame updaters on the engine',
+  domNodes: 'DOM elements',
+  listeners: 'net event listeners (added minus removed)',
+};
+if (sustained) {
+  const RANK = ['low', 'medium', 'high'];
+  const decay = (opening.fps - sustained.fps) / opening.fps;
+  if (decay > DECAY_MAX) {
+    fail('perf-sustained', `the frame rate decayed ${(decay * 100).toFixed(1)}% over ${SUSTAIN_MIN} min of real play `
+      + `(${opening.fps.toFixed(1)} -> ${sustained.fps.toFixed(1)} fps) on the SAME camera`);
+  }
+  if (RANK.indexOf(sustained.tier) >= 0 && RANK.indexOf(opening.tier) >= 0
+      && RANK.indexOf(sustained.tier) < RANK.indexOf(opening.tier)) {
+    fail('perf-tier', `the effect tier auto-degraded from '${opening.tier}' to '${sustained.tier}' during play`);
+  }
+  for (const [k, label] of Object.entries(BOUNDED)) {
+    const a = opening[k], b = sustained[k];
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0) continue;
+    const g = (b - a) / a;
+    if (g > GROWTH_MAX) fail('perf-growth', `${label} grew ${(g * 100).toFixed(0)}% (${a} -> ${b}) — unbounded accumulation`);
+  }
+}
+
 const errors = logs.filter((l) => l.type === 'error' || l.type === 'pageerror');
 const report = {
   url: URL,
@@ -653,7 +823,21 @@ const report = {
 await writeFile(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
 
 console.log(`\nshots -> ${OUT}`);
-console.log(`fps ${perf.fps.toFixed(1)} median (${perf.frameMs.toFixed(2)}ms), 1% low ${perf.fpsLow.toFixed(1)}, p95 ${perf.p95Ms.toFixed(1)}ms`);
+if (sustained) {
+  const d = (a, b) => `${a}->${b}${b > a ? ` (+${b - a})` : ''}`;
+  console.log(`fps ${sustained.fps.toFixed(1)} median AFTER ${SUSTAIN_MIN} MIN OF REAL PLAY `
+    + `(${sustained.frameMs.toFixed(2)}ms), 1% low ${sustained.fpsLow.toFixed(1)}, p95 ${sustained.p95Ms.toFixed(1)}ms`);
+  console.log(`  same camera at the start of the pass: ${opening.fps.toFixed(1)} fps  `
+    + `— decay ${(((opening.fps - sustained.fps) / opening.fps) * 100).toFixed(1)}% (allowance ${DECAY_MAX * 100 | 0}%)`);
+  console.log(`  tier ${opening.tier}->${sustained.tier}  cap ${opening.pixelCap.toFixed(2)}->${sustained.pixelCap.toFixed(2)}`);
+  console.log(`  accumulated: scene ${d(opening.sceneObjects, sustained.sceneObjects)}  `
+    + `geo ${d(opening.geometries, sustained.geometries)}  tex ${d(opening.textures, sustained.textures)}  `
+    + `prog ${d(opening.programs, sustained.programs)}  upd ${d(opening.updaters, sustained.updaters)}  `
+    + `dom ${d(opening.domNodes, sustained.domNodes)}  listeners ${d(opening.listeners, sustained.listeners)}`);
+} else {
+  console.log(`fps ${perf.fps.toFixed(1)} median (${perf.frameMs.toFixed(2)}ms), 1% low ${perf.fpsLow.toFixed(1)}, p95 ${perf.p95Ms.toFixed(1)}ms`);
+  console.log('  (--sustain 0: this is a second-five number and nothing checked what happens at minute fifteen)');
+}
 console.log(`draws ${perf.draws}  tris ${perf.tris.toLocaleString()}  pixelRatio ${perf.pixelRatio.toFixed(2)}  renderScale ${perf.renderScale.toFixed(2)}`);
 console.log(`gpu ${perf.renderer}`);
 console.log(`frames: ${frames.length} captured, ${frames.length - new Set(frames.map((f) => f.sha)).size} byte-identical, ${dupes.length} indistinguishable pair(s)`);

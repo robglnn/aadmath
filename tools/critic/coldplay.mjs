@@ -342,6 +342,13 @@ if (target) {
   const sweep = await page.evaluate(async () => {
     const a = window.__ascent;
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    // An earlier step leaves a rift panel open. The loop below skips any sample
+    // taken while a panel is up, so without this the sweep silently measures
+    // NOTHING and still reports a tidy "0 places checked" — a vacuous pass
+    // dressed as a real one. Close it first, and assert we actually sampled.
+    if (a.panel?.open) a.panel.close?.();
+    a.input.uiOpen = false;
+    await sleep(400);
     const keep = { x: a.player.pos.x, y: a.player.pos.y, z: a.player.pos.z };
     const bad = [];
     let n = 0;

@@ -5,7 +5,7 @@
   "wave": 9,
   "summary": "Live and playable at robglnn.github.io/aadmath. Mobile clean in both orientations. A teacher can switch the progress record between TEKS and Common Core, and a department head passed it for adoption at 8/10. The cold-player gate — real key input, debug API forbidden — passes 6/6 against the production URL.",
   "metrics": {
-    "fps": 98,
+    "fps": 128,
     "consoleErrors": 0,
     "itemsValidated": 12180,
     "i18nKeys": 1072,
@@ -467,6 +467,14 @@
     {
       "t": "P0 hollow mastery",
       "m": "form floor: no line holds while a question type is 0-for-3; row prints the honest lower bound; nothing served from a locked skill; ORDERS quotes the planned workload as a range"
+    },
+    {
+      "t": "wave 10",
+      "m": "ui: the pause card capped nothing — a grid row sized to its own content. Polish menu cut mid-sentence on a 390x844 phone; fixed and gated"
+    },
+    {
+      "t": "wave 16 perf",
+      "m": "sustained gate moved into the STANDARD capture: shoot.mjs now measures the same camera before and after --sustain minutes of real play (default 3) and fails on decay, tier degrade or any accumulating counter; listeners instrumented. 15-min real-play run: 105.3 fps at min 1, 101.0 at min 8, 128.2 at min 15, tier high throughout, cap ends at ceiling."
     }
   ]
 }

@@ -161,6 +161,18 @@ export const ASK_SUBJECT = {
   'ask.whichEquationSlag': 'slag',
   'ask.startingButt': 'butt',
   'ask.whichEquationButt': 'butt',
+  'ask.startingHopper': 'hopperBin',
+  'ask.whichEquationHopper': 'hopperBin',
+  'ask.startingPeat': 'peatStack',
+  'ask.whichEquationPeat': 'peatStack',
+  'ask.startingOreBunk': 'oreBunk',
+  'ask.whichEquationOreBunk': 'oreBunk',
+  'ask.startingMeal': 'mealSilo',
+  'ask.whichEquationMeal': 'mealSilo',
+  'ask.startingSnow': 'snowLoad',
+  'ask.whichEquationSnow': 'snowLoad',
+  'ask.startingBallast': 'ballastHold',
+  'ask.whichEquationBallast': 'ballastHold',
 };
 
 // ---------------------------------------------------------------------------
@@ -231,6 +243,12 @@ export const NOUNS = {
   brineTank: { en: ['tank'], es: ['depósito'], pl: ['zbiornik'] },
   slag: { en: ['slag'], es: ['escoria'], pl: ['żużl', 'żuże'] },
   butt: { en: ['butt'], es: ['cuba'], pl: ['kadź', 'kadzi'] },
+  hopperBin: { en: ['hopper'], es: ['tolva'], pl: ['zsyp'] },
+  peatStack: { en: ['stack'], es: ['pila'], pl: ['stert'] },
+  oreBunk: { en: ['bunk'], es: ['pañol'], pl: ['zasobnik'] },
+  mealSilo: { en: ['silo'], es: ['silo'], pl: ['silos'] },
+  snowLoad: { en: ['roof'], es: ['techo'], pl: ['dach'] },
+  ballastHold: { en: ['hold'], es: ['bodega'], pl: ['ładown'] },
 };
 
 /**

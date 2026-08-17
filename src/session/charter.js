@@ -47,6 +47,16 @@
 import { t } from '../i18n/index.js';
 import { FIG, tagFigure } from '../meta/progress.js';
 
+/**
+ * How long after this card appears no input can dismiss it. Milliseconds.
+ *
+ * Long enough that a keystroke or a click already on its way to the world
+ * cannot eat the card; short enough that a player who wants past it never
+ * waits. Nothing here is a timer that ACTS — the run still never starts
+ * without a decision.
+ */
+const GRACE = 700;
+
 export class Charter {
   constructor(root, { onBegin }) {
     this.el = document.createElement('div');
@@ -75,24 +85,87 @@ export class Charter {
     this.eta = this.el.querySelector('.sc-eta');
     this.work = this.el.querySelector('.sc-work');
     this.go = this.el.querySelector('.sc-go');
-    this.go.addEventListener('click', () => this.begin());
-    this.el.addEventListener('click', (e) => { if (e.target === this.el || e.target.className === 'sc-dim') this.begin(); });
-    // Any key at all. The cadet has read it or they have not; either way the
-    // next thing they want is the game.
+    /* An aimed click on the button IS the decision, and it is not something a
+       player does by accident, so it is never held back. A click with no
+       pointer behind it (`detail === 0`) is the browser turning Space or Enter
+       on the focused button into a click, which is a key — and a key that was
+       in the air when the card opened has to obey the same rule as any other. */
+    this.go.addEventListener('click', (e) => {
+      if (e.detail === 0 && !this._canAct(null)) return;
+      this.begin();
+    });
+    this.el.addEventListener('click', (e) => {
+      if (!this._canAct(null)) return;      // a click aimed at the world, in flight
+      if (e.target === this.el || e.target.className === 'sc-dim') this.begin();
+    });
+    /* ANY KEY AT ALL — BUT NOT A KEY THAT WAS ALREADY IN THE AIR.
+     *
+     * "Any key dismisses it" was written as the escape hatch that stops this
+     * card being a wall, and as a wall-breaker it is right. As written it was
+     * also the mechanism of the exact defect it was supposed to have fixed:
+     *
+     *   "ORDERS re-issued mid-run and auto-dismissed before I could click
+     *    BEGIN THE RUN."
+     *
+     * Nothing auto-dismissed. The card opened on a keyboard that was already
+     * being used — a held W repeating, a jump landing, the tail of the
+     * keystroke that got here — and the very next event on the queue closed it
+     * before a single frame of it had been read. From the player's chair that
+     * is indistinguishable from a timer, and it is worse than a timer, because
+     * it fires in milliseconds rather than seconds.
+     *
+     * Three tests, and the card is still not a wall:
+     *   · `e.repeat` is not a decision. A finger that has been down for two
+     *     seconds is one press, and it was pressed before this card existed.
+     *   · a key that was ALREADY DOWN when the card opened is not a decision
+     *     either — its keydown belongs to whatever the player was doing a
+     *     moment ago. It has to be lifted and pressed again to mean anything
+     *     here. (`_downAtOpen`, filled from the live input set on show().)
+     *   · and for the first `GRACE` ms nothing at all dismisses it, because a
+     *     keystroke in flight when the card appeared was aimed at the world.
+     *
+     * GRACE is 700 ms: under a second, so it cannot be felt as a lock, and
+     * longer than any input queue, so it cannot be raced. */
     this._keys = (e) => {
-      if (!this.open) return;
+      if (!this.open || !this._canAct(e.code)) return;
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+      if (e.repeat) return;
       e.stopPropagation();
       this.begin();
     };
     addEventListener('keydown', this._keys);
+    this._openedAt = 0;
+    this._downAtOpen = new Set();
+    /* The card keeps its own record of what is under the player's fingers
+       rather than reading somebody else's, in the capture phase and before its
+       own handler, so the answer is true at the instant it is asked. */
+    this._held = new Set();
+    addEventListener('keydown', (e) => { if (e.isTrusted !== false) this._held.add(e.code); }, true);
+    addEventListener('keyup', (e) => {
+      this._held.delete(e.code);
+      this._downAtOpen.delete(e.code);   // lifted: the next press is a decision
+    }, true);
+    // A window that loses focus never delivers the keyup, and a key recorded
+    // as still down forever is a key that could never dismiss this card again.
+    addEventListener('blur', () => { this._held.clear(); this._downAtOpen.clear(); });
     this._onBegin = onBegin;
     root.appendChild(this.el);
     this._live = null;
   }
 
   get open() { return this.el.classList.contains('show'); }
+
+  /**
+   * Is this input a decision the player made about THIS card?
+   *
+   * @param {string|null} code the key, or null for a pointer
+   */
+  _canAct(code) {
+    if (performance.now() - this._openedAt < GRACE) return false;
+    if (code && this._downAtOpen.has(code)) return false;
+    return true;
+  }
 
   /**
    * @param {{index:number, target:number, seams:Array<{id:string,hold:boolean}>,
@@ -106,6 +179,10 @@ export class Charter {
     // Focus, and no timer. The run starts when the cadet says so — see the
     // header for why the sixteen-second auto-begin that used to live on this
     // line is gone.
+    // Whatever is under their fingers RIGHT NOW belongs to the world, not to
+    // this card, and the grace window starts here. See `_canAct`.
+    this._openedAt = performance.now();
+    this._downAtOpen = new Set(this._held);
     requestAnimationFrame(() => this.go.focus({ preventScroll: true }));
   }
 
