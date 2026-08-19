@@ -42,6 +42,7 @@
  */
 import './session.css';
 import { planRun, tearsToHold, minutesToHold, SESSION_MAX, SESSION_TARGET } from './estimate.js';
+import { sessionClock } from './clock.js';
 import { createPace } from './pace.js';
 import { RunBand } from './band.js';
 import { Charter } from './charter.js';
@@ -88,6 +89,11 @@ export function createSession({
   kit = null,
   isBusy = () => false, onFloor = () => {},
 }) {
+  /* THE ONE SESSION CLOCK. Imported rather than constructed, and shared with
+     `src/report/track.js` — the module is a singleton on purpose, because the
+     defect this pass exists to kill was two live instances of the same idea and
+     a constructor is a thing somebody can call twice. See ./clock.js. */
+  const clock = sessionClock();
   const pace = createPace();
   const band = new RunBand(root);
   const charter = new Charter(root, { onBegin: startWork });
@@ -339,6 +345,9 @@ export function createSession({
       // here is a string frozen in whatever locale was loaded at the time.
       goalText: () => goalLong(run),
       back: backCard(),
+      /* What is standing on the island, if anything is. The orders card leads
+         with it on a return — see the note in `charter.js` `retext`. */
+      order: (() => { try { return story?.night?.state?.() || null; } catch { return null; } })(),
       /* WHERE. The orders used to name the line and what holding it buys, and
          stop — so a learner closed the card knowing exactly what to do and
          having no idea where to go, which is the whole defect this run of work
@@ -458,6 +467,18 @@ export function createSession({
     band.show(false);
     fx?.impact?.('good');
     audio?.unlocked?.();
+    /* LEAVE SOMETHING STANDING BEFORE THE CARD IS BUILT.
+       The client's first ask, verbatim: *a reason to open it tomorrow that
+       exists before you close it today.* Everything this card used to print
+       about tomorrow was computed at the moment the learner arrived tomorrow,
+       which is a reward for having already come back rather than a reason to.
+       So the run lays a STANDING ORDER as it ends (src/meta/night.js): one line
+       this cadet already holds, named and dated, with a mark raised over the
+       ground where they stood down. It is laid BEFORE `buildReport`, so the
+       card is describing a thing that is already true rather than promising
+       one, and `lay()` refuses on a first session because a cadet holding no
+       line has nothing that could survive a night. */
+    try { story?.night?.lay?.(); } catch { /* a close beat never fails on this */ }
     const report = buildReport();
     run.report = report;
     /* THE PROMOTION IS PART OF WHAT THE RUN ACHIEVED, so if the run ended on
@@ -538,6 +559,12 @@ export function createSession({
          chapters are now paced against (src/meta/days.js), and it is the one
          number a long sitting cannot move. It goes on every close. */
       nights: s.nights || 0,
+      /* WHAT IS STANDING ON THE ISLAND, waiting. Read off `night.js` rather
+         than off the `lay()` above, because an order laid on an earlier run and
+         never collected is exactly as much of a reason to come back as one laid
+         four hundred milliseconds ago — and the card must say the same thing
+         about both. */
+      order: (() => { try { return story?.night?.state?.() || null; } catch { return null; } })(),
       due: watchNow()?.due || 0,
       // THE progress number, from the one function that defines it. This used
       // to walk `mastery.state` while the report walked `graph.nodes` and the
@@ -553,7 +580,16 @@ export function createSession({
          world from the one the player was just looking at. */
       repaired: repaired(mastery).pct,
       repairedWas: run.repairedAt ?? null,
-      minutes: Math.round(run.focus / 60),
+      /* HOW LONG THIS SITTING HAS BEEN GOING — from `clock.ms()`, the one
+         session clock (src/session/clock.js), and NOT from `run.focus`.
+         `run.focus` is the planner's clock: item time plus a capped walk, which
+         is the right quantity for sizing a goal and the wrong one for anything
+         with the word "minutes" on it, because it restarts at zero on every
+         `plan()`. A cold critic watched the figure a teacher files read
+         4 → 7 → 9 → 1 → 5 minutes inside one unbroken sitting; every reset in
+         that sequence was a second clock being read under the first one's name.
+         There is one clock now and this is it. */
+      minutes: Math.round(clock.ms() / 60000),
       // Work done. A run that sealed nothing still has these, and they are the
       // difference between an honest close and a screen-height zero.
       items: run.items || 0,

@@ -134,6 +134,18 @@ export default {
     'write-linear': 'Escribir reglas lineales',
     'system-substitution': 'Sistemas por sustitución',
     'system-elimination': 'Sistemas por eliminación',
+    // Nivel 3 (content/graph/algebra1-l3.json).
+    'function-notation': 'Notación de función',
+    'domain-range': 'Dominio y rango',
+    'exponent-product': 'Multiplicar potencias',
+    'exponent-power': 'Potencia de una potencia',
+    'exponent-quotient': 'Dividir potencias',
+    'zero-negative-exponent': 'Exponente cero y negativo',
+    'poly-add-sub': 'Sumar y restar polinomios',
+    'poly-multiply': 'Multiplicar binomios',
+    'factor-common': 'Sacar el factor común',
+    'linear-vs-exponential': 'Crecimiento lineal o exponencial',
+    'exponential-rule': 'Reglas exponenciales',
   },
 
   course: {
@@ -145,6 +157,7 @@ export default {
   unit: {
     'algebra1-l1': { title: 'Nivel 1 — El lenguaje del equilibrio' },
     'algebra1-l2': { title: 'Nivel 2 — Estructura y ritmo' },
+    'algebra1-l3': { title: 'Nivel 3 — Nombre, potencia y forma' },
   },
 
   settings: {
@@ -276,7 +289,7 @@ export default {
     wordIs: {
       rift: 'Una grieta es un anillo de aire desgarrado. Cada grieta sostiene un enunciado que todavía no es verdadero.',
       line: 'Una línea es una idea, y todas las grietas que la prueban. Trabajas una línea cada vez.',
-      held: 'Sostenida quiere decir demostrada para siempre. Una línea sostenida ya no se abre, y nada de lo que hagas luego te la quita.',
+      held: 'Sostenida quiere decir que probaste esta línea sin ayuda, en cada tipo de pregunta que te planteó. Una línea sostenida ya no se te enseña. El equipo sí la vuelve a comprobar más adelante. Si esa comprobación falla, la línea se abre otra vez.',
       lattice: 'La red es el razonamiento que sostiene este mundo. Hay suelo donde el razonamiento aún funciona.',
       mote: 'Las motas de cifra son lo que deja una grieta sellada. La fundición toma motas y te da equipo.',
       rank: 'Tu rango es lo que la orden piensa de ti. Cobre es el primer rango. Repara el mundo para subirlo.',
@@ -536,6 +549,7 @@ export default {
       // El reloj rápido: grietas selladas en este fragmento, que es lo que hace
       // pasar de capítulo. Avanza con cada respuesta correcta.
       sealed: 'Grietas selladas en total',
+      chapterBar: 'Avance de este capítulo',
       toChapter: '«n|one:# más|other:# más» para el Capítulo {ch}',
       chapterNight: '«n|one:# noche en pie|other:# noches en pie» para el Capítulo {ch}',
       nextNight: '{rank} · «n|one:# noche en pie|other:# noches en pie»',
@@ -550,6 +564,11 @@ export default {
       held: 'Te doy la bienvenida otra vez. Tienes «n|one:# noche en pie|other:# noches en pie». Una noche en pie es una línea que seguías sabiendo después de irte.',
       due: 'Te doy la bienvenida otra vez. «n|one:# línea ha|other:# líneas han» vencido. La red quiere comprobar lo que conservaste. Luego trabajamos.',
       none: 'Te doy la bienvenida otra vez. Estuviste fuera «n|one:# día|other:# días». No ha vencido nada. Elige una grieta y vamos.',
+    },
+    /** Una marca apagada (src/meta/night.js). Marlow lo dice una sola vez. */
+    order: {
+      kept: 'La marca se ha apagado. Sabías {skill} después de «n|one:# noche|other:# noches» fuera, que es lo único que esta red ha pedido demostrar a nadie.',
+      keptCharter: 'Marca apagada, y van tres. La orden te ha extendido una cédula. Pulsa H en el terreno que prefieras para levantar un puesto.',
     },
     day: {
       d2: {
@@ -719,8 +738,11 @@ export default {
       tally: 'Grietas selladas aquí',
       lockedCoda: 'Sellado hasta que se cierre la demostración',
       lockedShort: 'Sellado',
-      here: 'Estás aquí · {have} de {need}',
-      costs: 'Se abre en {n}',
+      here: 'Estás aquí · {have} de {need} de posición',
+      hereNights: 'Estás aquí · la posición ya está, «n|one:falta # noche mantenida|other:faltan # noches mantenidas»',
+      hereReady: 'Estás aquí · el siguiente rito ya está ganado',
+      costs: 'Se abre con {n} de posición',
+      costsNights: 'Se abre con {n} de posición y «nights|one:# noche mantenida|other:# noches mantenidas»',
       outOf: 'de los {n} que puede otorgar el fragmento',
       current: 'Estás aquí',
       held: 'Sostenida',
@@ -1151,8 +1173,8 @@ export default {
         here: 'Estás dentro de la grieta.',
       },
       title: 'Órdenes',
-      goalHold: 'Sella {tears} grietas de {skill}. Una línea es una idea y todas las grietas que la prueban. Una línea sostenida ya no se abre.',
-      goalHoldN: 'Sella hoy {tears} grietas. Así sostienes «n|one:# línea|other:# líneas» para siempre. Una línea sostenida ya no se abre.',
+      goalHold: 'Sella {tears} grietas de {skill}. Una línea es una idea y todas las grietas que la prueban. Sostienes una línea cuando la pruebas sin ayuda, en cada tipo de pregunta que plantea.',
+      goalHoldN: 'Sella hoy {tears} grietas. Así sostienes «n|one:# línea|other:# líneas». Sostienes una línea cuando la pruebas sin ayuda, en cada tipo de pregunta que plantea.',
       goalPush: 'Sella {tears} grietas de {skill}. Hacer retroceder una línea es recuperar terreno en una que se te escapó.',
       goalAny: 'Sella {tears} grietas en este fragmento. Luego vemos qué hace la red.',
       // Dicho con palabras que el lector ya tiene, en vez de acuñar dos términos.
@@ -1166,6 +1188,9 @@ export default {
       backHeld: 'La última vez sellaste «n|one:# grieta|other:# grietas». {skill} aguanta desde entonces.',
       backHeldN: 'La última vez sellaste {tears} grietas. «n|one:# línea aguanta|other:# líneas aguantan» desde entonces.',
       backNone: 'La última vez sellaste «n|one:# grieta|other:# grietas». Todo eso sigue en pie.',
+      /* La primera frase que lee un cadete que vuelve, si hay una marca en pie.
+         Primero el hecho, después la única acción. (src/meta/night.js) */
+      markWaiting: 'Tu marca sigue en pie. Responde {skill} una vez, sin ayuda, y paga.',
     },
     close: {
       kick: 'Ronda {n} · cerrada',
@@ -1198,6 +1223,12 @@ export default {
       nextNote: '«n|one:Un # minuto|other:Unos # minutos» de trabajo, en la línea abierta que más rinde. Empezamos por ahí.',
       nextNoteUnknown: 'Una larga. Nos llevaremos la primera parte.',
       nextDoneStrong: 'Fragmento Nueve, entero',
+      /* LA MARCA EN PIE (src/meta/night.js): la fila que ya es cierta. Texto de
+         instrucción: una acción por frase, y el término se define al usarlo. */
+      markLaidStrong: 'Ya hay una marca en pie: {skill}',
+      markLaidNote: 'Es una columna de luz donde paraste. Vuelve otro día. Responde esa línea una vez, sin ayuda.',
+      markStrong: 'Tu marca sigue en pie: {skill}',
+      markNote: 'Responde esa línea una vez, sin ayuda. La marca paga y la columna de luz se apaga.',
       dueStrong: '«n|one:# línea vence|other:# líneas vencen»',
       dueNote: 'Ya las sostuviste. La red las comprueba en la próxima sesión. Superar una gana una noche en pie.',
       nightsStrong: '«n|one:# noche en pie|other:# noches en pie»',
@@ -1303,6 +1334,8 @@ export default {
       repairedNote: 'El número. Cada línea cuenta lo que este motor cree ahora mismo sobre ella, y se mueve con cada sellado.',
       time: 'Tiempo de trabajo',
       timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo. No es el reloj de la sesión, y está pensado para marcar menos que él.',
+      timeAll: 'Tiempo de trabajo en total',
+      timeAllNote: 'Todos los minutos que este expediente ha medido, en todas las sesiones. Se cuentan entre respuestas y con tope, para que estar parado nunca cuente como trabajo: por eso marca menos que el reloj de la pared.',
       session: 'Esta sesión',
       sessionNote: 'Cuánto llevas sentado aquí: tiempo real desde que empezaste, andar y leer incluidos. Una sesión dura de 15 a 25 minutos y luego cierra bien.',
       // UN TOTAL DE TODA LA VIDA, Y LO DICE. Bajo las palabras sueltas
@@ -1310,6 +1343,8 @@ export default {
       // diez preguntas en esta ronda: dos preguntas distintas, sin nada que las
       // separase. Misma regla que la barra: el alcance forma parte del nombre.
       items: 'Preguntas respondidas en total',
+      sealed: 'Grietas selladas en total',
+      sealedNote: 'Cada enunciado que has cerrado en este fragmento, en todas las sesiones. Una respuesta correcta, una grieta sellada. Es el recuento con el que se marca el ritmo de los capítulos.',
       itemsNote: 'Todas las preguntas que ha visto este registro, en todas las rondas. Cada una generada de nuevo y resuelta por máquina antes de llegar a ti.',
       accuracy: 'Resueltas sin ayuda',
       accuracyNote: 'Correctas a la primera, sin pista y sin ejemplo resuelto, sobre el total de preguntas respondidas.',
@@ -1435,9 +1470,8 @@ export default {
       restsUnknown: 'Esta versión no registró en qué preguntas se apoya el sello. En esta línea has respondido {of} preguntas.',
       grantedOn: 'Concedido el {date}.',
       forms: 'Cada tipo de pregunta',
-      formsNote: 'Dominas una línea solo cuando resuelves sin ayuda, al menos una vez, cada tipo de pregunta que te plantea. Un tipo empieza a contar cuando el equipo te lo plantea {n} veces.',
+      formsNote: 'Dominas una línea solo cuando resuelves sin ayuda, al menos una vez, cada tipo de pregunta que te plantea. Un tipo cuenta desde la primera vez que el equipo te lo plantea.',
       formsNone: 'todavía ninguno',
-      formsThin: 'Ningún tipo de pregunta ha salido {need} veces todavía, así que el equipo aún no te juzga por ninguno. Tu más flojo por ahora es {rep}: {n} bien sin ayuda, de {of} planteadas.',
       formsOk: 'Tu tipo más flojo aquí es {rep}: {n} bien sin ayuda, de {of} planteadas.',
       formsHole: 'No dominada. En {rep} llevas {n} bien sin ayuda, de {of} planteadas. Esta línea sigue abierta hasta que aciertes ese tipo una vez por tu cuenta. Un promedio no sustituye a una pregunta que nunca has acertado.',
       floorWhy: {
@@ -1594,7 +1628,7 @@ export default {
         held: 'Líneas selladas',
         items: 'Preguntas respondidas',
         unaided: 'Resueltas sin ayuda',
-        time: 'Tiempo de trabajo',
+        time: 'Tiempo de trabajo en total',
         claimItems: 'Preguntas que sostienen los sellos',
         testedOut: 'Selladas en frío',
         withdrawn: 'Sellos retirados',
@@ -1703,6 +1737,18 @@ export default {
       'write-linear': 'Dos lecturas bastan para escribir la regla: la tasa por la subida, el inicio por el eje.',
       'system-substitution': 'Cuando un enunciado ya dice cuánto vale una letra, ponlo directamente en el otro.',
       'system-elimination': 'Suma dos enunciados verdaderos y el resultado es verdadero. Alinea una letra y se va.',
+      // Nivel 3 (content/graph/algebra1-l3.json).
+      'function-notation': 'Una regla puede tener nombre, y f(3) es la salida que da en 3.',
+      'domain-range': 'Las entradas que acepta una regla son su dominio; las salidas que da son su rango.',
+      'exponent-product': 'Una potencia cuenta factores, así que multiplicar dos potencias suma los exponentes.',
+      'exponent-power': 'Elevar una potencia trae otra vez el mismo exponente, así que los exponentes se multiplican.',
+      'exponent-quotient': 'Dividir potencias cancela factores iguales, así que el exponente de abajo se resta al de arriba.',
+      'zero-negative-exponent': 'Un exponente cero vale uno, y uno negativo pone factores debajo de la barra.',
+      'poly-add-sub': 'Solo se juntan los términos con el mismo exponente, y el menos alcanza a todo el paréntesis.',
+      'poly-multiply': 'Cada término del primer paréntesis multiplica a cada término del segundo.',
+      'factor-common': 'Factorizar es expandir al revés: saca todo lo que comparten los términos.',
+      'linear-vs-exponential': 'Una regla recta suma lo mismo; una regla que crece multiplica por el mismo factor.',
+      'exponential-rule': 'Un principio multiplicado por un factor una vez por paso, y en cero pasos, el principio.',
     },
 
     slip: {
@@ -1745,6 +1791,25 @@ export default {
       'swapped-roles': 'Intercambia qué cantidad es cuál',
       'wrong-unwrap-order': 'Deshace en el mismo orden en que se construyó',
       'x-and-x-squared': 'Trata x y x al cuadrado como el mismo tipo de término',
+      // Nivel 3 (content/graph/algebra1-l3.json).
+      'base-times-exponent': 'Multiplica la base por el exponente de encima',
+      'bases-multiplied': 'Multiplica también las bases, además de los exponentes',
+      'coefficient-not-raised': 'Eleva la letra y deja el número de delante igual',
+      'coefficients-added': 'Suma los números de delante en vez de multiplicarlos',
+      'exponents-added': 'Suma los exponentes donde la regla los multiplica',
+      'exponents-multiplied': 'Multiplica los exponentes donde la regla los suma',
+      'exponents-subtracted-wrong-way': 'Resta los exponentes al revés',
+      'factor-drops-term': 'Divide un término por el factor común y deja otro sin dividir',
+      'factor-partial': 'Saca solo una parte del factor común',
+      'growth-is-linear': 'Suma el factor en cada paso en vez de multiplicar',
+      'growth-start-for-factor': 'Da la cantidad inicial cuando se pide el factor',
+      'input-output-swap': 'Responde con la entrada en vez de la salida',
+      'middle-term-missed': 'Multiplica los extremos y se salta los términos de en medio',
+      'minus-first-term-only': 'Deja que el menos alcance solo al primer término del paréntesis',
+      'negative-power-is-negative': 'Lee un exponente negativo como una respuesta negativa',
+      'negative-power-is-reciprocal-slip': 'Pone la potencia en el lado equivocado de la barra',
+      'range-ends-swapped': 'Lee la salida en el extremo equivocado de las entradas',
+      'zero-power-is-zero': 'Lee un exponente cero como una respuesta de cero',
     },
   },
 
@@ -1849,7 +1914,7 @@ export default {
     station: {
       name: 'Estación de paso',
       short: 'Estación',
-      what: 'H — levanta una estación de paso: una torre permanente de aire ascendente. Viaja entre dos cualesquiera. Cuesta una cédula y doscientas cuarenta motas.',
+      what: 'H — levanta una estación de paso: una torre permanente de aire ascendente. Viaja entre dos cualesquiera. Cuesta una cédula y las motas de la ficha.',
       gist: 'una torre permanente y un sitio al que puedes viajar',
     },
     charter: {
@@ -1930,7 +1995,7 @@ export default {
     /* …y qué son las marcas, mientras la cuenta sigue en cero. Va DEBAJO del
        número y no en su lugar, para que la palabra llegue con su significado y
        el cadete nunca lea una fila de progreso sin progreso en ella. */
-    linesHeldNew: 'Sostenida significa probada para siempre. Una línea sostenida ya no se abre.',
+    linesHeldNew: 'Sostenida significa que probaste una línea sin ayuda, en cada tipo de pregunta que planteó. El equipo vuelve a comprobar más adelante una línea sostenida.',
 
     prompt: {
       open: 'Abre la grieta',
@@ -1997,6 +2062,16 @@ export default {
     balanceNo: 'La barra lo rechaza',
     balanceReset: 'Las pesas se rehacen',
     cacheOpen: 'Caja abierta: {n} motas, y aquí el aire ya sube para siempre',
+
+    // --- los tramos (src/world/span.js): el segundo tipo de sitio fuera de la
+    // isla. Una caja es una balanza y paga aire ascendente. Un tramo es un
+    // rectángulo de suelo que hay que cubrir, y paga un camino.
+    spanLock: 'Cierre de área',
+    spanShort: 'Sin cubrir. «n|one:Queda # casilla abierta|other:Quedan # casillas abiertas».',
+    spanOver: 'Demasiadas. «n|one:# losa cae|other:# losas caen» al vacío.',
+    spanReset: 'Las pilas se rehacen',
+    spanOpen: 'Tramo abierto: {n} motas, y aquí queda un camino para siempre',
+    spanRoad: 'El camino ya está. Camina hasta el siguiente tramo.',
 
     // --- los guardianes (src/world/warden.js): el quinto día ---------------
     // Una placa con el nombre, no una frase: tiene que caber en un móvil en
@@ -2097,12 +2172,14 @@ export default {
       sound: 'Descenso: un recorrido de vuelta por una línea que ya sostienes, cada pregunta más difícil.',
       bind: 'Guardián sujetado: alcanzaste el constructo y tomaste la pesa que hace cierto su enunciado.',
       deepcache: 'Caja profunda: una caja colgante con una incógnita en los dos platillos. La dejó un guardián.',
+      span: 'Tramo: un rectángulo de suelo en el cielo. Cúbrelo justo, y te paga un camino.',
       surge: 'Sacudida de la grieta: el anillo que lanza una grieta abierta. Sáltalo o te cuesta motas.',
       vault: 'Placa de bóveda puesta: písala y te lanza doce metros hacia arriba.',
       plate: 'Placa de bóveda comprada: una quinta pieza para la red.',
       flare: 'Bengala de ascendencia: una columna de aire que sube bajo tus propias botas.',
       beacon: 'Baliza fija: aire que sigue subiendo aquí mañana.',
       station: 'Puesto levantado: un alto que se queda en el mapa.',
+      order: 'Marca apagada: dejaste una línea en pie aquí, volviste y seguías sabiéndola.',
     },
     why: {
       seal: 'Grieta sellada',
@@ -2113,6 +2190,8 @@ export default {
       sound: 'Descenso',
       bind: 'Guardián sujetado',
       deepcache: 'Caja profunda',
+      span: 'Tramo cubierto',
+      order: 'Marca apagada',
       found: 'Recogidas',
       surge: 'Sacudida de la grieta',
       spent: 'Gastadas',

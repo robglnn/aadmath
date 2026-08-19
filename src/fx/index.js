@@ -213,8 +213,17 @@ export function createFX(engine, world, opts = {}) {
 
     fxaa.enabled = tier.fxaa;
 
-    grade.material.defines.USE_CONTACT = tier.contact > 0 ? 1 : 0;
-    grade.material.needsUpdate = true;
+    // Only when it actually moved. `needsUpdate` makes three re-derive the
+    // program for this material, and a tier change that re-derives a program
+    // it is going to get straight back out of the cache is a stall on the main
+    // thread for nothing — a stall the quality controller then reads as the
+    // frame being late. Every tier ships a contact term, so in practice this
+    // has never once changed.
+    const wantContact = tier.contact > 0 ? 1 : 0;
+    if (grade.material.defines.USE_CONTACT !== wantContact) {
+      grade.material.defines.USE_CONTACT = wantContact;
+      grade.material.needsUpdate = true;
+    }
 
     gu.uAberration.value = tier.aberration * (reduced ? 0.35 : 1);
     gu.uGrain.value = tier.grain * (reduced ? 0.5 : 1);

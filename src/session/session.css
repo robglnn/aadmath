@@ -248,6 +248,19 @@
   text-wrap: pretty;
 }
 .sc-back:empty { display: none; }
+/* A STANDING MARK IS NOT A HISTORY NOTE.
+   `.sc-back` normally carries what the last run left standing, which is a fact
+   about yesterday, so it is drawn cool and quiet. When a standing order is
+   waiting (src/meta/night.js) the same slot carries the one thing on this
+   island that is owed to the cadet right now — so it takes the mark's own warm
+   ink and the column's glow, and reads as a thing rather than a memory. No new
+   element, no new row, no extra height: the same paragraph, told apart by
+   colour, which is the only budget this card has left. */
+.ses-charter.mark .sc-back {
+  border-left-color: #ffc061;
+  background: rgba(255, 192, 97, .10);
+  color: rgba(255, 236, 205, .96);
+}
 .sc-kick {
   font-family: var(--meta-mono); font-size: .58rem; letter-spacing: .28em;
   text-transform: uppercase; color: var(--rank-ink);

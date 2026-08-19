@@ -164,6 +164,23 @@ export function createReport({
    * larger of two numbers it holds about the same thing is advertising.
    */
   seams = () => null,
+  /**
+   * RIFTS SEALED IN ALL — the lifetime count, off the one ledger that keeps it
+   * (`story.state().tears`, src/meta/index.js). Optional; absent, the tile is
+   * simply not drawn rather than drawn with a guess in it.
+   *
+   * It is here because of the other half of a cold critic's finding. The
+   * chapter card on the live HUD carried a label reading "RIFTS SEALED IN ALL"
+   * over a bar that measures something else entirely, with the numeral removed
+   * by an earlier pass — "whose bar is empty and whose number is missing all
+   * session". The label on the HUD now names the bar it sits on; the count it
+   * used to claim is a fact a teacher genuinely wants, it is EVIDENCE, and
+   * evidence belongs on the screen a learner opens on purpose. So it is here,
+   * with a number on it, declared as `all.sealed` and checked against the
+   * engine by tools/critic/oneprogress.mjs — which has had that check written
+   * and unreachable for two passes, because nothing printed the figure.
+   */
+  sealed = () => null,
 }) {
   const tracker = createTracker(mastery);
   /** This line's seam confidence, if a run is planned and names it. */
@@ -570,31 +587,28 @@ export function createReport({
           id: 'forms',
           met: 'no',
           value: t('report.evidence.formsNone'),
-          detail: t('report.evidence.formsNote', { n: num(cfg.formFloor) }),
+          detail: t('report.evidence.formsNote'),
         };
       }
-      // Judged only on the types served enough times to be judged on.
+      // Judged on every type that was served. There used to be a third state
+      // here — a "not judging you yet" sentence for types the rig had served
+      // fewer than `formFloor` times — and that sentence is what a cold critic
+      // photographed under a HELD badge: *"Your weakest so far is symbols:
+      // 0 right with no help, out of 1 asked"*, printed on a card that had
+      // already sealed the line. The row was telling the truth and the badge
+      // was not, because the gate had a sample-size threshold under it. The
+      // threshold is gone (see `formFloor` in mastery.js), so a served type is
+      // a judged type, the middle state cannot occur, and the row can only say
+      // "every type solved" or "this one is not solved yet".
       const judged = seen.filter((x) => x.seen >= cfg.formFloor);
       const weakest = (judged.length ? judged : seen)
         .slice().sort((a, b) => (a.got / a.seen) - (b.got / b.seen) || (b.seen - a.seen))[0];
       const solid = seen.filter((x) => x.got >= cfg.formNeed).length;
       const holes = judged.filter((x) => x.got < cfg.formNeed);
-      // THREE STATES, AND THE MIDDLE ONE IS THE HONEST "NOT YET".
-      //
-      // A hole fails the row outright. Every type solved at least once passes
-      // it. In between sits the case a first session is nearly always in: no
-      // type has come up `formFloor` times, so the rig is not judging the
-      // learner on any of them — and saying "3/3" in amber with no explanation
-      // is the same shape of defect as the 99% this whole row exists to
-      // correct, a figure whose reader cannot tell what it is about.
       const rep = t('report.rep.' + (repOfForm(id, weakest.f) || 'symbolic'));
       const detail = holes.length
         ? t('report.evidence.formsHole', { rep, n: num(weakest.got), of: num(weakest.seen) })
-        : judged.length
-          ? t('report.evidence.formsOk', { rep, n: num(weakest.got), of: num(weakest.seen) })
-          : t('report.evidence.formsThin', {
-            need: num(cfg.formFloor), rep, n: num(weakest.got), of: num(weakest.seen),
-          });
+        : t('report.evidence.formsOk', { rep, n: num(weakest.got), of: num(weakest.seen) });
       return {
         id: 'forms',
         met: holes.length ? 'no' : solid === seen.length ? 'met' : 'part',
@@ -920,15 +934,26 @@ export function createReport({
        See src/meta/progress.js. */
     const rep = repaired(mastery);
     const { held: done, total } = linesHeld(mastery);
-    // Wall clock, from the moment this learner sat down — the number they can
-    // check against the clock on the wall, and the number the 15–25 minute
-    // session shape is planned in. The capped, answer-to-answer figure is
-    // "time on task" in the record below and is deliberately a different tile.
+    /* THE ONE SESSION CLOCK (src/session/clock.js), monotonic, matching the
+       wall. It used to be a subtraction against a start time this file's own
+       ledger was allowed to move, and a critic watched it read 4 → 7 → 9 → 1 →
+       5 minutes across one unbroken sitting. Declared, in whole minutes, so
+       `oneclock.mjs` can sample it against every other clock on the glass in
+       one frame and against itself over a whole session. The capped,
+       answer-to-answer figure is "time on task" in the record below and is
+       deliberately a different tile carrying a different fact. */
     const sess = duration(tracker.sessionMs());
+    /* DECLARED IN SECONDS, PRINTED IN WHATEVER READS BEST. The tile says
+       "11 sec" under a minute and "18 min" over it; a declaration in minutes
+       would have read 0 under the first of those, and a gate comparing the tag
+       to the glass would be comparing two different units. Seconds is the
+       finest thing any of these surfaces prints, so it is the one they can all
+       be checked in. */
+    const sessSec = Math.round(tracker.sessionMs() / 1000);
     for (const [big, small, lab, tone, tip, fig, figV] of [
       [pct(rep.frac), '', t('hud.mastery'), 'good', t('report.stat.repairedNote'), FIG.REPAIRED, rep.pct],
       [num(done), t('report.stat.ofN', { n: total }), t('report.stat.mastered'), '', t('report.stat.masteredNote'), FIG.LINES_HELD, done],
-      [sess.big, sess.small, t('report.stat.session'), '', t('report.stat.sessionNote')],
+      [sess.big, sess.small, t('report.stat.session'), '', t('report.stat.sessionNote'), FIG.SESSION_TIME, sessSec],
     ]) {
       const d = document.createElement('div');
       d.className = `rp-strip-i${tone ? ' t-' + tone : ''}`;
@@ -980,6 +1005,10 @@ export function createReport({
     const msOk = tracker.msTrusted();
     const sight = graph.nodes.filter((n) => mastery.get(n.id).mastered
       && mastery.get(n.id).provenBy?.road === 'sight').length;
+    // Read defensively: src/meta owns this ledger and a report opened before
+    // the story has booted must print no tile rather than a zero.
+    let tearsAll = null;
+    try { const v = sealed(); tearsAll = Number.isFinite(v) ? v : null; } catch { tearsAll = null; }
 
     const tiles = [
       {
@@ -989,11 +1018,22 @@ export function createReport({
         note: t('report.stat.masteredNote'),
       },
       {
-        id: 'time',
+        /* TIME ON TASK, AND THE SCOPE IN THE NOUN.
+           A cold critic read "TIME ON TASK 7 min" here at the same instant the
+           strip above said "5 min THIS SESSION" and called the pair a
+           contradiction — correctly, on the words that were on the glass. This
+           tile is a LIFETIME total and the strip is one sitting, which is the
+           same trap "Questions answered in all" was pulled out of two passes
+           ago and the same fix: the scope is part of the name, not a footnote
+           in a tooltip. Declared as its own fact, so the gate compares it
+           against the session clock rather than to it. */
+        id: 'time', fig: FIG.TASK_TIME,
+        // Seconds, for the same reason the session tile is. See `renderStrip`.
+        figV: msOk ? Math.round(tracker.totalMs() / 1000) : '',
         big: msOk ? duration(tracker.totalMs()).big : UNMEASURED,
         small: msOk ? duration(tracker.totalMs()).small : '',
-        lab: t('report.stat.time'),
-        note: msOk ? t('report.stat.timeNote') : t('report.stat.timeUnknown'),
+        lab: t('report.stat.timeAll'),
+        note: msOk ? t('report.stat.timeAllNote') : t('report.stat.timeUnknown'),
       },
       {
         id: 'items', fig: FIG.ALL_ITEMS, figV: tracker.items(),
@@ -1001,6 +1041,14 @@ export function createReport({
         lab: t('report.stat.items'),
         note: t('report.stat.itemsNote'),
       },
+      // RIFTS SEALED IN ALL — filled, numbered, and on the surface where the
+      // scope in its name is true. See the `sealed` parameter at the top.
+      ...(tearsAll == null ? [] : [{
+        id: 'sealed', fig: FIG.ALL_SEALED, figV: tearsAll,
+        big: num(tearsAll), small: '',
+        lab: t('report.stat.sealed'),
+        note: t('report.stat.sealedNote'),
+      }]),
       {
         id: 'accuracy',
         big: acc == null ? UNMEASURED : pct(acc), small: '',
@@ -1104,7 +1152,7 @@ export function createReport({
        weakest question type, the record at the hardest band, or the model's own
        confidence, whichever is smallest (src/report/index.js `floorOf`). That is
        the correction of a screen that printed the largest of them and read 99%
-       over a question type standing at nought for three.
+       over a question type standing at never once solved.
        It has to be said out loud, and this is where. A held line whose weakest
        type is running at a third reads HELD and 33%, and those two are only a
        contradiction while nobody has told the reader what the number counts.

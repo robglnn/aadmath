@@ -16,7 +16,16 @@
 #ui .fc.show { opacity: 1; translate: 0 0; pointer-events: auto; }
 /* A panel has the frame: stand aside without forgetting anything. */
 #ui .fc.away { opacity: 0; translate: 0 10px; pointer-events: none; }
-#ui .fcs.away { opacity: 0; pointer-events: none; }
+/* …AND IT HAS TO WIN WHILE THE CARD IS SHOWING, which is the only time it
+   matters. `#ui .fcs.show` (further down this file) carries exactly the same
+   specificity as `#ui .fcs.away`, so the later rule won and the wedged card
+   stayed fully opaque under every modal in the game. Photographed by
+   tools/critic/week.mjs: WEDGED printed straight through the middle of the
+   session's close résumé at 1600x900, covering the whole OPENED block and half
+   of the other two — on the one screen whose contract is that a session beat
+   takes the frame whole. Ordering is not a guarantee; specificity is.
+   (One line, outside src/player's owner — reported.) */
+#ui .fcs.away, #ui .fcs.show.away { opacity: 0; pointer-events: none; }
 
 #ui .fc-card {
   --cut: 13px;

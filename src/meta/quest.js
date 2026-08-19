@@ -129,12 +129,26 @@ export class QuestCard {
    *          gained:boolean, top:boolean}} s
    */
   setSeals(s) {
-    /* NO NUMERAL. This row used to lead with the lifetime seal count in
-       display-size numerals — the second-largest figure on the screen, and the
-       one that sat two hundred pixels under the band's "9 OF 20 RIFTS" reading
-       "11 RIFTS SEALED IN ALL". The word "sealed" stays, because the bar under
-       it needs naming; the count is in the report. */
-    this.slab.textContent = t('story.hud.sealed');
+    /* THE LABEL NAMES THE BAR IT IS SITTING ON.
+       This row used to lead with the lifetime seal count in display-size
+       numerals — the second-largest figure on the screen, two hundred pixels
+       under the band's "9 OF 20 RIFTS" reading "11 RIFTS SEALED IN ALL". A pass
+       took the numeral away and left the words, and the next cold critic wrote
+       up exactly what that leaves behind: *a 'RIFTS SEALED IN ALL' label whose
+       bar is empty and whose number is missing all session.*
+
+       Both readings were fair, because the label was never about this bar. The
+       bar has always drawn HOW FAR THROUGH THE CURRENT CHAPTER this cadet is
+       (`chapterFrac` in src/meta/shard.js) — it fills, turns the chapter, and
+       starts again — while the words underneath it already say which chapter is
+       next. A lifetime rift total drawn as a bar that empties itself every few
+       minutes is not a lifetime total; it is a different fact wearing its name.
+
+       So the row says what it draws. The lifetime count is not deleted — it is
+       EVIDENCE, it belongs to the report, and it is printed there under
+       `all.sealed` with a number on it, which is the half of "fill or remove"
+       that a learner can actually check. */
+    this.slab.textContent = t('story.hud.chapterBar');
     untagFigure(this.stop);
     /* WHAT IS COMING, NOT HOW FAR OFF IT IS.
        "1 MORE TO CHAPTER 2" was a countdown in rifts printed beside a countdown

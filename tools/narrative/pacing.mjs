@@ -22,7 +22,9 @@
 import { MasteryEngine, itemSeconds } from '../../src/learn/mastery.js';
 import { standingOf, blankLedger } from '../../src/meta/standing.js';
 import { RANKS, RANK_AT, RANK_NIGHTS, rankFor, rankGate } from '../../src/meta/arc.js';
-import { CHAPTER_AT, CHAPTER_NIGHTS, chapterFor, chapterGate } from '../../src/meta/shard.js';
+import {
+  CHAPTER_AT, CHAPTER_NIGHTS, CODA_NIGHTS, chapterFor, chapterGate, codaReady,
+} from '../../src/meta/shard.js';
 import { blankDays, noteDay, noteNight } from '../../src/meta/days.js';
 import { loadUnit, allUnits } from '../_courses.mjs';
 
@@ -55,12 +57,27 @@ for (let c = 2; c <= CHAPTER_AT.length; c++) {
   const d = returning.chapterDay[c];
   console.log(`  chapter ${String(c).padEnd(8)} tears ${String(CHAPTER_AT[c - 1]).padStart(6)}  nights ${String(CHAPTER_NIGHTS[c - 1]).padStart(2)}  ->  ${d ? 'day ' + d : 'not reached'}`);
 }
+console.log(`  the coda           whole lattice  nights ${String(CODA_NIGHTS).padStart(2)}  ->  ${returning.codaDay ? 'day ' + returning.codaDay : 'not reached'}`);
 
 const problems = [];
+// THE INVARIANT, AND THEN THE LADDERS.
+//
+// The first of these is the one that means anything, and it was missing. This
+// gate used to assert only where the two ladders landed — rank under Sovereign,
+// chapter under five — which is a statement about two tables that happen to be
+// gated on nights, not about nights. It passed a build in which one ten-hour
+// sitting earned a night held and opened chapter four with it, because chapter
+// four is not chapter five. The defect this file exists to catch is "the third
+// clock can be wound by staying up", so that is what is asserted: a sitting
+// that never ends earns nothing from a clock that measures coming back.
+if (marathon.nights > 0) problems.push(`one unbroken sitting earned ${marathon.nights} night(s) held — the third clock is farmable by staying up`);
 if (marathon.rank >= 4) problems.push('one sitting still buys Sovereign');
 if (marathon.chapter >= 5) problems.push('one sitting still opens the last chapter');
+if (marathon.coda) problems.push('one sitting still closes the coda');
 if (!returning.rankDay[4]) problems.push(`a returning learner does not reach Sovereign inside ${DAYS} days`);
 if (!returning.chapterDay[5]) problems.push(`a returning learner does not reach chapter 5 inside ${DAYS} days`);
+// …and the other half of every gate: one that nobody passes is a wall.
+if (returning.nights < CODA_NIGHTS) problems.push(`a returning learner banks only ${returning.nights} nights in ${DAYS} days, short of the coda's ${CODA_NIGHTS}`);
 
 console.log('');
 if (problems.length) {
@@ -78,6 +95,7 @@ function play({ sessions, minutes, label }) {
   const led = blankLedger();
   const days = blankDays();
   const rankDay = {}, chapterDay = {};
+  let codaDay = 0;
   let items = 0;
   const rnd = mulberry(0x51DE);
 
@@ -107,6 +125,7 @@ function play({ sessions, minutes, label }) {
       for (let i = 1; i <= s.rank; i++) if (!rankDay[i]) rankDay[i] = day;
     }
     for (let c = 2; c <= s.chapter; c++) if (!chapterDay[c]) chapterDay[c] = day;
+    if (s.coda && !codaDay) codaDay = day;
     // …and then a real night.
     clockMs += 86400000 - minutes * 60000;
   }
@@ -119,7 +138,7 @@ function play({ sessions, minutes, label }) {
   console.log(`  rank ${RANKS[s.rank]} (${g.kind === 'top' ? 'summit' : `needs ${g.need} more ${g.kind}`})`
     + ` · chapter ${s.chapter} (${cg.kind === 'top' ? 'all open' : `needs ${cg.need} more ${cg.kind}`})\n`);
   return {
-    tag: label.split(' ')[1].toLowerCase(), items, ...s, rankDay, chapterDay,
+    tag: label.split(' ')[1].toLowerCase(), items, ...s, rankDay, chapterDay, codaDay,
     gate: g.kind === 'top' ? 'summit' : `${g.need} ${g.kind}`,
   };
 }
@@ -131,10 +150,15 @@ function snapshot(mastery, led, days) {
   const tears = led.clean + led.assisted;
   const standing = standingOf(led, lines, open);
   const nights = days.nights || 0;
+  // The coda is not a chapter and is not gated like one: it fires on the whole
+  // lattice being held, plus nights. It is the pay-off of the entire game, so
+  // it is the one beat this file must not read off the chapter number.
+  const whole = lines >= mastery.graph.nodes.length;
   return {
     tears, standing, nights, lines,
     rank: rankFor(standing, nights),
     chapter: chapterFor(tears, nights),
+    coda: codaReady(whole, nights),
   };
 }
 

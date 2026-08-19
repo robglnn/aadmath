@@ -13,7 +13,8 @@
     "testOutMedianMin": 2.7,
     "layoutFrames": "288/288",
     "riftPositionsVerified": 1021,
-    "consoleErrors": 0
+    "consoleErrors": 0,
+    "fps": 40
   },
   "pieces": [
     {
@@ -491,6 +492,26 @@
     {
       "t": "wave 15",
       "m": "Cold-player gate grown to 18 steps, including play with pointer lock denied."
+    },
+    {
+      "t": "wave 16",
+      "m": "standing order (src/meta/night.js): a mark left on the island at close, cleared on a later day; every 3rd pays a charter"
+    },
+    {
+      "t": "wave 17",
+      "m": "test-out p90 11.1->8.8 min, classifier rows byte-identical; nights held now cost a real absence"
+    },
+    {
+      "t": "P0 clock+progress",
+      "m": "one monotonic session clock (src/session/clock.js); rig pulls the one number; rank ladder states both gates; new gate tools/critic/oneclock.mjs"
+    },
+    {
+      "t": "P0 clock+progress",
+      "m": "VERIFIED: 20-min real-input session, 629 clock samples, 0 decreases, 0m05s->21m01s vs 21m01s wall; rig=report=engine at all 10 checkpoints; oneclock/oneprogress/choiceaudit/landscape/snapshot.sh all exit 0"
+    },
+    {
+      "t": "P0 mastery honesty",
+      "m": "form floor 3->1; hollow claims (strict) 48.76%->6.83%, served-never-solved 46.06%->0.00%; empty-box displays removed; echo analogue now carries the slip"
     }
   ]
 }

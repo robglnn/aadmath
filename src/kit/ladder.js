@@ -54,7 +54,35 @@ export const GRANT_LADDER = [...LINE_GRANTS, ...DEPTH_GRANTS];
  * entire argument.
  */
 export const CHARTER_EVERY = 5;
-export const STATION_PRICE = 240;
+/**
+ * WHAT THE FIRST WAYSTATION COSTS — and why it is not 240 any more.
+ *
+ * A blind critic: *"by then I would hold all six grants, shards would be
+ * confetti."* Measured, on fifteen real mornings
+ * (`tools/critic/_w16diag.mjs`): a daily player reached day fifteen holding
+ * **10,781 shards** against a dearest price of 240, having earned about 690 a
+ * day since the first week. Buying every waystation they had a charter for
+ * would have cost 2,180 of it. That is not an economy, it is a score with a
+ * shop attached.
+ *
+ * The curve above this line was never the problem — 240·310·410·530 climbs
+ * faster than income and eventually bites. It bit in week four. The problem was
+ * that it *started* at about a third of a day's income, so the entire first
+ * fortnight, which is the whole of the returning player's week that this build
+ * is judged on, had no purchase in it that cost anything.
+ *
+ * So the first one costs about **one day of everything the island and the
+ * lattice will pay you** — and the multiplier is untouched, so the fifth costs
+ * about three days, which is roughly the interval between charters now that a
+ * kept standing order pays one every third day (`src/meta/night.js`). A player
+ * therefore always has exactly one waystation's worth of money in hand and a
+ * beacon, a flare and a plate competing for it, which is what a decision is.
+ *
+ * It is not raised on the player as they go: it is where the ladder starts.
+ * The escalation was already there and is what stops a big pile buying the
+ * whole network at once.
+ */
+export const STATION_PRICE = 700;
 
 /** Depth at which the first charter is granted. */
 export const CHARTER_FROM = DEPTH_GRANTS[DEPTH_GRANTS.length - 1].depth;

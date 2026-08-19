@@ -262,15 +262,68 @@ const DEFAULT_MASTERY = {
   gateTol: 0.8,
   gateDebtFree: 2,
   gateDebtCap: 3,
+  // Whether the two ledgers above count gate ITEMS or gate TAPS.
+  //
+  // A card stays up until it comes out right, so one gate item can report two
+  // or three times: once wrong, then again with the echo on screen and the
+  // surface narrowed. Every one of those reports lands in the ledger, and the
+  // ledger can only ever read them one way — `clean` is false the moment
+  // `assisted` is true — so a retry adds to `gateSeen` and never to
+  // `gateClean`. The obvious reading of that is a bug, and it was written up
+  // as one: a learner charged twice for using the help the rift offered.
+  //
+  // It is not a bug, and the measurement is the reason. `gateSeen`/`gateClean`
+  // is "gate observations, and how many were clean", and an assisted answer is
+  // an observation that was not clean — which is exactly how every other rule
+  // in this file reads assistance. Counted per item instead (CFG=gateOnce=1),
+  // both ratios collapse towards each other and the gate stops separating: a
+  // learner frozen at competence 0.70 goes from clearing 58.3% of the time
+  // inside 25 minutes to 75.0%, and 0.60 from 26.8% to 40.0%, for 0.6 minutes
+  // off a knower's p90. Re-tuning every dial that reads the ledger
+  // (`gateTol`, `gateDebtFree`, `gateFormTol`, `gateFormMin`, `fastSteady`, and
+  // a run lengthened for a learner the lattice reads as struggling) buys the
+  // classifier back only by making the gate stricter for knowers too, which
+  // lands on the same frontier this ships on and costs the tail everything it
+  // gained. So it stays per-observation, and the dial is here with its number
+  // rather than the argument being had again.
+  gateOnce: 0,
   // --- what a miss inside an open run costs ---------------------------------
-  // A miss no longer throws the run away; it raises the run's price. Two more
-  // clean unassisted items at the gate band, which is close to what a miss is
-  // actually worth as evidence: at the clean rates this bank produces at the
-  // gate, a miss is about 2.4 clean solves of evidence against. Charging it as
-  // two and letting the banked items stand is strictly more unassisted evidence
-  // behind a claim than the old "three in a row or start again", which paid the
-  // same evidence in discarded work and taught items.
-  gateMissCost: 2,
+  // A miss no longer throws the run away; it raises the run's price: this many
+  // more clean unassisted items at the gate band, with the banked items
+  // standing. That is strictly more unassisted evidence behind a claim than the
+  // old "three in a row or start again", which paid the same evidence in
+  // discarded work and taught items.
+  //
+  // ONE, AND WHO IT IS ONE FOR. This charge is not reachable on equal terms by
+  // everybody, and that is the whole of the argument for its size. Read the
+  // block in `observe` that spends it: a run absorbs a miss only while
+  // `steadyAtGate()` is true — only while this learner's record across the
+  // WHOLE lattice reads knower-level. Every other miss ends the run outright
+  // and is never charged, so it never sees this number at all.
+  //
+  // How lopsided that is, measured rather than asserted: of the items served to
+  // a learner frozen at hidden competence 0.95, 94.5% are served while the
+  // lattice reads them steady; at 0.70 it is 18.5%, at 0.60 4.5%, and at 0.50
+  // 1.1%. So cheapening this charge is worth a great deal to a knower and
+  // almost nothing to anybody below the bar — which is not a prediction, it is
+  // the reason the classifier rows below do not move.
+  //
+  // That is not an argument, it is a measurement, and it is the one that moved
+  // the tail this build was held against. Taking the charge from two to one, on
+  // 400 frozen learners a row and identical seeds, every false-positive row of
+  // the classifier table is unchanged to the last digit — 0.50 stays 7.5%, 0.60
+  // stays 26.8%, 0.70 stays 58.3%, 0.75 stays 73.0%, 0.80 stays 84.5% — while a
+  // learner who already knows the skill clears it in a p75 of 5.5 minutes
+  // against 6.4 and a p90 of 8.8 against 11.1, and in 9 items at the p90
+  // against 12. Nothing else in this file moved the tail without moving those
+  // rows with it, and several things that look stricter moved them the wrong
+  // way (see `gateOnce`).
+  //
+  // The bar it leaves standing: a run that absorbs one miss closes on four
+  // clean unassisted gate-band items, never on fewer than the three the bar
+  // names, and `gateMissLimit`, `gateRunCap` and `runLength` all still bind
+  // above it. What a knower stops paying for is a slip.
+  gateMissCost: 1,
   // The hard ceiling on how many misses one run may absorb, whatever else says.
   // It used to be one, and one is the wrong shape of rule: it counts misses and
   // ignores where in the run they fell, so a slip taken with two items already
@@ -292,17 +345,21 @@ const DEFAULT_MASTERY = {
   // It is what lets the miss limit rise without the gate going soft. A run that
   // charges every miss and never ends is a random walk: it closes only if clean
   // solves arrive faster than `gateMissCost` misses undo them, which at
-  // `gateMissCost` 2 means an unassisted gate-band accuracy above two in three.
+  // `gateMissCost` 1 means an unassisted gate-band accuracy above one in two.
   // Measured on the shipping bank a learner at hidden competence 0.95 answers
-  // 82% of gate items cold and one at 0.70 answers 66%, so the walk closes for
-  // the first and diverges for the second — the gate does the separating, not a
-  // counter. The cap is what stops the diverging half being ground on an
-  // unscaffolded run for ever: fall this far behind and the run ends, the band
-  // falls, support comes back and the rift teaches, which is the only road that
-  // gets a struggling learner there.
+  // 82% of gate items cold and one at 0.70 answers 66%, so on this number alone
+  // the walk closes for both — which is exactly why the charge is not the thing
+  // separating them and was never asked to be. A learner at 0.70 does not reach
+  // this walk at all: absorbing a miss requires `steadyAtGate()`, their record
+  // across the lattice does not read steady, and their run ends on the miss
+  // instead. The gate does the separating, not a counter. This cap is what
+  // stops the diverging half being ground on an unscaffolded run for ever: fall
+  // this far behind and the run ends, the band falls, support comes back and
+  // the rift teaches, which is the only road that gets a struggling learner
+  // there.
   gateRunCap: 7,
   // --- the form floor -------------------------------------------------------
-  // NO LINE HOLDS WHILE A SHAPE OF IT IS NOUGHT-FOR-THREE.
+  // NO LINE HOLDS WHILE A SHAPE OF IT HAS BEEN SERVED AND NEVER ONCE SOLVED.
   //
   // This is the correction of the worst defect this engine has ever shipped. A
   // cold reader opened the live state and found `var-meaning` reading HELD at a
@@ -321,8 +378,7 @@ const DEFAULT_MASTERY = {
   // been served `formFloor` times must have produced at least `formNeed` clean
   // unassisted solve.** A form the bank never offered is not a debt — the engine
   // does not get to be judged on questions it never asked — but a form it asked
-  // three times and never got is a hole, and a claim with a hole in it is not a
-  // claim.
+  // and never got is a hole, and a claim with a hole in it is not a claim.
   //
   // It is deliberately a *floor* and not a rate. A rate ("70% on every form")
   // punishes the learner who met a form early, missed it while learning and
@@ -333,10 +389,109 @@ const DEFAULT_MASTERY = {
   // The escape hatch that bounds `ext` deliberately does NOT bound this. A run
   // may stop extending itself for want of a second surface, because a bank can
   // run out of surfaces; it may not stop extending itself for want of a shape
-  // the learner has already been shown three times and failed, because that
-  // shape is on the shelf and `checkTask` will now go and get it.
-  formFloor: 3,
+  // the learner has already been shown and failed, because that shape is on the
+  // shelf and `checkTask` will now go and get it.
+  //
+  // --- WHY THIS IS 1 AND NOT 3 ----------------------------------------------
+  // It shipped at 3, and 3 is where the same defect came back. A cold critic
+  // photographed one card that both made and refuted the product's central
+  // promise: `var-meaning` reading **HELD — 67%**, with HELD glossed in-world as
+  // "proved for good, never opens again", and three lines below it, on the very
+  // same card, the engine's own admission — *"Your weakest so far is symbols:
+  // 0 right with no help, out of 1 asked"* and *"No question has been asked on
+  // this line since the claim was granted."*
+  //
+  // Every gate in this file passed that card, and passed it correctly under the
+  // old constant: the shape had been asked ONCE, one is less than three, so it
+  // was not a hole, the claim was granted, the line was sealed, and the single
+  // question type the learner had got wrong was never asked again. The rule
+  // that was written to stop an aggregate carrying a hole had itself acquired a
+  // sample-size threshold, and the threshold was the new hiding place.
+  //
+  // Three was defended as protection against thin evidence. It is not: `items`
+  // already counts distinct QUESTIONS and not attempts (see `observe`), so a
+  // learner who was handed one hard table and missed it three times still reads
+  // as one table. "Nought for one" therefore already means one whole question of
+  // that shape, asked, missed, and — this is the part that matters — the engine
+  // then choosing not to ask again. The sample size is the engine's own choice.
+  // A learner does not get to be certified on a question the rig asked once,
+  // did not get, and declined to repeat.
+  //
+  // Note what a floor of 1 does NOT do. It does not demand a rate, it does not
+  // punish a miss, and it takes nothing away from the learner who missed a
+  // shape and then solved it: one clean unassisted solve closes the hole for
+  // good and no amount of later missing can reopen it (`weakForms` reads
+  // `correct < formNeed`, and `correct` never decreases). All it does is make
+  // the claim wait for the question. `checkTask` claims the hole before any
+  // other debt, so the wait is not idling — it is the run finally asking the
+  // question the claim is about, which is also the only fair thing to do to a
+  // learner being held.
+  //
+  // Measured, on 2000 simulated learners over the whole lattice, this is what
+  // the old constant was hiding and what changing it bought:
+  //
+  //                                                        floor 3     floor 1
+  //   claims granted over a served, never-solved shape       46.06%       0.00%
+  //     (of 35719 claims / of 38779)                     16453 claims    0 claims
+  //   mastery claims hollow, STRICT definition               48.76%       6.73%
+  //   claims still hollow at the end of the session          14.97%       0.00%
+  //   learners finishing with any hollow claim, STRICT        91.8%        0.0%
+  //   true mastery of the level                              100.0%      100.0%
+  //   all ten skills truly mastered                           99.8%       99.7%
+  //   test-out for a learner who knows it                2.5 median   2.7 median
+  //                                                        p90 8.8      p90 10.1
+  //   frozen learner at competence 0.70 ever clears           69.3%       69.5%
+  //   frozen learner at competence 0.95 ever clears           99.5%       99.5%
+  //
+  // The first row is the promise. It was being broken on nearly half of every
+  // claim the engine made, and the audit could not see it because the audit had
+  // been given the same constant. The rest of the table is the price, and it is
+  // small: the gate is the same classifier to within sampling noise, a knower
+  // still tests out in under three minutes, and what the run now spends is the
+  // item it always owed — the re-probe of the question the learner got wrong.
+  // The p90 test-out moves 8.8 → 10.1 minutes, which is the honest cost of
+  // re-asking, and it is still well inside the tail this build is held against.
+  //
+  // The residual 6.73% is not a hole and is not hidden. It is the OTHER strict
+  // test — the learner's true competence on the weakest surface actually served
+  // — and it is reported as the true number rather than the flattering 3.57%
+  // the aggregate definition gives. See the strict block in tools/simulate.mjs.
+  formFloor: 1,
   formNeed: 1,
+  // --- how far apart one hole may be asked -----------------------------------
+  // Items of separation between two servings of the SAME hole, when it is the
+  // only hole a run has. The hole is never skipped and the run is never
+  // shortened — the run cannot close while the hole stands — so this only
+  // decides whether the learner meets it drilled or spaced.
+  //
+  // It exists because lowering `formFloor` to 1 turned "the run has one hole"
+  // from a rare state into the ordinary one, and the hole router could not vary
+  // a list of one: it asked the same shape, missed, and asked the same shape
+  // again. Measured on the template gate (`tools/validate-items.mjs`, 24 played
+  // 20-item sessions across the ability range), as the rule was built up:
+  //
+  //                                          back-to-back  worst shape  worst
+  //                                             repeats       / 20     6-window
+  //   no spacing rule at all (floor 1)              11           6         3
+  //   + do not repeat the act just served            0           6         3
+  //   + a per-LINE gap of `holeSpacing` items        0           6         3
+  //   + a per-SHAPE gap, off formsSeen[f].at         0           5         2
+  //   + a per-ACT window of `holeSpacing`            0           5         2
+  //                                             (cap 0)     (cap 5)    (cap 2)
+  //
+  // and the figure the last row is for: 5 of 360 six-item windows carried one
+  // ACT more than twice (1.4%, bar 1%) before it and 0 after. Acts are coarser
+  // than shapes — several shapes can ask the learner to do the same thing — so
+  // a rotation between two holes of one act read as variety to the shape
+  // counter and as the same question to the learner.
+  //
+  // Every row above still holds the hole; none of them skips it. Three is the
+  // gap that meets every cap at once, and larger values change nothing: the
+  // binding constraint is that the memory is per shape and per act, not the
+  // length of the gap. It is also the better teaching — an immediate re-ask
+  // measures short-term recall of the correction just given, which is the one
+  // thing a mastery claim must not rest on.
+  holeSpacing: 3,
   // A missed sight-read leaves the ladder at the gate floor rather than at
   // placement's band, for a learner whose record across the lattice reads
   // knower-level. See the block in `observe` that reads it, which is where the
@@ -525,10 +680,25 @@ const DEFAULT_MASTERY = {
 
 export const MASTERY_PL = DEFAULT_MASTERY.pL;
 export const MASTERY_CLEAN_RUN = DEFAULT_MASTERY.cleanRun;
+/**
+ * The engine's own settings, exported so an audit reads the gate it is auditing
+ * rather than keeping its own copy of the number. `tools/simulate.mjs` used to
+ * restate `formFloor ?? 3`, so the day the gate moved the audit would have gone
+ * on measuring the old threshold and printing "must stay 0" about a rule that
+ * had stopped existing.
+ */
+export const MASTERY_DEFAULTS = DEFAULT_MASTERY;
 /** The spacing ladder, in real elapsed minutes. */
 export const REVIEW_MINUTES = DEFAULT_MASTERY.reviewMinutes;
 /** The same ladder's secondary floor, in attempts of separation. */
 export const REVIEW_FLOOR = DEFAULT_MASTERY.reviewFloor;
+/**
+ * The gap above which time away counts as a walk away from the machine.
+ * Exported so the third clock in src/meta/days.js measures a night against the
+ * same bar the spacing schedule does, rather than against a second number that
+ * can drift away from this one.
+ */
+export const DURABLE_MINUTES = DEFAULT_MASTERY.durableMinutes;
 const MINUTE = 60000;
 
 /**
@@ -641,7 +811,7 @@ export class MasteryEngine {
      * Not observations. A missed item is re-offered with the worked step on the
      * screen and reports again, so one item can produce three calls to
      * `observe` — which is why `formsSeen[f].seen` is an attempt count and not
-     * a question count. The form floor is stated as "nought for three", and
+     * a question count. The form floor is stated as "never once solved", and
      * three attempts at one hard question is not three questions, so it needs a
      * counter that says which. Every served task stamps its own number here and
      * `observe` records the stamp, so `formsSeen[f].items` is exactly the number
@@ -762,6 +932,55 @@ export class MasteryEngine {
   }
 
   /**
+   * MAY THIS HOLE BE ASKED RIGHT NOW, OR HAS IT JUST BEEN ASKED?
+   *
+   * Two roads chase a hole and both of them pin to one form: the proving run
+   * serves it because the run cannot close without it, and the practice router
+   * serves it because a shape the learner cannot do is where teaching belongs.
+   * Each of those is right. Neither can vary a list of one, so with a single
+   * outstanding hole they both asked the same shape over and over — a session
+   * reading "vm-groups" six times in twenty items, and the same template twice
+   * running. That is what a cold critic reported as *"two identical templates
+   * eight minutes apart"*.
+   *
+   * The hole is never abandoned and nothing is shortened: a run cannot close
+   * while the hole stands, and the practice router comes back to it on the very
+   * next item. All this decides is whether the learner meets the shape DRILLED
+   * or SPACED — and spacing is also the better measurement, because an
+   * immediate re-ask tests short-term recall of the correction just given,
+   * which is the one thing a mastery claim must not rest on.
+   *
+   * Two tests, and both are needed. Adjacency reads one item back and catches
+   * the same question twice running from ANY road, including an ordinary item
+   * that happened to share the act. The counter reads `holeSpacing` items back
+   * and catches the slower version, one shape filling a third of a session.
+   *
+   * The gap is measured PER SHAPE and not per line, off `formsSeen[f].at` —
+   * the item counter `observe` already stamps every time a shape is served.
+   * A per-line memory was not enough: a struggling learner ends up with four or
+   * five outstanding holes, the router rotates between them, and one memory
+   * shared by all of them says "a hole was asked recently" without saying WHICH.
+   * Measured, that rotation still put one shape in six of twenty slots. Asking
+   * the question per shape is what makes the rotation actually rotate.
+   *
+   * @param {object} s the skill state
+   * @param {object} f the form the hole road wants to serve
+   */
+  holeDue(s, f) {
+    // The ACT and not only the shape. Several shapes can ask the learner to do
+    // the same thing, so a rule that only looked at shapes let a rotation
+    // between two holes of one act read as "the same question again" to
+    // everybody except the counter. `tools/validate-items.mjs` measures both,
+    // and the act window is the one that was still over its bar.
+    const act = f.act || actFor(s.id, f.id);
+    const w = this.cfg.holeSpacing | 0;
+    if (w > 0 && this.recentActs.slice(-w).includes(act)) return false;
+    const at = s.formsSeen?.[f.id]?.at;
+    if (at != null && (this.served - at) < w) return false;
+    return true;
+  }
+
+  /**
    * THE HONEST NUMBER — one figure, and it may not disagree with itself.
    *
    * Three quantities used to be printed about one line and all three were true
@@ -779,7 +998,7 @@ export class MasteryEngine {
    *                  *most* flattering thing available;
    *   · `form`       the weakest shape actually served, at its shrunk clean rate
    *                  (see `shrunk`). This is what 0.999 could not see: a shape
-   *                  standing at nought for three reads 0.20 here however well
+   *                  standing at never once solved reads 0.20 here however well
    *                  the rest of the line is going, and the row prints that;
    *   · `gate`       the same rate at the gate band, which is where the claim is
    *                  actually made;
@@ -1728,7 +1947,7 @@ export class MasteryEngine {
     // …EXCEPT THAT A HOLE OUTRANKS NOVELTY, AND THIS IS NOT ONLY ABOUT THE GATE.
     //
     // "The form this learner has met least" is the right default and it has one
-    // perverse case: a shape they have been shown three times and never once got
+    // perverse case: a shape they have been shown and never once got
     // right has a HIGH `seen`, so the rule that keeps a skill from collapsing
     // into one template also routes teaching away from the one shape the learner
     // demonstrably cannot do. The form floor made that visible by refusing to
@@ -1740,11 +1959,20 @@ export class MasteryEngine {
     // where it is, and this is practice rather than a claim — so serving it is
     // the cheap, kind and correct thing to do, and it is what makes the floor
     // above a road rather than a wall.
+    //
+    // …AND THE SAME SPACING RULE THE PROVING RUN USES. Pinning teaching to a
+    // hole is right; pinning it to the SAME hole on consecutive items is how
+    // one shape came to fill six slots of a twenty-item session once the form
+    // floor dropped to 1 and a lone hole became the ordinary state. `holeDue`
+    // holds the argument. When it says wait, the pin is simply not applied for
+    // one item and the ordinary "met least" rule serves instead — the hole is
+    // still outstanding and comes straight back.
     if (kind === 'learn') {
       const holes = new Set(this.weakForms(s));
       if (holes.size) {
         const owed = eligible.filter((f) => holes.has(f.id));
-        if (owed.length) chosen = owed;
+        const due = owed.filter((f) => this.holeDue(s, f));
+        if (due.length) chosen = due;
       }
     }
     // The sight-read asks the hardest thing to fake: walk between a situation
@@ -2095,7 +2323,7 @@ export class MasteryEngine {
     // can already do.
     //
     // Out-of-band shapes are clamped rather than skipped. A form the learner has
-    // failed three times at band 2 is still the hole even when the gate stands
+    // failed at band 2 is still the hole even when the gate stands
     // at band 4, and `gateBandFor` above is a *floor* on the claim, not a
     // licence to leave the hole unasked. So the item is served at the highest
     // band that shape offers, and `provenBy` records that it was.
@@ -2115,19 +2343,44 @@ export class MasteryEngine {
         // run has nothing else left to ask. No hole is skipped, the run is the
         // same length, and the learner stops being asked one question four
         // times running.
-        const f = this.varySkeleton(hole, hole)[0] || hole[0];
-        const hd = Math.max(f.dMin, Math.min(f.dMax, d));
-        s.lastServed = { difficulty: hd, kind: 'check', seq: ++this.served };
-        return {
-          skill: s.id,
-          kind: 'check',
-          difficulty: hd,
-          scaffold: 'none',
-          formCandidates: [f.id],
-          reps: null,
-          avoidScenes: Object.keys(s.scenesSeen),
-          check: { done: s.check.done, need: s.check.need, hole: f.id },
-        };
+        // …AND NO ONE SHAPE MAY BE ASKED AGAIN WHILE IT IS STILL WARM.
+        //
+        // `varySkeleton` reorders a list; it cannot vary a list of one. So a run
+        // whose only hole is a single shape asked that shape, missed it, and
+        // asked the very same shape again — and again — which is what "two
+        // identical templates eight minutes apart" and "8 of 14 items across two
+        // shapes" look like from the learner's chair. Lowering the form floor to
+        // 1 made that the common case rather than a rare one: measured, the
+        // template gate went from 0 back-to-back repeats to 11 the moment the
+        // floor moved, and it was this line that did it.
+        //
+        // The hole is not skipped and the run is not shortened. The run cannot
+        // close while the hole stands (see the closing condition in `observe`),
+        // so nothing is given away by asking one ordinary run item in between —
+        // the hole is still the next thing, and the learner gets it spaced
+        // rather than drilled. Spacing is also the better teaching: an
+        // immediate re-ask of the same shape measures short-term recall of the
+        // correction, which is the one thing a mastery claim must not rest on.
+        //
+        // `holeDue` is the shared rule — see the method, and `holeSpacing` in
+        // the config for the measurement that set the gap. When no hole is due
+        // the run gives way for one item and the hole is the next thing again.
+        const dueHoles = hole.filter((h) => this.holeDue(s, h));
+        if (dueHoles.length) {
+          const f = this.varySkeleton(dueHoles, dueHoles)[0] || dueHoles[0];
+          const hd = Math.max(f.dMin, Math.min(f.dMax, d));
+          s.lastServed = { difficulty: hd, kind: 'check', seq: ++this.served };
+          return {
+            skill: s.id,
+            kind: 'check',
+            difficulty: hd,
+            scaffold: 'none',
+            formCandidates: [f.id],
+            reps: null,
+            avoidScenes: Object.keys(s.scenesSeen),
+            check: { done: s.check.done, need: s.check.need, hole: f.id },
+          };
+        }
       }
     }
 
@@ -2300,7 +2553,7 @@ export class MasteryEngine {
       const f = (s.formsSeen[meta.form] ||= { seen: 0, correct: 0 });
       f.seen += 1;
       // Distinct QUESTIONS of this shape, as against attempts at them. See
-      // `this.served`: the form floor says "nought for three" and means three
+      // `this.served`: the form floor says "never once solved" and means three
       // questions, so a learner who was handed one hard table and missed it
       // three times has met one table, not three. Counting attempts here would
       // have let a single bad first encounter open a hole that the gate then
@@ -2363,7 +2616,39 @@ export class MasteryEngine {
     if (clean) s.bandClean[band] = (s.bandClean[band] || 0) + 1;
     const wasGate = (s.lastServed?.kind === 'check' || s.lastServed?.kind === 'probe')
       && band >= this.gateFloorFor(id);
-    if (wasGate) { s.gateSeen += 1; if (clean) s.gateClean += 1; }
+    // THE GATE LEDGER COUNTS ITEMS, NOT TAPS.
+    //
+    // A card stays up until it comes out right, so one gate item can report
+    // two or three times: once wrong, then again with the echo on screen and
+    // the surface narrowed. Every one of those reports used to land here, and
+    // the ledger could only ever read them one way — `clean` is false the
+    // moment `assisted` is true, so a retry could add to `gateSeen` and never
+    // to `gateClean`. One missed item was therefore filed as two or three
+    // misses, and a learner who used the help the rift offered was charged for
+    // taking it.
+    //
+    // That is not a rounding error. Both readings of this ledger are ratios of
+    // misses to clean solves — `runLength`, which decides how long a proving
+    // run is, and `steadyAtGate`, which decides whether a miss is a slip or a
+    // pattern — so inflating the numerator on exactly the learners who miss is
+    // what turned one slip into a six-item run. It is also the one-sided
+    // ledger this file already refuses everywhere else: an assisted solve
+    // satisfies nothing, so an assisted miss must prove nothing.
+    //
+    // So the item is stamped when it is counted and its retries are free,
+    // which is the rule `gateMissLimit` has always used (`check.chargedFor`).
+    // The retries are not ignored: they still move the posterior, the credit
+    // ladder, the form record and the misconception tags, exactly as before.
+    // They simply stop being counted a second time as gate evidence.
+    //
+    // Counting per item rather than per tap moves both ratios down for every
+    // learner, so the two tolerances that read them are re-stated below
+    // against the per-item ledger. See `gateTol` and `gateFormTol`.
+    if (wasGate && (!this.cfg.gateOnce || s.gateCountedFor !== s.lastServed)) {
+      if (this.cfg.gateOnce) s.gateCountedFor = s.lastServed;
+      s.gateSeen += 1;
+      if (clean) s.gateClean += 1;
+    }
     // Two places where three clean solves per step is the wrong price.
     //
     // Below the gate band, because no claim is made down there: the ladder is
@@ -2530,10 +2815,10 @@ export class MasteryEngine {
           // bound exists because a bank can genuinely run out of surfaces. The
           // form floor is a different kind of debt and takes a different kind
           // of answer: the shape is *in the bank*, this learner has already been
-          // shown it `formFloor` times, and has never once produced it unaided.
+          // shown it, and has never once produced it unaided.
           // There is nothing to run out of, so there is nothing to bound, and a
           // run that closed here would be the engine certifying a learner on a
-          // question it had asked three times and never got an answer to. See
+          // question it had asked and never got an answer to. See
           // `formFloor` in the config for the state that made this necessary.
           //
           // `checkTask` reads the same list and goes and serves it, so this
@@ -2765,10 +3050,10 @@ export class MasteryEngine {
     // The gate refuses to grant a claim over a shape standing at nought for
     // three. That is not the whole rule: a held line keeps being served — spaced
     // re-probes, interleaved retrieval, the endgame descent — and a shape can go
-    // nought for three on a line that was proved honestly last week. A cold
+    // never once solved on a line that was proved honestly last week. A cold
     // reader looking at the live state cannot tell the two apart and should not
     // have to: the sentence is "a line cannot be HELD while a shape of it is
-    // nought for three", and it has no clause about when the hole opened.
+    // never once solved", and it has no clause about when the hole opened.
     //
     // So the claim is WITHDRAWN, on the same terms a missed re-probe withdraws
     // one: the line reopens, the posterior is clipped to where an unproved line
@@ -2861,7 +3146,7 @@ export class MasteryEngine {
       justMastered: !wasMastered && s.mastered,
       // …and the other direction, which this shape could not say. A claim can be
       // withdrawn on the item that withdraws it — a missed cold re-probe, or a
-      // question type that has now gone nought for three on a line proved last
+      // question type that has now gone never once solved on a line proved last
       // week — and a caller that can only hear `justMastered` has to find that
       // out by diffing state. Additive: nothing reads it yet, and the badge on
       // the row and the reason in the report are already correct without it.
@@ -3019,7 +3304,7 @@ export class MasteryEngine {
       // What this learner's record looked like *on every shape the engine had
       // actually served*, at the instant the claim was granted. The report used
       // to have no way to ask this, which is how a card could read HELD · 99%
-      // over a form standing at nought for three. The weakest of them is printed
+      // over a form standing at never once solved. The weakest of them is printed
       // beside the claim, and the honest floor below is what the percentage on
       // the row is drawn from — never `pL`, which is the flattering one.
       formLedger: Object.fromEntries(Object.entries(s.formsSeen || {})
@@ -3245,6 +3530,9 @@ function blank(n) {
     // and how many of them were clean. The proving run's memory.
     gateSeen: 0,
     gateClean: 0,
+    // The served gate item the two counters above have already been paid for.
+    // See `gateOnce`.
+    gateCountedFor: null,
     // Clean unassisted solves, counted by the band they were asked at.
     bandClean: {},
     placed: false,
@@ -3290,7 +3578,7 @@ function blank(n) {
     // Why a claim that was granted has since been withdrawn, when it was not a
     // missed re-probe. Today the only value is 'formFloor' — a record loaded
     // from before the form floor existed, holding a line with a shape standing
-    // at nought for three. Null everywhere else.
+    // at never once solved. Null everywhere else.
     reopenedFor: null,
     reopenedAt: null,
     lastServed: null,
@@ -3329,7 +3617,7 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
  *
  *   · THE RAW RATIO is what got us here. One clean solve out of one is 100% by
  *     arithmetic and means almost nothing, and a rate of 1.0 on the easy shapes
- *     is exactly what carried the aggregate over a shape at nought for three.
+ *     is exactly what carried the aggregate over a shape at never once solved.
  *   · A WILSON LOWER BOUND is statistically the honest answer and was written
  *     first. Measured on real sessions it turns the row into a SAMPLE-SIZE
  *     METER rather than a competence one: a proving run is three or four items

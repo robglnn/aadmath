@@ -59,43 +59,52 @@
  * better, and the integrity figure fails closed.
  */
 
+import { sessionClock } from '../session/clock.js';
+
 const KEY = 'ascent.report';
 /** Longer than this between two answers and the learner was not working. */
 const IDLE_CAP_MS = 90_000;
-/** A gap this long ends a session; the next answer starts a fresh one. */
+/** A gap this long between two answers ends a *stretch of work*. See `tick`. */
 const SESSION_GAP_MS = 10 * 60_000;
 
 /**
- * TWO CLOCKS, AND THE DAY THEY WERE CONFUSED FOR ONE
+ * TWO FIGURES, ONE CLOCK, AND THE DAY THE OTHER ONE RAN BACKWARDS
  *
  * A cold reader opened the report at wall-clock minute sixteen and read
  * "4 min THIS SESSION". Nothing was broken; the wrong clock was on the label.
+ * The pass that fixed that built a SECOND clock in this file to carry the right
+ * one, and a later critic watched it read 4 → 7 → 9 → **1** → 5 across one
+ * unbroken sitting. Two clocks is how you get a clock that runs backwards, and
+ * the second one is always the one that does.
+ *
+ * So there is now exactly one, it lives in `src/session/clock.js`, and this file
+ * reads it. What is still measured here is the OTHER FIGURE — which is not a
+ * second clock but a second *quantity*, in the same way that distance walked is
+ * not a second clock:
  *
  *   TIME ON TASK is measured *between answers* and capped at `IDLE_CAP_MS`, so a
  *   learner who walks away mid-rift has not spent forty minutes on two-step
- *   equations. It is deliberately smaller than the wall clock. It is the right
- *   number for "how much work happened", and it is the wrong number for
- *   anything a learner can check against their own watch.
+ *   equations. It is deliberately smaller than the session, it is an amount of
+ *   work rather than an amount of time, and it can never exceed the session
+ *   clock — `oneclock.mjs` asserts exactly that, at every checkpoint.
  *
- *   THIS SESSION is how long this sitting has been going: wall clock, from the
- *   moment the learner sat down to now. Walking to a rift is part of a session.
+ *   THIS SESSION is `sessionClock().ms()`: how long this sitting has been
+ *   going, monotonic, matching the wall. Walking to a rift is part of a session.
  *   Reading a worked echo is part of a session. A Pomodoro shape is 15–25
  *   minutes of *sitting*, so the figure the session is judged against has to be
  *   the one the session is planned in.
  *
- * The old `sessionMs` summed the credited gaps — time on task, wearing the
- * session's label — so it could only ever read low, and read lower the more the
- * learner explored. Both clocks are kept below, separately, and the report
- * prints each under its own name.
- *
- * A session opens when the tracker is built, which is the page loading, which
- * is the learner sitting down. It closes when it has real work in it and ten
- * minutes pass with no answer; the next answer opens the next one. A session
- * with no answers in it yet is never closed by the gap rule — somebody who
- * spent their first twelve minutes in the world has been in a session for
- * twelve minutes, and telling them it was zero is the same lie in reverse.
+ * WHAT WAS DELETED, AND WHY IT HAD TO BE. `sessions[]` used to close a sitting
+ * after ten minutes with no ANSWER and open the next one from zero. A cadet who
+ * spends eleven minutes walking, building and reading a worked echo has not
+ * left the chair; "no answer" is not "no learner", and only the second one ends
+ * a sitting. The rows survive as what they always really were — stretches of
+ * work inside the record, used for the item counts — and no figure a learner or
+ * a teacher reads is a subtraction against one of their start times any more.
  */
-export function createTracker(mastery, { now = () => Date.now() } = {}) {
+export function createTracker(mastery, {
+  now = () => Date.now(), clock = sessionClock(),
+} = {}) {
   const state = load();
 
   const skillRow = (id) => (state.skills[id] ||= { ms: 0, items: 0, unassisted: 0, unassistedRight: 0 });
@@ -109,11 +118,13 @@ export function createTracker(mastery, { now = () => Date.now() } = {}) {
   save(state);
 
   /**
-   * The sitting this learner is in.
+   * The stretch of work this learner is in.
    *
-   * On load the previous one is resumed if it was still warm — a reload, a
-   * dropped tab, a Chromebook lid — because a session that restarts its clock
-   * every time the page does is not a session, it is a page load.
+   * NOT a clock any more, and nothing a learner reads is a subtraction against
+   * its start. It is a bucket that time on task and item counts are poured
+   * into, so the report can say what this sitting's work was as distinct from
+   * the lifetime record. On load the previous bucket is resumed if it was still
+   * warm — a reload, a dropped tab, a Chromebook lid.
    */
   function openSitting() {
     const at = now();
@@ -121,10 +132,10 @@ export function createTracker(mastery, { now = () => Date.now() } = {}) {
     if (last && at - (last.last ?? last.start ?? 0) < SESSION_GAP_MS) {
       last.start ??= at;
       last.last ??= at;
-      // The sitting's WALL CLOCK carries across the reload. TIME ON TASK does
-      // not: `lastAt` stays zero, so the first answer after a load credits
-      // nothing. There is nothing before it on this page to measure against,
-      // and the gap it would otherwise be charged is the game loading.
+      // TIME ON TASK does not carry across a reload: `lastAt` stays zero, so
+      // the first answer after a load credits nothing. There is nothing before
+      // it on this page to measure against, and the gap it would otherwise be
+      // charged is the game loading.
       lastAt = 0;
       return;
     }
@@ -132,21 +143,18 @@ export function createTracker(mastery, { now = () => Date.now() } = {}) {
     if (state.sessions.length > 60) state.sessions.shift();
   }
 
-  /** The sitting in progress, and whether its clock is still running. */
-  function sitting() {
-    const s = state.sessions[state.sessions.length - 1];
-    if (!s) return null;
-    // Only a sitting that has real work in it can go stale. See above.
-    const stale = s.items > 0 && now() - (s.last ?? s.start) >= SESSION_GAP_MS;
-    return { ...s, live: !stale };
-  }
-
   /**
-   * Fold the clock forward. Returns the milliseconds credited to TIME ON TASK,
-   * which is zero for the first answer of a session — there is nothing before
-   * it to measure against, and inventing a number there is how time on task
-   * starts lying. The session's own wall clock is not affected either way: it
-   * has been running since the learner sat down.
+   * Fold TIME ON TASK forward. Returns the milliseconds credited, which is zero
+   * for the first answer of a stretch — there is nothing before it to measure
+   * against, and inventing a number there is how time on task starts lying.
+   *
+   * THE SESSION CLOCK IS NOT TOUCHED HERE, and that is the whole repair. This
+   * function used to open a new "sitting" whenever ten minutes had passed with
+   * no answer, and the figure a learner reads as THIS SESSION was a subtraction
+   * against that sitting's start — so eleven minutes of walking and building
+   * put twenty-five minutes of real time on screen as "1 min". The bucket below
+   * still rolls over, because a stretch of work really does end when the work
+   * stops; the clock does not, because the learner did not go anywhere.
    */
   function tick(skillId) {
     const at = now();
@@ -278,15 +286,14 @@ export function createTracker(mastery, { now = () => Date.now() } = {}) {
       };
     },
     /**
-     * How long this sitting has been going: wall clock, from the moment the
-     * learner sat down. See the note at the top of this file — this is not time
-     * on task and must never be printed under that label, or under this one.
+     * How long this sitting has been going: THE session clock, monotonic, from
+     * `src/session/clock.js`. This file does not own it, does not derive it and
+     * does not adjust it — it reads it, so that every surface in the game reads
+     * the same number at the same instant. See the note at the top.
      */
-    sessionMs() {
-      const s = sitting();
-      if (!s) return 0;
-      return Math.max(0, (s.live ? now() : (s.last ?? s.start)) - s.start);
-    },
+    sessionMs: () => clock.ms(),
+    /** Which sitting this is. A returning learner is on a later one. */
+    sittingIndex: () => clock.sittingIndex(),
     /** Time on task inside this sitting: measured between answers, capped. */
     sessionTaskMs: () => state.sessions[state.sessions.length - 1]?.ms || 0,
     sessionItems: () => state.sessions[state.sessions.length - 1]?.items || 0,
@@ -318,8 +325,12 @@ export function createTracker(mastery, { now = () => Date.now() } = {}) {
       const stamp = mastery.stamp?.();
       if (stamp) { state.recordId = stamp.recordId; state.seq = stamp.seq; }
       lastAt = 0;
-      // A fresh cadet is still sitting in the chair. The sitting restarts here
-      // rather than reading zero until the first answer lands.
+      // A fresh cadet is still sitting in the chair, but this is a different
+      // record's sitting, so it starts at zero. THE ONE CALL IN THE GAME THAT
+      // IS ALLOWED TO MAKE THE SESSION CLOCK SMALLER, and it is allowed because
+      // a cleared record is a new learner, not a learner who lost fifteen
+      // minutes. Nothing else may call it. See src/session/clock.js.
+      clock.reset();
       openSitting();
       save(state);
     },

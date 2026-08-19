@@ -61,6 +61,7 @@ export default {
   'ask.howManyCyclesTow': 'Ile cykli holowania kupuje rachunek o wartości {c}?',
   'ask.howManyShiftsTotal': 'Po ilu obrotach łączna liczba zmian wyniesie {c}?',
   'ask.perimeterGather': 'Reguła poniżej sumuje ten obwód. Zbierz to, co podobne, i zapisz, co zostanie.',
+  'ask.perimeterRound': 'Dodaj cztery boki. Zbierz to, co podobne, i zapisz, co zostanie.',
   'ask.areaMultiplyOut': 'Reguła poniżej daje to pole. Wymnóż ją wyraz po wyrazie.',
   'ask.whenSameCost': 'Po ilu kursach plany kosztują tyle samo?',
   'ask.shareOut': 'Rozdziel kreskę ułamkową na każdy wyraz.',

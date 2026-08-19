@@ -357,16 +357,62 @@ for (const locale of ITEM_LOCALES) {
           const where = `${locale}/${skill}/${item.form}/d${d}/seed${item.seed}`;
 
           if (item.form !== form.id) fail(`${where}: generator ignored the requested form`);
+          // AN ITEM THAT DECLARES IT HAS NOTHING TO SHOW.
+          //
+          // `noDisplay` exists because two "which equation says this?" forms
+          // used to be forced to invent a display and printed `x □ □ = □` —
+          // an all-box skeleton in the same glyph as an unfilled answer socket.
+          // The declaration is checked, not trusted: a no-display item must
+          // really carry no notation, and it must be a form the rig can still
+          // put in front of a learner, which for these is the choice modality.
+          const shownTex = item.latex || '';
+          if (item.noDisplay) {
+            if (item.latex) fail(`${where}: declared noDisplay and supplied a display anyway`);
+            // "Nothing to display" is only honest while something ELSE is on
+            // screen for the learner to work from. Two things qualify: a set of
+            // options to choose between, or a drawing to read. An item with
+            // neither is a blank card, which is the defect this flag exists to
+            // prevent, not a licence for it.
+            const choosable = item.check?.kind === 'equationChoice' || item.type === 'special';
+            if (!choosable && !item.figure) {
+              fail(`${where}: noDisplay with neither options nor a drawing — the card would be blank`);
+            }
+            if (!item.stem) fail(`${where}: noDisplay with no stem — nothing would be on screen`);
+            if (choosable && !item.distractors.length) {
+              fail(`${where}: noDisplay with no options — nothing to choose from`);
+            }
+          } else if (!item.latex) {
+            fail(`${where}: no display and no declaration that there should not be one`);
+          }
+          // A DISPLAY MAY NOT BE MADE OF EMPTY BOXES.
+          //
+          // `\square` is the rig's own glyph for a socket waiting to be filled,
+          // and it is right where real quantities stand around it — `12 + 5 =
+          // \square`, `4 \cdot \square = 20`, `k + k + k = \square` — because
+          // there the box IS the question. It is wrong when every slot is one:
+          // two forms used to print `x \square \square = \square` and
+          // `\square n + \square = \square` above a "which equation says
+          // this?" question, and a cold critic read the first as a rendering
+          // fault — "three empty boxes, the identical glyph the UI uses for an
+          // empty answer field". One of them was worse than empty: the `+` in
+          // the skeleton struck out a distractor.
+          //
+          // One box is a question. Two or more is a blank form. No item in the
+          // shipping bank needs a second one, so the rule is simply the count.
+          const boxes = (shownTex.match(/\\square/g) || []).length;
+          if (boxes > 1) {
+            fail(`${where}: the display is ${boxes} empty boxes, not a problem :: ${shownTex}`);
+          }
           for (const bad of ['NaN', 'undefined', 'Infinity']) {
-            if (item.latex.includes(bad)) fail(`${where}: prompt contains ${bad}`);
+            if (shownTex.includes(bad)) fail(`${where}: prompt contains ${bad}`);
             if (item.answer.includes(bad)) fail(`${where}: answer contains ${bad}`);
             if (item.stem.includes(bad)) fail(`${where}: stem contains ${bad}`);
           }
-          if (item.latex.includes('\\text{')) fail(`${where}: prose leaked into the notation`);
+          if (shownTex.includes('\\text{')) fail(`${where}: prose leaked into the notation`);
           // A control sequence that lost its backslash is still valid LaTeX —
           // "2left(7x + 5ight)" renders without complaint — so KaTeX cannot
           // catch it and this has to.
-          for (const src of [item.latex, item.answer, ...item.steps.map((s) => s.latex)]) {
+          for (const src of [shownTex, item.answer, ...item.steps.map((s) => s.latex)]) {
             if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(src)) fail(`${where}: control character in notation :: ${JSON.stringify(src)}`);
             if (/(?<![\\a-zA-Z])(?:left|right|cdot|frac|Rightarrow|begin|end|hline|sqrt)(?![a-zA-Z])/.test(src)) {
               fail(`${where}: a control sequence lost its backslash :: ${src}`);
@@ -412,7 +458,7 @@ for (const locale of ITEM_LOCALES) {
             for (let p = 1; p < parts.length; p += 2) K(parts[p], `inline maths in ${label}`, where, false);
           }
 
-          K(item.latex, 'prompt', where, true);
+          if (item.latex) K(item.latex, 'prompt', where, true);
           K(item.answer, 'answer', where, false);
           item.steps.forEach((s, k) => K(s.latex, `step${k}`, where, true));
           for (const dd of item.distractors) K(dd.value, `distractor ${dd.value}`, where, false);
@@ -595,7 +641,7 @@ for (const skill of SKILLS) {
         }
 
         if (form.distinctNums) {
-          const lits = literalsOf(String(item.latex).replace(/\^\s*\{?-?\d+\}?/g, ''));
+          const lits = literalsOf(String(item.latex || '').replace(/\^\s*\{?-?\d+\}?/g, ''));
           if (new Set(lits).size !== lits.length) {
             fail(`provenance: ${skill}/${form.id}/d${d} repeats a number in a worked-example-critical prompt`);
           }
@@ -643,7 +689,7 @@ for (const skill of SKILLS) {
       }
       if (bad) continue;
       // and the example's own answer must not already be visible in the live prompt
-      const onScreen = new Set(vals(item.latex));
+      const onScreen = new Set(vals(item.latex || ''));
       for (const nmb of vals(ex.answer)) {
         if (onScreen.has(nmb)) { leaked++; fail(`scaffold: ${skill}/d${d} analogue is sealed at "${nmb}", a value already on the live prompt`); break; }
       }
@@ -700,7 +746,7 @@ for (const skill of SKILLS) {
             continue;
           }
           const restates = math.length === 1
-            && norm(math[0].latex) === norm(item.latex)
+            && item.latex && norm(math[0].latex) === norm(item.latex)
             && math[0].why === ITEM_BUNDLES.en['echo.theTear'];
           if (restates) {
             thin++;
@@ -779,7 +825,7 @@ for (const skill of SKILLS) {
         choiceItems++;
         const opts = [{ v: String(item.answer), key: true }, ...item.distractors.map((dd) => ({ v: String(dd.value), key: false }))];
         for (const [name, fn] of Object.entries(STRATS)) {
-          const picked = fn(opts, item.latex);
+          const picked = fn(opts, item.latex || '');
           if (!picked) continue;
           strat[name].decisive++;
           if (picked.key) strat[name].right++;
@@ -835,7 +881,7 @@ for (const [name, s] of Object.entries(strat)) {
       for (let d = form.dMin; d <= form.dMax; d++) {
         let item;
         try { item = generate(skill, d, (d * 7919 + skill.length * 31) >>> 0, { form: form.id }); } catch { continue; }
-        const shown = [item.latex, item.answer, ...item.steps.map((x) => x.latex), ...item.distractors.map((x) => x.value)].join(' ');
+        const shown = [item.latex || '', item.answer, ...item.steps.map((x) => x.latex), ...item.distractors.map((x) => x.value)].join(' ');
         if (GLYPHS.test(shown)) fail(`typography: ${skill}/${form.id}/d${d} puts a unicode maths glyph in the notation`);
         if (/\\times|\\div/.test(shown)) {
           anglo++;

@@ -153,6 +153,19 @@ export default {
     'write-linear': 'Writing linear rules',
     'system-substitution': 'Systems by substitution',
     'system-elimination': 'Systems by elimination',
+    // Level 3 (content/graph/algebra1-l3.json). Additive: a unit that is
+    // not loaded costs three strings and changes nothing on screen.
+    'function-notation': 'Function notation',
+    'domain-range': 'Domain and range',
+    'exponent-product': 'Multiplying powers',
+    'exponent-power': 'A power of a power',
+    'exponent-quotient': 'Dividing powers',
+    'zero-negative-exponent': 'Zero and negative powers',
+    'poly-add-sub': 'Adding and subtracting polynomials',
+    'poly-multiply': 'Multiplying binomials',
+    'factor-common': 'Taking out a common factor',
+    'linear-vs-exponential': 'Linear against exponential growth',
+    'exponential-rule': 'Exponential rules',
   },
 
   // The course manifest (content/courses.json) names its courses and units
@@ -166,6 +179,7 @@ export default {
   unit: {
     'algebra1-l1': { title: 'Level 1 — The Language of Balance' },
     'algebra1-l2': { title: 'Level 2 — Structure and Rate' },
+    'algebra1-l3': { title: 'Level 3 — Name, Power and Form' },
   },
 
   settings: {
@@ -323,7 +337,7 @@ export default {
     wordIs: {
       rift: 'A rift is a ring of torn air. Each rift holds one maths statement that is not true yet.',
       line: 'A line is one idea, and every rift that tests it. You work one line at a time.',
-      held: 'Held means proved for good. A held line never opens again, and nothing you do later takes it back.',
+      held: 'Held means you proved this line with no help, on every type of question it asked you. A held line is not taught to you again. The rig still re-tests it later. If a re-test fails, the line opens again.',
       lattice: 'The lattice is the argument that holds this world up. Ground stands where the argument still works.',
       mote: 'Cipher motes are what a sealed rift leaves behind. The foundry takes motes and hands back kit.',
       rank: 'Your rank is what the order thinks of you. Copper is the first rank. Repair the world to raise it.',
@@ -604,6 +618,12 @@ export default {
       // chapter. It ticks on every correct answer, so it is the number on the
       // card that is allowed to be large.
       sealed: 'Rifts sealed in all',
+      /* WHAT THE BAR UNDER THIS LABEL ACTUALLY DRAWS. It fills across the
+         current chapter and starts again when the chapter turns, so naming it
+         with a lifetime rift total left a cold critic reading "RIFTS SEALED IN
+         ALL" over an empty bar with no number on it. The lifetime total is in
+         the report, with a figure beside it. See src/meta/quest.js. */
+      chapterBar: 'Through this chapter',
       toChapter: '«n|one:# more|other:# more» to Chapter {ch}',
       // The last two chapters also cost nights held (src/meta/shard.js). When
       // the tears are in and the nights are not, the card says which one is
@@ -633,6 +653,16 @@ export default {
       held: 'Welcome back. You have «n|one:# night held|other:# nights held». A night held is a line you still knew after you walked away.',
       due: 'Welcome back. «n|one:# line has|other:# lines have» come due. The lattice wants to check what you kept. Then we work.',
       none: 'Welcome back. You were away «n|one:# day|other:# days». Nothing has fallen due. Pick a rift and go.',
+    },
+    /**
+     * A MARK CLEARED (src/meta/night.js). Marlow says it once, on the answer
+     * that clears it. It is flavour and it keeps its wit, but the second
+     * sentence of `keptCharter` is an instruction, so it is one action and it
+     * names the key.
+     */
+    order: {
+      kept: 'The mark is out. You knew {skill} after «n|one:# night|other:# nights» away, which is the only thing this lattice has ever asked anybody to prove.',
+      keptCharter: 'Mark cleared, and that is the third. The order has cut you a charter. Press H on ground you like to raise a waystation.',
     },
     day: {
       d2: {
@@ -824,8 +854,16 @@ export default {
       tally: 'Rifts sealed on this shard',
       lockedCoda: 'Sealed until the proof closes',
       lockedShort: 'Sealed',
-      here: 'You are here · {have} of {need}',
-      costs: 'Opens at {n}',
+      /* THE CLIMB, STATED WHOLE. A rank costs standing AND nights held, and a
+         card that prints only the first half read "BRONZE — You are here · 50
+         of 30" directly above "SILVER — Opens at 30". Every one of these lines
+         is drawn from `rankGate`, which returns one reason, so the card states
+         one and states the true one. See src/meta/dossier.js. */
+      here: 'You are here · {have} of {need} standing',
+      hereNights: 'You are here · standing is in, «n|one:# night held to go|other:# nights held to go»',
+      hereReady: 'You are here · the next rite is earned',
+      costs: 'Opens at {n} standing',
+      costsNights: 'Opens at {n} standing and «nights|one:# night held|other:# nights held»',
       outOf: 'of {n} the shard can award',
       current: 'You are here',
       held: 'Held',
@@ -1280,8 +1318,8 @@ export default {
       // THE ACTION FIRST. Every one of these opens on the verb, and the
       // words the card coins — a *line*, a *held* line — are glossed in the
       // same breath, because this card is the first surface that uses them.
-      goalHold: 'Seal {tears} rifts on {skill}. A line is one idea and every rift that tests it. A held line never opens again.',
-      goalHoldN: 'Seal {tears} rifts today. You then hold «n|one:# line|other:# lines» for good. A held line never opens again.',
+      goalHold: 'Seal {tears} rifts on {skill}. A line is one idea and every rift that tests it. You hold a line when you prove it with no help, on every type of question it asks.',
+      goalHoldN: 'Seal {tears} rifts today. You then hold «n|one:# line|other:# lines». You hold a line when you prove it with no help, on every type of question it asks.',
       goalPush: 'Seal {tears} rifts on {skill}. To drive a line back is to win back ground on one that slipped.',
       goalAny: 'Seal {tears} rifts on this shard. Then we see what the lattice does about it.',
       /* THE CURE FOR AN UNGLOSSED TERM IS NOT ALWAYS A GLOSS.
@@ -1308,6 +1346,9 @@ export default {
       backHeld: 'Last time you sealed «n|one:# rift|other:# rifts». {skill} has held ever since.',
       backHeldN: 'Last time you sealed {tears} rifts. «n|one:# line has|other:# lines have» held ever since.',
       backNone: 'Last time you sealed «n|one:# rift|other:# rifts». All of it still stands.',
+      /* THE FIRST SENTENCE A RETURNING CADET READS, when a mark is standing.
+         Point first: the thing is there. Then the one action. (src/meta/night.js) */
+      markWaiting: 'Your mark is still standing. Answer {skill} once, with no help, and it pays.',
     },
     close: {
       kick: 'Run {n} · closed',
@@ -1344,6 +1385,15 @@ export default {
       // THE RETURNING LOOP, on every close (src/session/resolution.js).
       // Instructional, so: front-loaded, short, and the term is defined the
       // first time it is used.
+      /* THE STANDING MARK (src/meta/night.js) — the row that is already true.
+         Instructional, so it is one instruction per sentence and the term is
+         defined the first time it is used. `markLaid*` is the night it goes up,
+         when there is nothing to do yet; `mark*` is every day after, when there
+         is exactly one thing to do. */
+      markLaidStrong: 'A mark now stands: {skill}',
+      markLaidNote: 'It is a column of light where you stopped. Come back on another day. Answer that line once, with no help.',
+      markStrong: 'Your mark still stands: {skill}',
+      markNote: 'Answer that line once, with no help. The mark pays, and the column of light goes out.',
       dueStrong: '«n|one:# line falls due|other:# lines fall due»',
       dueNote: 'You held these before. The lattice checks them next run. Passing one earns a night held.',
       nightsStrong: '«n|one:# night held|other:# nights held»',
@@ -1477,6 +1527,12 @@ export default {
       time: 'Time on task',
       // Two clocks, and they are meant to differ. This is the smaller one.
       timeNote: 'Measured between answers and capped, so idling never counts as work. It is not the session clock, and it is meant to read lower than it.',
+      /* THE SCOPE IS PART OF THE NOUN. Under the bare words "Time on task" this
+         lifetime total read 7 min beside a session strip reading 5 min, and a
+         cold reader called the pair a contradiction — on the words, correctly.
+         Same rule, and same repair, as "Questions answered in all". */
+      timeAll: 'Time on task in all',
+      timeAllNote: 'Every minute this record has ever measured, across every session. Counted between answers and capped, so idling never counts as work — which is why it reads lower than the clock on the wall.',
       session: 'This session',
       sessionNote: 'How long you have been sitting here: real time, from when you started, including walking and reading. A session runs 15–25 minutes, then stops cleanly.',
       // A LIFETIME TOTAL, AND IT SAYS SO. Under the bare words "Questions
@@ -1484,6 +1540,13 @@ export default {
       // run, and a cold reader had no way to know they were two different
       // questions. Same rule as the band: the scope is part of the noun.
       items: 'Questions answered in all',
+      /* THE FIGURE THE HUD USED TO CLAIM AND NOT PRINT. A chapter card on
+         the live glass carried the words "RIFTS SEALED IN ALL" over a bar
+         drawing something else, with no number on it, all session. The words
+         belong to this fact and this fact belongs here, where a number can
+         stand beside them. */
+      sealed: 'Rifts sealed in all',
+      sealedNote: 'Every statement you have closed on this shard, across every session. One correct answer, one sealed rift. This is the count the chapter card is paced against.',
       itemsNote: 'Every question this record has ever seen, across every run. Each one generated fresh and re-solved by machine before you saw it.',
       accuracy: 'Solved unaided',
       accuracyNote: 'Correct first time, with no hint and no worked example, out of every question answered.',
@@ -1646,9 +1709,8 @@ export default {
          read a table adds up to exactly the same total as a learner who is
          even. (src/report/index.js `formsRow`) */
       forms: 'Every question type',
-      formsNote: 'You hold a line only after you solve every type of question it puts to you, at least once, with no help. A type starts to count once the rig has put it to you {n} times.',
+      formsNote: 'You hold a line only after you solve every type of question it puts to you, at least once, with no help. A type counts from the first time the rig puts it to you.',
       formsNone: 'none yet',
-      formsThin: 'No question type has come up {need} times yet, so the rig is not judging you on any of them so far. Your weakest so far is {rep}: {n} right with no help, out of {of} asked.',
       formsOk: 'Your weakest type here is {rep}: {n} right with no help, out of {of} asked.',
       formsHole: 'Not held. On {rep} you have {n} right with no help, out of {of} asked. This line stays open until you get that type right once on your own. An average cannot stand in for a question you never got right.',
       /* WHY THE PERCENTAGE ON THE ROW IS THE NUMBER IT IS. It is the lowest of
@@ -1815,7 +1877,7 @@ export default {
         held: 'Lines held',
         items: 'Questions answered',
         unaided: 'Solved unaided',
-        time: 'Time on task',
+        time: 'Time on task in all',
         claimItems: 'Items behind the claims',
         testedOut: 'Tested out cold',
         withdrawn: 'Claims withdrawn',
@@ -1927,6 +1989,18 @@ export default {
       'write-linear': 'Two readings are enough to write a rule: the rate from the climb, the start from the axis.',
       'system-substitution': 'When one statement says what a letter is, put it straight into the other.',
       'system-elimination': 'Add two true statements and the result is true. Line one letter up so it leaves.',
+      // Level 3 (content/graph/algebra1-l3.json).
+      'function-notation': 'A rule can have a name, and f(3) is the output it gives at 3.',
+      'domain-range': 'The inputs a rule takes are its domain; the outputs it gives are its range.',
+      'exponent-product': 'A power counts factors, so multiplying two powers adds the counts.',
+      'exponent-power': 'Raising a power to a power brings the same count again, so the counts multiply.',
+      'exponent-quotient': 'Dividing powers cancels matching factors, so the bottom count comes off the top.',
+      'zero-negative-exponent': 'A count of zero means one, and a negative count means factors under the bar.',
+      'poly-add-sub': 'Only terms with the same count merge, and a minus reaches every term in the bracket.',
+      'poly-multiply': 'Every term in the first bracket multiplies every term in the second.',
+      'factor-common': 'Factoring is expanding read backwards: take out the most every term shares.',
+      'linear-vs-exponential': 'A straight rule adds the same amount; a growing rule multiplies by the same factor.',
+      'exponential-rule': 'A start multiplied by a factor once per step — and at zero steps, the start.',
     },
 
     slip: {
@@ -1969,6 +2043,25 @@ export default {
       'swapped-roles': 'Swaps which quantity is which',
       'wrong-unwrap-order': 'Unwraps in the order that built the expression',
       'x-and-x-squared': 'Treats x and x squared as the same kind of term',
+      // Level 3 (content/graph/algebra1-l3.json).
+      'base-times-exponent': 'Multiplies the base by the count above it',
+      'bases-multiplied': 'Multiplies the bases as well as handling the counts',
+      'coefficient-not-raised': 'Raises the letter and leaves the number in front alone',
+      'coefficients-added': 'Adds the numbers in front instead of multiplying them',
+      'exponents-added': 'Adds the counts where the rule multiplies them',
+      'exponents-multiplied': 'Multiplies the counts where the rule adds them',
+      'exponents-subtracted-wrong-way': 'Takes the counts away the wrong way round',
+      'factor-drops-term': 'Divides one term by the common factor and leaves another',
+      'factor-partial': 'Takes out part of the common factor only',
+      'growth-is-linear': 'Adds the factor at each step instead of multiplying',
+      'growth-start-for-factor': 'Gives the starting amount when asked for the factor',
+      'input-output-swap': 'Answers with the input instead of the output',
+      'middle-term-missed': 'Multiplies the ends and misses the middle terms',
+      'minus-first-term-only': 'Lets a minus reach only the first term in the bracket',
+      'negative-power-is-negative': 'Reads a negative count as a negative answer',
+      'negative-power-is-reciprocal-slip': 'Puts the power on the wrong side of the bar',
+      'range-ends-swapped': 'Reads the output at the wrong end of the inputs',
+      'zero-power-is-zero': 'Reads a count of zero as an answer of zero',
     },
   },
 
@@ -2078,7 +2171,7 @@ export default {
     station: {
       name: 'Waystation',
       short: 'Station',
-      what: 'H — raise a waystation: a permanent tower of rising air. Travel between any two of them. Costs one charter and two hundred and forty motes.',
+      what: 'H — raise a waystation: a permanent tower of rising air. Travel between any two of them. It costs one charter, and the motes on the chip.',
       gist: 'a permanent tower, and a place you can step to',
     },
     charter: {
@@ -2179,7 +2272,7 @@ export default {
     /* The marks this named are gone with the pip row (src/meta/guide.js), so the
        sentence names them no longer. What it is here to do is define HELD, once,
        before the learner has held anything — the term arrives with its meaning. */
-    linesHeldNew: 'Held means proved for good. A held line never opens again.',
+    linesHeldNew: 'Held means you proved a line with no help, on every type of question it asked. The rig re-tests a held line later.',
 
     prompt: {
       open: 'Open the rift',
@@ -2250,6 +2343,17 @@ export default {
     balanceNo: 'The beam refuses it',
     balanceReset: 'The weights re-form',
     cacheOpen: 'Cache broken open — {n} motes, and the air here rises for good',
+
+    // --- the spans (src/world/span.js): the second kind of off-island place.
+    // A cache is a balance and pays rising air. A span is a rectangle of ground
+    // you have to cover, and it pays a road. Every line here is about slabs and
+    // squares, which are the two things actually on the deck in front of you.
+    spanLock: 'Area lock',
+    spanShort: 'Not covered. «n|one:# square is|other:# squares are» still open.',
+    spanOver: 'Too many. «n|one:# slab slides|other:# slabs slide» off the edge.',
+    spanReset: 'The stacks re-form',
+    spanOpen: 'Span open — {n} motes, and a road stands here for good',
+    spanRoad: 'The road stands. Walk out to the next span.',
 
     // --- the wardens (src/world/warden.js): the fifth day -------------------
     // A name plate, not a sentence: it has to fit a phone held sideways. The
@@ -2387,12 +2491,14 @@ export default {
       sound: 'Descent — a run back down a line you already hold, one harder question at a time.',
       bind: 'Warden bound — you ran down the construct and took the weight that made its statement true.',
       deepcache: 'Deep cache — a hanging cache with an unknown on both pans. A warden left it there.',
+      span: 'Span — a rectangle of ground in the sky. Cover it exactly, and it pays you a road.',
       surge: 'Rift surge — the ring an open rift throws out. Jump it, or it costs you motes.',
       vault: 'Vault plate set — stand on it and it throws you twelve metres straight up.',
       plate: 'Vault plate bought — a fifth piece for the lattice.',
       flare: 'Updraft flare — a column of rising air under your own boots.',
       beacon: 'Standing beacon — rising air that is still here tomorrow.',
       station: 'Waystation raised — a stop that stays on the map.',
+      order: 'Mark cleared — you left a line standing here, came back, and still knew it.',
     },
     why: {
       // earned
@@ -2404,6 +2510,8 @@ export default {
       sound: 'Descent',
       bind: 'Warden bound',
       deepcache: 'Deep cache',
+      span: 'Span covered',
+      order: 'Mark cleared',
       found: 'Picked up',
       // lost
       surge: 'Rift surge',

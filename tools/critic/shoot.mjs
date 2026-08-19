@@ -444,12 +444,47 @@ await ax(() => window.__ascent.panel.close());
  */
 const state = await ax(() => window.__ascent.state());
 
-/** One fixed-camera sample: frame-time percentiles plus everything that accumulates. */
-const measurePlaza = () => page.evaluate(async () => {
+/**
+ * One fixed-camera sample: frame-time percentiles plus everything that
+ * accumulates.
+ *
+ * SAME CAMERA MEANS SAME NUMBER OF PIXELS.
+ *
+ * This used to sample whatever drawing-buffer size the quality controller
+ * happened to have chosen at that instant, and the verdict below then compared
+ * the two frame rates as though the only thing that could differ was the cost
+ * of the session. It is not. On the run that produced this comment the opening
+ * sample was taken at pixel cap 1.02 and the sustained one at 1.36 — 78% more
+ * pixels — and the gate reported "the frame rate decayed 52.9% on the SAME
+ * camera". Most of that number was the game deciding it could afford to look
+ * better, which is the opposite of the defect this gate exists to catch, and a
+ * controller that improved the picture over the session would fail here every
+ * time.
+ *
+ * So the frame rate is now measured with the buffer PINNED, identically at both
+ * ends, and what the controller chose is captured separately as `chosenCap` and
+ * `tier` and asserted on separately below. Two unambiguous numbers instead of
+ * one ambiguous one: did the frame get more expensive, and did the picture get
+ * cheaper. Both are failures; they are no longer able to hide each other.
+ */
+const MEASURE_CAP = 1.0;
+const measurePlaza = () => page.evaluate(async (cap) => {
   const a = window.__ascent;
   a.player.pos.set(0, (a.player.groundAt(0, 26) ?? 12) + 0.4, 26);
   a.player.vel.set(0, 0, 0); a.player.yaw = Math.PI; a.player.pitch = -0.14;
-  await new Promise((r) => setTimeout(r, 900));
+  // what the controller had settled on before we took the wheel — this is the
+  // number the picture is judged by
+  const chosenCap = a.state().perf.pixelCap;
+  const chosenTier = a.state().fxTier;
+  const wasEnabled = a.engine.quality.enabled;
+  a.engine.quality.enabled = false;
+  a.engine.quality.cap = cap;
+  a.engine.applyPixelRatio();
+  // 900 ms was not enough. The jump back to the plaza makes the grass field
+  // repack twenty thousand blades and the shadow volume re-fit, and a repack
+  // landing inside the sample window is worth twenty fps on its own — which is
+  // most of the run-to-run noise this gate has always had.
+  await new Promise((r) => setTimeout(r, 2500));
   const dts = []; let last = performance.now();
   await new Promise((res) => {
     let n = 0;
@@ -462,6 +497,10 @@ const measurePlaza = () => page.evaluate(async () => {
   const s = dts.slice(30).sort((x, y) => x - y);
   const q = (p) => s[Math.min(s.length - 1, Math.floor(s.length * p))];
   const info = a.engine.renderer.info;
+  // hand the wheel back before anything else runs
+  a.engine.quality.cap = chosenCap;
+  a.engine.quality.enabled = wasEnabled;
+  a.engine.applyPixelRatio();
   const r = info.render;
   let sceneObjects = 0; a.engine.scene.traverse(() => { sceneObjects++; });
   return {
@@ -470,7 +509,7 @@ const measurePlaza = () => page.evaluate(async () => {
     pixelRatio: a.engine.renderer.getPixelRatio(), renderScale: a.fx.renderScale,
     // What a session accumulates. Reported at both ends so the delta has a name
     // when it moves; see BOUNDED in tools/critic/sustain.mjs for the same list.
-    tier: a.state().fxTier, pixelCap: a.state().perf.pixelCap,
+    tier: chosenTier, pixelCap: chosenCap, chosenCap,
     sceneObjects,
     geometries: info.memory.geometries, textures: info.memory.textures,
     programs: info.programs ? info.programs.length : 0,
@@ -483,8 +522,9 @@ const measurePlaza = () => page.evaluate(async () => {
       const dbg = gl.getExtension('WEBGL_debug_renderer_info');
       return dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
     })(),
+    measuredAtCap: cap,
   };
-});
+}, MEASURE_CAP);
 
 /**
  * Play, with real keys, for a while. No teleport, no debug API except to READ
@@ -779,34 +819,9 @@ const nearest = frames.map((f) => {
  *              on a fast enough machine can pass both while leaking, right up
  *              until it meets a Chromebook.
  */
-const GROWTH_MAX = 0.25, DECAY_MAX = 0.25;
-const BOUNDED = {
-  sceneObjects: 'objects in the scene graph',
-  geometries: 'live GPU geometries',
-  textures: 'live GPU textures',
-  programs: 'compiled shader programs',
-  updaters: 'per-frame updaters on the engine',
-  domNodes: 'DOM elements',
-  listeners: 'net event listeners (added minus removed)',
-};
-if (sustained) {
-  const RANK = ['low', 'medium', 'high'];
-  const decay = (opening.fps - sustained.fps) / opening.fps;
-  if (decay > DECAY_MAX) {
-    fail('perf-sustained', `the frame rate decayed ${(decay * 100).toFixed(1)}% over ${SUSTAIN_MIN} min of real play `
-      + `(${opening.fps.toFixed(1)} -> ${sustained.fps.toFixed(1)} fps) on the SAME camera`);
-  }
-  if (RANK.indexOf(sustained.tier) >= 0 && RANK.indexOf(opening.tier) >= 0
-      && RANK.indexOf(sustained.tier) < RANK.indexOf(opening.tier)) {
-    fail('perf-tier', `the effect tier auto-degraded from '${opening.tier}' to '${sustained.tier}' during play`);
-  }
-  for (const [k, label] of Object.entries(BOUNDED)) {
-    const a = opening[k], b = sustained[k];
-    if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0) continue;
-    const g = (b - a) / a;
-    if (g > GROWTH_MAX) fail('perf-growth', `${label} grew ${(g * 100).toFixed(0)}% (${a} -> ${b}) — unbounded accumulation`);
-  }
-}
+import { sustainedVerdict, DECAY_MAX } from './_sustainverdict.mjs';
+
+if (sustained) for (const f of sustainedVerdict(opening, sustained, SUSTAIN_MIN)) fail(f.name, f.why);
 
 const errors = logs.filter((l) => l.type === 'error' || l.type === 'pageerror');
 const report = {
@@ -829,7 +844,9 @@ if (sustained) {
     + `(${sustained.frameMs.toFixed(2)}ms), 1% low ${sustained.fpsLow.toFixed(1)}, p95 ${sustained.p95Ms.toFixed(1)}ms`);
   console.log(`  same camera at the start of the pass: ${opening.fps.toFixed(1)} fps  `
     + `— decay ${(((opening.fps - sustained.fps) / opening.fps) * 100).toFixed(1)}% (allowance ${DECAY_MAX * 100 | 0}%)`);
-  console.log(`  tier ${opening.tier}->${sustained.tier}  cap ${opening.pixelCap.toFixed(2)}->${sustained.pixelCap.toFixed(2)}`);
+  console.log(`  the picture the controller chose: tier ${opening.tier}->${sustained.tier}  `
+    + `cap ${opening.chosenCap.toFixed(2)}->${sustained.chosenCap.toFixed(2)} `
+    + `(allowance ${DECAY_MAX * 100 | 0}% — the frame rates above are at a pinned ${opening.measuredAtCap})`);
   console.log(`  accumulated: scene ${d(opening.sceneObjects, sustained.sceneObjects)}  `
     + `geo ${d(opening.geometries, sustained.geometries)}  tex ${d(opening.textures, sustained.textures)}  `
     + `prog ${d(opening.programs, sustained.programs)}  upd ${d(opening.updaters, sustained.updaters)}  `

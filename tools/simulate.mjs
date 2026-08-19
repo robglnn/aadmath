@@ -80,7 +80,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MasteryEngine, itemSeconds } from '../src/learn/mastery.js';
+import { MasteryEngine, itemSeconds, MASTERY_DEFAULTS as DEFAULT_MASTERY } from '../src/learn/mastery.js';
 import { FORMS_BY_SKILL, generate, demandOf } from '../src/learn/generators.js';
 import { echoScript } from '../src/learn/echo.js';
 // The REAL session planner, so the workload assertion below is about the plan
@@ -142,7 +142,7 @@ const HOLLOW = 0.75;         // engine says mastered but truth is below this
 //
 //   HOLLOW-FORM    "Reading a variable — HELD — 99%" with
 //                  formsSeen['vm-table'] = {seen: 3, correct: 0}. A line was
-//                  certified on a question type it had asked three times and
+//                  certified on a question type it had asked and
 //                  never once had answered. Every gate in the engine was an
 //                  aggregate, so the strong types carried the weak one.
 //   LOCKED-SERVE   item 12 of that session was the distributive property while
@@ -163,6 +163,7 @@ const HOLLOW = 0.75;         // engine says mastered but truth is below this
 // ---------------------------------------------------------------------------
 const VIOLATIONS = {
   hollowForm: 0,   // a claim granted with a served form standing at 0-for-formFloor
+  hollowServed: 0, // a claim granted with ANY served form standing at 0 clean solves
   lockedServe: 0,  // an item served from a skill whose prerequisites are not held
   prereqContent: 0, // an item needing a rule that sits above its own skill in the graph
   workload: 0,     // a goal quoted outside the workload the same projection planned
@@ -178,9 +179,46 @@ const violate = (kind, detail) => { VIOLATIONS[kind]++; FIRST[kind] ??= detail; 
  */
 let underReopened = 0;
 
-/** The form floor, read off the graph rather than restated here. */
-const FORM_FLOOR = (graph.mastery || {}).formFloor ?? 3;
-const FORM_NEED = (graph.mastery || {}).formNeed ?? 1;
+/**
+ * The form floor, read off the ENGINE'S OWN default rather than restated here.
+ *
+ * It used to be `(graph.mastery||{}).formFloor ?? 3` — a second copy of a
+ * number that lives in `src/learn/mastery.js`, and the graph does not set it.
+ * So the audit hardcoded 3 while the gate could have been anything, and the
+ * printed line "must stay 0" was measuring a threshold the engine no longer
+ * used. A gate and its audit may not keep separate copies of the same constant.
+ */
+const FORM_FLOOR = (graph.mastery || {}).formFloor ?? DEFAULT_MASTERY.formFloor;
+const FORM_NEED = (graph.mastery || {}).formNeed ?? DEFAULT_MASTERY.formNeed;
+
+/**
+ * THE STRICTER FLOOR — the one the product actually promises.
+ *
+ * A cold critic photographed a single card that both made and refuted the
+ * claim: `var-meaning` reading **HELD — 67%**, with HELD glossed in-world as
+ * "proved for good, never opens again", and three lines further down the same
+ * card admitting *"Your weakest so far is symbols: 0 right with no help, out of
+ * 1 asked"* and *"No question has been asked on this line since the claim was
+ * granted."*
+ *
+ * Every gate in this build passed that card. `FORM_FLOOR` was 3, the failed
+ * shape had been asked **once**, and one is less than three — so the shape was
+ * not a hole, the claim was granted, the line was sealed, and the one question
+ * type the learner got wrong was never asked again. The audit could not see it
+ * either, because the audit was measuring 0-of-3 as well.
+ *
+ * The honest statement is not "0 of 3". It is: **a claim may not be granted
+ * while a question type this learner has actually been served stands at zero
+ * clean unassisted solves.** One is the only defensible floor, because one
+ * failed question that is never re-asked is exactly the evidence a hollow
+ * claim is made of, and the sample size that makes it "thin" is the engine's
+ * own choice of what to serve — the learner does not get to be certified on a
+ * question the engine asked once, got wrong, and then declined to repeat.
+ *
+ * This constant is what the audit judges by, whatever the gate is set to, so
+ * that loosening the gate can never quietly loosen the measurement of it.
+ */
+const SERVED_FLOOR = 1;
 
 /**
  * Question types this learner has been ASKED `FORM_FLOOR` times and has never
@@ -198,14 +236,22 @@ const FORM_NEED = (graph.mastery || {}).formNeed ?? 1;
  * showing and reports again, so `seen` counts attempts. Older records that
  * predate `items` fall back to `seen`, which is the conservative reading.
  */
-function holesOf(st) {
+function holesOf(st, floor = FORM_FLOOR) {
   const out = [];
   for (const [fid, rec] of Object.entries(st?.formsSeen || {})) {
     const asked = rec?.items ?? rec?.seen ?? 0;
-    if (asked >= FORM_FLOOR && (rec?.correct || 0) < FORM_NEED) out.push(fid);
+    if (asked >= floor && (rec?.correct || 0) < FORM_NEED) out.push(fid);
   }
   return out;
 }
+
+/**
+ * The same question asked at the stricter floor: every question type this
+ * learner was SERVED and has never once solved unaided, however few times it
+ * came up. This is the list the critic's card was holding — one entry, `symbols`,
+ * asked once, never got — and the list every gate in the build was blind to.
+ */
+const servedHoles = (st) => holesOf(st, SERVED_FLOOR);
 
 /** Every skill at or below `id` in the graph — what an item on `id` may use. */
 const CONE = new Map();
@@ -741,13 +787,16 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // …and the standing form-floor invariant, asked of every line on every item
     // rather than only at the moment a claim is made. A hole can open on a line
     // that was proved honestly last week — the endgame descent keeps serving it
-    // — and "a line cannot be HELD while a shape of it is nought for three" has
+    // — and "a line cannot be HELD while a shape of it is never once solved" has
     // no clause about when the hole opened.
     if (policy === 'engine') {
       for (const sk of SKILLS) {
         const st2 = engine.get(sk);
         if (st2?.mastered && holesOf(st2).length) {
           violate('hollowForm', `${sk} standing HELD with ${holesOf(st2).join(', ')} at 0 of ${FORM_FLOOR}`);
+        }
+        if (st2?.mastered && servedHoles(st2).length) {
+          violate('hollowServed', `${sk} standing HELD with ${servedHoles(st2).join(', ')} never once solved unaided`);
         }
       }
     }
@@ -928,6 +977,14 @@ function runLearner(seed, policy = 'engine', opts = {}) {
         if (holes.length) {
           violate('hollowForm', `${task.skill} claimed with ${holes.join(', ')} at 0 of ${FORM_FLOOR}`);
         }
+        // …and the same question at the floor the product actually promises.
+        // `holes` asks "0 of FORM_FLOOR"; this asks "0 of however many were
+        // served", which is the card the critic photographed: one question type,
+        // asked once, missed, never re-asked, line sealed.
+        const served0 = servedHoles(st);
+        if (served0.length) {
+          violate('hollowServed', `${task.skill} claimed with ${served0.join(', ')} at 0 clean of every one served`);
+        }
         const served = [...repServed.get(task.skill)];
         const surface = served.length
           ? Math.min(...served.map((rp) => surfaceTruth(k.get(task.skill), repSeen.get(task.skill)[rp] || 0)))
@@ -936,6 +993,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
           skill: task.skill,
           k: k.get(task.skill),
           holes: holes.length,
+          served0: served0.length,
           surface,
           reps: served.length,
           sightRead: !!engine.get(task.skill).viaSightRead,
@@ -974,6 +1032,9 @@ function runLearner(seed, policy = 'engine', opts = {}) {
         check: engine.get(task.skill).check
           ? { done: engine.get(task.skill).check.done, need: engine.get(task.skill).check.need }
           : null,
+        // How far this run has been extended, and why. Diagnostic only.
+        checkExt: engine.get(task.skill).check?.ext ?? null,
+        checkFormExt: engine.get(task.skill).check?.formExt ?? null,
         before, events,
       });
     }
@@ -1046,9 +1107,14 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // same strict definition rather than falling back to the aggregate.
     repServed, repSeen,
     engineMasteredSet: new Set(SKILLS.filter((s) => engine.get(s).mastered)),
+    // Lines standing HELD at the buzzer over a question type that was served
+    // and never once solved unaided — carried out so the retention test a week
+    // later can apply the same rule without an engine to ask.
+    servedHoleSet: new Set(SKILLS.filter((s) => servedHoles(engine.get(s)).length)),
     hollowAtEnd: SKILLS.filter((s) => engine.get(s).mastered && k.get(s) < HOLLOW),
     hollowAtEndStrict: SKILLS.filter((s) => engine.get(s).mastered
-      && strictTruth(k.get(s), s, { repServed, repSeen }) < HOLLOW),
+      && (strictTruth(k.get(s), s, { repServed, repSeen }) < HOLLOW
+        || servedHoles(engine.get(s)).length)),
   };
 }
 
@@ -1073,7 +1139,8 @@ function scoreAfter(r, days) {
     sum += kk;
     if (kk >= TRUE_MASTERY) trueMastered++;
     if (r.engineMasteredSet.has(s) && kk < HOLLOW) hollow++;
-    if (r.engineMasteredSet.has(s) && strictTruth(kk, s, ctx) < HOLLOW) hollowStrict++;
+    if (r.engineMasteredSet.has(s)
+      && (strictTruth(kk, s, ctx) < HOLLOW || r.servedHoleSet.has(s))) hollowStrict++;
   }
   return { trueMastered, hollow, hollowStrict, avg: sum / SKILLS.length };
 }
@@ -1104,7 +1171,12 @@ function score(engine, k, ctx) {
     if (kk >= TRUE_MASTERY) trueMastered++;
     if (m) engineMastered++;
     if (m && kk < HOLLOW) hollow++;
-    if (m && strictTruth(kk, s, ctx) < HOLLOW) hollowStrict++;
+    // A held line carrying a question type that was served and never once
+    // solved unaided is hollow whatever the hidden competence says. This is
+    // not an inference about the learner — it is the engine's own counter
+    // contradicting the engine's own badge, which is what the critic read off
+    // one card.
+    if (m && (strictTruth(kk, s, ctx) < HOLLOW || servedHoles(engine.get(s)).length)) hollowStrict++;
   }
   const avg = SKILLS.reduce((a, s) => a + k.get(s), 0) / SKILLS.length;
   return { trueMastered, engineMastered, hollow, hollowStrict, avg };
@@ -1298,6 +1370,56 @@ if (process.env.GATE_LAB) {
     }
     console.log(seqs.join('\n'));
     process.exit(0);
+  }
+  if (process.env.LAB_RUNS) {
+    // HOW MANY SHOTS AT THE GATE DOES EACH COHORT GET, AND HOW LONG IS EACH?
+    //
+    // A gate that lets a below-bar learner through is almost never a gate that
+    // is too easy on any one run — the per-run pass rate is fixed by item
+    // accuracy and barely moves. It is a gate that hands out too many runs, or
+    // too short a run, and the two are different repairs. Neither is visible in
+    // the classifier table, which reports only whether a learner ever cleared,
+    // so this reports the mechanism underneath it: runs opened per learner, the
+    // mean length each one demanded, and how they ended.
+    console.log(`  proving runs per learner (frozen cohorts, ${N} each, 40 items)`);
+    console.log('    k      runs opened   mean length   passed   ended by a miss   misses absorbed   extended for a surface   for a hole');
+    for (const c of [0.95, 0.80, 0.75, 0.70, 0.60, 0.50]) {
+      let opened = 0, passed = 0, failed = 0, charged = 0, lenSum = 0, lenN = 0, learners = 0;
+      // The two ways a run grows that are NOT a miss: waiting for a form that
+      // settles its transfer debt (`ext`), and waiting for a shape this learner
+      // has been served at all and never once solved unaided (`formExt`).
+      // The first is the "rare form a knower has to wait for"; the second is
+      // the form floor, which is not a wait at all — it is the run finally
+      // asking the question the claim is about.
+      let ext = 0, formExt = 0;
+      for (let i = 0; i < N; i++) {
+        learners++;
+        let pending = null, pendingExt = 0, pendingFormExt = 0;
+        runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+          knows: () => c, frozen: c !== 0.95, budget: c === 0.95 ? 220 : 40, record: false,
+          watch: (e) => {
+            // `check.need` is read after the observation, so the length a run
+            // demanded is its need at the moment it closed or ended.
+            if (e.check) pending = e.check.need;
+            // Read at the end of the run, not summed per item: `ext` is a
+            // running total on the run itself, so adding it up every item would
+            // count the same extension once per item that followed it.
+            if (e.checkExt != null) { pendingExt = e.checkExt; pendingFormExt = e.checkFormExt || 0; }
+            for (const ev of e.events) {
+              if (ev === 'opened') opened++;
+              if (ev === 'charged') charged++;
+              if (ev === 'passed' || ev === 'failed') {
+                if (ev === 'passed') passed++; else failed++;
+                if (pending) { lenSum += pending; lenN++; }
+                ext += pendingExt; formExt += pendingFormExt;
+                pendingExt = 0; pendingFormExt = 0;
+              }
+            }
+          },
+        });
+      }
+      console.log(`    ${c.toFixed(2)}  ${(opened / learners).toFixed(2).padStart(11)}   ${(lenN ? lenSum / lenN : 0).toFixed(2).padStart(11)}   ${(passed / learners).toFixed(2).padStart(6)}   ${(failed / learners).toFixed(2).padStart(15)}   ${(charged / learners).toFixed(2).padStart(15)}   ${(ext / Math.max(1, opened)).toFixed(2).padStart(22)}   ${(formExt / Math.max(1, opened)).toFixed(2).padStart(10)}`);
+    }
   }
   if (process.env.LAB_GATE) {
     // Gate accuracy per cohort, measured off the served items: what fraction of
@@ -1978,14 +2100,17 @@ console.log('\nfalse positives — how often a mastery claim is wrong');
   //     skill was actually served on that they are worst at, rather than their
   //     mean across all of them. This is a genuinely harder bar and it is
   //     EXPECTED TO RAISE THE RATE. The number below is the true one.
-  const badStrict = (xs) => xs.filter((c) => c.k < HOLLOW || c.holes > 0 || c.surface < HOLLOW).length;
+  const badStrict = (xs) => xs.filter((c) => c.k < HOLLOW || c.holes > 0
+    || c.served0 > 0 || c.surface < HOLLOW).length;
   const holed = all.filter((c) => c.holes > 0).length;
+  const served0 = all.filter((c) => c.served0 > 0).length;
   const surfaced = all.filter((c) => c.k >= HOLLOW && c.surface < HOLLOW).length;
   console.log('');
   console.log(`  the same claims under the stricter definition — no aggregate may stand in for a surface`);
   console.log(`    all claims                 ${String(all.length).padStart(7)}   hollow (OLD: mean competence < ${HOLLOW})        ${rate(bad(all), all.length)}%`);
   console.log(`    all claims                 ${String(all.length).padStart(7)}   hollow (NEW: + hole, + weakest surface)  ${rate(badStrict(all), all.length)}%`);
   console.log(`    of which, granted over a question type standing at 0 of ${FORM_FLOOR}   ${holed}   <- must stay 0`);
+  console.log(`    of which, granted over a question type SERVED and never once solved   ${served0}   <- must stay 0`);
   console.log(`    of which, granted over a surface the learner is below ${HOLLOW} on   ${surfaced}   (${rate(surfaced, all.length)}% of all claims)`);
   console.log(`    claims off the sight-read  ${String(viaSight.length).padStart(7)}   hollow (NEW)                             ${rate(badStrict(viaSight), viaSight.length)}%`);
   const strictEnd = results.reduce((a, r) => a + r.hollowAtEndStrict.length, 0);
@@ -2149,6 +2274,9 @@ console.log('\nthe invariants — asserted on every item and every claim above, 
       if (st.mastered && holesOf(st).length) {
         violate('hollowForm', `${sm.id} held at load with ${holesOf(st).join(', ')} at 0 of ${FORM_FLOOR}`);
       }
+      if (st.mastered && servedHoles(st).length) {
+        violate('hollowServed', `${sm.id} held at load with ${servedHoles(st).join(', ')} never once solved unaided`);
+      }
     }
   }
 
@@ -2159,6 +2287,7 @@ console.log('\nthe invariants — asserted on every item and every claim above, 
     if (n) console.log(`        first: ${FIRST[kind]}`);
   };
   line('a claim granted over a question type at 0 of ' + FORM_FLOOR, 'hollowForm', 'must be 0');
+  line('a claim granted over a question type SERVED and never solved', 'hollowServed', 'must be 0');
   line('an item taught on an unproved skill with unheld prereqs', 'lockedServe', 'must be 0');
   console.log(`        (re-probes of an already-proved line whose ground reopened: ${underReopened} — in order when granted, counted here so it is not invisible)`);
   line('an item needing a rule above its own skill in the graph', 'prereqContent', `must be 0 (${scanned} items re-derived)`);
@@ -2178,4 +2307,23 @@ console.log(`  true mastery of ${LATTICE}: ${pct(reached)} of learners`);
 console.log(`  every one of the ${SKILLS.length} skills truly mastered: ${pct(allTen)}`);
 console.log(`\n  >>> ${(100 * reached / LEARNERS).toFixed(1)}% of simulated learners reach true mastery <<<\n`);
 
-process.exit(reached / LEARNERS >= 0.8 && ladderBroken.length === 0 ? 0 : 1);
+/**
+ * THE INVARIANTS DECIDE THE EXIT CODE.
+ *
+ * They printed `PASS` and `FAIL` and `must be 0` for their whole life and then
+ * did not touch what this process returned — so a build could violate every one
+ * of them and still exit 0, and a script that ran this file as a gate was
+ * reading a headline while the failures scrolled past above it. An invariant a
+ * caller cannot fail on is a comment.
+ *
+ * That is not hypothetical here. `hollowServed` — a mastery claim granted over a
+ * question type this learner was served and never once solved — stood at
+ * 16,453 of 35,719 claims before this round's fix, and the file it is measured
+ * in exited 0 the whole time.
+ */
+const broken = Object.entries(VIOLATIONS).filter(([, n]) => n > 0);
+if (broken.length) {
+  console.log('\n  INVARIANTS BROKEN — this build does not ship:');
+  for (const [k, n] of broken) console.log(`    ${k}  ${n}   first: ${FIRST[k]}`);
+}
+process.exit(reached / LEARNERS >= 0.8 && ladderBroken.length === 0 && !broken.length ? 0 : 1);

@@ -135,6 +135,18 @@ export default {
     'write-linear': 'Zapisywanie reguł liniowych',
     'system-substitution': 'Układy przez podstawianie',
     'system-elimination': 'Układy przez przeciwne współczynniki',
+    // Poziom 3 (content/graph/algebra1-l3.json).
+    'function-notation': 'Zapis funkcyjny',
+    'domain-range': 'Dziedzina i zbiór wartości',
+    'exponent-product': 'Mnożenie potęg',
+    'exponent-power': 'Potęga potęgi',
+    'exponent-quotient': 'Dzielenie potęg',
+    'zero-negative-exponent': 'Wykładnik zero i ujemny',
+    'poly-add-sub': 'Dodawanie i odejmowanie wielomianów',
+    'poly-multiply': 'Mnożenie dwumianów',
+    'factor-common': 'Wyłączanie wspólnego czynnika',
+    'linear-vs-exponential': 'Wzrost liniowy a wykładniczy',
+    'exponential-rule': 'Reguły wykładnicze',
   },
 
   course: {
@@ -146,6 +158,7 @@ export default {
   unit: {
     'algebra1-l1': { title: 'Poziom 1 — Język równowagi' },
     'algebra1-l2': { title: 'Poziom 2 — Struktura i tempo' },
+    'algebra1-l3': { title: 'Poziom 3 — Nazwa, potęga i postać' },
   },
 
   settings: {
@@ -277,7 +290,7 @@ export default {
     wordIs: {
       rift: 'Wyrwa to pierścień rozdartego powietrza. Każda wyrwa trzyma jedno zdanie, które nie jest jeszcze prawdziwe.',
       line: 'Linia to jedna idea i wszystkie wyrwy, które ją sprawdzają. Pracujesz nad jedną linią naraz.',
-      held: 'Utrzymana znaczy dowiedziona na dobre. Utrzymana linia już się nie otwiera i nic później ci jej nie odbierze.',
+      held: 'Utrzymana znaczy: masz tę linię dowiedzioną bez pomocy, w każdym rodzaju zadania, który podaje. Utrzymanej linii rig już cię nie uczy. Rig nadal sprawdza ją później. Jeśli to sprawdzenie wypadnie źle, linia otwiera się znowu.',
       lattice: 'Sieć to wywód, który trzyma ten świat w górze. Grunt jest tam, gdzie wywód wciąż działa.',
       mote: 'Drobiny szyfru to ślad po zamkniętej wyrwie. Huta bierze drobiny i oddaje za nie sprzęt.',
       rank: 'Ranga to zdanie zakonu o tobie. Miedź to pierwsza ranga. Napraw świat, żeby ją podnieść.',
@@ -537,6 +550,7 @@ export default {
       // Szybszy zegar: wyrwy zamknięte na tym odłamku — to one przewracają
       // rozdział. Rusza przy każdej poprawnej odpowiedzi.
       sealed: 'Zamknięte wyrwy łącznie',
+      chapterBar: 'Postęp tego rozdziału',
       toChapter: '«n|one:jeszcze #|few:jeszcze #|many:jeszcze #» do rozdziału {ch}',
       chapterNight: '«n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy» do rozdziału {ch}',
       nextNight: '{rank} · «n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy»',
@@ -551,6 +565,12 @@ export default {
       held: 'Witaj z powrotem. Masz «n|one:# utrzymaną noc|few:# utrzymane noce|many:# utrzymanych nocy». Utrzymana noc to linia, która trzyma nadal po odejściu od maszyny.',
       due: 'Witaj z powrotem. «n|one:# linia czeka|few:# linie czekają|many:# linii czeka» na sprawdzenie. Sieć chce zobaczyć, co zostało. Potem do pracy.',
       none: 'Witaj z powrotem. Nie było cię «n|one:# dzień|few:# dni|many:# dni». Nic nie czeka. Wybierz szczelinę i ruszaj.',
+    },
+    /* Znak zgaszony (src/meta/night.js). Marlow mówi to raz. Bezosobowo, bo
+       druga osoba w czasie przeszłym niesie w polszczyźnie rodzaj adresata. */
+    order: {
+      kept: 'Znak zgasł. Linia „{skill}” trzyma po «n|one:# nocy|few:# nocach|many:# nocach» przerwy, a tylko o to ta sieć kiedykolwiek kogokolwiek prosiła.',
+      keptCharter: 'Znak zgaszony, i to trzeci. Zakon wystawił przywilej. Naciśnij H na wybranym gruncie, aby postawić przystanek.',
     },
     day: {
       d2: {
@@ -722,8 +742,11 @@ export default {
       tally: 'Wyrwy zamknięte tutaj',
       lockedCoda: 'Zapieczętowane do zamknięcia dowodu',
       lockedShort: 'Zapieczętowane',
-      here: 'Tutaj jesteś · {have} z {need}',
-      costs: 'Otwiera się przy {n}',
+      here: 'Tutaj jesteś · {have} z {need} pozycji',
+      hereNights: 'Tutaj jesteś · pozycja jest, «n|one:została # utrzymana noc|few:zostały # utrzymane noce|many:zostało # utrzymanych nocy»',
+      hereReady: 'Tutaj jesteś · następny rytuał już zasłużony',
+      costs: 'Otwiera się przy {n} pozycji',
+      costsNights: 'Otwiera się przy {n} pozycji i «nights|one:# utrzymanej nocy|few:# utrzymanych nocach|many:# utrzymanych nocach»',
       outOf: 'z {n}, które odłamek może przyznać',
       current: 'Tutaj jesteś',
       held: 'Utrzymana',
@@ -1168,8 +1191,8 @@ export default {
         here: 'Stoisz w samej wyrwie.',
       },
       title: 'Rozkazy',
-      goalHold: 'Zamknij {tears} wyrw na linii „{skill}”. Linia to jedna idea i wszystkie wyrwy, które ją sprawdzają. Utrzymana linia już się nie otwiera.',
-      goalHoldN: 'Zamknij dziś {tears} wyrw. Utrzymasz wtedy «n|one:# linię|few:# linie|many:# linii» na dobre. Utrzymana linia już się nie otwiera.',
+      goalHold: 'Zamknij {tears} wyrw na linii „{skill}”. Linia to jedna idea i wszystkie wyrwy, które ją sprawdzają. Linię utrzymujesz wtedy, gdy dowiedziesz jej bez pomocy, w każdym rodzaju zadania, który podaje.',
+      goalHoldN: 'Zamknij dziś {tears} wyrw. Utrzymasz wtedy «n|one:# linię|few:# linie|many:# linii». Linię utrzymujesz wtedy, gdy dowiedziesz jej bez pomocy, w każdym rodzaju zadania, który podaje.',
       goalPush: 'Zamknij {tears} wyrw na linii „{skill}”. Odepchnąć linię znaczy odzyskać teren na tej, która się wymknęła.',
       goalAny: 'Zamknij {tears} wyrw na tym odłamku. Potem zobaczymy, co zrobi sieć.',
       // Powiedziane słowami, które czytelnik już ma, zamiast dwóch nowych terminów.
@@ -1183,6 +1206,9 @@ export default {
       backHeld: 'Ostatnim razem zamknąłeś «n|one:# wyrwę|few:# wyrwy|many:# wyrw». Linia „{skill}” trzyma od tamtej pory.',
       backHeldN: 'Ostatnim razem zamknąłeś {tears} wyrw. «n|one:# linia trzyma|few:# linie trzymają|many:# linii trzyma» od tamtej pory.',
       backNone: 'Ostatnim razem zamknąłeś «n|one:# wyrwę|few:# wyrwy|many:# wyrw». Wszystko to nadal stoi.',
+      /* Pierwsze zdanie, jakie czyta wracający kadet, gdy stoi znak. Najpierw
+         fakt, potem jedno działanie. (src/meta/night.js) */
+      markWaiting: 'Znak nadal stoi. Odpowiedz raz na linii „{skill}”, bez pomocy, a znak zapłaci.',
     },
     close: {
       kick: 'Przebieg {n} · domknięty',
@@ -1212,6 +1238,13 @@ export default {
       nextNote: '«n|one:Jakaś # minuta|few:Jakieś # minuty|many:Jakieś # minut» pracy na najbardziej opłacalnej otwartej linii. Od niej zaczniemy.',
       nextNoteUnknown: 'Długa sprawa. Weźmiemy z niej pierwszy kawałek.',
       nextDoneStrong: 'Odłamek Dziewiąty w całości',
+      /* STOJĄCY ZNAK (src/meta/night.js): wiersz, który jest już prawdziwy.
+         Tekst instrukcyjny: jedno polecenie na zdanie, termin objaśniony przy
+         pierwszym użyciu. */
+      markLaidStrong: 'Stoi już znak: {skill}',
+      markLaidNote: 'To słup światła w miejscu postoju. Wróć innego dnia. Odpowiedz raz na tej linii, bez pomocy.',
+      markStrong: 'Znak nadal stoi: {skill}',
+      markNote: 'Odpowiedz raz na tej linii, bez pomocy. Znak płaci, a słup światła gaśnie.',
       dueStrong: '«n|one:# linia czeka|few:# linie czekają|many:# linii czeka» na sprawdzenie',
       dueNote: 'Te linie już trzymasz. Sieć sprawdzi je w następnej sesji. Zdana próba daje utrzymaną noc.',
       nightsStrong: '«n|one:# utrzymana noc|few:# utrzymane noce|many:# utrzymanych nocy»',
@@ -1316,6 +1349,8 @@ export default {
       repairedNote: 'Ta jedna liczba. Każda linia liczy to, w co silnik wierzy o niej teraz, i rusza się przy każdym zamknięciu.',
       time: 'Czas pracy',
       timeNote: 'Mierzony między odpowiedziami i ograniczony z góry, żeby bezczynność nigdy nie liczyła się jako praca. To nie jest zegar sesji i z założenia pokazuje mniej niż on.',
+      timeAll: 'Czas pracy łącznie',
+      timeAllNote: 'Wszystkie minuty, jakie ten zapis zmierzył, ze wszystkich sesji. Liczone między odpowiedziami i ograniczone z góry, więc bezczynność nigdy nie liczy się jako praca — dlatego pokazuje mniej niż zegar na ścianie.',
       session: 'Ta sesja',
       sessionNote: 'Ile czasu tu siedzisz: czas rzeczywisty od startu, razem z chodzeniem i czytaniem. Sesja trwa 15–25 minut i kończy się czysto.',
       // SUMA Z CAŁEJ HISTORII, I TAK JEST PODPISANA. Pod samym słowem
@@ -1323,6 +1358,8 @@ export default {
       // przebiegu: dwie różne liczby, nic ich nie rozróżniało. Ta sama zasada co
       // na pasku: zakres jest częścią nazwy.
       items: 'Odpowiedzi łącznie',
+      sealed: 'Zamknięte wyrwy łącznie',
+      sealedNote: 'Każde zdanie zamknięte na tym odłamku, ze wszystkich sesji. Jedna poprawna odpowiedź, jedna zamknięta wyrwa. Tym licznikiem odmierzane są rozdziały.',
       itemsNote: 'Wszystkie pytania, jakie widział ten zapis, ze wszystkich przebiegów. Każde wygenerowane od nowa i rozwiązane maszynowo, zanim je zobaczysz.',
       accuracy: 'Rozwiązane bez pomocy',
       accuracyNote: 'Poprawnie za pierwszym razem, bez wskazówki i bez rozwiązanego przykładu, w stosunku do wszystkich zadań.',
@@ -1448,9 +1485,8 @@ export default {
       restsUnknown: 'Ta wersja nie zapisała, na których zadaniach opiera się potwierdzenie. Na tej linii rozwiązano {of} zadań.',
       grantedOn: 'Przyznane {date}.',
       forms: 'Każdy rodzaj zadania',
-      formsNote: 'Opanujesz linię dopiero wtedy, gdy rozwiążesz bez pomocy — choć raz — każdy rodzaj zadania, który ci podaje. Rodzaj zaczyna się liczyć, gdy rig poda ci go {n} razy.',
+      formsNote: 'Opanujesz linię dopiero wtedy, gdy rozwiążesz bez pomocy — choć raz — każdy rodzaj zadania, który ci podaje. Rodzaj liczy się od pierwszego razu, gdy rig ci go poda.',
       formsNone: 'jeszcze żadnego',
-      formsThin: 'Żaden rodzaj zadania nie pojawił się jeszcze {need} razy, więc sprzęt na razie cię z żadnego nie rozlicza. Najsłabszy jak dotąd to {rep}: {n} dobrze bez pomocy, z {of} podanych.',
       formsOk: 'Twój najsłabszy rodzaj to tutaj {rep}: {n} dobrze bez pomocy, z {of} podanych.',
       formsHole: 'Nieopanowana. W rodzaju {rep} masz {n} dobrze bez pomocy, z {of} podanych. Linia zostaje otwarta, dopóki nie zrobisz tego rodzaju dobrze raz, sam. Średnia nie zastąpi zadania, którego nigdy nie zrobiłeś dobrze.',
       floorWhy: {
@@ -1609,7 +1645,7 @@ export default {
         held: 'Zamknięte linie',
         items: 'Rozwiązane zadania',
         unaided: 'Rozwiązane bez pomocy',
-        time: 'Czas pracy',
+        time: 'Czas pracy łącznie',
         claimItems: 'Zadania pod potwierdzeniami',
         testedOut: 'Zamknięte z marszu',
         withdrawn: 'Cofnięte potwierdzenia',
@@ -1718,6 +1754,18 @@ export default {
       'write-linear': 'Dwa odczyty wystarczą, by zapisać regułę: tempo ze wzrostu, start z osi.',
       'system-substitution': 'Gdy jedno zdanie mówi, ile wynosi litera, wstaw je wprost do drugiego.',
       'system-elimination': 'Dodaj dwa prawdziwe zdania, a wynik też jest prawdziwy. Ustaw literę tak, by zniknęła.',
+      // Poziom 3 (content/graph/algebra1-l3.json).
+      'function-notation': 'Reguła może mieć nazwę, a f(3) to wyjście, które daje przy 3.',
+      'domain-range': 'Wejścia, które reguła przyjmuje, to jej dziedzina; wyjścia to zbiór wartości.',
+      'exponent-product': 'Potęga liczy czynniki, więc mnożenie dwóch potęg dodaje wykładniki.',
+      'exponent-power': 'Potęga potęgi przynosi ten sam wykładnik jeszcze raz, więc wykładniki się mnożą.',
+      'exponent-quotient': 'Dzielenie potęg skraca te same czynniki, więc dolny wykładnik odchodzi od górnego.',
+      'zero-negative-exponent': 'Wykładnik zero znaczy jeden, a ujemny kładzie czynniki pod kreską.',
+      'poly-add-sub': 'Łączą się tylko wyrazy o tym samym wykładniku, a minus sięga całego nawiasu.',
+      'poly-multiply': 'Każdy wyraz pierwszego nawiasu mnoży każdy wyraz drugiego.',
+      'factor-common': 'Wyłączanie to mnożenie czytane wstecz: wyjmij wszystko, co wyrazy dzielą.',
+      'linear-vs-exponential': 'Prosta reguła dodaje tyle samo; rosnąca mnoży przez ten sam czynnik.',
+      'exponential-rule': 'Start pomnożony przez czynnik raz na krok, a przy zerze kroków — sam start.',
     },
 
     slip: {
@@ -1760,6 +1808,25 @@ export default {
       'swapped-roles': 'Zamienia miejscami, która wielkość jest która',
       'wrong-unwrap-order': 'Rozpakowuje w tej kolejności, w jakiej wyrażenie powstało',
       'x-and-x-squared': 'Traktuje x i x kwadrat jako ten sam rodzaj wyrazu',
+      // Poziom 3 (content/graph/algebra1-l3.json).
+      'base-times-exponent': 'Mnoży podstawę przez wykładnik nad nią',
+      'bases-multiplied': 'Mnoży także podstawy, nie tylko wykładniki',
+      'coefficient-not-raised': 'Podnosi literę, a liczbę z przodu zostawia',
+      'coefficients-added': 'Dodaje liczby z przodu zamiast je pomnożyć',
+      'exponents-added': 'Dodaje wykładniki tam, gdzie reguła je mnoży',
+      'exponents-multiplied': 'Mnoży wykładniki tam, gdzie reguła je dodaje',
+      'exponents-subtracted-wrong-way': 'Odejmuje wykładniki w odwrotną stronę',
+      'factor-drops-term': 'Dzieli jeden wyraz przez wspólny czynnik, a drugi zostawia',
+      'factor-partial': 'Wyłącza tylko część wspólnego czynnika',
+      'growth-is-linear': 'Dodaje czynnik na każdym kroku zamiast mnożyć',
+      'growth-start-for-factor': 'Podaje wartość startową, gdy pytamy o czynnik',
+      'input-output-swap': 'Odpowiada wejściem zamiast wyjściem',
+      'middle-term-missed': 'Mnoży skrajne wyrazy i pomija środkowe',
+      'minus-first-term-only': 'Pozwala minusowi sięgnąć tylko pierwszego wyrazu w nawiasie',
+      'negative-power-is-negative': 'Czyta ujemny wykładnik jako ujemną odpowiedź',
+      'negative-power-is-reciprocal-slip': 'Umieszcza potęgę po złej stronie kreski ułamka',
+      'range-ends-swapped': 'Czyta wyjście na złym końcu zakresu wejść',
+      'zero-power-is-zero': 'Czyta wykładnik zero jako odpowiedź zero',
     },
   },
 
@@ -1866,7 +1933,7 @@ export default {
     station: {
       name: 'Stacja przelotowa',
       short: 'Stacja',
-      what: 'H — postaw stację przelotową: stałą wieżę wznoszącego powietrza. Przemieszczaj się między dowolnymi dwiema. Kosztuje jeden przywilej i dwieście czterdzieści drobin.',
+      what: 'H — postaw stację przelotową: stałą wieżę wznoszącego powietrza. Przemieszczaj się między dowolnymi dwiema. Kosztuje jeden przywilej i drobiny podane na kafelku.',
       gist: 'stała wieża i miejsce, do którego można się przenieść',
     },
     charter: {
@@ -1941,7 +2008,7 @@ export default {
     /* …a pod liczbą: czym są te znaczniki, dopóki liczba stoi na zerze.
        Termin przychodzi razem ze znaczeniem, a wiersz postępu nigdy nie jest
        pusty. */
-    linesHeldNew: 'Utrzymana znaczy udowodniona na dobre. Utrzymana linia już się nie otwiera.',
+    linesHeldNew: 'Utrzymana znaczy: masz linię dowiedzioną bez pomocy, w każdym rodzaju zadania, który podaje. Rig sprawdza utrzymaną linię jeszcze później.',
 
     prompt: {
       open: 'Otwórz wyrwę',
@@ -2008,6 +2075,16 @@ export default {
     balanceNo: 'Belka tego nie przyjmuje',
     balanceReset: 'Odważniki układają się na nowo',
     cacheOpen: 'Skrytka otwarta — drobiny: {n}, a powietrze wznosi się tu już na stałe',
+
+    // --- przęsła (src/world/span.js): drugi rodzaj miejsca poza wyspą.
+    // Skrytka to waga i płaci wznoszącym powietrzem. Przęsło to prostokąt
+    // gruntu, który trzeba pokryć, i płaci drogą.
+    spanLock: 'Zamek powierzchniowy',
+    spanShort: 'Niepokryte. «n|one:Zostało # wolne pole|few:Zostały # wolne pola|many:Zostało # wolnych pól|other:Zostało # wolnych pól».',
+    spanOver: 'Za dużo. «n|one:# płyta spada|few:# płyty spadają|many:# płyt spada|other:# płyt spada» w przepaść.',
+    spanReset: 'Stosy układają się na nowo',
+    spanOpen: 'Przęsło otwarte — drobiny: {n}, a droga stoi tu już na stałe',
+    spanRoad: 'Droga stoi. Idź do następnego przęsła.',
 
     // --- strażnicy (src/world/warden.js): piąty dzień ----------------------
     // Tabliczka z nazwą, nie zdanie: musi się zmieścić na telefonie trzymanym
@@ -2110,12 +2187,14 @@ export default {
          jest jedynym objaśnieniem tego słowa, jakie gracz kiedykolwiek zobaczy. */
       bind: 'Strażnik ujęty — konstrukt dogoniony, odważnik zabrany, a jego zdanie staje się prawdziwe.',
       deepcache: 'Głęboka skrytka: wisząca skrytka z niewiadomą na obu szalkach. Zostawił ją strażnik.',
+      span: 'Przęsło: prostokąt gruntu w powietrzu. Pokryj go dokładnie, a zapłaci ci drogą.',
       surge: 'Wyładowanie wyrwy: pierścień, który wyrzuca otwarta wyrwa. Przeskocz je albo stracisz drobiny.',
       vault: 'Płyta wyrzutni postawiona: stań na niej, a wyrzuci cię dwanaście metrów w górę.',
       plate: 'Płyta wyrzutni kupiona: piąty element sieci.',
       flare: 'Raca wznosząca: słup unoszącego się powietrza pod twoimi butami.',
       beacon: 'Znacznik stały: powietrze, które wznosi się tu także jutro.',
       station: 'Przystanek postawiony: postój, który zostaje na mapie.',
+      order: 'Znak zgaszony: linia została tu postawiona, a po powrocie nadal trzyma.',
     },
     why: {
       seal: 'Wyrwa zamknięta',
@@ -2126,6 +2205,8 @@ export default {
       sound: 'Zejście',
       bind: 'Strażnik ujęty',
       deepcache: 'Głęboka skrytka',
+      span: 'Przęsło pokryte',
+      order: 'Znak zgaszony',
       found: 'Zebrane',
       surge: 'Wyładowanie wyrwy',
       spent: 'Wydane',

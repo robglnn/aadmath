@@ -195,7 +195,8 @@ function sealCandidates(item) {
     out.push(substVar(c.math, c.variable, A));
   }
   if (c.kind === 'equivalent' && c.math) out.push(`${c.math} = ${A}`);
-  if (item.type === 'expression' && !/\\square/.test(item.latex) && !item.latex.includes('=')) {
+  if (item.type === 'expression' && item.latex
+    && !/\\square/.test(item.latex) && !item.latex.includes('=')) {
     out.push(`${item.latex} = ${A}`);
   }
   const last = item.steps?.[item.steps.length - 1]?.latex;
@@ -960,6 +961,7 @@ export class RiftPanel {
     this.echoMis = null;
     this.lastEntry = null;
     this._an = undefined;
+    this._anMis = undefined;
     this._stood = false;
     this._forceStack = false;
     this.el.classList.remove('sealing', 'stable', 'echo-on', 'narrowed', 'solo', 'stack', 'thin', 'thinner');
@@ -1027,9 +1029,18 @@ export class RiftPanel {
     stem.innerHTML = texProse(item.stem || '');
     stem.style.display = item.stem ? '' : 'none';
 
+    // AN ITEM MAY HAVE NOTHING TO DISPLAY, AND THEN IT DISPLAYS NOTHING.
+    // The plate used to be printed unconditionally, so a form with no useful
+    // display had to invent one — which is how "which equation says what
+    // happened in the butt?" came to draw `x □ □ = □`, three empty boxes in
+    // the same glyph as an unfilled answer socket. The stem two lines above
+    // already hides itself when it is empty; the display now does the same.
     const prompt = this.$('#rf-prompt');
     prompt.classList.remove('flash');
-    prompt.innerHTML = texFirst([item.latex], { display: true }) || tex(item.latex, { display: true });
+    prompt.innerHTML = item.latex
+      ? (texFirst([item.latex], { display: true }) || tex(item.latex, { display: true }))
+      : '';
+    prompt.style.display = item.latex ? '' : 'none';
 
     const consumed = item.figure && (item.figure.kind === 'balance' || item.figure.kind === 'area');
     this.$('#rf-figure').innerHTML = consumed ? '' : figureHtml(item.figure);
@@ -1337,12 +1348,29 @@ export class RiftPanel {
    * and even then the final line is withheld.
    */
   _analogue() {
-    if (this._an !== undefined) return this._an;
+    // THE EXAMPLE IS RE-DRAWN THE MOMENT THE RIG LEARNS WHAT WENT WRONG.
+    //
+    // This was memoised on the first call, which happens before the learner has
+    // answered anything — so the example was always chosen with no knowledge of
+    // the slip, and the deepest layer went on captioning it "a different rift,
+    // the same shape" over a worked example that could not go wrong the way the
+    // learner's answer went wrong. A cold critic read exactly that: the slip was
+    // a negative sign and every number in the example was positive.
+    //
+    // So the cache is keyed on the misconception. While none is known the
+    // structural analogue stands, which is the right example for a scaffold;
+    // the first time a miss is named, the example is drawn again with the slip
+    // in hand (see `analogueFor`, which prefers a candidate the mistake is
+    // actually available on and gives way rather than return nothing).
+    const mis = this.echoMis || null;
+    if (this._an !== undefined && this._anMis === mis) return this._an;
+    this._anMis = mis;
     this._an = this.opts?.example || null;
     if (!this._an) {
       try {
         this._an = analogueFor(this.item, {
           locale: getLocale(), difficulty: this.item?.difficulty, seed: this.seed,
+          misconception: mis,
         });
       } catch { this._an = null; }
     }
@@ -1632,7 +1660,14 @@ export class RiftPanel {
     const item = this.item;
 
     let built = null;
-    if (item.type === 'special' || /\\square/.test(item.latex)) built = this._choice(work);
+    // The choice modality is selected by what the item IS — `equationChoice` —
+    // and only then, as a legacy fallback, by the box glyph. It used to be
+    // chosen by `/\\square/` alone, so a modality depended on a rendering
+    // character: the only way to get a choice item was to draw a box on the
+    // screen, whether or not the box said anything. Two forms drew a display
+    // made entirely of boxes for exactly that reason.
+    if (item.type === 'special' || item.check?.kind === 'equationChoice'
+      || (item.latex && /\\square/.test(item.latex))) built = this._choice(work);
     // A coordinate surface, for the items whose answer is a line. Owned with
     // the mathematics that needs it (src/learn/plot.js); returns null for
     // anything it cannot draw, and the rig falls through as usual.

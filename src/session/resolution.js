@@ -477,8 +477,12 @@ function nextRows(r) {
  * They are named here whenever they are true, on every close, most concrete
  * first. Every row is a thing to go and do, with the number it costs:
  *
+ *   MARK         the standing order this run left on the island — a named line,
+ *                over a named place, that is there right now. It outranks
+ *                everything because it is the only row that is already true in
+ *                the world rather than true about tomorrow. See `night.js`.
  *   DUE          lines the schedule wants re-checked tonight. The only row that
- *                is about work already owed, so it outranks everything.
+ *                is about work already owed, so it outranks everything else.
  *   CHARTER      one in hand is a waystation waiting to be placed — a key press
  *                and a price, so it is named as one.
  *   SOUNDING     how deep the descent has gone. A spare minute has an answer.
@@ -496,6 +500,32 @@ function nextRows(r) {
 function continuing(r, full = false) {
   const e = r.endgame || {};
   const rows = [];
+  /* THE MARK COMES FIRST, ALWAYS.
+   *
+   * Every other row in this block is a thing that will be true tomorrow. This
+   * one is a thing that is true NOW, standing in a field, put there by the run
+   * that is closing — and it is the only row on this card that names a place.
+   * "Something visibly waiting" is the client's whole first ask, and a reason
+   * to come back that has to share a line with four other reasons is not one.
+   *
+   * `ripe` splits the sentence in two, because they are two different
+   * instructions. On the night it is laid the mark cannot be cleared and the
+   * card must not send anybody to it: it says what it is and when it opens. On
+   * every later day it is one instruction — go there, answer once. See
+   * `src/meta/night.js`.
+   */
+  const o = r.order;
+  if (o && o.order) {
+    rows.push(o.ripe
+      ? {
+        strong: t('session.close.markStrong', { skill: t('skills.' + o.order.skill) }),
+        note: t('session.close.markNote'),
+      }
+      : {
+        strong: t('session.close.markLaidStrong', { skill: t('skills.' + o.order.skill) }),
+        note: t('session.close.markLaidNote'),
+      });
+  }
   if ((r.due || 0) > 0) {
     rows.push({ strong: t('session.close.dueStrong', { n: r.due }), note: t('session.close.dueNote') });
   }

@@ -63,7 +63,7 @@ import './kit.css';
  * for ever, on a Sovereign rank with nothing above it and a shard pile with
  * nothing left to buy. So past the last grant the ladder stops being a ladder
  * and becomes a rate: every five further points of depth is a CHARTER, and a
- * charter plus two hundred and forty shards raises a WAYSTATION — a permanent
+ * charter plus the price on the chip raises a WAYSTATION — a permanent
  * column of rising air that is also a place you can travel to from any other
  * one. It is the only thing in the game that changes the island for ever, there
  * is no last one, and the only way to earn another is to come back and find
@@ -89,7 +89,7 @@ import './kit.css';
  *                       holds for eleven seconds.
  *  12  DEEP WELL        the reserve again: three hundred, and it refills twice as fast.
  *  ---- and then, for as long as the lines keep holding ----
- *  13  WAYSTATION       H. A charter and two hundred and forty shards raise one
+ *  13  WAYSTATION       H. A charter and the price on the chip raise one
  *                       anywhere: a permanent column of rising air that is also
  *                       somewhere you can travel to, from any other one, from
  *                       now on. There is no last charter.
@@ -105,12 +105,14 @@ import './kit.css';
  *      FLARE       30  six seconds, right now
  *      PLATE       18  one place, until you clear it
  *      BEACON      90  this hillside, for ever — and dearer every time
- *      WAYSTATION 240  this hillside for ever, and every other one a step away
+ *      WAYSTATION 700  this hillside for ever, and every other one a step away
+ *                     — and dearer every time, so a network is saved for
  *
- * The fourth is what a three-hundred-shard surplus is for. It is deliberately
- * the price of two hanging caches or a very good hour, it needs a charter as
- * well as the money, and there is always another one to save for — which is
- * what stops the wallet becoming a score again the moment the last grant lands.
+ * The fourth is what a large surplus is for. It is deliberately about a day of
+ * everything the island and the lattice will pay you (see `STATION_PRICE` in
+ * ladder.js for the measurement that set it), it needs a charter as well as the
+ * money, and there is always another one to save for — which is what stops the
+ * wallet becoming a score again the moment the last grant lands.
  *
  * THE THIRD COMPLAINT, AND THE FOUNDRY
  *
@@ -158,7 +160,8 @@ import './kit.css';
  *      is now for depth not reached today; see SOUND_KEY below.
  *   3. THE WAYSTATION'S PRICE CRAWLED. It went up by 84 a time while income
  *      went up by hundreds a day. It is geometric now, like the beacon's:
- *      240 · 310 · 410 · 530 · 690 · 900 · 1170 …
+ *      700 · 910 · 1180 · 1540 · 2000 · 2600 · 3380 … and it now STARTS at
+ *      about a day's income rather than a third of one; see `ladder.js`.
  *
  * And `affordable: 0` was the shop lying: it counted only rows the *counter*
  * would sell, so an endgame cadet who owned every licence and could pay every
@@ -204,7 +207,12 @@ const APPLY = {
     P.jumpV = 12.2;
     P.doubleV = 10.8;
   },
-  sight({ drift, caches }) { drift?.setMagnet?.(14); caches?.setSight?.(true); },
+  sight({ drift, caches, spans }) {
+    drift?.setMagnet?.(14);
+    caches?.setSight?.(true);
+    // …and the spans, which are the same kind of far-off statement to read.
+    spans?.setSight?.(true);
+  },
 
   // ---- everything below here is paid for by lines that stayed held ----
   // The verb the whole economy pointed at until the waystation: permanent,
@@ -229,7 +237,7 @@ const APPLY = {
     builder.charge = builder.maxCharge;
   },
   // The licence, not the thing. What it unlocks is the H key; what H does still
-  // costs a charter and two hundred and forty shards every single time.
+  // costs a charter and the price on the chip, every single time.
   station() {},
 };
 
@@ -293,8 +301,17 @@ const SOUND_KEY = 'ascent.sound';
 
 export function createKit(opts = {}) {
   const {
-    root, mastery, builder, player, input, hud, audio, drift, caches, fx, wallet,
+    root, mastery, builder, player, input, hud, audio, drift, caches, spans, fx, wallet,
     scene,
+    /**
+     * THE STANDING ORDER (src/meta/night.js), read through an accessor because
+     * the arc is built after the kit in main.js. The kit owns exactly two
+     * things about it and no more: **where the mark stands**, and **the column
+     * of light that is standing there.** Whether an order exists, which line it
+     * names and when it may be settled all belong to the arc, which owns the
+     * clock that decides. See `markSync`.
+     */
+    night = () => null,
     isBusy = () => false,
   } = opts;
 
@@ -307,7 +324,7 @@ export function createKit(opts = {}) {
   };
   SHARD_COST.vault = PRICE.plate;
 
-  const ctx = { builder, player, drift, caches };
+  const ctx = { builder, player, drift, caches, spans };
   const held = new Set();
   let depth = -1;
   let lines = 0;
@@ -504,8 +521,9 @@ export function createKit(opts = {}) {
   /**
    * What the next waystation costs.
    *
-   * It goes up, and it now goes up the way the beacon does — by a multiple
-   * rather than by a fixed step. 240 · 310 · 410 · 530 · 690 · 900 · 1170 …
+   * It goes up, and it goes up the way the beacon does — by a multiple rather
+   * than by a fixed step. 700 · 910 · 1180 · 1540 · 2000 · 2600 · 3380 …
+   * Where the ladder starts, and why it starts there, is in `ladder.js`.
    *
    * The straight line it replaced added 84 shards a time, which is less than a
    * tenth of a day's income by the second week: a critic holding 34,782 shards
@@ -911,7 +929,7 @@ export function createKit(opts = {}) {
   /**
    * THE WAYSTATION — the rung after the last rung.
    *
-   * A charter and two hundred and forty shards. What you get is a column of
+   * A charter and the price on the chip. What you get is a column of
    * rising air twice the height of a beacon that is *also* a place: stand at
    * one, press H, and you are at the next one, anywhere on the island. Two of
    * them is a route. Four is a network, and the island is a different shape
@@ -1163,12 +1181,66 @@ export function createKit(opts = {}) {
     hud?.say?.(t('foundry.callout'), 8000);
   }
 
+  // ------------------------------------------------------- the standing mark
+  /**
+   * THE MARK — a standing order, made visible from a long way off.
+   *
+   * The client's first ask is *"a reason to open it tomorrow that exists before
+   * you close it today — something visibly waiting"*, and the operative word is
+   * **visibly**. A card that says a thing continues is a card; the criticism
+   * this whole wave answers is that the island is "still scenery with pickups
+   * on it". So the order gets a column, and the column is on the island, at the
+   * spot the cadet was standing when they stood down — which is the one place
+   * on the map they are guaranteed to recognise.
+   *
+   * THREE RULES, and each of them is one line here:
+   *
+   *   WHERE. Stamped once, the first frame after the order is laid, off the
+   *   player's own feet. The arc lays orders and cannot see the player; this
+   *   file can see the player and must not decide anything about orders.
+   *
+   *   ONE COLUMN, EVER. Keyed by the order's own day-and-line, so a reload
+   *   raises the same mark rather than a second one on top of it, and fifteen
+   *   days of coming back cannot leave fifteen columns standing in a field.
+   *
+   *   IT GOES OUT WHEN IT IS CLEARED. `life` is the column's own fade in
+   *   src/world/drift.js — the same one a flare uses — so putting the mark out
+   *   costs this file one assignment and costs the world module nothing.
+   *
+   * It is deliberately taller and thinner than a beacon and it is NOT `earned`,
+   * so it reads cool rather than warm: a beacon is a thing you bought, and this
+   * is a thing you are owed.
+   */
+  const MARK_H = 96, MARK_R = 4.2;
+  let mark = null;        // { key, col }
+  function markSync() {
+    let n = null;
+    try { n = night?.() || null; } catch { n = null; }
+    const o = n?.standing?.() || null;
+    if (!o) {
+      // Cleared, or never laid. Put out whatever is standing.
+      if (mark) { if (mark.col) mark.col.life = 1.2; mark = null; }
+      return;
+    }
+    // Where. Once, off the player's own position, and only when they are
+    // actually somewhere — a rig that has not spawned yet is at the origin.
+    if (!o.at) {
+      if (!player?.pos || (player.pos.x === 0 && player.pos.z === 0)) return;
+      n.place(player.pos.x, player.pos.z, player.pos.y);
+      return;                       // raise it on the next frame, off the save
+    }
+    const key = o.day + ':' + o.skill;
+    if (mark && mark.key === key) return;
+    if (mark && mark.col) mark.col.life = 1.2;
+    mark = { key, col: drift?.addColumn?.(o.at[0], o.at[1], MARK_H, MARK_R, false) || null };
+  }
+
   // ------------------------------------------------------------------- frame
   let poll = 0;
   let watch = 0;
   function update(dt, time) {
     poll -= dt;
-    if (poll <= 0) { poll = 0.4; sync(); }
+    if (poll <= 0) { poll = 0.4; sync(); markSync(); }
     pumpToast(dt);
     foundry.update(dt, time);
     watch -= dt;
@@ -1217,6 +1289,9 @@ export function createKit(opts = {}) {
     charters: charters(),
     stations: stations.length,
     toCharter: toCharter(),
+    /* The standing mark, as a fact about the world rather than a claim: a
+       critic reads whether a column is actually up, and where. */
+    mark: mark && mark.col ? { at: [mark.col.x, mark.col.z], top: mark.col.top } : null,
     sounding: { ...sounding },
     watch: mastery.watch?.() ?? null,
     move: {
@@ -1339,6 +1414,9 @@ export function createKit(opts = {}) {
       sday.day = 0; sday.best = 0; sday.said = false;
       beacons.length = 0;
       stations.length = 0;
+      // The standing mark goes out with everything else. The order itself is
+      // the arc's to forget (src/meta/index.js `reset`); the column is ours.
+      if (mark) { if (mark.col) mark.col.life = 1.2; mark = null; }
       charges.flare = 0;
       charges.beacon = 0;
       announced.clear();

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<!-- The wordmark only. The full, localised title is written by applyDocument()
+     in src/i18n the moment the bundle evaluates; a brand name is the one string
+     that is the same in every language, so it is the only one that ships here.
+     i18n-allow: the wordmark. A brand name is not translated. -->
+<title>ASCENT</title>
+<meta name="theme-color" content="#142246" />
+<!-- The one string here that a person may read without ever running the bundle:
+     a crawler's snippet and a share card. applyDocument() replaces it with
+     t('meta.description') on load, and every locale has its own.
+     i18n-allow: pre-boot fallback, replaced by applyDocument() at startup. -->
+<meta name="description" content="ASCENT — The Cipher Worlds. A floating island, a wing, and ten rifts held open by algebra that isn't true yet." />
+<script>
+  /* The document's language decides hyphenation and how a screen reader
+     pronounces every word on the page, and it has to be right in the first
+     frame — not after a 1.6 MB bundle has parsed. This is the same negotiation
+     src/i18n/index.js does, and it stores no prose of its own. */
+  (function () {
+    var ok = { en: 1, es: 1, pl: 1 }, l = null;
+    try { l = localStorage.getItem('ascent.locale'); } catch (e) { l = null; }
+    if (!ok[l]) {
+      var nav = navigator.languages || [navigator.language || 'en'];
+      l = null;
+      for (var i = 0; i < nav.length && !l; i++) {
+        var s = String(nav[i]).slice(0, 2);
+        if (ok[s]) l = s;
+      }
+    }
+    document.documentElement.lang = l || 'en';
+  })();
+</script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+<link rel="apple-touch-icon" href="/favicon.svg" />
+  <script type="module" crossorigin src="/assets/index-mS26E4B0.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-uIWbmUOE.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="stage"></canvas>
+    <div id="ui" aria-live="polite"></div>
+    <div id="boot">
+      <!-- i18n-allow: the wordmark. A brand name is not translated. -->
+      <div class="boot-mark">ASCENT</div>
+      <div class="boot-sub" data-i18n="meta.sub">THE CIPHER WORLDS</div>
+      <div class="boot-bar"><i></i></div>
+      <div class="boot-tip" data-i18n="boot.tip"></div>
+    </div>
+  </div>
+</body>
+</html>

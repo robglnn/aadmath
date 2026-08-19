@@ -138,6 +138,36 @@ export const FACTS = {
   'ordinal.chapterNext': { role: ROLE.ASIDE, unit: 'ordinal' },
   'ordinal.rift': { role: ROLE.ASIDE, unit: 'ordinal' },
   'time.elapsed': { role: ROLE.ASIDE, unit: 'time' },
+
+  /* ------------------------------------------------------------------------
+     THE TWO TIME FIGURES, DECLARED — because an undeclared figure is one
+     nothing compares, and that is how one of them came to run backwards.
+
+     A cold critic read the session figure five times in one unbroken sitting:
+     4 min → 7 min → 9 min → **1 min** → 5 min, with about twenty-five real
+     minutes gone at the "1 min" reading; and at the instant the panel said
+     5 min the record beside it said TIME ON TASK 7 min. Every rule in this
+     register applied to counts and none of it applied to clocks, so neither
+     number was ever checked against the other or against itself.
+
+     They are two facts and they are meant to differ, in one direction only:
+     TIME ON TASK is work done and can never exceed the sitting it was done in.
+     `tools/critic/oneclock.mjs` asserts that, asserts that neither is ever
+     printed under the other's words, and samples `session.elapsed` across a
+     whole session and fails the build if it ever decreases. */
+  /* WHAT THE ORDER HAS SEEN — standing, the number the rank ladder is bought
+     with (src/meta/standing.js). Printed twice on the dossier, once at the head
+     of the breakdown and once on the rung the cadet is standing on, and until
+     now on neither surface as a declared figure — which is how "BRONZE — You
+     are here · 50 of 30" came to sit above "SILVER — Opens at 30" with nothing
+     in the build able to notice. Not progress: it is the order's judgement of
+     you, and WORLD REPAIRED is still the only answer to "how am I doing". */
+  'rank.standing': { role: ROLE.ASIDE, unit: 'standing' },
+
+  /** How long this sitting has been going. Wall clock, monotonic, one source. */
+  'session.elapsed': { role: ROLE.ASIDE, unit: 'time' },
+  /** Time on task across the whole record: measured between answers, capped. */
+  'task.time': { role: ROLE.EVIDENCE, unit: 'time' },
 };
 
 /** Convenience aliases, so no call site spells an id as a bare string. */
@@ -159,6 +189,9 @@ export const FIG = {
   CHAPTER_NEXT_NO: 'ordinal.chapterNext',
   RIFT_NO: 'ordinal.rift',
   ELAPSED: 'time.elapsed',
+  STANDING: 'rank.standing',
+  SESSION_TIME: 'session.elapsed',
+  TASK_TIME: 'task.time',
 };
 
 /** Every id, for a gate that wants to check it has seen them all. */

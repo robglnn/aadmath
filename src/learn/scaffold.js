@@ -17,6 +17,68 @@
  * a false one.
  */
 import { safeGenerate, noteSituation } from './generators.js';
+import { explains } from './diagnose.js';
+
+/**
+ * THE ANALOGUE HAS TO BE AN ANALOGUE OF THE *SLIP*, NOT ONLY OF THE ITEM.
+ *
+ * The deepest layer of the echo is captioned "A different rift, the same
+ * shape", and a cold critic read that caption over a worked example that was
+ * not the same shape at all: the learner's error had been a **negative sign**,
+ * and every number in the example was positive. Nothing in it could have gone
+ * wrong the way their answer went wrong, so the one thing the layer promises —
+ * *this is your mistake, made somewhere else* — was the one thing it did not
+ * deliver. The caption was writing a cheque the chooser never knew about.
+ *
+ * The chooser was picking for *structural* sameness: same skill, same form,
+ * same band, different digits. That is the right test for a completion problem
+ * and it is blind to the only question the deep layer asks. So when the rig
+ * knows which misconception the learner revealed, a candidate now has to pass
+ * a second test as well.
+ *
+ * Two tests, strongest first:
+ *
+ *   1. THE EXAMPLE CAN GO WRONG THE SAME WAY. `explains(cand, mis)` asks the
+ *      generator's own diagnostic table whether this candidate carries a wrong
+ *      value that this misconception would produce. If it does, the mistake is
+ *      genuinely available on the example — the two problems are the same shape
+ *      in the sense the caption means.
+ *   2. AND, FOR THE SIGN FAMILY, THE SIGN IS ACTUALLY IN PLAY. A misconception
+ *      about a lost or misplaced negative is not reproducible on a problem with
+ *      no negative in it, whatever a distractor table says, because the learner
+ *      cannot see the thing they got wrong. So those tags additionally require
+ *      a negative number somewhere the learner will read: the prompt, the
+ *      answer, or a worked line.
+ *
+ * The requirement is a PREFERENCE and not a wall. If no candidate in the whole
+ * search can carry the slip, the ordinary structural analogue is returned
+ * rather than nothing — a structurally-matched example is a weaker lesson than
+ * a slip-matched one, and both are far better than no example at all, which
+ * falls back on the learner's own trace.
+ */
+const SIGN_SLIPS = new Set([
+  'sign-slip', 'sign-on-constant', 'same-op-both', 'sign-on-distribute',
+  'negative-coefficient', 'drop-negative', 'sign-both-sides',
+]);
+
+/** Is there a negative number anywhere this learner would read it? */
+function signInPlay(cand) {
+  const surfaces = [cand.latex || '', cand.answer, ...(cand.steps || []).map((x) => x.latex)];
+  // A minus that stands between two things is a subtraction, not a negative
+  // quantity; the one that matters is the sign attached to a number.
+  return surfaces.some((x) => /(^|[\s(={+\-*/,])-\s*\d/.test(String(x)));
+}
+
+/**
+ * Does this candidate share the structure that produced `mis`?
+ * True when no misconception is known — every candidate is equally suitable
+ * then, and this must not narrow a search it has nothing to say about.
+ */
+function carriesSlip(cand, mis) {
+  if (!mis) return true;
+  if (SIGN_SLIPS.has(mis) && !signInPlay(cand)) return false;
+  return explains(cand, mis);
+}
 
 const norm = (s) => String(s).replace(/\s+/g, '');
 // Exponent digits are notation, not values: the 2 in x^{2} is not a number a
@@ -31,6 +93,10 @@ const digitsOf = (s) => new Set((String(s).replace(/\^\s*\{?-?\d+\}?/g, '').matc
  */
 export function analogueFor(item, opts = {}) {
   if (!item) return null;
+  // The slip the learner actually revealed, when the rig knows it. See
+  // `carriesSlip`: this narrows the search to examples the mistake could have
+  // been made on, and gives way rather than return nothing.
+  const mis = opts.misconception || null;
   const locale = opts.locale || 'en';
   const d = opts.difficulty || item.difficulty || 1;
   const base = ((opts.seed ?? item.seed ?? 1) + 8117) >>> 0;
@@ -45,10 +111,13 @@ export function analogueFor(item, opts = {}) {
   // Every numeral in the live answer — those are the digits that must not be
   // copyable off the example.
   const forbidden = digitsOf(item.answer);
-  const onScreen = digitsOf(item.latex);
-  const liveTex = norm(item.latex);
+  const onScreen = digitsOf(item.latex || '');
+  const liveTex = norm(item.latex || '');
   const liveAns = norm(item.answer);
-  const skeleton = /\\square/.test(item.latex);
+  // Items whose prompt is not a problem in itself — the "which equation models
+  // this?" forms, which now carry no display at all rather than a row of empty
+  // boxes. For those, sameness lives in the situation and not in the notation.
+  const skeleton = !!item.noDisplay || /\\square/.test(item.latex || '');
   // The worked example is a second situation on the same card. It must not be
   // the live item's situation, and it must not be one the scheduler has already
   // refused for this learner.
@@ -79,6 +148,11 @@ export function analogueFor(item, opts = {}) {
     { sameForm: false, band: d },
     { sameForm: false, band: Math.max(1, d - 1) },
   ];
+  // The structural analogue that would have been returned before the slip test
+  // existed. Kept so the slip requirement can be a preference: if nothing in
+  // the whole search can carry the learner's mistake, this is what comes back,
+  // rather than no example at all.
+  let fallback = null;
   for (const pass of passes) {
     const sameForm = pass.sameForm;
     for (let i = 0; i < tries; i++) {
@@ -97,9 +171,11 @@ export function analogueFor(item, opts = {}) {
       // "Which equation models this?" items share one skeleton prompt, so for
       // them sameness lives in the situation, not in the notation.
       if (skeleton) { if (norm(cand.stem) === norm(item.stem)) continue; }
-      else if (norm(cand.latex) === liveTex) continue;   // the same problem twice
+      else if (norm(cand.latex || '') === liveTex) continue;   // the same problem twice
       if (norm(cand.answer) === liveAns) continue;       // the same answer
       if (leaks(cand)) continue;                         // the live answer is readable off it
+      // …AND IT HAS TO BE THE SAME SHAPE IN THE SENSE THE CAPTION MEANS.
+      if (!carriesSlip(cand, mis)) { fallback ||= cand; continue; }
       noteSituation(cand.scene);
       return cand;
     }
@@ -135,7 +211,7 @@ export function analogueFor(item, opts = {}) {
         if (!cand) continue;
         if (pass.sameForm && cand.form !== item.form) continue;
         if (skeleton) { if (norm(cand.stem) === norm(item.stem)) continue; }
-        else if (norm(cand.latex) === liveTex) continue;
+        else if (norm(cand.latex || '') === liveTex) continue;
         if (norm(cand.answer) === liveAns) continue;
         // Not one numeral of the live answer may also be a numeral of the
         // example's answer: the two landings have to be readably different.
@@ -145,11 +221,17 @@ export function analogueFor(item, opts = {}) {
         // …and the live answer must not be legible, as written, anywhere on it.
         const surfaces = [cand.latex, cand.answer, ...(cand.steps || []).map((s) => s.latex)].join(' ');
         if (norm(surfaces).includes(liveAns)) continue;
+        if (!carriesSlip(cand, mis)) { fallback ||= cand; continue; }
         noteSituation(cand.scene);
         return cand;
       }
     }
   }
+  // Nothing in the bank could carry this learner's slip. A structurally-matched
+  // example is a weaker lesson than a slip-matched one and a far better one
+  // than none — an item with no example falls back on the learner's own trace,
+  // which is the single trace that cannot help but contain the live answer.
+  if (fallback) { noteSituation(fallback.scene); return fallback; }
   return null;
 }
 

@@ -196,8 +196,8 @@ export const GradeShader = {
       // to go dark where the object meets it. So: if a neighbour is materially
       // closer to the lens than we are, we are sitting in something's pocket.
       //
-      // Cheap, stable, no dither, and it darkens exactly the seam where a trunk,
-      // a pillar or a boulder lands on the ground.
+      // Cheap, stable, and it darkens exactly the seam where a trunk, a pillar
+      // or a boulder lands on the ground.
       #if USE_CONTACT
       if (uContact > 0.0 && isSky < 0.5) {
         // The radius is **half a metre**, not a fixed count of pixels. That is
@@ -207,15 +207,46 @@ export const GradeShader = {
         // thing in every shot that needed grounding — the cadet, four metres
         // from the lens — got a hairline and read as a sticker on the ground.
         // In metres, the pocket under his boots is the size his boots are.
-        float rpx = clamp(0.50 * uProjScale / max(dist, 0.5), 3.0, 42.0);
+        //
+        // THE CLAMP IS A FRACTION OF THE FRAME, NOT A COUNT OF PIXELS.
+        //
+        // It used to be clamp(..., 3.0, 42.0) — forty-two *drawing-buffer*
+        // pixels. uProjScale already carries the buffer height, so the half
+        // metre in the middle of the range was resolution-independent and the
+        // two ends were not, and the ceiling binds over the whole near field,
+        // which is where the cadet is. When the governor halves the buffer —
+        // which is exactly what a long session does — forty-two buffer pixels
+        // stop being 3.1% of the frame's height and become 6.5% of it, so the
+        // black pocket around every near silhouette DOUBLES in apparent size
+        // at the moment it is being drawn at half resolution and, at the
+        // bottom tier, with FXAA switched off. A pocket that grows and
+        // hardens the longer you play is exactly the reported symptom.
+        //
+        // Both ends are now a share of the buffer height, so the pocket is
+        // the same size on screen at every resolution the governor can pick.
+        // 0.031 is the old 42 px at the resolution this was authored on, so
+        // the full-resolution look is unchanged.
+        float rmin = max(2.0, uResolution.y * 0.0025);
+        float rmax = uResolution.y * 0.031;
+        float rpx = clamp(0.50 * uProjScale / max(dist, 0.5), rmin, rmax);
         vec2 px = vec2(rpx / max(uResolution.x, 1.0), rpx / max(uResolution.y, 1.0));
         float tol = max(0.18, dist * 0.026);
+        // Eight fixed taps at a fixed phase is a rosette, and a rosette on a
+        // hard depth test is a staircase: every silhouette in the frame steps
+        // through the same eight angles at the same eight radii, so the
+        // stepping correlates across the whole image instead of averaging out.
+        // One interleaved-gradient rotation per pixel — the same trick the
+        // volumetric march already uses on its own shadow taps — turns the
+        // steps into a gradient at no extra samples.
+        float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+        float ca = cos(ign * 6.2831853), sa = sin(ign * 6.2831853);
         float occ = 0.0;
         for (int i = 0; i < 8; i++) {
           float a = float(i) * 0.7853982 + 0.4;
           // two rings, so the pocket has a gradient instead of an edge
           float rr = (i < 4) ? 0.52 : 1.0;
-          vec2 o = vec2(cos(a), sin(a)) * px * rr;
+          vec2 o = vec2(cos(a), sin(a));
+          o = vec2(o.x * ca - o.y * sa, o.x * sa + o.y * ca) * px * rr;
           float ds = eyeDist(uv + o);
           occ += clamp((dist - ds) / tol, 0.0, 1.0) * (rr > 0.9 ? 0.62 : 1.0);
         }
@@ -223,6 +254,15 @@ export const GradeShader = {
         occ *= 1.0 - smoothstep(90.0, 260.0, dist);       // near- and mid-field only
         float lum = dot(col, LUMA);
         occ *= 1.0 - smoothstep(0.72, 1.80, lum);         // never dirty a highlight
+        // …and never take the last of the light either. This term is a
+        // multiply, so on ground that is ALREADY in the sun's shadow — where
+        // the terrain has taken its ambient down to 42% and the black point is
+        // waiting a little further down the chain — it was the step that
+        // finished the pixel off and left a hard black hole with a hard edge.
+        // There is no contact shadow inside a shadow: nothing is left to
+        // occlude. The highlight guard above has always existed; this is the
+        // same guard at the other end, and it was missing.
+        occ *= smoothstep(0.012, 0.085, lum);
         // cool the pocket as well as darkening it: light that reaches into a
         // contact shadow at golden hour is sky light, and sky light is blue
         col *= (1.0 - occ * uContact) * mix(vec3(1.0), vec3(0.88, 0.95, 1.10), occ * 0.55);

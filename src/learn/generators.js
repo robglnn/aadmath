@@ -898,7 +898,7 @@ const FORMS = {
           check: { kind: 'equivalent', math: `\\frac{${v}}{${k}}`, variable: v, loose: true },
           steps: [
             { latex: `${k} \\cdot \\square = ${v}`, why: T('why.shareEqually', { k }) },
-            { latex: `\\square = ${ans}`, why: T('why.thenDivide', { k }) },
+            { latex: `\\square = ${ans}`, why: T('why.thenDivide', { c: k }) },
           ],
           distractors: [
             { v: `\\frac{${k}}{${v}}`, m: 'div-direction' },
@@ -1538,9 +1538,39 @@ const FORMS = {
         const ans = lin(2 * (a + c), v, 2 * (b + e));
         const xs = `${co(a, v)} + ${co(c, v)} + ${co(a, v)} + ${co(c, v)}`;
         const ks = `${b} + ${e} + ${b} + ${e}`;
+        // THE ITEM USED TO DO ITS OWN MODELLING, IN FRONT OF THE LEARNER.
+        //
+        // The display was `expr` — `(7x+1) + (5x+11) + (7x+1) + (5x+11)`, the
+        // four sides already written out and already in order — above a stem
+        // that had itself just said both side lengths. A cold critic put this
+        // among *"six of eleven items are answerable without ever looking at
+        // the figure… restate the whole computation in the prose above the
+        // box"*, and it is the clearest case of it in the bank: with the sum
+        // pre-assembled there is nothing left to do with the rectangle, and
+        // the item collapses into `lt-collect` with a picture beside it.
+        //
+        // Going round a closed shape and finding that four sides means two of
+        // each IS the mathematics here — it is the whole difference between a
+        // perimeter item and a collect-like-terms item. So the sum is gone and
+        // the learner assembles it. What stays is everything the learner needs
+        // and is owed:
+        //
+        //   · the two side lengths, in the PROSE. They must stay there. A
+        //     drawing is the one surface a screen reader cannot reach, and
+        //     `tools/check-figures.mjs` fails any item that labels a side the
+        //     prose never states — that gate exists because a clipped label
+        //     once drew `m + 15` as `m` and a learner who trusted the picture
+        //     was marked wrong. Redundancy about the LABELS is a requirement;
+        //     redundancy about the COMPUTATION was the defect.
+        //   · the rectangle, which now carries what the prose does not: that
+        //     this is a closed way round with four sides on it.
+        //   · `check.math`, so the marking is unchanged — it still accepts
+        //     anything equivalent to the four-side sum, and `steps` still walk
+        //     it. Only the giveaway is gone.
         return {
-          stem: `${T(sc, { w: `$${wide}$`, h: `$${tall}$` })} ${T('ask.perimeterGather')}`,
-          latex: expr,
+          stem: `${T(sc, { w: `$${wide}$`, h: `$${tall}$` })} ${T('ask.perimeterRound')}`,
+          latex: null,
+          noDisplay: true,
           type: 'expression',
           answer: ans,
           figure: { kind: 'rect', wLabel: wide, hLabel: tall },
@@ -2105,6 +2135,43 @@ const FORMS = {
         };
       },
     },
+    /**
+     * THE ITEM THAT DREW A BROKEN PICTURE OF ITSELF.
+     *
+     * This form used to carry `latex: 'x \\;\\square\\; \\square = \\square'`,
+     * and a cold critic photographed it: *"'Which equation says what happened
+     * in the butt?' renders the stem figure as `x □ □ = □` — three empty boxes,
+     * the identical glyph the UI uses for an empty answer field."* They were
+     * right twice over.
+     *
+     *   · It looks broken. `\square` is the rig's own glyph for a socket
+     *     waiting to be filled, so a display made ENTIRELY of them reads as an
+     *     input that failed to load, not as a picture of anything. `\square` is
+     *     fine where real quantities stand around it — `12 + 5 = \square`,
+     *     `4 \cdot \square = 20` — because there the box is the question. Here
+     *     every slot was a box, so the display carried nothing at all.
+     *   · On the sibling form `ts-model` it was worse than nothing: the
+     *     skeleton `\square n + \square = \square` has a `+` in it, which
+     *     silently ELIMINATES the `6n - 44 = 92` option. A display that strikes
+     *     out a distractor is a giveaway, and this one did it while looking
+     *     like a rendering fault.
+     *
+     * The right display for a "which equation says this?" item is none. The
+     * prose has to state the situation in full anyway — a screen reader has
+     * nothing else — so any figure here can only restate the prose, which is
+     * the other defect from the same review ("restate the whole computation in
+     * the prose above the box"). A figure that repeats the sentence above it is
+     * not evidence a learner read a figure; it is decoration that makes the
+     * item look richer than it is.
+     *
+     * `latex: null` is therefore deliberate, and the rig hides the display
+     * plate rather than printing an empty one. The choice modality is now
+     * routed off `check.kind === 'equationChoice'` — see src/ui/rift.js — which
+     * is what should always have selected it. It used to be selected by
+     * `/\\square/.test(item.latex)`, so the modality depended on a *rendering
+     * glyph*, and the only way to get a choice item was to draw a box on the
+     * screen whether or not the box meant anything.
+     */
     {
       id: 'oa-model', rep: 'verbal', dMin: 3, dMax: 5, distinctNums: true, scenes: 'holdBack',
       build({ r, d, T, sr }) {
@@ -2117,7 +2184,9 @@ const FORMS = {
         const ans = `${v} - ${b} = ${c}`;
         return {
           stem: `${T(sc.ctx, { b, c })} ${T(sc.model)}`,
-          latex: `${v} \\;\\square\\; \\square = \\square`,
+          // NO DISPLAY. See `oa-model`'s note below on why the skeleton went.
+          latex: null,
+          noDisplay: true,
           type: 'expression',
           answer: ans,
           check: { kind: 'equationChoice', variable: v, expect: String(x) },
@@ -2467,7 +2536,11 @@ const FORMS = {
         const ans = `${co(a, v)} + ${b} = ${c}`;
         return {
           stem: `${T(sc.bill, { a, b })} ${T('ask.whichEquationTotal', { c })}`,
-          latex: `\\square\\, ${v} + \\square = \\square`,
+          // NO DISPLAY, and here the old skeleton was also a giveaway: its `+`
+          // struck out the `6n - 44 = 92` option before the learner read it.
+          // See the note on `oa-model`.
+          latex: null,
+          noDisplay: true,
           type: 'expression',
           answer: ans,
           check: { kind: 'equationChoice', variable: v, expect: String(x) },
@@ -3065,8 +3138,37 @@ export function verify(item) {
   // That is the one way a fully verified bank can still tell a correct student
   // they are wrong, so the match has to land on a boundary where no digit,
   // letter, sign or exponent is left dangling outside it.
-  if (c.math && !c.loose && !targetIsThePrompt(item.latex, c.math)) {
-    throw new Error(`verification target "${c.math}" is not what the prompt "${item.latex}" displays`);
+  if (c.math && !c.loose) {
+    if (item.noDisplay) {
+      // AN ITEM WITH NO DISPLAY IS CHECKED AGAINST WHAT IS ON SCREEN INSTEAD.
+      //
+      // The rule above is "the mathematics we check must be the mathematics we
+      // display", and it exists so a verified bank cannot mark a correct
+      // learner wrong about a prompt they are not looking at. A no-display item
+      // has no prompt to compare with — that is the whole point of it — but the
+      // rule still has to hold, because the learner is still looking at
+      // something. What they are looking at is the DRAWING, so the target must
+      // be built out of the drawing's own labels and nothing else.
+      //
+      // `lt-perimeter` is the case: the rectangle is labelled `7x + 1` and
+      // `5x + 11`, the target is those four sides added up, and a learner who
+      // reads the picture can produce it. If a label ever stopped appearing in
+      // the target, the item would be asking about a shape it is not drawing —
+      // the same defect as a prompt/target mismatch, arrived at from the side.
+      const labels = [item.figure?.wLabel, item.figure?.hLabel, item.figure?.label]
+        .filter(Boolean).map(String);
+      if (!labels.length) {
+        throw new Error('an item with no display and no drawing cannot be checked against a target');
+      }
+      const bare = (x) => String(x).replace(/\s+/g, '').replace(/\\left|\\right/g, '');
+      for (const lab of labels) {
+        if (!bare(c.math).includes(bare(lab))) {
+          throw new Error(`verification target "${c.math}" does not use the drawn side "${lab}"`);
+        }
+      }
+    } else if (!targetIsThePrompt(item.latex, c.math)) {
+      throw new Error(`verification target "${c.math}" is not what the prompt "${item.latex}" displays`);
+    }
   }
 
   switch (c.kind) {
@@ -3574,15 +3676,41 @@ export function lettersOf(latex) {
  * It exists so that "difficulty 4" is a claim the build can check rather than a
  * label a generator gives itself.
  */
+/**
+ * The mathematics inside a stem, and nothing else.
+ *
+ * Item prose puts its notation between `$…$`, so this pulls those out and drops
+ * the words. It exists for `demandOf`: a no-display item states its quantities
+ * in the sentence, and a measure that read only the display would score
+ * "13 tonnes were hauled out; it reads 29" as an item with no numbers in it.
+ */
+function mathsInStem(stem) {
+  const src = String(stem || '');
+  const inline = [...src.matchAll(/\$([^$]+)\$/g)].map((m) => m[1]);
+  // Bare numerals in the prose are quantities too — "13 tonnes ... reads 29" —
+  // and they are how the situation forms state theirs.
+  const bare = src.replace(/\$[^$]+\$/g, ' ').match(/-?\d+/g) || [];
+  return [...inline, ...bare].join(' ');
+}
+
 export function demandOf(item) {
   // A "which equation models this?" prompt carries its numbers in the answer,
-  // not in the stem skeleton, so both are measured.
-  const lits = literalsOf(`${item.latex} ${item.answer}`);
+  // not in the stem skeleton, so both are measured — and some of those forms
+  // now carry no display at all (`noDisplay`), so the empty string and not the
+  // word "null" is what stands in for one. Interpolating a null here put the
+  // letters n, u and l into `lettersOf` and inflated the `held` term, which is
+  // a term in the measured difficulty ladder.
+  // An item with NO display carries its quantities in the stem — that is what
+  // "no display" means. Measuring only `latex` and `answer` would score every
+  // such item as almost demand-free and quietly flatten the difficulty ladder
+  // that `tools/validate-items.mjs` checks band by band.
+  const tex = item.latex || (item.noDisplay ? mathsInStem(item.stem) : '');
+  const lits = literalsOf(`${tex} ${item.answer}`);
   const maxAbs = lits.length ? Math.max(...lits) : 0;
-  const neg = /(^|[\s(=])-\s*\d|\(-/.test(item.latex) ? 1 : 0;
+  const neg = /(^|[\s(=])-\s*\d|\(-/.test(tex) ? 1 : 0;
   const ansNeg = String(item.answer).trim().startsWith('-') ? 0.5 : 0;
   const ansFrac = /\//.test(item.answer) || /\\frac/.test(item.answer) ? 0.75 : 0;
-  const terms = (String(item.latex).match(/[+]|(?<=[0-9a-zA-Z}])\s-/g) || []).length;
+  const terms = (tex.match(/[+]|(?<=[0-9a-zA-Z}])\s-/g) || []).length;
   // Quantities are quantities whether they are written as numbers or as
   // letters. Without this term a literal equation — `P = 2l + 2w`, solved for
   // w — measures as one of the easiest items in the bank, because it contains
@@ -3591,7 +3719,7 @@ export function demandOf(item) {
   // case and costs nothing; every letter after it is another quantity to keep
   // hold of. Algebra I Level 1 is single-unknown throughout, so this leaves its
   // measured ladder where it was.
-  const held = Math.max(0, lettersOf(`${item.latex} ${item.answer}`).size - 1);
+  const held = Math.max(0, lettersOf(`${tex} ${item.answer}`).size - 1);
   return (item.steps.length * 0.6) + Math.log2(1 + maxAbs) + neg + ansNeg + ansFrac
     + terms * 0.25 + held * 0.9;
 }
@@ -3613,6 +3741,19 @@ function finalize(raw, meta) {
     type: raw.type || 'numeric',
     stem: raw.stem || '',
     latex: raw.latex,
+    /**
+     * An item that has NOTHING TO SHOW, and says so.
+     *
+     * Every item used to be required to carry a display, and a form with
+     * nothing worth displaying therefore had to invent one. That is where
+     * `x \square \square = \square` came from — three empty boxes in the same
+     * glyph the rig uses for an unfilled answer socket, printed above a
+     * "which equation says this?" question whose whole content was already in
+     * the prose. The requirement stays, because an item that lost its display
+     * to a bug must still fail loudly; what changes is that "no display" is
+     * now something a form DECLARES rather than something it leaves undone.
+     */
+    noDisplay: !!raw.noDisplay,
     figure: raw.figure || null,
     answer: String(raw.answer),
     accept: raw.accept || [],
@@ -3622,15 +3763,19 @@ function finalize(raw, meta) {
     diagnostics: [],
   };
 
-  if (!item.latex || /NaN|undefined|Infinity/.test(item.latex)) throw new Error('degenerate prompt');
+  if (item.noDisplay) {
+    if (item.latex) throw new Error('an item declared noDisplay and then supplied one');
+  } else if (!item.latex || /NaN|undefined|Infinity/.test(item.latex)) {
+    throw new Error('degenerate prompt');
+  }
   // A LaTeX command that lost its backslash still renders — as the letters
   // "left(" or a stray carriage return — and strict KaTeX will not complain,
   // so nothing else catches it. This does.
-  for (const src of [item.latex, item.answer, ...(raw.steps || []).map((s) => s.latex)]) {
+  for (const src of [item.latex || '', item.answer, ...(raw.steps || []).map((s) => s.latex)]) {
     if (MANGLED.test(String(src))) throw new Error(`a control sequence lost its backslash: ${src}`);
   }
   if (/NaN|undefined|Infinity/.test(item.answer)) throw new Error('degenerate answer');
-  if (item.latex.includes('\\text{')) throw new Error('prose leaked into the notation');
+  if ((item.latex || '').includes('\\text{')) throw new Error('prose leaked into the notation');
   if (item.type === 'numeric' && !/^-?\d+(\/\d+)?$/.test(item.answer)) throw new Error('numeric answer is not exact');
 
   // A worked example whose job is to show which number came from where cannot
@@ -3638,7 +3783,7 @@ function finalize(raw, meta) {
   if (form.distinctNums) {
     // Exponents are notation, not quantities: the 2 in x^{2} is not a number
     // the learner has to trace back to anywhere.
-    const lits = literalsOf(String(item.latex).replace(/\^\s*\{?-?\d+\}?/g, ''));
+    const lits = literalsOf(String(item.latex || '').replace(/\^\s*\{?-?\d+\}?/g, ''));
     if (new Set(lits).size !== lits.length) throw new Error('repeated literal in a provenance-critical prompt');
   }
 

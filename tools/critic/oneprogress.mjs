@@ -125,6 +125,16 @@ const FACTS = {
   'ordinal.chapterNext': { role: 'aside', unit: 'ordinal' },
   'ordinal.rift': { role: 'aside', unit: 'ordinal' },
   'time.elapsed': { role: 'aside', unit: 'time' },
+  /* THE TWO TIME FIGURES. Declared because a figure nothing compares is a
+     figure that can do anything, and one of these ran 4 → 7 → 9 → 1 → 5 minutes
+     inside a single unbroken sitting before anything on the screen was allowed
+     to have an opinion about it. `tools/critic/oneclock.mjs` is where they are
+     asserted against each other, against the wall and against themselves over
+     time; they are here so that this gate's own register stays complete and
+     "not in the register" keeps meaning what it says. */
+  'rank.standing': { role: 'aside', unit: 'standing' },
+  'session.elapsed': { role: 'aside', unit: 'time' },
+  'task.time': { role: 'evidence', unit: 'time' },
 };
 
 /**

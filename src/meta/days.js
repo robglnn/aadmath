@@ -48,6 +48,10 @@
  * the best cadet in the record for it.
  */
 
+// What the spacing schedule already calls a walk away from the machine. A night
+// is measured against the same bar, from the one place it is defined.
+import { DURABLE_MINUTES } from '../learn/mastery.js';
+
 /** Milliseconds in a day. */
 const DAY = 86400000;
 
@@ -72,6 +76,11 @@ export function blankDays() {
     // there. `nightDay` is the last day credited, `durable` the engine's raw
     // count at the last look. See `noteNight`.
     nights: 0, nightDay: 0, durable: 0,
+    // …and the two that make a night cost a real absence rather than a long
+    // evening. `playedAt` is the wall clock at the last item; `gapDay` is the
+    // calendar day on which this cadet last came back from a genuine walk away
+    // from the machine. See `noteNight`.
+    playedAt: 0, gapDay: -1,
   };
 }
 
@@ -85,9 +94,39 @@ export function blankDays() {
  * one clock further down.
  *
  * A night held is therefore a **day on which at least one durable re-probe was
- * passed**, which is what the words already said. It cannot be farmed inside a
- * sitting, it cannot be farmed by holding more lines, and nine of them is nine
- * separate mornings. Nothing else in the game behaves like that.
+ * passed**, which is what the words already said. It cannot be farmed by
+ * holding more lines, and nine of them is nine separate mornings.
+ *
+ * …AND IT HAS TO BE A NIGHT.
+ *
+ * That was still one hole short, and the hole was the size of the original
+ * complaint. `durable` is the engine's count of re-probes passed after five
+ * hours of ELAPSED time on that line, and a line goes quiet while its owner
+ * works on other lines. So a cadet who never closes the tab accumulates them
+ * exactly like a cadet who leaves and comes back: measured on this build before
+ * this paragraph existed, one ten-hour sitting earned **one night held** and
+ * opened chapter four with it — the reveal, which is written to arrive on day
+ * two, bought by staying up. The calendar cannot close it either, because an
+ * evening that runs past midnight changes the date without anybody going
+ * anywhere.
+ *
+ * So a night now costs an absence. `playedAt` is the wall clock at the last
+ * item this cadet answered, and the gap in front of an item is the only thing
+ * in the game that a long sitting cannot manufacture: playing produces items,
+ * and items are what keep the gap at zero. A day may credit a night only if
+ * the cadet ARRIVED on it after a real walk away from the machine —
+ * `DURABLE_MINUTES`, the same five hours the spacing schedule already calls a
+ * gap, imported from `mastery.js` so the two cannot drift apart.
+ *
+ * The absence is remembered for the day rather than demanded of the exact item
+ * that happens to increment `durable`, and it has to be: the first item of a
+ * morning is rarely the re-probe, so requiring the gap on the item itself would
+ * credit nothing to anybody and turn the pacing gate into a wall.
+ *
+ * What this leaves reachable is unchanged for anyone who plays like a person: a
+ * morning and an evening are two arrivals and the second is five hours after
+ * the first, so a cadet who works twice a day still banks their one night a
+ * day, and a cadet who comes back tomorrow banks tomorrow's.
  *
  * @param {object} d the ledger, mutated
  * @param {number} now milliseconds, from the schedule's own clock
@@ -95,10 +134,24 @@ export function blankDays() {
  * @returns {boolean} whether this call earned a night
  */
 export function noteNight(d, now, durable) {
+  const n = dayNumber(now);
+  // Did this item arrive after a real absence? Read before `playedAt` moves,
+  // because the gap in front of an item is the whole measurement.
+  //
+  // With no `playedAt` there are two cases and they get opposite answers. A
+  // ledger that has never worked a day is a first sitting, and a first sitting
+  // is not an absence. A ledger written before this field existed, whose last
+  // worked day is behind us, is a save being reopened on a later day — which is
+  // exactly an absence, and reading it as anything else would cost every
+  // existing record a night on the day it upgraded.
+  const gap = d.playedAt ? now - d.playedAt
+    : (d.last && d.last < n ? Infinity : 0);
+  if (gap >= DURABLE_MINUTES * 60000) d.gapDay = n;
+  d.playedAt = now;
   const had = d.durable || 0;
   d.durable = durable;
   if (durable <= had) return false;
-  const n = dayNumber(now);
+  if (d.gapDay !== n) return false;     // nobody came back today
   if (d.nightDay === n) return false;   // already credited today
   d.nightDay = n;
   d.nights = (d.nights || 0) + 1;

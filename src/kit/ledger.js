@@ -100,7 +100,7 @@ export const ASSAY = 260;
  * that makes its statement true is a question answered, and answers are never
  * tapered. That distinction is the one sentence this economy exists to say.
  */
-const GROUND = new Set(['vein', 'cache', 'deepcache', 'anchor', 'found']);
+const GROUND = new Set(['vein', 'cache', 'deepcache', 'span', 'anchor', 'found']);
 /** Where the day's yield is kept, so a reload is not a fresh seam. */
 const ASSAY_KEY = 'ascent.assay';
 

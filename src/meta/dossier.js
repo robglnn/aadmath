@@ -14,7 +14,7 @@
  *               which is the point.
  *   TEN LINES   the proof itself, with real state out of the mastery model.
  */
-import { ACTS, CODA, RANKS, RANK_AT, sigilSVG } from './arc.js';
+import { ACTS, CODA, RANKS, RANK_AT, RANK_NIGHTS, rankGate, sigilSVG } from './arc.js';
 import { breakdown, STANDING_MAX } from './standing.js';
 import { t, pct } from '../i18n/index.js';
 import { FIG, tagFigure } from './progress.js';
@@ -88,18 +88,67 @@ export class Dossier {
     q('.dos-int .track i').style.width = `${Math.round(s.integrity * 100)}%`;
     q('.dos-foot').textContent = t('story.dossier.footer');
 
-    // --- the ladder -------------------------------------------------------
+    /* --- the ladder ------------------------------------------------------
+       THE CLIMB THAT CONTRADICTED ITSELF.
+
+       A cold critic read, on one card, in this order:
+
+           BRONZE  — You are here · 50 of 30
+           SILVER  — Opens at 30
+
+       "I have 50, Silver opens at 30, and I am still Bronze. A 15-year-old
+       reads '50 of 30' and concludes the game is broken." They are right, and
+       the arithmetic was right too: rank is the LOWER of two ladders (`arc.js`)
+       — standing, and nights held — and this card printed only the first one.
+       At 50 standing with no night behind them the cadet really was Bronze,
+       really had passed Silver's standing bar, and the one fact that explained
+       it was on no surface at all.
+
+       So every rung now states its WHOLE requirement, and the rung the cadet is
+       standing on states what is actually still owed, taken from `rankGate` —
+       the same function `src/meta/index.js` hands the chapter card. Three
+       consequences, all of them checkable:
+
+         · "{have} of {need}" is only ever printed while `have < need`. The
+           moment standing clears the bar the row switches to the gate that is
+           genuinely holding, so the impossible reading cannot be drawn.
+         · a rank that costs a night says so on its own row, so the row above
+           and the row below agree about the same rank.
+         · the numbers are written onto the row as data as well as words, so
+           `tools/critic/oneclock.mjs` can assert the three of them agree in one
+           frame rather than a human having to read the card.  */
     const ladder = q('.dos-ladder');
     ladder.innerHTML = '';
+    const nights = s.nights ?? 0;
+    const gate = rankGate(s.standing, nights, s.rank);
     RANKS.forEach((rank, i) => {
       const row = document.createElement('div');
       row.className = `rung${i < s.rank ? ' done' : ''}${i === s.rank ? ' here' : ''}`;
       row.innerHTML = `${sigilSVG(i, i <= s.rank ? '' : 'dim')}
         <span><span class="rn"></span><span class="rc"></span></span>`;
       row.querySelector('.rn').textContent = t('rank.' + rank);
-      row.querySelector('.rc').textContent = i === s.rank
-        ? t('story.dossier.here', { have: s.standing, need: RANK_AT[Math.min(RANKS.length - 1, i + 1)] })
-        : t('story.dossier.costs', { n: RANK_AT[i] });
+      const rc = row.querySelector('.rc');
+      rc.textContent = i === s.rank ? standingLine(s.standing, gate, s.rank) : rungCost(i);
+      /* WHAT THE CADET HAS, where the card states it. Declared, so the rung and
+         the breakdown four rows below it are compared by the gate rather than
+         by whoever happens to read the card. */
+      if (i === s.rank && gate.kind === 'standing' && gate.need > 0) {
+        tagFigure(rc, FIG.STANDING, s.standing);
+      }
+      row.dataset.rung = String(i);
+      // What this row is claiming, in machine-readable form. The gate reads
+      // these; a person reads the words beside them, and they are made from the
+      // same three numbers so they cannot part.
+      if (i === s.rank) {
+        row.dataset.rungHave = String(s.standing);
+        row.dataset.rungGate = gate.kind;
+        row.dataset.rungNeed = String(gate.kind === 'standing' && s.rank < RANKS.length - 1
+          ? RANK_AT[s.rank + 1] : '');
+        row.dataset.rungNights = String(gate.kind === 'nights' ? gate.need : '');
+      } else if (i > s.rank) {
+        row.dataset.rungNeed = String(RANK_AT[i]);
+        row.dataset.rungNights = String(RANK_NIGHTS[i] || '');
+      }
       ladder.appendChild(row);
     });
 
@@ -111,6 +160,7 @@ export class Dossier {
     head.innerHTML = '<span class="st-n"></span><span class="st-of"></span>';
     head.querySelector('.st-n').textContent = String(s.standing);
     head.querySelector('.st-of').textContent = t('story.dossier.outOf', { n: STANDING_MAX });
+    tagFigure(head.querySelector('.st-n'), FIG.STANDING, s.standing);
     stand.appendChild(head);
     for (const term of breakdown(s.ledger, s.lines, s.opened)) {
       const row = document.createElement('div');
@@ -143,6 +193,11 @@ export class Dossier {
     tally.innerHTML = '<b></b><span></span>';
     tally.querySelector('b').textContent = String(s.tears ?? 0);
     tally.querySelector('span').textContent = t('story.dossier.tally');
+    /* RIFTS SEALED IN ALL, on the second surface that prints it. Declared, so
+       the gate compares this against the report's tile in one frame instead of
+       taking two people's word for it — the whole class of defect this pass
+       exists to close is two surfaces holding one fact and nothing checking. */
+    tagFigure(tally, FIG.ALL_SEALED, s.tears ?? 0);
     log.appendChild(tally);
 
     for (const e of entries) {
@@ -196,4 +251,34 @@ export class Dossier {
       lines.appendChild(row);
     }
   }
+}
+
+/**
+ * THE RUNG THE CADET IS STANDING ON, and what it is actually waiting for.
+ *
+ * One sentence, made from `rankGate`, which returns exactly one reason — so
+ * this can never print two and can never print the wrong one. The `{have} of
+ * {need}` form is reachable only while `have < need`, because `rankGate`
+ * reports `standing` only while standing is short; the instant it clears, the
+ * gate becomes `nights` and so does the sentence.
+ */
+function standingLine(standing, gate, rank) {
+  if (gate.kind === 'top' || rank >= RANKS.length - 1) return t('story.dossier.current');
+  if (gate.kind === 'nights') return t('story.dossier.hereNights', { n: gate.need });
+  if (gate.need <= 0) return t('story.dossier.hereReady');
+  return t('story.dossier.here', { have: standing, need: RANK_AT[rank + 1] });
+}
+
+/**
+ * WHAT A RANK ABOVE YOU COSTS — the whole price, never half of it.
+ *
+ * "Opens at 30" was true and incomplete: Silver costs thirty standing AND one
+ * night held, and printing only the half a long afternoon can buy is what put
+ * this row into direct contradiction with the row above it.
+ */
+function rungCost(i) {
+  const nights = RANK_NIGHTS[i] || 0;
+  return nights > 0
+    ? t('story.dossier.costsNights', { n: RANK_AT[i], nights })
+    : t('story.dossier.costs', { n: RANK_AT[i] });
 }

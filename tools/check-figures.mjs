@@ -107,6 +107,18 @@ export const REWRITE_ASKS = new Set([
   'ask.expand', 'ask.expandAndSimplify', 'ask.multiplyOut', 'ask.takeBracketOff',
   'ask.shareOut', 'ask.whichEquivalent', 'ask.whichProduct',
   'ask.perimeterGather', 'ask.areaMultiplyOut',
+  // Level 3's power-law bank. "Write this as one power" (`l3.ask.onePower`)
+  // names the rewriting as the task in as many words, in all three locales —
+  // `n^{2} \cdot n^{3}` shown against `n^{5}` is the shape of "simplify this",
+  // not a display that answers its own question. It was simply never
+  // classified, and an unclassified rewriting ask is indistinguishable here
+  // from a giveaway: it was 4284 of this gate's findings, every one of them a
+  // false positive on one form. Classified by hand, which is the point of the
+  // list — see the note above.
+  'l3.ask.onePower', 'l3.ask.oneExpression', 'l3.ask.whatIsLeft',
+  'l3.ask.combinedTotal', 'l3.ask.plateArea', 'l3.ask.factoredForm',
+  'l3.ask.areaOnePower', 'l3.ask.wholeOnePower', 'l3.ask.shareOnePower',
+  'l3.ask.whichIsRight',
 ]);
 
 const norm = (s) => String(s ?? '').replace(/\\left|\\right/g, '').replace(/\s+/g, '');
@@ -322,6 +334,63 @@ export const FORM_ASK = {
   'ds-share': 'ask.shareOut',
   'ds-twoterm': 'ask.expandAndSimplify',
   'ds-factor': 'ask.whichProduct',
+  // --- Level 3, the rewriting bank -----------------------------------------
+  // Every form below shows an expression and marks an equivalent one. That is
+  // legitimate — it is the ordinary shape of "simplify this" — but only because
+  // the ask says so, and this table is where the ask is claimed. Not one of
+  // them had a row here, so `askKey` came through undefined for all of them and
+  // the classification could never apply: 4284 of this gate's findings were
+  // these missing rows, every one a false positive.
+  //
+  // Read off `src/content/packs/algebra1-l3.js` form by form, not guessed —
+  // each id below is paired with the ask key that form actually passes to `T`.
+  // `l3.ask.onePower`      "Write this as one power."
+  // `l3.ask.oneExpression` "Write this as one expression."
+  // `l3.ask.whatIsLeft`    "Write what is left as one expression."
+  // `l3.ask.combinedTotal` "Write the combined total as one expression."
+  // `l3.ask.plateArea`     "Write the area as one expression."
+  // `l3.ask.factoredForm`  "Write this as a product."
+  // All six name the rewriting as the task, in all three locales.
+  'xp-two': 'l3.ask.onePower',
+  'xp-coef': 'l3.ask.onePower',
+  'xp-three': 'l3.ask.onePower',
+  'xw-plain': 'l3.ask.onePower',
+  'xw-coef': 'l3.ask.onePower',
+  'xw-nested': 'l3.ask.onePower',
+  'xq-plain': 'l3.ask.onePower',
+  'xq-coef': 'l3.ask.onePower',
+  'xq-chain': 'l3.ask.onePower',
+  'xz-zero': 'l3.ask.oneExpression',
+  'xz-coefzero': 'l3.ask.oneExpression',
+  'xz-negative': 'l3.ask.oneExpression',
+  'xz-context': 'l3.ask.oneExpression',
+  'pa-add': 'l3.ask.oneExpression',
+  'pa-sub': 'l3.ask.whatIsLeft',
+  'pa-three': 'l3.ask.oneExpression',
+  'pa-context': 'l3.ask.combinedTotal',
+  'pm-mono': 'l3.ask.oneExpression',
+  'pm-binomial': 'l3.ask.oneExpression',
+  'pm-coef': 'l3.ask.oneExpression',
+  'pm-square': 'l3.ask.oneExpression',
+  'pm-context': 'l3.ask.plateArea',
+  'fc-number': 'l3.ask.factoredForm',
+  'fc-letter': 'l3.ask.factoredForm',
+  'fc-both': 'l3.ask.factoredForm',
+  'fc-three': 'l3.ask.factoredForm',
+  'fc-context': 'l3.ask.factoredForm',
+  // The three situation-dressed power forms. Same rewriting, said in a world:
+  // "Write the area / the whole / one share as one power."
+  'xp-context': 'l3.ask.areaOnePower',
+  'xw-context': 'l3.ask.wholeOnePower',
+  'xq-context': 'l3.ask.shareOnePower',
+  // The dispute forms. "Two cadets multiplied two powers of one letter and
+  // disagree about the new count. Which cadet is right?" — the stem states the
+  // rewriting as the task in as many words and then asks the learner to
+  // adjudicate it. The display is the problem, the marked value is what the
+  // right cadet got, and the learner chooses between cadets rather than
+  // transcribing anything.
+  'xp-dispute': 'l3.ask.whichIsRight',
+  'pa-dispute': 'l3.ask.whichIsRight',
 };
 
 /** The whole bank, every band, many seeds, all three locales. */
@@ -634,16 +703,41 @@ function selfTestAgreement() {
   return ok;
 }
 
-/** B. plant a question that its own display answers. */
+/**
+ * B. plant a question that its own display answers.
+ *
+ * The fixture used to be a live `lt-perimeter` item, whose display was the four
+ * sides already written out — a real self-answering display, kept honest only
+ * by an ask that named the rewriting. That item has since had its display taken
+ * away entirely (it was handing the learner the whole assembly; see
+ * `lt-perimeter` in src/learn/generators.js), and with no display there is
+ * nothing for this branch to catch. A self-test whose fixture has stopped being
+ * an example of the defect passes by accident, which is worse than failing.
+ *
+ * So the fixture is now BUILT here rather than drawn from the bank: a display
+ * and an answer that are the same expression written two ways. It cannot go
+ * stale when the bank changes, and it is unambiguously the thing the branch is
+ * for.
+ */
 function selfTestSelfAnswering() {
-  const item = generate('like-terms', 4, 4242, { form: 'lt-perimeter', locale: 'en', record: false });
-  const clean = auditSelfAnswering(item, FORM_ASK['lt-perimeter']);
+  const item = {
+    skill: 'like-terms', form: 'self-test', difficulty: 4, seed: 4242, type: 'expression',
+    latex: '\\left(7x + 1\\right) + \\left(5x + 11\\right) + \\left(7x + 1\\right) + \\left(5x + 11\\right)',
+    answer: '24x + 24',
+    stem: 'Which expression gives the distance all the way round?',
+    check: { kind: 'equivalent', variable: 'x' },
+  };
+  // Named as rewriting: legitimate, and must not be flagged.
+  const clean = auditSelfAnswering(item, 'ask.perimeterGather');
   // The ask as it shipped: names the quantity, never names the work.
-  const shipped = auditSelfAnswering({ ...item, stem: 'Which expression gives the distance all the way round?' }, 'ask.perimeterExpr');
-  const ok = clean.length === 0 && shipped.length > 0;
+  const shipped = auditSelfAnswering(item, 'ask.perimeterExpr');
+  // …and an item with no display at all cannot be self-answering.
+  const none = auditSelfAnswering({ ...item, latex: null, noDisplay: true }, 'ask.perimeterExpr');
+  const ok = clean.length === 0 && shipped.length > 0 && none.length === 0;
   console.log(`  B not-already-answered: ${ok ? 'PASS' : 'FAIL'}`);
-  console.log(`     with ask.perimeterGather: ${clean.length} problem(s)`);
-  console.log(`     with the shipped ask.perimeterExpr: ${shipped.length} problem(s)`);
+  console.log(`     a rewriting ask over its own display: ${clean.length} problem(s)`);
+  console.log(`     the same display under ask.perimeterExpr: ${shipped.length} problem(s)`);
+  console.log(`     the same item with no display at all: ${none.length} problem(s)`);
   for (const p of shipped) console.log('       · ' + p.split('\n')[0]);
   return ok;
 }

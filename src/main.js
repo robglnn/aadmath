@@ -16,6 +16,10 @@ import { createWorld, heightAt as groundHeight } from './world/world.js';
 import { Rifts } from './world/rifts.js';
 import { Player } from './player/controller.js';
 import { setSolids, lowestGround, deck as playerDeck, outsideWorld } from './player/terrain.js';
+// Read-only, for critics: the player's OWN answer to "is this a place a cadet
+// may be put down", so an instrument can be compared against the one the verb
+// actually used instead of guessing which of the two is wrong. See `site`.
+import { siteVerdict as playerSiteVerdict, openness as playerOpenness, EYE as PLAYER_EYE, setLifts } from './player/escape.js';
 import { setCamSolids } from './build/camclip.js';
 import { ControlsCard } from './player/controls.js';
 import { Builder } from './build/builder.js';
@@ -43,6 +47,7 @@ import { createRelay } from './meta/relay.js';
 import { createAudio } from './audio/index.js';
 import { createDrift } from './world/drift.js';
 import { createCaches } from './world/caches.js';
+import { createSpans } from './world/span.js';
 import { createWardens } from './world/warden.js';
 import { createBeckon } from './world/beckon.js';
 import { createAfford } from './world/afford.js';
@@ -248,6 +253,28 @@ drift.addColumn(-88, -62, 66, 7.5);
 drift.addColumn(30, 100, 58, 7);
 drift.addColumn(-104, -6, 62, 7.5);
 
+// player: …AND RECOVER DOES NOT PUT ANYBODY DOWN INSIDE ONE.
+//
+// The survey plants a permanent updraft at every landmark it claims
+// (src/world/errand.js), and a landmark is exactly where a cadet wedges himself
+// and presses R. The cold-play gate caught the result at the mark on the west
+// bank: Recover chose a site that passed every clause of escape, and four
+// tenths of a second later the world had carried him from 39.6 m to 46.7 m with
+// his own velocity still negative — because a column writes `pos.y` directly.
+// The verdict blamed the recovery for a frame taken thirty feet in the air.
+//
+// A thermal is not a defect and being launched by one is not a recovery. The
+// search steps around a rising column the way it steps around a boulder; the
+// margin is the column's own catch radius plus a metre, so the cadet lands
+// beside the lift rather than on the lip of it. (src/player/escape.js)
+setLifts((x, y, z) => {
+  for (const c of drift.columns) {
+    if (y <= c.y0 - 3 || y >= c.top) continue;
+    if (Math.hypot(x - c.x, z - c.z) < c.r + 2.6) return true;
+  }
+  return false;
+});
+
 // world: THE SURVEY (src/world/errand.js) — a reason to walk to the landmarks
 // that were already standing there. Every hero silhouette on this island now
 // carries a mark that pays, plants a permanent updraft, and turns green when it
@@ -268,8 +295,20 @@ const caches = createCaches({
   isBusy: () => panel.open,
 });
 
+// world: THE SPANS (src/world/span.js) — the second kind of place in the
+// archipelago. A cache is a balance and pays a standing updraft. A span is a
+// rectangle of ground hung in the sky that you have to cover exactly, and it
+// pays a ROAD: real floor, laid one link at a time from the island outwards, so
+// the first one has to be flown to and every one after it can be walked to.
+// Built after the caches because a road is laid into the same solid registry
+// the perches are, and the perches have to be standing first.
+const spans = createSpans({
+  scene: engine.scene, uiRoot, player, builder, hud, wallet, audio, fx,
+  isBusy: () => panel.open,
+});
+
 const kit = createKit({
-  root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, fx,
+  root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, spans, fx,
   // src/ui P1 — the grant card's own header has always said it queues behind
   // the rank rite and the session's close card, but `isBusy` only ever asked
   // about the tear, so neither of those two actually held it back. It now asks
@@ -282,6 +321,9 @@ const kit = createKit({
   // shards are quoted, explained and spent before one is spent (src/kit/foundry.js).
   // The only thing it needs from here is the scene it stands in.
   scene: engine.scene,
+  // …and the standing order, so the kit can raise the mark over it. Lazily,
+  // because `story` is built further down this file. (src/meta/night.js)
+  night: () => story?.night || null,
 });
 
 // ---------------------------------------------------------------------------
@@ -541,6 +583,12 @@ engine.add((dt, t2) => {
     // other frame in this game is allowed to belong to a panel; this key is
     // not, because a documented key that does nothing is how a session ends.
     player.pumpRecover();
+    // …and neither is the fall-catch. A ring opens on contact, the panel takes
+    // the frame, and the movement key is still held: the cadet walks off the
+    // shard with a question on screen and `update()` — which is where the catch
+    // lived — never runs again. Measured at 22 s past the point of no return,
+    // 180 m out, `caught` still zero. (player — see `pumpCatch`.)
+    player.pumpCatch(dt);
   }
   // The builder owns the whole verb — aim, preview, commit, edit, charge — so
   // that a click and a held button behave the same way in one place.
@@ -568,6 +616,7 @@ engine.add((dt, t2) => {
   // in the world on the same frame the cadet is standing there. (src/world/errand.js)
   errand.update(dt, t2);
   caches.update(dt, t2, engine.camera);
+  spans.update(dt, t2, engine.camera);
   kit.update(dt, t2);
   // …and last, because everything above may have moved the cadet: the world
   // answers whatever he is now standing in. (src/world/beckon.js)
@@ -595,6 +644,29 @@ const story = createStory({
   camera: engine.camera, drift, caches, builder, kit, vergeR: VERGE_R,
 });
 engine.add((dt, t2) => story.update(dt, t2));
+
+// ---------------------------------------------------------------------------
+// narrative + reward economy: A MARK CLEARED (src/meta/night.js).
+//
+// A standing order settles the instant the cadet answers its line, unassisted,
+// on a later day than the one it was laid on. Three things then happen, and
+// they are wired here because this is the only file that can reach all three:
+// the wallet pays, the companion says so, and every third one hands over a
+// CHARTER — the licence for a waystation, which used to be gated on depth
+// alone and therefore arrived roughly once a fortnight while the wallet filled
+// up with nothing to spend it on. Measured: 10,109 shards, one charter and no
+// waystations at day fifteen. Both scarcities have to bite at once or the
+// purchase is a wait rather than a decision.
+// ---------------------------------------------------------------------------
+story.onOrderKept((info) => {
+  wallet.earn(info.pays, 'order');
+  story.comms?.sayKey?.(info.charter ? 'story.order.keptCharter' : 'story.order.kept', {
+    tag: 'order-kept', force: true, params: { skill: t('skills.' + info.skill), n: info.nights },
+  });
+  if (info.charter) kit.grantCharter(1);
+  fx?.impact?.('good');
+  audio?.unlocked?.();
+});
 
 // ---------------------------------------------------------------------------
 // narrative: THE RELAY (src/meta/relay.js). What the world says the moment a
@@ -655,6 +727,10 @@ const report = createReport({
   // (guarded: `session` is in its temporal dead zone until the line below runs,
   // and a report opened by a harness before boot finishes must not throw.)
   seams: () => { try { return session?.state?.().run?.seams || null; } catch { return null; } },
+  // report: RIFTS SEALED IN ALL, off the one ledger that keeps it. The live HUD
+  // used to print those words over a bar that measures something else and no
+  // number at all; the words and the figure are together here now.
+  sealed: () => { try { return story?.state?.().tears ?? null; } catch { return null; } },
 });
 
 // ---------------------------------------------------------------------------
@@ -707,6 +783,13 @@ engine.add((dt) => audio.update(dt));
 
 engine.start();
 hud.render(hudState());
+/* hud: THE RIG READS THE ONE NUMBER FOR ITSELF, from this exact expression —
+   the same one the progress report and the run résumé are drawn from. A cold
+   critic caught the report at 22% and the rig at 10% seconds later with nothing
+   done in between, because the rig had to be *told* and one path had not told
+   it. Handed the question instead of the answer, it cannot go stale. See
+   `Hud.watch` in src/ui/hud.js. */
+hud.watch(hudState);
 rifts.sync(mastery);
 
 // ---------------------------------------------------------------------------
@@ -720,6 +803,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
 
 onLocaleChange(() => {
   applyStatic(); hud.render(hudState()); builder.relocalise(); caches.relocalise();
+  spans.relocalise();
   wardens.relocalise();
   afford.relocalise();
 });
@@ -751,7 +835,7 @@ window.__ascent = {
   // The reward loop: what the world produces between rifts (drift), what is
   // hung out of reach and locked behind a balance (caches), and what a sealed
   // line buys (kit). Critics read the same objects the game runs on.
-  drift, caches, kit,
+  drift, caches, spans, kit,
   // The rhythm, and what fills the gap it opens: three items per arrival
   // (stint), a named place to walk to between two of them (errand), and the one
   // line that says which. Read-only for a critic — every one of these is driven
@@ -791,7 +875,8 @@ window.__ascent = {
     // the run in progress: goal, pace, phase (src/session)
     session: session.state(),
     // what the world has produced, and what mastery has bought
-    drift: { ...drift.stats }, caches: caches.state(), kit: kit.state(),
+    drift: { ...drift.stats }, caches: caches.state(), spans: spans.state(),
+    kit: kit.state(),
     wardens: wardens.state(),
   }),
   /**
@@ -976,6 +1061,20 @@ window.__ascent = {
   deck: () => ({ lowestGround: lowestGround(), deck: playerDeck() }),
   /** …and the predicate itself, at any point. Read-only; changes nothing. */
   outside: (x, y, z) => outsideWorld(x, y, z),
+  /**
+   * THE RECOVERY'S OWN VERDICT ON A PLACE, at any column. Read-only.
+   *
+   * The cold-play gate measures escape with its own raycaster over its own list
+   * of meshes, which is exactly right — a gate that asked the player module
+   * whether the player module was happy would prove nothing. But when the two
+   * disagree there was no way to see WHICH of them was wrong, and "the gate says
+   * 29% open, the search accepts nothing under 36%" is a sentence somebody then
+   * has to resolve by guessing. This is the same numbers off the same code the
+   * verb used. (src/player/escape.js)
+   */
+  site: (x, z) => playerSiteVerdict(x, z),
+  openAt: (x, y, z) => playerOpenness(x, y, z),
+  EYE: PLAYER_EYE,
   anchors: () => ({
     secured: builder.anchors?.secured ?? 0,
     total: builder.anchors?.total ?? 0,
@@ -1009,7 +1108,7 @@ function restartRun() {
   localStorage.removeItem('ascent.save');
   localStorage.removeItem(CLOCK_KEY);
   report.tracker.reset(); story.reset(); session.reset();
-  caches.reset(); wardens.reset(); kit.reset(); wallet.reset();
+  caches.reset(); spans.reset(); wardens.reset(); kit.reset(); wallet.reset();
   // The survey is progress too: a cleared save has to hand back an island with
   // its landmarks unclaimed, or a "start over" starts over into somebody else's
   // finished map. (src/world/errand.js, src/session/stint.js, src/meta/relay.js)

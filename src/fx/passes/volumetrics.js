@@ -95,8 +95,30 @@ export class VolumetricPass extends Pass {
 
     this.material = new ShaderMaterial({
       name: 'AscentVolumetrics',
-      defines: { STEPS: steps },
+      /**
+       * MAX_STEPS is a CEILING, not the step count.
+       *
+       * The step count used to be a `#define`, and `setSteps` used to set it
+       * and ask for a recompile. Three keeps a compiled program per material
+       * per cache key and only ever releases them when the *material* is
+       * disposed, so every distinct step count the effect tier ever selected
+       * left a program alive for the rest of the session — and, far worse,
+       * compiled it in the middle of play.
+       *
+       * That closed a loop. A tier change compiled a shader; the compile is a
+       * multi-millisecond stall on the main thread; the stall lands in the p95
+       * the quality controller is reading; the controller reads the stall as
+       * the frame being late and changes the tier again. Degrading the picture
+       * was itself producing the hitch that justified degrading it further.
+       * The reported session's `programs 147 -> 153` is that loop, counted.
+       *
+       * The march already carries a dynamic `break` for spent transmittance,
+       * so one more costs nothing and the loop was never fully unrolled. The
+       * count is a uniform now and nothing recompiles during play.
+       */
+      defines: { MAX_STEPS: 38 },
       uniforms: {
+        uSteps: { value: Math.max(4, Math.min(38, steps)) },
         tDepth: { value: null },
         tShadow: { value: null },
         uShadowMat: { value: new Matrix4() },
@@ -136,6 +158,7 @@ export class VolumetricPass extends Pass {
         uniform vec3 uCamPos, uCamFwd, uSunDir, uSunCol, uSkyCol;
         uniform float uNear, uFar, uTime, uShadowTexel;
         uniform float uDensity, uHeightFall, uBaseY, uMaxDist, uG, uAmbient, uGain, uBias;
+        uniform float uSteps;
         uniform float uMistY, uMistFall, uMistAmt, uPhaseFloor;
 
         // three.js packs shadow depth into RGBA; these are its own constants.
@@ -209,9 +232,10 @@ export class VolumetricPass extends Pass {
           float sun = 0.0;
           float amb = 0.0;
           float t = 0.0;
-          const float INV = 1.0 / float(STEPS);
+          float INV = 1.0 / uSteps;
 
-          for (int i = 0; i < STEPS; i++) {
+          for (int i = 0; i < MAX_STEPS; i++) {
+            if (float(i) >= uSteps) break;
             // Warped stepping: fine where the eye is, coarse where the medium
             // has already given up. u is the jittered fraction along the
             // ray; the blend of a linear and a quadratic term keeps the first
@@ -284,10 +308,9 @@ export class VolumetricPass extends Pass {
 
   setDepth(texture) { this.material.uniforms.tDepth.value = texture || null; }
 
+  /** How many steps the march takes. A uniform: it never recompiles. */
   setSteps(n) {
-    if (this.material.defines.STEPS === n) return;
-    this.material.defines.STEPS = n;
-    this.material.needsUpdate = true;
+    this.material.uniforms.uSteps.value = Math.max(4, Math.min(38, n | 0));
   }
 
   /** Pull the live camera and the live sun shadow every frame. */

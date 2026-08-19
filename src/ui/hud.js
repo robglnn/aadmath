@@ -95,6 +95,11 @@ export class HUD {
     // what is currently drawn, so a change can be animated from it
     this._shown = { repaired: 0, shards: 0 };
     this._flareT = {};
+    /* THE RIG READS THE TRUTH; IT IS NOT TOLD IT.
+       See `watch()`. Set by src/main.js to `hudState`, the same expression the
+       report and the résumé are drawn from. */
+    this._source = null;
+    this._poll = 0;
 
     this._platform();
     this._langs();
@@ -219,6 +224,50 @@ export class HUD {
   // The readout
   // -------------------------------------------------------------------------
   /**
+   * WHERE THE ONE NUMBER COMES FROM — pulled, not pushed.
+   *
+   * A cold critic photographed the progress report reading **22% WORLD
+   * REPAIRED** and, seconds later with no action taken, this rig reading **10%**
+   * with the bar drawn at 10 — and the rig stayed at 10 across four more dumps,
+   * roughly forty seconds of play, before it caught up. Both surfaces call the
+   * same `repaired()`, so neither number was computed wrongly. The report
+   * recomputes every time it is opened; the rig was told once, by whoever
+   * remembered to call `render`, and any path that moved the learner model
+   * without going through that one call site left the largest figure on the
+   * screen describing a world the learner had already left.
+   *
+   * "Every surface must read the SAME value at the SAME instant" cannot be kept
+   * by a notification, because a notification is a thing somebody can forget to
+   * send and the forgetting is invisible. It is kept by both surfaces asking the
+   * same question of the same function. So the rig is handed the expression
+   * rather than the answer, and reads it on a frame of its own — cheap (a sum
+   * over ten lines), idempotent, and impossible to leave stale. `render` still
+   * works and is still called on the answer, because that is the frame the
+   * flare belongs to; this is the floor underneath it.
+   *
+   * @param {() => {repaired:number, shards:number}} source
+   */
+  watch(source) {
+    this._source = typeof source === 'function' ? source : null;
+    clearInterval(this._poll);
+    if (!this._source) return;
+    const read = () => {
+      let s = null;
+      try { s = this._source(); } catch { s = null; }
+      if (!s) return;
+      const want = Math.max(0, Math.min(1, s.repaired || 0));
+      const shards = s.shards ?? 0;
+      // Nothing to say unless the glass and the truth have actually parted. A
+      // repaint on every tick would restart the sweep four times a second.
+      const t0 = this._target || { repaired: -1, shards: -1 };
+      if (Math.round(want * 100) === Math.round(t0.repaired * 100) && shards === t0.shards) return;
+      this.render(s);
+    };
+    read();
+    this._poll = setInterval(read, 250);
+  }
+
+  /**
    * @param {{repaired:number, shards:number}} s `repaired` is the 0..1 fraction
    *   from `repaired()` in src/meta/progress.js — the ONE progress number. This
    *   panel does not compute it, does not adjust it, and does not derive a
@@ -233,6 +282,20 @@ export class HUD {
     if (repaired - from.repaired > 0.004) this._flare('gain', 1500);
     if (shards > from.shards) this._flare('shardup', 900);
 
+    /* THE NUMBER IS THE TRUTH; THE BAR IS THE RIDE.
+       A cold critic photographed the report reading 22% and, seconds later with
+       no action taken, this rig reading 10%. Two answers to one question, and
+       the one the learner had been staring at all session was the wrong one.
+       Part of that was staleness (fixed at the call site) and part of it was
+       this: the printed integer used to be a sample of a 620 ms tween, so for
+       the first half of every animation the largest figure on the glass was a
+       number the engine did not hold and nothing in the game had ever claimed.
+       P0's rule is exact — *if a number is animating toward a target, it must
+       never be the number a teacher reads.* So the figure and its declaration
+       snap to the truth on the frame the answer lands, and only the sweep of
+       the bar is allowed to take its time. */
+    this._target = { repaired, shards };
+    this._say({ repaired, shards });
     this._tween(from, { repaired, shards });
   }
 
@@ -247,12 +310,12 @@ export class HUD {
    */
   rankUp() { this._flare('rankup', 2400); }
 
-  /** Count the readout across to a new state rather than snapping to it. */
+  /** Sweep the bar across to the new state rather than snapping it. */
   _tween(from, to) {
     cancelAnimationFrame(this._raf);
     // A player who asked the OS for less movement gets the number, not the ride.
     if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      this._shown = { ...to }; this._paint(to); this._label(to);
+      this._shown = { ...to }; this._paint(to);
       return;
     }
     const a = { ...from };
@@ -261,28 +324,36 @@ export class HUD {
     const step = (now) => {
       const k = Math.min(1, (now - t0) / ms);
       const e = easeOut(k);
-      const cur = {
-        repaired: a.repaired + (to.repaired - a.repaired) * e,
-        shards: Math.round(a.shards + (to.shards - a.shards) * e),
-      };
-      this._paint(cur);
+      this._paint({ repaired: a.repaired + (to.repaired - a.repaired) * e });
       if (k < 1) this._raf = requestAnimationFrame(step);
-      else { this._shown = { ...to }; this._paint(to); this._label(to); }
+      else { this._shown = { ...to }; this._paint(to); }
     };
     this._raf = requestAnimationFrame(step);
   }
 
+  /**
+   * THE BAR ONLY. Every frame of the animation moves the sweep and nothing
+   * else: no text, no declaration, no aria label. What a person reads is
+   * written once, by `_say`, on the frame the truth arrived.
+   */
   _paint(v) {
     const f = v.repaired * 100;
     this.bar.style.width = `${f}%`;
     this.head.style.left = `${f}%`;
     this.head.style.opacity = f > 0.5 ? '1' : '0';
+  }
+
+  /**
+   * THE WORDS AND THE NUMBERS, at the value the engine actually holds.
+   *
+   * Called from `render` before the tween starts, so there is no instant at
+   * which the glass carries a figure the model does not. `_paint` may not write
+   * anything this function writes; the gate reads `data-fig-v` off the element
+   * this writes it on, and compares it to the engine with zero slack.
+   */
+  _say(v) {
     this.int.textContent = pct(v.repaired);
-    /* THE ONE PROGRESS FIGURE, DECLARED.
-       Tagged with the rounded whole per cent rather than the tweening fraction,
-       because that is what a person reads off the glass: the gate compares the
-       screen against the engine, and it must compare the printed integer, not a
-       number that is mid-animation. */
+    /* THE ONE PROGRESS FIGURE, DECLARED — at the target, never at the tween. */
     tagFigure(this.int, FIG.REPAIRED, Math.round(v.repaired * 100));
     this.shards.textContent = num(v.shards);
     // A noun after a numeral inflects in Polish — 1 odłamek, 3 odłamki,
@@ -293,6 +364,7 @@ export class HUD {
     // Declared anyway, so the gate can tell an inventory from a fourth opinion
     // about mastery rather than having to guess from the words.
     tagFigure(this.shards, FIG.MOTES, v.shards);
+    this._label(v);
   }
 
   /**

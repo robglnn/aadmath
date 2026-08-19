@@ -51,6 +51,14 @@
           "pack": "algebra1-l2",
           "requires": ["algebra1-l1"],
           "status": "shipped"
+        },
+        {
+          "id": "algebra1-l3",
+          "titleKey": "unit.algebra1-l3.title",
+          "graph": "graph/algebra1-l3.json",
+          "pack": "algebra1-l3",
+          "requires": ["algebra1-l1", "algebra1-l2"],
+          "status": "shipped"
         }
       ]
     },

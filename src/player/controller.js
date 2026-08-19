@@ -7,6 +7,9 @@ import { CameraRig } from './camera.js';
 import { PlayerFX } from './effects.js';
 import { ScreenFeel } from './screen.js';
 import { heightAt, gradientAt, slopeAt, outsideWorld, deck, landingNear } from './terrain.js';
+import {
+  attachScene, escapeSite, siteVerdict, openBearing, openness, frameOccluded, EYE,
+} from './escape.js';
 import { GrassPush } from './grasspush.js';
 
 const clamp = THREE.MathUtils.clamp;
@@ -57,6 +60,9 @@ export class Player {
     this.cam = new CameraRig(camera, scene);
     // the boom must never treat the cadet's own hardware as scenery
     this.root.traverse((o) => { o.userData.noCamBlock = true; });
+    // …and neither must the recovery, which asks the same scene the same
+    // question about the same meshes. (src/player/escape.js)
+    attachScene(scene);
     this.yaw = Math.PI;
     this.pitch = -0.14;
     this.groundW = 0;
@@ -86,6 +92,14 @@ export class Player {
     this._winT = 0;
     this._winWish = 0;
     this._recovered = 0;
+    /** How long the lens has had no room at all — see `_unstick`. */
+    this._blindT = 0;
+    this._blindAsk = -1e9;
+    /** The recovery's own second look — see `_verifyRecovery`. */
+    this._verifyAt = 0;
+    this._verifyWhy = '';
+    this._recTries = 0;
+    this._banned = [];
     /** Fired when `stuck` changes, so the interface can offer the way out. */
     this.onStuck = null;
     /** Fired after a recovery, with the reason, so the interface can say so. */
@@ -93,6 +107,10 @@ export class Player {
     /** True while the cadet is over open air with the island above them. */
     this.falling = false;
     this._fellT = 0;
+    this._fellAt = 0;
+    /** The hover watchdog — see `_catch`. Wall clock, and the height it began at. */
+    this._hangAt = 0;
+    this._hangY = 0;
     /** Recoveries the fall-catch has performed. Read by the gate. */
     this.caught = 0;
     /** Every recovery, however it was asked for. A key that fires is a key
@@ -147,6 +165,32 @@ export class Player {
   }
 
   /**
+   * …AND NEITHER IS THE CATCH. On its own line, for the same reason.
+   *
+   * `update()` does not run on frames a panel owns (src/main.js), and the
+   * fall-catch lived inside `update()`. So a cadet who walked off the shard
+   * with a rift open — which is not exotic: the ring opens on contact, the
+   * panel takes the frame, and W is still held — fell out of the world and the
+   * one system whose entire job is to notice never got a frame to notice in.
+   * A cold-play run caught him twenty-two seconds past the point of no return,
+   * a hundred and eighty metres out, still holding the wing open, with `caught`
+   * at zero the whole time.
+   *
+   * The Recover KEY was hoisted out of `update()` for exactly this reason two
+   * rounds ago, and the catch was left behind — which is the same defect
+   * wearing the other hat, because the promise is not "the key answers", it is
+   * "nothing in this game can strand you". The catch is the half of that a
+   * player never presses.
+   */
+  pumpCatch(dt) {
+    this.time += dt;
+    this._catch(dt);
+    // NOT the recovery's second look: that reads `cam.pos`, and the lens is not
+    // being solved on these frames. It runs on the first frame the world gets
+    // the screen back, which is the first frame there is a shot to judge.
+  }
+
+  /**
    * Notice a cadet who is trying to move and going nowhere, and a cadet who is
    * somewhere the world does not have a floor.
    */
@@ -161,6 +205,31 @@ export class Player {
     const outside = h === null && p.y < deck() + 12;
     // Buried and out of bounds are facts, and are answered fast.
     if (buried || outside) this._stuckT += dt * 3.2;
+
+    // ---- …AND BLIND IS A THIRD FACT ----------------------------------------
+    //
+    // Neither of the two above was true of the reported failure, and that is
+    // why it lasted ninety seconds. Wedged inside a landmark the cadet is
+    // *above* the heightfield — `heightAt` knows nothing about drawn meshes —
+    // so he was never "buried", he could still walk, and the game therefore
+    // never offered him the way out. He had a black frame, a working stick, and
+    // no prompt.
+    //
+    // The lens already knows. `_hit` is how much room the boom found this
+    // frame, and a boom crushed under two metres for two and a half seconds
+    // means the frame has been full of the inside of something for two and a
+    // half seconds. That is cheap and it is a screen fact, so it is only the
+    // trigger: before anything is claimed, the eye point is actually probed
+    // (src/player/escape.js), on a slow clock and only while the lens is
+    // crushed, so a hard brush past a boulder costs nothing and says nothing.
+    this._blindT = (this.cam._hit < 2.2 && !this.loco.gliding)
+      ? this._blindT + dt : 0;
+    if (this._blindT > 2.5 && this.time - this._blindAsk > 0.6) {
+      this._blindAsk = this.time;
+      const v = siteVerdict(p.x, p.z, true);
+      if (!v.ok) this._stuckT += 1.2;
+      else this._blindT = 0;
+    }
 
     // Shoving into something is only evidence, and instantaneous speed is the
     // wrong evidence: wedged against a hillside the cadet still twitches, and
@@ -260,10 +329,76 @@ export class Player {
       why = 'fell';
     }
 
+    // ---- …AND NOBODY HANGS IN THE AIR, FOR ANY REASON AT ALL --------------
+    //
+    // Everything above reasons about the fall: where the ground is, how much
+    // glide is left, how long the beat has run. All of it assumes the cadet is
+    // *moving* — and every version of this catch that has been wrong was wrong
+    // because some other system had quietly stopped him moving and the catch
+    // was busy asking a question about geometry.
+    //
+    // So this asks the one question that needs no model of anything: **over
+    // open air, with the wing shut and no scripted move running, is he still
+    // losing height?** Half a metre in a second and a half is the whole bar. A
+    // real fall covers fifty metres in that time and an apex lasts a tenth of a
+    // second, so nothing that is actually falling can trip it; a standing
+    // updraft lifts at thirteen metres a second, so nothing that is legitimately
+    // climbing can either. A mantle, a dash and the wing are excluded by name
+    // because those are the three states that are *allowed* to hold height, and
+    // all three are time-boxed. Ground the cadet built is not open air —
+    // `heightAt` sees the lattice — so a deck run out over the gulf is his.
+    //
+    // What is left is the failure this exists for: anything, now or later, that
+    // pins a cadet in the sky outside the world — a beat that ended without
+    // giving gravity back, a stale probe, a frame nobody ran. It does not matter
+    // which. He is put down, and he is put down without the fall's grace beat,
+    // because he has already had a second and a half of nothing happening.
+    {
+      const air = heightAt(p.x, p.z) === null;
+      if (air && !this.loco.grounded && !this.loco.gliding
+        && this.loco.mantleT <= 0 && this.loco.dashT <= 0) {
+        const nw = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        // Measured from the height the window OPENED at, never from last frame:
+        // a steady sink is 0.03 m per frame, and a per-frame threshold would
+        // read the whole descent as a hover.
+        if (!this._hangAt || Math.abs(p.y - this._hangY) > 0.5) {
+          this._hangAt = nw; this._hangY = p.y;
+        } else if ((nw - this._hangAt) / 1000 > 1.5) {
+          why = why || 'hung';
+        }
+      } else {
+        this._hangAt = 0;
+      }
+    }
+
     if (!why) {
-      this.falling = false;
-      this._fellT = 0;
+      // ---- THE BEAT DOES NOT RESTART EVERY TIME THE ANSWER FLICKERS --------
+      //
+      // This used to be `_fellT = 0`, and that one line is why the edge catch
+      // has been "marginal, flaky run to run" for as long as it has existed.
+      // The grace below is nine tenths of a second; the predicate above it is
+      // `reachFloor`, which is CACHED for 180 ms and for six metres of travel
+      // (src/player/terrain.js — it is a few hundred distance sums and cannot
+      // be run every frame). Under the wing the cadet covers six metres in
+      // four tenths of a second, so the floor he is being measured against
+      // arrives in steps while he descends smoothly through it: `why` reads
+      // 'fell', null, 'fell', null. Every null threw the beat away and started
+      // it again, so a fall that should have ended at 1.0 s ended at 1.6, 2.4,
+      // or — on the run that failed this gate — never, at 182 m out with the
+      // wing open. The cadet was gone the whole time; only the answer was
+      // stuttering.
+      //
+      // So the beat decays rather than resetting, at twice the rate it built.
+      // A cadet who genuinely gets back — opens the wing above a reachable pad,
+      // or lands — clears it in half the time it took to accumulate, which is a
+      // fraction of a second and changes nothing he can feel. A cadet whose
+      // predicate is merely flickering keeps his beat and gets caught on time.
+      this._fellT = Math.max(0, this._fellT - dt * 2);
+      if (this._fellT <= 0) { this.falling = false; this._fellAt = 0; }
       return;
+    }
+    if (!this.falling) {
+      this._fellAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     }
     this.falling = true;
     this._fellT += dt;
@@ -273,9 +408,28 @@ export class Player {
     // to reach for the wing, and not one second longer. Reaching for it works:
     // the wing clears the test above on the frame it opens, and the beat is
     // abandoned rather than merely paused.
+    // ---- THE BEAT IS MEASURED IN SECONDS OF THE PLAYER'S LIFE --------------
+    //
+    // …and it used to be measured in `dt`, which is not the same thing and is
+    // the last of the reasons this step has been "marginal, flaky run to run"
+    // for as long as it has existed. The engine clamps `dt` so a stall cannot
+    // teleport the cadet through a wall — entirely correct — so on a machine
+    // running at ten frames a second, one second of a child's life contributes
+    // about a third of a second to any counter built out of `dt`. The beat is
+    // nine tenths of a second on a fast laptop and nearly three on a school
+    // Chromebook, and the promise the gate measures is in wall-clock seconds
+    // either way. Instrumented on the software rasteriser: `_fellT` advanced
+    // 0.25 per 0.6 s of real time.
+    //
+    // A beat is a thing the player experiences, so it is timed on the clock the
+    // player is on. The decay above stays in `dt` on purpose — that one is
+    // hysteresis on a predicate, not a promise about how long anything lasts.
     const grace = why === 'fell' ? 0.9 : 0;
-    if (this._fellT < grace) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if ((now - this._fellAt) / 1000 < grace) return;
     this._fellT = 0;
+    this._fellAt = 0;
+    this._hangAt = 0;
     this.falling = false;
     this.caught++;
     this.recover(why === 'under' ? 'buried' : 'fell');
@@ -285,6 +439,32 @@ export class Player {
   /**
    * Put the cadet back on solid ground, wherever they are and whatever they
    * are inside of. Never fails: the landing site is the floor of last resort.
+   *
+   * ---------------------------------------------------------------------------
+   * WHAT WAS WRONG WITH THIS FOR FOUR ROUNDS: IT MOVED YOU. IT DID NOT FREE YOU.
+   *
+   * A cold critic: *"I got wedged inside terrain at ~14 min: screen is black
+   * mush, camera inside the mesh, ~90 seconds trapped. I pressed R three times
+   * and clicked the menu's RECOVER button. Nothing. Distance moved 158 m ->
+   * 154 m."* And then the sentence this comment exists for: **"Moving 3.5 m
+   * inside a hill is still inside the hill."**
+   *
+   * He was exactly right, and the reason is one line of arithmetic. The old
+   * search (`_safeSpot`) asked the heightfield for a column and put him at
+   * `h + 0.55` on it. Collision on this island is a heightfield plus the built
+   * lattice — and **every landmark, monolith, arch, hoodoo, wreck and boulder
+   * on the shard is drawn with no collider at all.** So `heightAt` answers
+   * "solid ground, 0.55 m under your boots" from the middle of a forty-metre
+   * mesh, three and a half metres along is still the middle of it, and the HUD
+   * printed BACK ON OPEN GROUND over a frame that was 81% black.
+   *
+   * The verb now searches for **escape** and verifies it before it commits:
+   * ground under the boots, nothing over his head, nothing through his chest,
+   * no drawn solid containing him, and a usable share of the directions around
+   * him reaching real distance. If the first site fails any of those it is
+   * discarded and the ring search goes on — out to sixty metres, which is
+   * further than any single structure on this island. (src/player/escape.js)
+   * ---------------------------------------------------------------------------
    */
   recover(reason = 'asked') {
     const p = this.pos;
@@ -312,8 +492,19 @@ export class Player {
     // underneath that fix, and it does not depend on having predicted the
     // state: **the way out always visibly moves you, onto open ground you can
     // stand on, every single time it is pressed.** It costs a step and a half.
-    const away = this.stuck || this.boxed
-      || reason === 'buried' || reason === 'fell' || reason === 'asked';
+    //
+    // …AND THE LIST OF REASONS IS GONE, because a list is a thing that gets one
+    // entry short. It read `stuck || boxed || 'buried' || 'fell' || 'asked'`,
+    // and the one reason missing from it was **`'menu'`** — the RECOVER button
+    // on the Esc card, which is the second thing the cold critic tried and the
+    // second thing that did nothing. The button hides the card and calls the
+    // same verb the key does, so it inherited the whole promise and none of the
+    // clause that keeps it: from a spot the game thought was fine, the button
+    // set the cadet down on the exact square metre he was standing on.
+    //
+    // There is no reason to press Recover that does not mean "move me". So the
+    // search always starts a ring out, whatever asked for it.
+    const STEP_CLEAR = 3.5;
     // Off the shard entirely: come back over the lip you left, not to the
     // landing site. Being set down two hundred metres from what you were doing
     // is a second punishment on top of the fall, and it is the one that makes a
@@ -324,10 +515,25 @@ export class Player {
     // that did not work.
     const off = heightAt(p.x, p.z) === null;
     const back = off ? this._shoreward(p.x, p.z) : null;
-    const spot = (back && this._safeSpot(back.x, back.z, 0))
-      || this._safeSpot(p.x, p.z, away ? 3.5 : 0)
+    // The search, in the order the player would want it: back over the lip he
+    // left; failing that, clear of whatever has hold of him here; failing that,
+    // the landing site; failing that, the middle of the shard. Every one of
+    // these is the *verified* search — none of them can return a spot inside a
+    // rock, which is the whole of the fix.
+    // How much of the world he could see from where he pressed it, so the
+    // search can refuse to hand him back less than he already had.
+    const want = heightAt(p.x, p.z) === null ? 0 : openness(p.x, p.y + EYE, p.z);
+    // A retry knows where it has already been. See `_verifyRecovery`.
+    const fresh = this.time - this._recovered > 1.5;
+    if (fresh) { this._recTries = 0; this._banned.length = 0; }
+    const no = this._banned.length ? this._banned : null;
+    const spot = (back && escapeSite(back.x, back.z, 0, this.home, want, no))
+      || escapeSite(p.x, p.z, STEP_CLEAR, this.home, want, no)
+      || escapeSite(this.home.x, this.home.z, 0, this.home, want, no)
+      || escapeSite(0, 0, 0, this.home, want, no)
+      // Nothing on the island passed. Better a legal column than a frozen
+      // cadet — and `_safeSpot` at least guarantees the heightfield answers.
       || this._safeSpot(this.home.x, this.home.z, 0)
-      || this._safeSpot(0, 0, 0)
       || { x: this.home.x, y: this.home.y, z: this.home.z };
 
     p.set(spot.x, spot.y, spot.z);
@@ -336,14 +542,77 @@ export class Player {
     const L = this.loco;
     L.gliding = false; L.glideOpen = 0; L.jumps = 0;
     L.grounded = true; L.airTime = 0; L.dashT = 0; L.mantleT = 0;
+    // ---- AND HE IS FACING THE WAY OUT ---------------------------------------
+    //
+    // The second half of the same report: *"that time R moved me but jammed the
+    // camera into my own avatar's shoulder."* The lens sits behind the cadet, so
+    // a recovery that lands him with his back against a boulder has put the boom
+    // inside the boulder, the boom collapses to a metre, and the frame is a
+    // pauldron. Turning him is not cosmetic here — the bearing with the most
+    // room behind it IS the bearing the shot works from, and being set down
+    // facing the open world is what "back on solid ground" is supposed to look
+    // like. (src/player/escape.js `openBearing`)
+    const face = typeof spot.yaw === 'number'
+      ? spot.yaw : openBearing(spot.x, spot.y + EYE, spot.z).yaw;
+    this.yaw = face;
+    // …and level. The pitch used to survive the recovery, so a cadet who had
+    // been staring at his own boots inside a hill was set down on open ground
+    // still staring at the ground — a frame of grass, which is the complaint
+    // he made, arriving from the one axis nobody had checked. It is also what
+    // made the shot unpredictable: every site check in escape.js solves for the
+    // lens at the rest pitch, and a lens forty degrees below it is a different
+    // camera looking at different geometry. Recovery hands back the rest pose.
+    this.pitch = -0.14;
+    L.facing = face;
+    this.root.rotation.y = face;
     // The lens is re-founded rather than flown, or the recovery is a two second
-    // pan out of the inside of a hill.
-    this.cam._first = true;
+    // pan out of the inside of a hill — and it is re-founded from scratch, so
+    // no boom length, climb or landing kick survives the place he came from.
+    this.cam.refound();
     this._stuckT = 0;
+    this._blindT = 0;
+    // …and the verb looks at what it did, two frames from now.
+    this._verifyAt = this.time + 0.10;
+    this._verifyWhy = reason;
     this._recovered = this.time;
     if (this.stuck) { this.stuck = false; this.onStuck?.(false); }
     this.onRecover?.(reason);
     return spot;
+  }
+
+
+  /**
+   * DID THE RECOVERY ACTUALLY PRODUCE A SHOT? — asked of the real camera.
+   *
+   * Everything in src/player/escape.js is a *prediction* of where the lens will
+   * end up, and it has to be: the search is choosing between places nobody is
+   * standing yet. But predicting this camera is genuinely hard — the boom
+   * shortens against geometry, the rig slides over a shoulder that swaps sides
+   * on its own, the lens climbs to clear a rise, and the cadet's origin drops
+   * half a metre onto the surface the frame after he is placed. Sharpening that
+   * guess is an endless job, and every version of it that was a centimetre out
+   * certified a frame the player could not see out of. Two rounds of this fix
+   * were spent that way.
+   *
+   * So the guess only has to be good enough to CHOOSE, and the answer is
+   * checked against the thing itself. A tenth of a second after a recovery the
+   * lens is where it is going to be; if the boom is crushed into the cadet, or
+   * a fifth of the frame is a wall inside three metres, the site is written off,
+   * and the search runs again with that place struck out. Three tries, then it
+   * stops — a cadet being teleported about the island for ever is its own kind
+   * of broken, and by then he is on solid ground either way.
+   */
+  _verifyRecovery() {
+    if (!this._verifyAt || this.time < this._verifyAt) return;
+    this._verifyAt = 0;
+    if (this._recTries >= 3) return;
+    const c = this.cam.pos;
+    const jam = this.cam._hit < 2.35;
+    const wall = frameOccluded(c.x, c.y, c.z, this.yaw, this.pitch) > 0.20;
+    if (!jam && !wall) return;
+    this._recTries++;
+    this._banned.push(this.pos.x, this.pos.z);
+    this.recover(this._verifyWhy || 'asked');
   }
 
   /**
@@ -595,6 +864,9 @@ export class Player {
       grounded: L.grounded, airTime: L.airTime, flow: L.flow,
     });
     this.pitch = this.cam.pitch;
+
+    // The recovery's second look, on the lens that is about to be drawn.
+    this._verifyRecovery();
 
     // ---------------- screen ----------------
     const glideFast = L.gliding ? clamp((L.glideSpeed - 16) / 20, 0, 1) : 0;

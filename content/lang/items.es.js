@@ -61,6 +61,7 @@ export default {
   'ask.howManyCyclesTow': '¿Cuántos ciclos de remolque compran {c} créditos?',
   'ask.howManyShiftsTotal': '¿Cuántas rotaciones dan un total de {c} turnos?',
   'ask.perimeterGather': 'La regla de abajo suma ese contorno. Junta lo que es del mismo tipo y escribe lo que queda.',
+  'ask.perimeterRound': 'Suma los cuatro lados. Junta lo que es del mismo tipo y escribe lo que queda.',
   'ask.areaMultiplyOut': 'La regla de abajo da esa área. Multiplícala término a término.',
   'ask.whenSameCost': '¿Tras cuántos viajes cuestan lo mismo?',
   'ask.shareOut': 'Reparte la barra entre todos los términos.',

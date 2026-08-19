@@ -140,6 +140,16 @@ export class QualityDirector {
     // what is handed back, the second decides how patient it is about it.
     this.tierOwed = 0;
     this.tierDrops = 0;
+    // The live test of whether the last tier drop bought any frame time, and
+    // the verdict once it has. See `tick`, DID SPENDING THE PICTURE BUY
+    // ANYTHING — a machine that is not fill-bound must not be charged the
+    // effects for a fault they cannot fix.
+    this.tierProbe = null;
+    this.tierUseless = false;
+    this.tierUselessAt = 0;
+    // Milliseconds one step of the effect tier is worth on this machine, as
+    // measured rather than assumed. Zero until a drop has proved itself.
+    this.tierCost = 0;
     // Consecutive windows whose p95 was late, and consecutive windows that were
     // outright comfortable. One hitch is an event; a run of them is a load.
     this.spikeRun = 0;
@@ -155,6 +165,11 @@ export class QualityDirector {
     this.good = 0;
     this.spikeRun = 0;
     this.calmRun = 0;
+    // A probe measures frame time across the seconds either side of a drop.
+    // A tab that was in the background for a minute has no such seconds, so
+    // the reading is void rather than favourable — abandon it and let the next
+    // genuine drop start a fresh one.
+    this.tierProbe = null;
   }
 
   /**
@@ -233,20 +248,44 @@ export class QualityDirector {
     //
     // So the median alone decides the climb. The p95 keeps its veto exactly
     // where it is a fill signal — in `late` below, which already requires the
-    // median to be elevated too — and it still holds back the half-credit band,
-    // where the headroom is thin enough for spikes to matter.
+    // median to be elevated too.
+    //
+    // ---- AND THE SAME ARGUMENT, ONE KNOB DOWN: THE RESOLUTION RATCHET -----
+    //
+    // The half-credit band used to keep the p95 veto, on the grounds that its
+    // headroom is thin enough for spikes to matter. Over a real fifteen-minute
+    // session that veto is not occasional, it is permanent, and it closes the
+    // only door a machine in that band has. Measured, playing with real keys
+    // for fifteen minutes:
+    //
+    //     cap 1.50 -> 1.35 -> 1.20 -> 1.17     median 61 to 91 fps throughout
+    //
+    // Monotone. The median never once justified a shrink of that size, but the
+    // p95 was over 21 ms in nearly every window — a card laying out KaTeX, a
+    // shader compiling the first time a biome is seen, the collector — so
+    // `okish` was false in nearly every window, `easy` needs 11.5 ms and was
+    // false too, and the cap simply stayed wherever the first bad minute left
+    // it. That is 61% of the pixels the game opened with, and it is most of
+    // what "it gets uglier the longer you play it" means.
+    //
+    // Two changes, and they are the same change: a p95 spike only counts
+    // against us when the median is genuinely uncomfortable — `mildMs`, the
+    // line the half-credit band itself uses — and below that line the median
+    // alone decides. The two tests are now mutually exclusive by construction,
+    // so the controller cannot shrink and grow against the same window, which
+    // is the oscillation the veto was there to prevent.
     const spiky = p95 > this.calmMs;
     this.spikeRun = spiky ? this.spikeRun + 1 : 0;
 
     // One late window is an event; two in a row is a load. Without this a
     // single card opening costs resolution the session then has to buy back.
-    const late = p50 > this.slowMs || (p95 > this.spikeMs && p50 > this.fastMs && this.spikeRun >= 2);
+    const late = p50 > this.slowMs || (p95 > this.spikeMs && p50 >= this.mildMs && this.spikeRun >= 2);
     const dire = p50 > this.direMs;
     const easy = p50 < this.fastMs;
     // The band between "fast" and "comfortable" is no longer a hole to fall
     // into. It climbs, at half credit, so a machine sitting at 80 fps still
     // gets its effects back — it just takes six windows instead of three.
-    const okish = p50 < this.mildMs && !spiky;
+    const okish = p50 < this.mildMs;
 
     if (late) { this.bad += dire ? 2 : 1; this.good = 0; }
     else if (easy) { this.good++; this.bad = 0; }
@@ -262,7 +301,95 @@ export class QualityDirector {
       if (++this.calmRun >= 30) { this.calmRun = 0; this.tierDrops = Math.max(0, this.tierDrops - 1); }
     } else this.calmRun = 0;
 
+    // ---- DID SPENDING THE PICTURE ACTUALLY BUY ANYTHING? ------------------
+    //
+    // The reported session is the argument for this whole block. A critic
+    // played three minutes and photographed the result:
+    //
+    //     tier high, 70.9 fps   ->   tier low, 74.6 fps
+    //
+    // The controller surrendered the volumetric march, two thirds of the bloom
+    // pyramid, FXAA and three quarters of the near-field motes, and it bought
+    // back three and a half frames a second. The frame was never fill-bound;
+    // it was late for a reason a fill-rate knob cannot touch, and the player
+    // paid for the diagnosis in picture.
+    //
+    // So a drop is now a *hypothesis*, and it is tested. When the tier goes
+    // down we remember the median that took it, watch the next few windows,
+    // and read the result in the purchase's own favour — the BEST median it
+    // managed, not the average. If even that is not a tenth of the frame
+    // better, the tier was not the lever on this machine: hand it straight
+    // back and stop reaching for it. Resolution keeps working either way,
+    // because resolution really is fill rate.
+    if (this.tierUseless && p50 > this.tierUselessAt * 1.6) {
+      this.tierUseless = false;
+      this.tierUselessAt = 0;
+    }
+
+    if (this.tierProbe) {
+      this.tierProbe.best = Math.min(this.tierProbe.best, p50);
+      if (--this.tierProbe.left <= 0) {
+        const saved = this.tierProbe.before - this.tierProbe.best;
+        const gain = saved / this.tierProbe.before;
+        // What one step of the effect tier is worth on THIS machine, in
+        // milliseconds. Remembering it is the difference between a controller
+        // that hands the tier back whenever the frame looks calm — and then
+        // takes it away again the moment the effects are switched back on, all
+        // session, which is far worse to sit in front of than either state —
+        // and one that waits until there is demonstrably room for it.
+        if (gain >= 0.10) this.tierCost = Math.max(this.tierCost, saved);
+        if (gain < 0.10) {
+          this.tierUseless = true;
+          // …but "useless" is a verdict about the frame we measured, not a
+          // life sentence. If the frame later becomes half again as expensive
+          // as the one the probe judged, that is a different machine in a
+          // different place — a heavier part of the island, a second tab
+          // closing, a phone coming off the charger — and it earns a retry.
+          this.tierUselessAt = this.tierProbe.before;
+          if (this.tierIndex < TIERS.length - 1) {
+            this.tierOwed = Math.max(0, this.tierOwed - 1);
+            this.tierDrops = Math.max(0, this.tierDrops - 1);
+            this.engine.postFX?.setTier?.(TIERS[this.tierIndex + 1]);
+            this.changes++;
+            this.cool = 4.0;
+          }
+        }
+        this.tierProbe = null;
+      }
+    }
+
     if (this.cool > 0) return;
+
+    // ---- REPAYING THE TIER, ON THE MEASUREMENT THAT TOOK IT ---------------
+    //
+    // The tier is taken when the median passes `slowMs`. It used to be repaid
+    // out of `good`, which needs a median under `mildMs` — a full 3 ms, and on
+    // this budget a full 14 fps, BELOW the line that took it. A machine whose
+    // steady state sits in that gap (14–16.5 ms, 61–74 fps: a school
+    // Chromebook, or any laptop with a second tab in it) therefore loses the
+    // tier to its first hitch and can never, for the rest of the session, earn
+    // it back. That is a ratchet, and it is what "the game gets uglier the
+    // longer you play it" actually means.
+    //
+    // Repayment is now symmetric with the taking, plus a margin so the two
+    // thresholds cannot chatter against each other: a median comfortably
+    // inside the budget, held for `patience()` unbroken seconds. Resolution
+    // still climbs on its own faster ladder underneath.
+    if (this.tierOwed > 0 && !this.tierProbe && this.tierIndex < TIERS.length - 1) {
+      // Room for the effects, not merely room for the frame. `tierCost` is
+      // what the drop measurably bought, so this is the same comparison the
+      // player would make: switching them back on will cost that again.
+      if (p50 < this.slowMs * 0.92 - this.tierCost) {
+        if (++this.tierGood >= this.patience()) {
+          this.tierGood = 0;
+          this.tierOwed--;
+          this.engine.postFX?.setTier?.(TIERS[this.tierIndex + 1]);
+          this.changes++;
+          this.cool = 5.0;
+          return;
+        }
+      } else this.tierGood = Math.max(0, this.tierGood - 1);
+    }
 
     if (this.bad >= 2) {
       this.bad = 0;
@@ -279,8 +406,12 @@ export class QualityDirector {
       if (this.cap > this.floor + 0.001) {
         this.setCap(this.cap - (dire ? 0.3 : 0.15));
         this.cool = 1.4;
-      } else if (++this.tierBad >= 2 && this.tierIndex > 0) {
+      } else if (++this.tierBad >= 2 && this.tierIndex > 0
+                 && !this.tierUseless && !this.tierProbe) {
         this.tierBad = 0;
+        // Remember what we are buying with, so the next few windows can say
+        // whether the purchase was worth the picture. See THE PROBE above.
+        this.tierProbe = { before: p50, best: p50, left: 6 };
         this.engine.postFX?.setTier?.(TIERS[this.tierIndex - 1]);
         this.tierOwed++;
         this.tierDrops++;
@@ -311,16 +442,11 @@ export class QualityDirector {
       // first — and it is the more visible of the two by a distance, because
       // it is volumetrics and bloom rather than a fraction of a pixel.
       if (this.tierOwed > 0 && this.tierIndex < TIERS.length - 1) {
-        if (++this.tierGood >= this.patience()) {
-          this.tierGood = 0;
-          this.tierOwed--;
-          this.engine.postFX?.setTier?.(TIERS[this.tierIndex + 1]);
-          this.changes++;
-          this.cool = 5.0;
-        } else if (this.cap < this.ceiling - 0.001) {
-          // Waiting out the tier's patience is not a reason to keep looking at
-          // a soft image, so resolution climbs while the clock runs — just not
-          // in the big steps, which would spend the headroom the tier needs.
+        // The tier's own clock runs above, on the measurement that took it.
+        // Waiting it out is not a reason to keep looking at a soft image, so
+        // resolution climbs while that clock runs — just not in the big steps,
+        // which would spend the headroom the tier needs.
+        if (this.cap < this.ceiling - 0.001) {
           this.setCap(this.cap + 0.12);
           this.cool = 2.0;
         }

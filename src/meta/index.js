@@ -61,6 +61,7 @@ import {
 import {
   blankDays, noteDay, noteNight, seedNights, daysSince, dispatchFor, nightBeat,
 } from './days.js';
+import { createNight } from './night.js';
 import { Comms } from './comms.js';
 import { QuestCard } from './quest.js';
 import { ColdOpen } from './opening.js';
@@ -191,12 +192,29 @@ export function createStory({
     vergeR, seen, mark, save, isBusy, frameHeld,
   }) : null;
 
+  /* THE STANDING ORDER (`night.js`) — the one thing in this game that is
+     already waiting for the cadet before they close the tab. It lives on the
+     arc because the arc already owns the third clock: what a night is, when a
+     day turns over, and which clock decides. `onKept` is filled in by main.js,
+     which is the only place that can both pay a wallet and speak. */
+  let onOrderKept = null;
+  const night = createNight({
+    mastery,
+    clock,
+    onKept: (info) => { try { onOrderKept?.(info); } catch { /* never fatal */ } },
+  });
+
   // -------------------------------------------------------------------------
   // The learning signal. One wrap, and the arc can hear the whole game.
   // -------------------------------------------------------------------------
   const rawObserve = mastery.observe.bind(mastery);
   mastery.observe = (id, correct, meta = {}) => {
     const res = rawObserve(id, correct, meta);
+    /* The order settles on the SAME call the engine records the answer on, and
+       before the arc's own beats read the state — a mark cleared by the answer
+       that also turned a chapter has to be cleared by the time the chapter card
+       is drawn, or the two surfaces disagree for a frame. */
+    try { night.observed(id, !!correct, meta); } catch { /* never break the loop */ }
     try { onAnswer(id, !!correct, meta, res); } catch { /* never break the loop */ }
     return res;
   };
@@ -778,6 +796,12 @@ export function createStory({
       rank: shownRank,
       chapter,
       standing,
+      /* THE OTHER HALF OF THE RANK GATE. Without it the climb printed only the
+         standing ladder and contradicted itself the moment the two ladders
+         parted: "BRONZE — You are here · 50 of 30" sitting directly above
+         "SILVER — Opens at 30". Silver also costs a night held, the cadet had
+         none, and nothing on the card said so. See `dossier.js`. */
+      nights,
       tears,
       ledger,
       lines,
@@ -981,6 +1005,15 @@ export function createStory({
         was: p.from >= 0 && p.from !== p.to ? RANKS[Math.max(0, Math.min(RANKS.length - 1, p.from))] : null,
       };
     },
+    /**
+     * THE STANDING ORDER — see `night.js`. Exposed whole, because three
+     * different owners need three different halves of it and none of them
+     * should be re-deriving it: the close beat lays one, the kit raises the
+     * mark over it and pays it, and a critic reads it.
+     */
+    night,
+    /** Who gets told when a mark is cleared. main.js wires the wallet here. */
+    onOrderKept(fn) { onOrderKept = typeof fn === 'function' ? fn : null; },
     /** The transcript of this session, newest last. */
     said: () => said.map((s) => ({ ...s })),
     state: () => ({
@@ -994,6 +1027,8 @@ export function createStory({
       watch: watchNow(),
       // the third clock (src/meta/days.js) — the one a long sitting cannot move
       nights, days: days.count, streak: days.streak, bestStreak: days.best,
+      // …and what is standing on the island waiting to be collected (night.js)
+      order: night.state(),
       gapDays,
       rankGate: rankGate(standing, nights, rank),
       chapterGate: chapterGate(tears, nights, chapter),
@@ -1064,6 +1099,6 @@ export function createStory({
      */
     daysState: () => ({ ...days, nights, gapDays }),
     release() { override = -1; recompute(); },
-    reset() { guide?.reset(); localStorage.removeItem(SAVE_KEY); },
+    reset() { guide?.reset(); night.reset(); localStorage.removeItem(SAVE_KEY); },
   };
 }

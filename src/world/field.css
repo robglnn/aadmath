@@ -29,6 +29,15 @@
   border-color: rgba(167, 139, 255, .6);
   box-shadow: 0 0 22px rgba(167, 139, 255, .3), 0 6px 26px rgba(0, 0, 0, .5);
 }
+/* A stack of slabs a cadet can still lay, at a span (src/world/span.js). Green
+   where a counterweight is violet, because the two kinds of off-island place
+   have to be told apart in one glance — including by their labels. */
+.field-tag.slab {
+  font-size: 1.18rem; font-weight: 700; padding: .3rem .66rem;
+  border-color: rgba(107, 255, 176, .6);
+  box-shadow: 0 0 22px rgba(107, 255, 176, .28), 0 6px 26px rgba(0, 0, 0, .5);
+}
+
 /* …and one the beam has already refused */
 .field-tag.spent {
   opacity: .32; border-color: rgba(150, 170, 200, .25);

@@ -19,6 +19,13 @@ const VOID = -100000;
  */
 let SOLIDS = null;
 export function setSolids(s) { SOLIDS = s; }
+/**
+ * The lattice itself, for the one question `heightAt` cannot answer: not *what
+ * is the surface here* but *is this point inside a panel*. Recovery has to ask
+ * it — a cadet shut in his own room is standing on a floor his own walls pass
+ * through. (src/player/escape.js)
+ */
+export function solids() { return SOLIDS; }
 
 export function heightAt(x, z) {
   const h = World.heightAt?.(x, z);

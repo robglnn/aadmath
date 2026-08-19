@@ -90,6 +90,35 @@ export class CameraRig {
     this._axis = new THREE.Vector3(0, 0, 1);
   }
 
+  /**
+   * Re-found the lens after a recovery, rather than flying it.
+   *
+   * `_first` alone was not enough, and the gap is the reported defect: *"that
+   * time R moved me but jammed the camera into my own avatar's shoulder."*
+   * `_first` teleports the lens to wherever this frame's solve puts it — and
+   * the solve carries state. A boom that had been squeezed to a metre against
+   * the inside of a hill, a metre and a half of accumulated climb, a landing
+   * kick mid-curve and a shoulder swapped to the blocked side all survive the
+   * teleport, so the lens is re-founded *at the jam*. Everything the old place
+   * taught the rig is therefore thrown away here, and the first frame in the
+   * new one is solved from the rig's rest pose.
+   */
+  refound() {
+    this.boom = BOOM;
+    this.boomWant = BOOM;
+    this._hit = BOOM;
+    this.lift = 0;
+    this.kick = 0; this.kickT = 0;
+    this.dip = 0; this.dipT = 0;
+    this.trauma = 0;
+    this.side = 1; this._sideWant = 1;
+    this.lead.set(0, 0, 0);
+    this.glideW = 0;
+    this.terrainBias = 0;
+    this.pitchBias = 0;
+    this._first = true;
+  }
+
   /** Kick the camera. amount 0..1. */
   shake(amount) { this.trauma = clamp(this.trauma + amount, 0, 1); }
   punchFov(d) { this.fovPunch += d; }
@@ -297,6 +326,20 @@ export class CameraRig {
       lift = lift * squeeze + (1 - squeeze) * 0.55;
       hit = solid;
     }
+    // ---- AND IT NEVER SITS INSIDE THE CADET ---------------------------------
+    //
+    // The line above deliberately allows the boom below `MIN_BOOM`, and it is
+    // right to: the alternative is placing the lens on the far side of the
+    // boulder it just detected, which fills the frame with the inside of the
+    // boulder. But a boom of 1.05 m on a 1.8 m body is not a shot either — it
+    // is the reported defect, *"jammed the camera into my own avatar's
+    // shoulder"* — and there is a third answer neither of those two considered:
+    // **go over the top of it.** A lens squeezed inside the minimum climbs by
+    // what it lost, which lifts it clear of the pauldron and looks down at the
+    // cadet from behind and above, the way a camera operator backed into a wall
+    // raises the camera over their own head. The ground clamp and the two
+    // de-penetration passes below still have the last word on where it lands.
+    if (hit < MIN_BOOM) lift = Math.max(lift, Math.min(1.1, (MIN_BOOM - hit) * 1.35));
     this._hit = hit;
 
     // the climb is damped, or a boom that steps over a boulder pops the horizon

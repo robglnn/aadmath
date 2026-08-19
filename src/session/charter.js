@@ -189,9 +189,19 @@ export class Charter {
   retext() {
     const p = this._live;
     if (!p) return;
-    // The return beat, when there is one to give.
-    this.back.textContent = p.back ? backLine(p.back) : '';
-    this.el.classList.toggle('back', !!p.back);
+    /* THE RETURN BEAT — and on a return the first sentence is the mark.
+       A cadet who left a standing order yesterday has one thing waiting for
+       them on this island, and the screen that opens their next run is where
+       they find out it is still there. It outranks "what the last run left
+       standing" because it is a place to walk to rather than a fact about
+       history; `backLine` is what a return says when nothing is standing.
+       See src/meta/night.js. */
+    const o = p.order && p.order.order && p.order.ripe ? p.order : null;
+    this.back.textContent = o
+      ? t('session.charter.markWaiting', { skill: t('skills.' + o.order.skill) })
+      : (p.back ? backLine(p.back) : '');
+    this.el.classList.toggle('back', !!(o || p.back));
+    this.el.classList.toggle('mark', !!o);
     this.kick.textContent = t(p.back ? 'session.charter.kickBack' : 'session.charter.kick', { n: p.index });
     this.title.textContent = t('session.charter.title');
     // A thunk re-renders in the locale that is loaded *now*; a plain string is

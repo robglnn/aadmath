@@ -67,7 +67,14 @@ export default {
   // what it is, and then names the work — which is the work the item actually
   // marks. Wording matched to the plain-language asks these skills already use
   // ('ask.simplifyAlt2', 'ask.expand'), so no new term arrives undefined.
+  /* THE ASK THAT STOPPED DOING THE WORK. `perimeterGather` pointed at a
+     display that had already written the four sides out in order, so the
+     only task left was collecting like terms and the drawing was decoration.
+     The sides are still stated above; going round them is now the learner's.
+     The old key is kept — other banks may point at it. (src/learn/generators.js
+     `lt-perimeter`) */
   'ask.perimeterGather': 'The rule below adds that distance up. Gather what is alike, and write what is left.',
+  'ask.perimeterRound': 'Add the four sides. Gather what is alike, and write what is left.',
   'ask.areaMultiplyOut': 'The rule below gives that area. Multiply it out.',
   'ask.whenSameCost': 'After how many runs do the plans cost the same?',
   'ask.shareOut': 'Share the bar out over every term.',
