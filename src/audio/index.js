@@ -123,6 +123,9 @@ export class AudioDirector {
     for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
       removeEventListener(ev, this._wakeFn, { capture: true });
     }
+    // The first play gesture is consent to hear the game. Browsers will not
+    // let us start a context earlier; they do not require us to start it mute.
+    this.bus.setMuted(false);
     try { this.bus.start(); } catch { /* no audio on this device */ }
     this.control._label();
   }

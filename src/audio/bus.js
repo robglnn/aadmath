@@ -24,13 +24,19 @@ export class Bus {
   constructor() {
     this.ctx = null;
     this.ready = false;
+    // Sound is on until the player turns it off. Volume is a room preference
+    // and comes back; mute is not — a leftover `muted: true` from a previous
+    // sitting (or from clicking the speaker while it still looked locked)
+    // was leaving the next load silent.
     this.muted = false;
     this.volume = 1;
     this._listeners = new Set();
     try {
       const s = JSON.parse(localStorage.getItem(SAVE) || 'null');
-      if (s && typeof s.muted === 'boolean') this.muted = s.muted;
-      if (s && typeof s.volume === 'number') this.volume = Math.max(0, Math.min(1, s.volume));
+      if (s && typeof s.volume === 'number') {
+        const v = Math.max(0, Math.min(1, s.volume));
+        this.volume = v > 0.001 ? v : 1;
+      }
     } catch { /* private mode */ }
 
     /*
