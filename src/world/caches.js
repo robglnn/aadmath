@@ -4,6 +4,8 @@ import { tex } from '../ui/tex.js';
 import { t } from '../i18n/index.js';
 import { CELL } from '../build/pieces.js';
 import { merge } from './geom.js';
+import { beginTagFrame, submitTag } from './tagspace.js';
+import { bidField } from './fieldtalk.js';
 import './field.css';
 
 /**
@@ -96,19 +98,185 @@ const DEEP_REWARD = 160;
 const DEEP_MAX = 12;
 /** No two perches closer than this, or two hard places become one. */
 const DEEP_CLEAR = 46;
-const TOUCH = 2.2;
 const SPAN = 2;                 // perch half-width, in lattice cells (2 -> 20 m across)
 
-/**
- * How high each perch hangs, relative to the highest ground on its own bearing.
+/* ===========================================================================
+ * HOW AN ANSWER IS GIVEN, AND WHY IT IS NO LONGER A DISC YOU CAN BRUSH PAST
  *
- * This is the access ladder, and it is deliberately tied to the kit:
- *   -16, -9   glide out from the ridge and you are there — no unlock needed;
- *    +3       above every hill on that line: a vault plate, or a column;
- *   +17, +34  only with the wing trimmed, a flare lit, or an updraft you
- *             earned from a cache further down the ladder.
+ * `design/ARCHIPELAGO-PATTERN.md` Rule 1 says position is the only input, and
+ * then states the corollary that costs: *position is a commitment you cannot
+ * take back, and the player must never be able to answer by walking past.*
+ * This site failed that, reproduced twice by playing it: the three weights
+ * stood on ONE RANK across the middle of the deck, `TOUCH = 2.2 m` was a 3-D
+ * radius to a stone bobbing at 1.46-1.94 m, so the horizontal capture disc was
+ * 1.04-1.65 m wide and CROSSING THE DECK committed an answer nobody chose —
+ * and on a deep cache, at a 2.9 m gap, two discs overlapped.
+ *
+ * Widening the rank does not fix it and the first attempt at this proved it:
+ * whatever the gap, a straight walk from the left weight to the right one goes
+ * THROUGH THE MIDDLE ONE, because three points on a line always do. Nor is a
+ * dwell allowed — Rule 1 forbids hovering, and `src/world/meet.js` records why
+ * in full: making hesitation an answer and then charging for it is the exact
+ * opposite of ADHD-aware.
+ *
+ * So the geometry changed instead, and it is `meet.js`'s own answer:
+ *
+ *   A CLAIM REGION IS A LATTICE CELL, AND YOU HAVE TO BE STANDING ON IT.
+ *
+ * Every counterweight now floats over the end of ITS OWN PIER — one `fixed`
+ * floor cell jutting off the deck, with OPEN AIR between one pier and the
+ * next. The commit region is that cell and nothing else: cells
+ * tile the plane exactly, no two of them overlap at any radius, and there is no
+ * spacing left to get wrong. Crossing the deck cannot answer, because the deck
+ * is not a pier. Walking from one weight to another cannot answer either, since
+ * there is no floor between two piers — you go back onto the deck, where no
+ * claim region exists, and out again.
+ *
+ * The act is now what the mathematics is: you leave the rock and stand under
+ * the weight you mean.
+ *
+ * `tools/critic/archipelago.mjs` rule `commit` re-derives this from the tables
+ * below on every run — every pair of piers non-adjacent, every claim cell
+ * inside its own pier, and no claim cell touching the deck.
+ * ========================================================================= */
+/**
+ * The piers, in lattice cells of the perch's own frame, by how many weights
+ * the statement carries. `+gz` is the deck's near side; the last cell of each
+ * pier is the one the weight hangs over and the one the claim is made on.
+ *
+ * EVERY PIER IS ONE CELL, and that is a second thing found by walking it. The
+ * first cut had a two-cell pier out front, so the middle weight stood sixteen
+ * metres off the deck down a four-metre catwalk with a fifty-metre drop either
+ * side — and the flight harness fell off it three times out of three. A site
+ * whose answer is a tightrope is a site that costs a cadet the trip, which is
+ * exactly what `design/ARCHIPELAGO-PATTERN.md` Rule 6 forbids. So the piers are
+ * a single step off the deck's own edge, and the spread that keeps them apart
+ * comes from the EDGE each one leaves by rather than from how far it reaches.
+ *
+ * AND THEY ALL LEAVE BY THE SAME EDGE, which is a third thing found by
+ * walking it. Photographed standing on a corner pier: the cadet had committed,
+ * the pans were doing the arithmetic — and the balance was forty degrees behind
+ * his shoulder, because the camera follows the way he walked and he had walked
+ * sideways. Rule 3 is about the interval between committing and being told, and
+ * a verdict out of frame is not one. So the three piers of a tier-1 cache all
+ * jut off the FRONT edge, eight metres apart with four metres of air between
+ * them, and the balance hangs straight ahead of every one of them.
+ *
+ * A deep cache carries four and only three fit on that edge, so its outer pair
+ * leaves by the flanks and sits about thirty-seven degrees off the rig. That is
+ * a compromise and it is written down rather than hidden: the fifth-day object
+ * pays it, and the one every learner meets does not.
  */
-const LIFT = [-16, -9, 3, 17, 34];
+const PIERS = {
+  3: [[[-2, 3]], [[0, 3]], [[2, 3]]],
+  4: [[[-3, 2]], [[-1, 3]], [[1, 3]], [[3, 2]]],
+};
+/**
+ * The most objects a pan may be asked to hold.
+ *
+ * Past about thirty a pan stops being countable and becomes a texture, and
+ * `lay()` below caps the tiles it composes at exactly this — so a candidate
+ * whose arithmetic goes over it would show a pan that is not what the pan is
+ * worth. `question()` refuses those candidates rather than drawing them.
+ */
+const CAP = 34;
+/** Boots this far below the deck, or this far above it, are still on it. */
+const CLAIM_DOWN = 1.4, CLAIM_UP = 3.2;
+/** How high a counterweight floats over the end of its own pier. */
+const STONE_Y = 1.7;
+/**
+ * How far out the balance hangs, in the perch's own frame.
+ *
+ * Eighteen metres past the end of every pier, over open water, so that a cadet
+ * walking out to a weight is walking TOWARD the thing that is about to answer
+ * him. See the block in `make()`.
+ *
+ * The distance is set by the WIDEST pier and not by the nearest: the outer two
+ * stand eight metres off the centre line, and a rig at 24 sat thirty-four
+ * degrees off their approach — photographed, out of frame, with the pans doing
+ * the arithmetic behind the cadet's shoulder. At 30 the worst approach is
+ * twenty-two degrees off and nineteen up, which is inside the frame from all
+ * three, and the pans are still nearer than the forty metres at which this
+ * apparatus was measured legible.
+ */
+const RIG_Z = 30;
+
+/* ===========================================================================
+ * THE ACCESS LADDER — AND THE MEASUREMENT THAT SHOWED IT WAS IMAGINARY
+ *
+ * It used to read `LIFT = [-16, -9, 3, 17, 34]`, metres above THE HIGHEST
+ * GROUND ON EACH SITE'S OWN BEARING, sampled straight off `heightAt`. Two
+ * things are wrong with that datum and both of them were already written down
+ * in this repo, by two other files, about themselves:
+ *
+ *   · `src/world/span.js`: the obvious launch on its first bearing climbs 27 m
+ *     in 8 m of run, so *"the first span was hung off a launch pad no cadet
+ *     could reach"*. `heightAt` answers for spires nobody can stand on.
+ *   · `src/world/meet.js`: a ceiling computed as `launch - gulf / ratio` is a
+ *     lie if the island is in the way. Flown at exactly that number, a cadet
+ *     landed two hundred metres short, on the hill the ceiling was measured
+ *     from.
+ *
+ * Recomputed here the way `meet.js` computes its own — flood-fill the ground a
+ * cadet can WALK to from the spawn under the game's own slope rule, solve the
+ * wing at each trim (`dv/dt = -g sin y - k v^2`, g = 26) for 1:7.7 base,
+ * 1:18.2 KITE TRIM, 1:23.8 LONG SPAN, and require the descent line to clear
+ * `heightAt` by three metres for the whole flight — the five decks stood at:
+ *
+ *   cache 0 (72,-176)   deck 120   base 68.6   kite 82.7   long span 85.4
+ *   cache 1 (64,184)    deck  56   base 64.1   kite 78.5   long span 82.3
+ *   cache 2 (-180,-96)  deck  78   base 76.1   kite 87.5   long span 88.5
+ *   cache 3 (204,-52)   deck  85   base 70.7   kite 76.0   long span 76.9
+ *   cache 4 (-120,184)  deck  92   base 62.8   kite 81.3   long span 84.5
+ *
+ * THREE OF THE FIVE STOOD ABOVE WHAT THE BEST WING IN THE GAME CAN REACH FROM
+ * ANY LAUNCH A CADET CAN WALK TO — cache 0 by thirty-five metres. That is the
+ * measured reason nobody has ever opened one: the objective card CAN name a
+ * cache (`src/meta/objective.js` `FIELD_VERB`), it names the nearest one, and
+ * from most tears the nearest one was a place the wing could not get to. The
+ * leg ran out its clock over open water.
+ *
+ * So the decks are stated here as absolute heights with the ceiling they were
+ * chosen against, and the ladder is denominated in a kit grant, as Rule 9
+ * requires:
+ *
+ *   i  deck   reached by                                    margin in hand
+ *   0    62   THE BASE WING, from a cleared save              6.6 m
+ *   1    56   THE BASE WING, from a cleared save              8.1 m
+ *   2    82   KITE TRIM (three held lines)                    5.5 m
+ *   3    96   THE COLUMN CACHE 0 PAID — 140 m of standing    21.6 m
+ *             air, then any wing at all
+ *   4   104   THE COLUMN CACHE 1 PAID                         7.3 m (base)
+ *
+ * Two of them are day-one flights, one is bought with mathematics, and the two
+ * furthest out are bought by CRACKING THE TWO NEAREST — which is the promise
+ * this file's own header already made and could not keep: *"the next cache out
+ * is reachable because you cracked this one."*
+ *
+ * Between KITE TRIM and LONG SPAN there is nothing to tier with at these
+ * distances: over a 245 m gulf the two wings differ by 3.2 m, which is inside
+ * the margin, so the top of the ladder is a column and not a trim. That is
+ * stated rather than hidden — Rule 9's test is that the requirement is a
+ * number in the same units as a kit grant, and "the updraft cache 1 pays" is
+ * one.
+ *
+ * `tools/critic/archipelago.mjs` recomputes every number above from
+ * `src/world/terrain.js`, `src/player/locomotion.js` and `src/kit/kit.js` on
+ * every run, so this comment can be checked instead of believed.
+ * ========================================================================= */
+const DECK = [62, 56, 82, 96, 104];
+/**
+ * What each site's access is DENOMINATED IN, read by `src/kit/kit.js` when it
+ * tells `src/meta/objective.js` what this cadet may be pointed at. `null` is
+ * the wing every cadet has from boot; `'kite'` is a grant id from
+ * `src/kit/ladder.js`; a number is the index of the cache whose standing column
+ * is the way in, and until that one is open this one is not offered at all.
+ *
+ * An errand you cannot physically complete teaches the player that the marker
+ * lies (`src/world/errand.js`). This is that rule, applied to the best object
+ * in the game.
+ */
+const ACCESS = [null, null, 'kite', 0, 1];
 
 export function createCaches(opts = {}) {
   const {
@@ -178,19 +346,13 @@ export function createCaches(opts = {}) {
   /** Where the fifth of the island's own caches hangs. Fixed, for ever. */
   function siteFor(i) {
     const ang = -Math.PI / 2 + i * 2.3999632 + 0.4;
-    // the highest ground on this bearing — what the perch is measured against
-    let hi = 6;
-    for (let r = 24; r < ISLAND_R - 8; r += 6) {
-      const h = heightAt(Math.cos(ang) * r, Math.sin(ang) * r);
-      if (h !== null && h > hi) hi = h;
-    }
     const rad = ISLAND_R + 22 + i * 7;
     // snapped to the build lattice, because the perch *is* build lattice
     return {
-      key: String(i), tier: 1, seed: i, ang,
+      key: String(i), tier: 1, seed: i, ang, access: ACCESS[i],
       x: Math.round((Math.cos(ang) * rad) / CELL) * CELL,
       z: Math.round((Math.sin(ang) * rad) / CELL) * CELL,
-      y: Math.max(18, hi + LIFT[i]),
+      y: DECK[i],
     };
   }
 
@@ -203,11 +365,29 @@ export function createCaches(opts = {}) {
     const c = {
       i: slot, slot, key: spec.key, tier, seed: spec.seed ?? slot,
       x: cx, z: cz, y: top, opened: !!(saved.opened && saved.opened[spec.key]),
+      access: spec.access !== undefined ? spec.access : 'kite',
       group: new THREE.Group(), roll: 0, rollV: 0, want: 0,
       load: [], stones: [], settle: 0,
     };
     c.group.position.set(cx, top, cz);
-    c.group.rotation.y = ang + Math.PI / 2;
+    /* A QUARTER TURN, AND IT FACES OUT TO SEA.
+       The deck is 25 axis-aligned `floor` solids and the piers are more of the
+       same, while everything you can see is a child of this group. At an
+       arbitrary yaw those two frames disagree and there is half a cell of drift
+       between the stone you can see and the cell you can stand on.
+       `src/world/span.js` settled that already — *"the yaw is always a quarter
+       turn, so this is exact and there is never a half-cell of drift between
+       the hole you can see and the hole you can fall through"* — and a 5 x 5
+       block maps onto itself under a quarter turn, so no deck moves.
+       WHICH quarter turn is the second half, and it is not arbitrary either:
+       local +z is laid as close to RADIALLY OUTWARD as a quarter turn allows,
+       so the piers and the balance hang further out to sea and the cadet
+       arrives on the island side and walks away from the island to answer.
+       A balance hung over a hillside is a prop; `design/ARCHIPELAGO-PATTERN.md`
+       5.3 — *"a silhouette against sky is a composable frame; a hillside is
+       not"*. */
+    c.turn = ((Math.round((Math.PI / 2 - ang) / (Math.PI / 2)) % 4) + 4) % 4;
+    c.group.rotation.y = c.turn * (Math.PI / 2);
     group.add(c.group);
 
     // ---- the perch: a shard of the island, torn loose and left hanging, with
@@ -233,16 +413,56 @@ export function createCaches(opts = {}) {
         });
       }
     }
+    // ---- the piers. Real floor, in the same registry, with air between them:
+    // the whole of the commit rule is that you have to leave the deck.
+    const piers = PIERS[tier === 2 ? 4 : 3];
+    const pierParts = [];
+    c.claims = [];
+    for (let k = 0; k < piers.length; k++) {
+      let end = null;
+      for (let n = 0; n < piers[k].length; n++) {
+        const [gx, gz] = piers[k][n];
+        const w = toWorld(c, gx * CELL, gz * CELL);
+        builder.solids.add({
+          kind: 'floor', x: w.x, y: top, z: w.z, yaw: 0,
+          base: top, onGround: false, dead: false, fixed: true, grow: 1, fade: 0,
+          sel: 0, want: 0, tone: 0, id: -4096 - (slot * 64 + k * 8 + n),
+        });
+        const slab = new THREE.BoxGeometry(CELL - 0.24, 1.5, CELL - 0.24);
+        slab.translate(gx * CELL, -0.75, gz * CELL);
+        pierParts.push(slab);
+        end = { gx, gz, w };
+      }
+      c.claims.push(end);
+    }
+    const pierMesh = new THREE.Mesh(merge(pierParts), stoneMat);
+    for (const g of pierParts) g.dispose();
+    pierMesh.castShadow = true;
+    pierMesh.receiveShadow = true;
+    c.group.add(pierMesh);
 
     // ---- the monolith the balance is the lock on
     const alloy = tier === 2 ? deepRigMat : rigMat;
     const shell = tier === 2 ? deepBoxMat : boxMat;
     const bodyGeo = new THREE.BoxGeometry(1.6, 3.2, 1.7);
     const seamGeo = new THREE.BoxGeometry(0.09, 2.8, 1.76);
+    /* ---- WHERE THE APPARATUS STANDS, AND WHY IT IS OUT PAST THE PIERS ----
+       The balance used to sit between the deck and the weights, which was right
+       when the weights were a rank three metres from it. It is wrong now: a
+       cadet walks OUT along a pier to commit, so anything behind him at that
+       moment is a thing he does not see. `design/ARCHIPELAGO-PATTERN.md` Rule 3
+       is exactly about that interval — *"between commitment and verdict there
+       is a visible, held state… that interval is the only place the teaching
+       can happen without text"* — and a verdict over your shoulder is not one.
+       So the whole apparatus hangs on a mast at local z = 24, four to twelve
+       metres BEYOND the end of every pier and out over open water. Land on the
+       island side, read the statement and all three weights in one frame, walk
+       out at the one you mean, and the pans do the arithmetic straight ahead of
+       you with the monolith under them. */
     c.half = [];
     for (const s of [-1, 1]) {
       const h = new THREE.Mesh(bodyGeo, shell.clone());
-      h.position.set(s * 0.83, 1.7, -7.6);
+      h.position.set(s * 0.83, 1.7, RIG_Z);
       h.castShadow = true;
       h.receiveShadow = true;
       const seam = new THREE.Mesh(seamGeo, seamMat);
@@ -256,7 +476,7 @@ export function createCaches(opts = {}) {
       blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
     });
     c.heart = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 0), heartMat);
-    c.heart.position.set(0, 1.8, -7.6);
+    c.heart.position.set(0, 1.8, RIG_Z);
     c.heart.userData.noCamBlock = true;
     c.group.add(c.heart);
 
@@ -277,15 +497,15 @@ export function createCaches(opts = {}) {
 
     // ---- the balance
     const beam = new THREE.Group();
-    beam.position.set(0, 5.4, -1.4);
+    beam.position.set(0, 8.2, RIG_Z);
     c.group.add(beam);
     c.beam = beam;
 
     // The whole balance — arm, risers and both pans — is rigid about the pivot,
     // so it is one geometry and one draw rather than five.
     const rigParts = [new THREE.BoxGeometry(7.0, 0.30, 0.42)];
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.62, 5.3, 4), alloy);
-    post.position.set(0, 2.65, -1.4);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.55, 5.0, 4), alloy);
+    post.position.set(0, 5.7, RIG_Z);
     c.group.add(post);
 
     for (const side of [-1, 1]) {
@@ -307,30 +527,15 @@ export function createCaches(opts = {}) {
     c.q = q;
     layout(c, null);
 
-    // Four weights on one rank is nine metres of counterweights, which is wider
-    // than the deck. They spread to the width they need and no wider.
-    // ---- HOW FAR APART TWO ANSWERS HAVE TO STAND -------------------------
-    //
-    // POSITION IS THE ONLY INPUT HERE, AND POSITION IS A COMMITMENT YOU CANNOT
-    // TAKE BACK. `design/ARCHIPELAGO-PATTERN.md` measured what that costs at
-    // these spacings, twice, by walking it: `TOUCH = 2.2 m` is a 3-D radius
-    // from the boots to a stone that hovers at 1.46-1.94 m, so the HORIZONTAL
-    // capture disc is 1.04-1.65 m wide as the stone bobs. At 3.6 m the three
-    // discs just miss each other (2 x 1.65 = 3.3), and crossing the deck from
-    // one weight toward another still passed within 1.0-1.7 m of the middle one
-    // and committed an answer the player never chose. On a deep cache at 2.9 m
-    // THE DISCS OVERLAP by up to 0.4 m, and which of two overlapping answers
-    // fires depends on the phase of the bob and on array order.
-    //
-    // So the rank is now wider than twice the worst capture disc, with a
-    // margin: 4.4 m for three weights, 4.0 m for the four a deep cache carries
-    // — 12 m of rank on a 20 m deck, which fits with room to walk round.
-    const gap = q.choices.length > 3 ? 4.0 : 4.4;
-    const mid = (q.choices.length - 1) / 2;
+    // ---- one weight, at the end of one pier ------------------------------
+    // See PIERS at the top of the file. The claim is the pier's outer CELL and
+    // the boots have to be on it, so the answer cannot be given by walking
+    // across the deck and two answers cannot overlap at any radius.
     for (let k = 0; k < q.choices.length; k++) {
       const v = q.choices[k];
+      const end = c.claims[k];
       const s = new THREE.Group();
-      s.position.set((k - mid) * gap, 1.7, 2.8);
+      s.position.set(end.gx * CELL, STONE_Y, end.gz * CELL);
       // A counterweight has to read as a thing you can walk into from as far
       // out as the statement reads. At 0.62 it was a chip at twenty metres.
       const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.92, 0), new THREE.MeshStandardMaterial({
@@ -345,43 +550,98 @@ export function createCaches(opts = {}) {
       halo.userData.noCamBlock = true;
       s.add(halo);
       c.group.add(s);
-      c.stones.push({ v, group: s, body, halo, spent: false, ph: k * 1.7 });
+      c.stones.push({
+        v, group: s, body, halo, spent: false, ph: k * 1.7,
+        // The claim cell, in world metres, computed once: a quarter-turn yaw
+        // makes the lattice and the scene graph the same frame.
+        cx: end.w.x, cz: end.w.z,
+      });
     }
 
     // Two anchors each, and the label rides between them: high over the rig
     // when you are still flying at it, and down on the weights by the time you
     // are standing on the deck. The read-band and the act-band are the same
     // band at every distance a cadet can actually do something from.
+    /* Two anchors each, and the label rides between them on `descend`: high
+       over the mast while you are still flying at it, down beside the pans by
+       the time you are standing on the deck reading it. The read-band and the
+       act-band are the same band at every distance a cadet can act from — and
+       the act now happens fourteen metres nearer the label than it used to,
+       because the weights come to the apparatus rather than sitting under it. */
     c.tags = [
-      { local: [0, 8.2, -1.4], near: [0, 4.2, 2.8], cls: 'lede', key: 'field.balanceLock' },
-      { local: [0, 7.3, -1.4], near: [0, 3.4, 2.8], cls: 'big', tex: q.latex },
+      { local: [0, 12.4, RIG_Z], near: [0, 10.8, RIG_Z - 2], cls: 'lede', key: 'field.balanceLock', pri: 30 },
+      { local: [0, 11.0, RIG_Z], near: [0, 9.4, RIG_Z - 2], cls: 'big', tex: q.latex, pri: 31 },
     ];
     for (let k = 0; k < c.stones.length; k++) {
-      c.tags.push({ local: [(k - mid) * gap, 2.45, 2.8], cls: 'weight', tex: String(c.stones[k].v), stone: k });
+      const end = c.claims[k];
+      c.tags.push({
+        local: [end.gx * CELL, STONE_Y + 0.75, end.gz * CELL],
+        cls: 'weight', tex: String(c.stones[k].v), stone: k, pri: 32 + k,
+      });
     }
 
     if (c.opened) openNow(c, true);
     list.push(c);
   }
 
+  /**
+   * A point in a perch's own frame, as an offset in world axes. The yaw is
+   * always a quarter turn (see `make`), so this is exact — there is never a
+   * half-cell between the stone you can see and the cell you can stand on.
+   */
+  function toWorld(c, lx, lz) {
+    const sn = QSIN[c.turn], cs = QCOS[c.turn];
+    return { x: c.x + lx * cs + lz * sn, z: c.z - lx * sn + lz * cs };
+  }
+
   // --------------------------------------------------------------- the maths
   /**
    * A true statement with one weight missing, small enough to lay out as
-   * physical tiles, and two wrong answers that are the two mistakes a learner
-   * actually makes here: dividing before undoing the addition, and undoing the
-   * addition and then forgetting to divide.
+   * physical tiles, and two wrong answers that are two named mistakes.
+   *
+   * ---- BOTH SIGNS, FROM THE FIRST ENCOUNTER ------------------------------
+   *
+   * `design/ARCHIPELAGO-PATTERN.md` Rule 4 says wrong must carry DIRECTION and
+   * MAGNITUDE, and then names where this site failed its own rule: both of the
+   * old distractors were arithmetically `>= x` — `c - b = a*x > x` for a >= 2,
+   * and `round(c/a) = round(x + b/a) >= x` — so the left pan was ALWAYS the
+   * heavy one and a tier-1 cache could only ever say TOO BIG. Half the channel
+   * was dead until a learner reached a deep cache, which almost nobody does.
+   * `src/world/warden.js` gets this right from the first encounter ("TOO SMALL
+   * BY EIGHT") and `src/world/meet.js` refuses any pose whose residual does not
+   * change sign under the player's boots.
+   *
+   * So the constant is a multiple of the coefficient — which makes `c / a`
+   * exact, with no rounding anywhere — and the two weights beside the answer
+   * are ONE ON EACH SIDE OF IT:
+   *
+   *   HIGH, and it is the canonical error: `c - b`, never divided (the pan is
+   *        heavy by the whole coefficient you failed to remove, standing there
+   *        as cubes you can count); or `c / a`, never subtracted, when the
+   *        first one would put more on a pan than a pan can be counted at.
+   *   LOW: `c / a - b` — divided FIRST and then took the whole constant off
+   *        instead of a share of it. It is strictly under `x`, always
+   *        (`x - b(a-1)/a`), so the RIGHT pan goes down and the beam falls the
+   *        other way. Nothing else in this file had ever made it do that.
+   *
+   * Both pans of every candidate are held under the countability cap, because
+   * Rule 2's whole claim is that a learner who cannot read the notation can
+   * still count nine cubes against seven. A pan showing 34 when the arithmetic
+   * says 66 is a picture that lies.
    */
   function question(seed) {
     const rnd = dice(seed);
-    for (let tries = 0; tries < 40; tries++) {
+    for (let tries = 0; tries < 80; tries++) {
       const a = 2 + rnd(3);           // 2..4
       const x = 2 + rnd(6);           // 2..7
-      const b = 1 + rnd(8);           // 1..8
+      const b = (1 + rnd(4)) * a;     // a multiple of a, so c / a is exact
       const c = a * x + b;
-      if (c > 30) continue;
-      const wrongA = c - b;                       // never divided
-      const wrongB = Math.round(c / a);           // never subtracted
-      const set = uniq([x, wrongA, wrongB]);
+      if (b > 12 || c > CAP) continue;
+      const low = c / a - b;                        // undid it in the wrong order
+      if (low < 1 || a * low + b > CAP) continue;
+      const high = [c - b, c / a].find((v) => v > x && a * v + b <= CAP);
+      if (high === undefined) continue;
+      const set = uniq([x, high, low]);
       if (set.length < 3) continue;
       return {
         a, b, rc: 0, rd: c, x,
@@ -389,7 +649,7 @@ export function createCaches(opts = {}) {
         latex: `${a}x + ${b} = ${c}`,
       };
     }
-    return { a: 2, b: 3, rc: 0, rd: 11, x: 4, choices: [4, 8, 6], latex: '2x + 3 = 11' };
+    return { a: 2, b: 4, rc: 0, rd: 14, x: 5, choices: [10, 5, 3], latex: '2x + 4 = 14' };
   }
 
   /**
@@ -403,28 +663,36 @@ export function createCaches(opts = {}) {
    */
   function deepQuestion(seed) {
     const rnd = dice(seed ^ 0x5bf03635);
-    for (let tries = 0; tries < 80; tries++) {
+    for (let tries = 0; tries < 200; tries++) {
       const rc = 1 + rnd(3);              // 1..3 unknown tiles on the right
       const a = rc + 1 + rnd(3);          // strictly more on the left
       const x = 2 + rnd(6);               // 2..7
       const b = 1 + rnd(9);               // 1..9
       const d = (a - rc) * x + b;         // keeps the statement true
-      if (d < 1 || d > 34) continue;
-      if (a * x + b > 34) continue;
+      if (d < 1 || d > CAP) continue;
+      if (a * x + b > CAP) continue;
       const wrongSign = (d + b) % (a - rc) === 0 ? (d + b) / (a - rc) : -1;
       const wrongSide = (d - b) % (a + rc) === 0 ? (d - b) / (a + rc) : -1;
       const wrongDiv = d - b;
       const set = uniq([x, wrongSign, wrongSide, wrongDiv]);
       if (set.length < 4) continue;
+      // …and every one of them leaves both pans countable. See CAP.
+      if (set.some((v) => a * v + b > CAP || rc * v + d > CAP)) continue;
       return {
         a, b, rc, rd: d, x,
         choices: shuffle(set, rnd),
         latex: `${a}x + ${b} = ${rc === 1 ? '' : rc}x + ${d}`,
       };
     }
+    /* The one every seed falls back to, and it is held to the same bars as the
+       eighty it tried: true at x, four distinct positive weights, one of them
+       UNDER the answer, and no pan over the countability cap (3v + 2 reaches
+       26 and v + 10 reaches 18). The statement it used to carry — `5x + 2 =
+       2x + 11` with the weight 9 — asks the left pan for 47 cubes and draws 34
+       of them, which is a picture that lies. */
     return {
-      a: 5, b: 2, rc: 2, rd: 11, x: 3, choices: [3, 5, 9, 1],
-      latex: '5x + 2 = 2x + 11',
+      a: 3, b: 2, rc: 1, rd: 10, x: 4, choices: [6, 4, 8, 2],
+      latex: '3x + 2 = x + 10',
     };
   }
 
@@ -436,7 +704,7 @@ export function createCaches(opts = {}) {
 
   /** Whole, positive, small enough to lay out as tiles, and no repeats. */
   function uniq(vs) {
-    return vs.filter((v, k, arr) => v > 0 && v <= 34 && arr.indexOf(v) === k);
+    return vs.filter((v, k, arr) => v > 0 && v <= CAP && arr.indexOf(v) === k);
   }
 
   /** A fixed, seeded order, so the answer is not always in the same place. */
@@ -474,7 +742,7 @@ export function createCaches(opts = {}) {
   function lay(out, px, py, count, kind, skipRows = 0) {
     const size = kind === 'x' ? 0.66 : 0.34;
     const cols = kind === 'x' ? 3 : 5;
-    const n = Math.min(count, kind === 'x' ? 6 : 34);
+    const n = Math.min(count, kind === 'x' ? 6 : CAP);
     for (let k = 0; k < n; k++) {
       const col = k % cols, row = Math.floor(k / cols) + skipRows;
       out.push({
@@ -556,15 +824,20 @@ export function createCaches(opts = {}) {
     // payment.*
     //
     // Two things fix it and both are the rule's own words — "plant the reward
-    // with a delay, or offset, or a lead-in the player triggers". It is planted
-    // 11 m out along the bearing back toward the island, so it stands BESIDE
-    // the deck rather than through it — a launch pad you step into when you
-    // choose — and it is planted four and a half seconds late, which is long
-    // enough to watch the pans hold and the monolith open.
-    const back = Math.hypot(c.x, c.z) || 1;
-    const ux = -c.x / back, uz = -c.z / back;
+    // with a delay, or offset, or a lead-in the player triggers".
+    //
+    // It is planted four and a half seconds late, which is long enough to watch
+    // the pans hold and the monolith open; and it is planted BEHIND THE
+    // MONOLITH, sixteen metres out along the perch's own -z, which is the one
+    // direction that carries no pier and therefore no claim cell. The first cut
+    // of this offset was eleven metres along the bearing back toward the island
+    // and that is not a fixed direction in the perch's frame at all: on some
+    // bearings an 8.4 m column centred there still stood over half the deck. A
+    // launch pad you step into when you choose has to be somewhere you are not
+    // standing, and "somewhere" has to be a place and not an average.
+    const back = toWorld(c, 0, -16);
     setTimeout(() => {
-      drift?.addColumn?.(c.x + ux * 11, c.z + uz * 11,
+      drift?.addColumn?.(back.x, back.z,
         c.tier === 2 ? 96 : 78, c.tier === 2 ? 9.2 : 8.4, true);
     }, 4500);
     audio?.unlocked?.();
@@ -606,7 +879,7 @@ export function createCaches(opts = {}) {
         if (tag.tex) el.innerHTML = tex(tag.tex);
         else el.textContent = t(tag.key);
         tags.appendChild(el);
-        nodes.push({ el, c, local: tag.local, near: tag.near || tag.local, stone });
+        nodes.push({ el, c, local: tag.local, near: tag.near || tag.local, stone, pri: tag.pri || 34 });
       }
     }
     tagNodes = nodes;
@@ -618,15 +891,50 @@ export function createCaches(opts = {}) {
   const _c = new THREE.Vector3();
   /** How far the label has come down to meet you: 0 far out, 1 on the deck. */
   const DESCEND_FAR = 52, DESCEND_NEAR = 24;
-  function placeTags(camera) {
+  /**
+   * ONE CACHE TALKS, AND IT ASKS FOR ITS ROOM LIKE EVERYTHING ELSE.
+   *
+   * `.field-tag` is CHROME to `src/world/tagspace.js` — a box every OTHER
+   * layer walks around, arbitrated by nothing among itself — and this file
+   * printed every unopened cache inside 74 m, or 140 m with RESONANT SIGHT,
+   * against a `DEEP_CLEAR` of 46 m. Two perches inside each other's reach is
+   * two statements and six or eight numerals on the glass at once, and the
+   * comment on `TILE_MAX` ("640 covers eight at once") is the same admission
+   * from the other side. `src/world/waygate.js` has already paid for exactly
+   * this: 452 label overlaps across 126 of 288 layout frames, every one a
+   * lintel printed through a HUD plate.
+   *
+   * Two rules, both of them `src/world/meet.js`'s:
+   *   · only the NEAREST unopened cache says anything at all;
+   *   · and its labels go through the one ledger, which claims room against
+   *     Marlow's card, the objective plate and every other world label — and
+   *     DROPS one rather than print it through another.
+   */
+  function placeTags(camera, time) {
     if (!tagNodes.length) return;
+    beginTagFrame(time);
     const w = window.innerWidth, h = window.innerHeight;
+    let near = null, nd0 = Infinity;
     for (const c of list) {
       _c.setFromMatrixPosition(c.group.matrixWorld);
       const dc = _c.distanceTo(camera.position);
       c.descend = Math.max(0, Math.min(1, (DESCEND_FAR - dc) / (DESCEND_FAR - DESCEND_NEAR)));
+      if ((c.opened && !c.showWon) || dc >= nd0) continue;
+      nd0 = dc; near = c;
+    }
+    const reach = sight ? 140 : 74;
+    /* …AND ONE FAMILY TALKS, WHICH THE RULE ABOVE CANNOT DECIDE FROM IN HERE.
+       Only the nearest unopened cache says anything — and a span and a meet
+       are each saying the same thing about themselves in the same frame, out
+       of two other files. Photographed: standing on cache 1's pier at the
+       instant it opened, MEET 2's statement was on the glass beside the
+       balance. See src/world/fieldtalk.js. */
+    if (!bidField(time, 'cache', nd0)) {
+      for (const nd of tagNodes) hideTag(nd);
+      return;
     }
     for (const nd of tagNodes) {
+      if (nd.c !== near) { hideTag(nd); continue; }
       const k = nd.c.descend || 0;
       _v.set(
         nd.local[0] + (nd.near[0] - nd.local[0]) * k,
@@ -635,14 +943,25 @@ export function createCaches(opts = {}) {
       ).applyMatrix4(nd.c.group.matrixWorld);
       const d = _v.distanceTo(camera.position);
       _v.project(camera);
-      const reach = sight ? 140 : 74;
       const on = _v.z < 1 && d < reach && Math.abs(_v.x) < 1.2 && Math.abs(_v.y) < 1.2;
-      if (!on) { if (nd.el.style.display !== 'none') nd.el.style.display = 'none'; continue; }
+      if (!on) { hideTag(nd); continue; }
       nd.el.style.display = '';
-      nd.el.style.left = `${(_v.x * 0.5 + 0.5) * w}px`;
-      nd.el.style.top = `${(-_v.y * 0.5 + 0.5) * h}px`;
       nd.el.style.opacity = String(Math.max(0.12, 1 - Math.max(0, d - reach * 0.55) / (reach * 0.45)));
+      submitTag({
+        measure: nd.el,
+        x: (_v.x * 0.5 + 0.5) * w, y: (-_v.y * 0.5 + 0.5) * h,
+        gap: 6, dir: 'mid', pri: nd.pri, dist: d,
+        place: (cx, top) => {
+          nd.el.style.left = `${Math.round(cx)}px`;
+          nd.el.style.top = `${Math.round(top)}px`;
+          nd.el.style.transform = 'translate(-50%, 0)';
+        },
+        hide: () => hideTag(nd),
+      });
     }
+  }
+  function hideTag(nd) {
+    if (nd.el.style.display !== 'none') nd.el.style.display = 'none';
   }
 
   // ------------------------------------------------------------------- frame
@@ -690,8 +1009,15 @@ export function createCaches(opts = {}) {
         s.body.material.color.setHex(s.spent ? 0x6b7385 : 0xe6dcff);
         s.halo.material.opacity = s.spent ? 0.04 : 0.13 + 0.05 * Math.sin(time * 2 + s.ph);
         if (busy || s.spent) continue;
-        s.group.getWorldPosition(_p);
-        if (_p.distanceTo(player.pos) < TOUCH) choose(c, s);
+        /* THE CLAIM IS A CELL YOU ARE STANDING ON, not a sphere you brushed.
+           See PIERS at the top of the file: crossing the deck cannot answer,
+           because the deck is not a pier, and two claim cells cannot overlap
+           at any radius, because cells tile the plane exactly. */
+        const dy = player.pos.y - c.y;
+        if (dy < -CLAIM_DOWN || dy > CLAIM_UP) continue;
+        if (Math.abs(player.pos.x - s.cx) > CELL / 2) continue;
+        if (Math.abs(player.pos.z - s.cz) > CELL / 2) continue;
+        choose(c, s);
       }
 
       // tiles. A cache the cadet cannot read is a silhouette: past TILE_RANGE
@@ -715,7 +1041,7 @@ export function createCaches(opts = {}) {
     tiles.count = n;
     tiles.instanceMatrix.needsUpdate = true;
     if (tiles.instanceColor) tiles.instanceColor.needsUpdate = true;
-    if (camera) placeTags(camera);
+    if (camera) placeTags(camera, time);
   }
 
   // ------------------------------------------------------------------- hang
@@ -794,6 +1120,27 @@ export function createCaches(opts = {}) {
     hang,
     /** How many more the island will carry, so a warden knows what to pay. */
     room: () => Math.max(0, DEEP_MAX - deep.length),
+    /**
+     * IS THIS PERCH SOMEWHERE THIS CADET CAN GET TO, RIGHT NOW.
+     *
+     * `src/kit/kit.js` asks before it tells `src/meta/objective.js` that a site
+     * may be named. `ACCESS` above is the whole of the answer: the base wing,
+     * a kit grant, or the standing column another cache has already paid — and
+     * a column that is not standing yet is not an access route, it is a lie.
+     * See `src/world/errand.js`: an errand you cannot physically complete
+     * teaches the player that the marker lies.
+     *
+     * @param {(id:string)=>boolean} has  `kit.has`
+     */
+    canReach(has) {
+      const open = new Set(list.filter((c) => c.opened).map((c) => c.key));
+      return (c) => {
+        const a = c.access;
+        if (a === null || a === undefined) return true;
+        if (typeof a === 'number') return open.has(String(a));
+        try { return !!has?.(a); } catch { return false; }
+      };
+    },
     state: () => ({
       total: list.length,
       opened: list.filter((c) => c.opened).length,
@@ -801,6 +1148,18 @@ export function createCaches(opts = {}) {
       deepOpen: list.filter((c) => c.tier === 2 && c.opened).length,
       at: list.map((c) => ({
         i: c.i, tier: c.tier, x: c.x, y: c.y, z: c.z, opened: c.opened,
+        access: c.access === null ? 'base' : c.access,
+        /* Where an answer can be GIVEN, so a critic can walk the deck and prove
+           that crossing it gives none. Read-only facts, never a way in. */
+        claims: (c.claims || []).map((e, k) => ({
+          v: c.stones[k] ? c.stones[k].v : null,
+          spent: !!(c.stones[k] && c.stones[k].spent),
+          won: !!(c.stones[k] && c.stones[k].won),
+          x: toWorld(c, e.gx * CELL, e.gz * CELL).x,
+          z: toWorld(c, e.gx * CELL, e.gz * CELL).z,
+        })),
+        roll: Number((c.roll || 0).toFixed(4)),
+        left: c.left, right: c.right,
       })),
     }),
     reset() {
@@ -811,3 +1170,6 @@ export function createCaches(opts = {}) {
 
 const XCOL = new THREE.Color(0xb489ff);
 const UCOL = new THREE.Color(0x74e2ff);
+/** The four quarter turns, exactly, so a lattice cell is never a float away. */
+const QSIN = [0, 1, 0, -1];
+const QCOS = [1, 0, -1, 0];

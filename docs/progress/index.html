@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ASCENT — build progress</title>
+<style>
+:root{--ink:#e8f1ff;--dim:#94a9c6;--mute:#61748f;--void:#060b16;--panel:#0c1526;
+ --edge:rgba(126,190,255,.16);--cyan:#5fe6ff;--lime:#8ef0a8;--amber:#ffc25f;--rose:#ff6b8a;--violet:#a78bff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#0d1c36 0%,#060b16 60%);
+ color:var(--ink);font:15px/1.55 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+ padding:2rem 1.2rem 4rem;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto}
+h1{font-size:clamp(1.5rem,4vw,2.2rem);margin:0;letter-spacing:.18em;font-weight:700}
+.sub{color:var(--mute);letter-spacing:.06em;margin:.3rem 0 0;font-size:.9rem}
+.summary{margin:1.6rem 0;padding:1rem 1.1rem;background:var(--panel);border:1px solid var(--edge);
+ border-left:2px solid var(--cyan);border-radius:10px;color:var(--dim)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin:1.2rem 0}
+.metric{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:.7rem .85rem}
+.metric b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
+.metric span{font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+h2{font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:var(--mute);
+ margin:2.2rem 0 .8rem;font-weight:600}
+.piece{display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:start;
+ padding:.85rem .95rem;background:var(--panel);border:1px solid var(--edge);border-radius:10px;margin-bottom:.5rem}
+.dot{width:9px;height:9px;border-radius:50%;margin-top:.42rem;background:var(--mute);flex:none}
+.dot.building{background:var(--amber);box-shadow:0 0 10px var(--amber);animation:pulse 1.4s infinite}
+.dot.judging{background:var(--violet);box-shadow:0 0 10px var(--violet);animation:pulse 1.4s infinite}
+.dot.passed{background:var(--lime);box-shadow:0 0 10px var(--lime)}
+.dot.failed{background:var(--rose);box-shadow:0 0 10px var(--rose)}
+@keyframes pulse{50%{opacity:.35}}
+.pname{font-weight:600}
+.pnote{color:var(--mute);font-size:.83rem;margin-top:.15rem}
+.score{font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--dim);white-space:nowrap}
+.score i{font-style:normal;color:var(--mute);font-size:.7rem}
+.log{list-style:none;padding:0;margin:0}
+.log li{display:grid;grid-template-columns:auto 1fr;gap:.8rem;padding:.4rem 0;
+ border-bottom:1px solid rgba(255,255,255,.05);font-size:.86rem;color:var(--dim)}
+.log time{color:var(--mute);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;padding-top:.15rem;white-space:nowrap}
+.live{position:fixed;top:.8rem;right:.9rem;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;
+ color:var(--mute);display:flex;gap:.4rem;align-items:center}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--lime);animation:pulse 1.6s infinite}
+</style>
+</head>
+<body>
+<div class="live"><i></i><span id="stamp">live</span></div>
+<div class="wrap">
+  <h1 id="title">ASCENT</h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="summary" id="summary"></div>
+  <div class="metrics" id="metrics"></div>
+  <h2>Pieces</h2>
+  <div id="pieces"></div>
+  <h2>Log</h2>
+  <ul class="log" id="log"></ul>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+async function load(){
+  try{
+    const r = await fetch('./state.json?'+Date.now());
+    const s = await r.json();
+    $('#title').textContent = s.title;
+    $('#subtitle').textContent = s.subtitle;
+    $('#summary').textContent = s.summary;
+    $('#stamp').textContent = s.updated || 'live';
+    $('#metrics').innerHTML = Object.entries(s.metrics||{}).map(([k,v])=>
+      `<div class="metric"><b>${typeof v==='number'?v.toLocaleString():v}</b><span>${k.replace(/([A-Z])/g,' $1')}</span></div>`).join('');
+    $('#pieces').innerHTML = (s.pieces||[]).map(p=>
+      `<div class="piece"><span class="dot ${p.status}"></span>
+        <div><div class="pname">${p.name}</div><div class="pnote">${p.note||''}</div></div>
+        <div class="score">${p.score!=null?p.score+'<i>/10</i>':'<i>'+p.status+'</i>'}</div></div>`).join('');
+    $('#log').innerHTML = (s.log||[]).slice().reverse().map(l=>
+      `<li><time>${l.t}</time><span>${l.m}</span></li>`).join('');
+  }catch(e){ $('#stamp').textContent = 'reconnecting'; }
+}
+load(); setInterval(load, 2500);
+</script>
+</body>
+</html>

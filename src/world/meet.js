@@ -5,6 +5,7 @@ import { t } from '../i18n/index.js';
 import { CELL } from '../build/pieces.js';
 import { merge } from './geom.js';
 import { beginTagFrame, submitTag } from './tagspace.js';
+import { bidField } from './fieldtalk.js';
 import './field.css';
 
 /**
@@ -655,11 +656,18 @@ const SITES = [
   // `x + y = 9` against `2x + y = 13`, crossing dead centre at (4, 5), with a
   // rail of eight readings and a residual that runs -3 .. +4: the beam falls
   // one way at one end of the walk and the other way at the other.
-  { key: 'm1', x: 140, z: 136, y: 56, seed: 0x4444, band: 2 },
+  // `access` is what the way IN is denominated in, and it is read by
+  // `src/kit/kit.js` before `src/meta/objective.js` is allowed to name this
+  // place. `null` is the wing every cadet has from boot — MEET 1 was flown to
+  // on it from a cleared save, with 7.0 m in hand against a measured ceiling of
+  // 63.0 m — and `'kite'` is the grant id in `src/kit/ladder.js`. A site the
+  // objective can name and the kit cannot reach is a marker that lies
+  // (`src/world/errand.js`), and three hanging caches were exactly that.
+  { key: 'm1', x: 140, z: 136, y: 56, seed: 0x4444, band: 2, access: null },
   // `x + y = 8` against `2x + 2y = 22` — PARALLEL, and the two statements do
   // not look alike, so a cadet has to walk it to find out. Nine readings, and
   // the beam holds -6 (18.9 degrees) at every one of them without moving.
-  { key: 'm2', x: 120, z: 224, y: 64, seed: 0xdddd, band: 5 },
+  { key: 'm2', x: 120, z: 224, y: 64, seed: 0xdddd, band: 5, access: 'kite' },
 ];
 
 /* ---------------------------------------------------------------------------
@@ -779,6 +787,7 @@ export function createMeets(opts = {}) {
 
     const c = {
       i: slot, key: spec.key, pose, x: spec.x, y: spec.y, z: spec.z, ang,
+      access: spec.access === undefined ? 'kite' : spec.access,
       opened: !!(saved.opened && saved.opened[spec.key]),
       group: new THREE.Group(),
       roll: 0, rollV: 0, want: 0, held: 0, settle: 0,
@@ -1288,6 +1297,14 @@ export function createMeets(opts = {}) {
       if (d < nd) { nd = d; near = c; }
     }
     const reach = sight ? 190 : 110;
+    /* …AND ONE FAMILY TALKS. A meet reads further than either of the other two
+       (110 m, 190 m with RESONANT SIGHT), so it is the one most likely to be
+       heard over a site the cadet is standing ON. See src/world/fieldtalk.js
+       for the frame it was photographed doing exactly that. */
+    if (!bidField(time, 'meet', nd)) {
+      for (const node of tagNodes) hideTag(node);
+      return;
+    }
     for (const node of tagNodes) {
       if (node.c !== near || nd > reach) { hideTag(node); continue; }
       _v.set(node.local[0], node.local[1], node.local[2])

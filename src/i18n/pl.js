@@ -2130,12 +2130,16 @@ export default {
       crack: 'Otwórz skrytkę',
       lay: 'Wyłóż przęsło',
       climb: 'Dotrzyj do znaku',
+      /* SKRZYŻOWANIE (src/world/meet.js). Klucz dodany. */
+      cross: 'Znajdź skrzyżowanie',
     },
 
     site: {
       cache: 'Wisząca skrytka',
       deepcache: 'Głęboka skrytka',
       span: 'Wiszące przęsło',
+      /* SKRZYŻOWANIE (src/world/meet.js). Klucz dodany. */
+      meet: 'Skrzyżowanie',
     },
 
     /* Kiedy liczba spada. Żadne z tych zdań nie podaje liczby.
@@ -2211,7 +2215,7 @@ export default {
       charged: 'Złote drobiny rosną przy otwartej wyrwie. Płacą trzykrotnie. Zamknij wyrwę, a wyładowania ustaną.',
       husk: 'Łupiny to żyły wypalone twoim przejściem. Każda wraca po pięciu minutach. Sięgaj dalej.',
       anchor: 'Kotwica sieci. Nic nie sięga jej z płaskiego gruntu — i o to chodzi. Postaw dwie rampy i dotknij.',
-      cache: 'Wisząca skrytka. Belka trzyma prawdziwe zdanie bez jednego odważnika. Wejdź w ten brakujący.',
+      cache: 'Wisząca skrytka. Belka trzyma prawdziwe zdanie bez jednego odważnika. Wyjdź i stań pod brakującym odważnikiem.',
       updraft: 'Ta kolumna to komin powietrzny. Wleć w niego, a wyniesie cię sześćdziesiąt metrów za darmo.',
       verge: 'Ta kurtyna to skraj: tam kończy się Odłamek Dziewiąty. Utrzymaj dziesięć linii, a sieć cię przeniesie.',
     },

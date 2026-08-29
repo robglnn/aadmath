@@ -640,7 +640,22 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: minmax(calc(92px * var(--rf-u)), 1fr);
   }
+  /* Sideways there is width and there is no height, so three and four bays go
+     across in ONE row rather than stacking a second one onto a 390 px screen —
+     the same trade the readings above make, for the same reason. */
+  .rf-bays[data-n='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rf-bays[data-n='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* AND THE ROW HAS TO RIDE THE UNIT HERE TOO. The portrait block above this
+     one sets `grid-auto-rows: minmax(88px, 1fr)` on the same `[data-n]`
+     selector — a flat pixel row, which is right where there is height to spare
+     and wrong on a screen 390 px tall. An attribute selector outranks the plain
+     `.rf-bays` rule beside it, so without this line the flat 88 px survived
+     into landscape and PINNED THE FIT PASS AT ITS FLOOR: the bays could not
+     give, so everything else did, and a chip came out 22 px tall on a 844x390
+     handset against a 44 px hand. */
+  .rf-bays[data-n='3'], .rf-bays[data-n='4'] { grid-auto-rows: minmax(calc(86px * var(--rf-u)), 1fr); }
   .rf-bay { min-height: calc(86px * var(--rf-u)); }
+  .rf-bays[data-n='3'] > .rf-bay, .rf-bays[data-n='4'] > .rf-bay { min-height: calc(86px * var(--rf-u)); }
   /* …and the coaching goes back beside the buttons rather than on a row of its
      own: that row is a portrait economy, and it costs 27 px here. */
   .rf-foot { flex-wrap: nowrap; }
@@ -720,48 +735,133 @@
     padding-inline: .2rem;
   }
 
-  /* THE CHART AND THE INSTRUMENT THAT ANSWERS IT, SIDE BY SIDE.
+  /* THE QUESTION, THE CHART AND THE HANDS — THREE COLUMNS, NOT THREE BANDS.
 
-     A coordinate chart is the QUESTION, and stacked above a keypad on a 390 px
-     screen it had 46vh — 179 px — to be drawn in, under a pad that ran the
-     full 700. The two now share the width the way the socket and the keys do,
-     and both take `--rf-instr`, so the chart is never the narrower of them.
+     THE ARITHMETIC, BECAUSE IT IS THE WHOLE ARGUMENT.
 
-     `--rf-instr` is the keypad's width, and here it carries a floor of 196 px:
-     four columns of 44 px plus three gaps is 190, so anything under that
-     is a keypad with keys no thumb can hit, and the chart's floor rides it up
-     with the keypad rather than the keypad down to the chart. The chart itself
-     is given 68vh on top of that, because the room a chart has sideways is
-     vertical room, not horizontal. */
+     A coordinate chart is the QUESTION and the keypad is only the instrument
+     that answers it, so the chart is never the narrower of the two — that rule
+     is twenty lines up and `check:touch` plants a shrunken chart against it on
+     every run. The chart is also SQUARE: its viewBox is a lattice and its grid
+     squares have to stay square. Put those two facts together and the box the
+     stage has to hold, whatever the composition, is at least
+
+         max(chart height, keypad height) = max(keypad WIDTH, keypad height)
+
+     — and the smallest that can ever be is a keypad laid out as near a square
+     as a 44 px thumb allows. Four columns of 44 and four rows of 44 is
+     190 x 194. There is no arrangement under 190.
+
+     The rig used to spend the height of a sideways phone on four stacked
+     bands — head, statement, stage, foot — and hand the stage the remainder:
+     195 px at 844x390 and 128 px at 568x320. Neither is 194. So the keypad ran
+     off the bottom of a card that has no scrollbar to offer, and `npm run
+     check:touch` measured it on the frozen build, in both sideways frames and
+     all three locales: at 844x390 the `0` key, CLEAR and the WHOLE SEAL SLAB —
+     the only way to commit an answer — were off the glass; at 568x320 ten
+     controls were, including `1`, `2`, `3`, the fraction bar and SEAL.
+     64 findings, every one of them a control a thumb cannot reach.
+
+     The height was never there. The WIDTH was: 545 px of it at 568x320, with
+     the statement taking a 77 px band across all of it to print one line.
+     So the statement takes a COLUMN instead and the stage gets the whole
+     middle of the frame — 224 px at 568x320, 300 at 844x390 — which is the
+     only change that makes the arithmetic above come out.
+
+     Everything else here is the keypad becoming that near-square:
+
+       · the `0` key stops spanning three columns, so the twelve digits and the
+         two utility keys fill a 4 x 4 grid exactly;
+       · SEAL takes the two cells left over on the last row — not a fifth row
+         (44 px this frame has not got) and not a fifth column (44 px of WIDTH,
+         which the chart then has to match in HEIGHT, which is the same 44 px
+         again). It is still the widest key on the pad and the only orange one;
+       · the socket is a readout, not a slab.
+
+     `--rf-instr` is the keypad's width AND the chart's floor, so the two sides
+     of the comparison can only move together. Sideways it is read off the
+     HEIGHT of the frame, because the box that has to fit is square and it is
+     the height that is scarce — with a floor of 190 px, which is four 44 px
+     columns and the three gaps between them, so the keypad can never be
+     composed below a thumb. */
   .rift { --rf-instr: max(calc(366px * var(--rf-u)), 196px); }
+  .rift:has(.rf-fig.grid) { --rf-instr: clamp(190px, 56vh, 330px); }
+
+  /* THE PLATE, RE-BANDED. `:not(.stack):not(.solo)` because the echo composes
+     its own rows and this is not an argument it is part of. */
+  .rift:has(.rf-fig.grid):not(.stack):not(.solo) .rf-plate {
+    grid-template-columns: minmax(0, 1fr) minmax(0, calc(2 * var(--rf-instr) + 2.2rem));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'head head' 'stmt stage' 'foot foot';
+  }
+  /* The statement is a column now, so it is vertically centred in it rather
+     than sitting on the lip of a band, and it keeps the stage's own gutter. */
+  .rift:has(.rf-fig.grid) .rf-stmtwrap {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: calc(.4rem * var(--rf-u)) .3rem calc(.4rem * var(--rf-u)) .7rem;
+    min-width: 0;
+  }
+  /* No padding-block at all: the plate's own rows are the air here, and the
+     last six pixels of it were the difference between the stage fitting and
+     the stage scrolling — and a stage that scrolls has put a decision on the
+     learner that the layout should have made. */
+  .rift:has(.rf-fig.grid) .rf-stage { padding: 0 .7rem 0 .3rem; }
+  /* Head and foot carry one 44 px control each and nothing else that needs
+     height, so they are trimmed to that control plus air — every pixel here is
+     a pixel of the square above. The safe-area insets stay: a notch is not
+     air. */
+  .rift:has(.rf-fig.grid) .rf-head { padding-top: calc(var(--sa-t) + 3px); padding-bottom: 3px; }
+  .rift:has(.rf-fig.grid) .rf-foot { padding-top: 3px; padding-bottom: calc(var(--sa-b) + 3px); }
+  /* CALL THE ECHO keeps the 44 px floor here and not the 56 px box it is given
+     everywhere else (src/ui/rift.css). Twelve pixels of foot is twelve pixels
+     off the square above it, and the square above it is a chart no learner can
+     read the question from if it shrinks and a keypad no thumb can hit if it
+     does. The floor is never lowered; it is only not exceeded. */
+  .rift:has(.rf-fig.grid) #rf-hint { min-height: 44px; padding-inline: .8rem; }
+
   .rf-inner:has(.rf-fig.grid) {
-    flex-direction: row; align-items: flex-start;
-    gap: calc(.7rem * var(--rf-u));
+    flex-direction: row; align-items: center; justify-content: center;
+    gap: calc(.5rem * var(--rf-u));
   }
+  /* Two columns of the instrument's own width, both allowed to shrink together
+     if the frame is narrower than the pair — which keeps the ratio at 1.0 all
+     the way down instead of letting the chart lose first. */
   .rf-inner:has(.rf-fig.grid) > .rf-figbox,
-  .rf-inner:has(.rf-fig.grid) > .rf-work { flex: 1 1 0; min-width: 0; }
-  /* The chart takes the height the stage actually has — 52vh is what is left of
-     a 390 px frame once the head, the statement and the foot have carried
-     controls a thumb can hit — and never less than the instrument beside it.
-     68vh drew a 265 px chart into a 197 px stage and cut its bottom axis off,
-     which is the one thing on this card that may not be cut. */
-  .rf-inner:has(.rf-fig.grid) .rf-fig.grid {
-    max-width: min(100%, max(calc(var(--rf-instr) + 8px), 52vh));
+  .rf-inner:has(.rf-fig.grid) > .rf-work { flex: 0 1 var(--rf-instr); min-width: 0; }
+  .rf-inner:has(.rf-fig.grid) .rf-fig.grid { max-width: 100%; }
+  .rf-inner:has(.rf-fig.grid) .rf-work { justify-content: center; }
+  .rf-inner:has(.rf-fig.grid) .rf-pad {
+    flex-direction: column; max-width: var(--rf-instr); flex: 0 0 auto;
   }
-  /* In its own column the pad is a column again: the socket-beside-the-keys row
-     is an answer to a 700 px pad on a 390 px screen, and there is no 700 here. */
-  .rf-inner:has(.rf-fig.grid) .rf-pad { flex-direction: column; max-width: var(--rf-instr); }
-  /* …and the socket is a full-width readout again at the head of that column.
-     `align-self: flex-start` above is right for the socket-BESIDE-the-keys row;
-     in a column it is the cross axis, and it shrank the readout to the width of
-     the word YOUR ANSWER. */
-  .rf-inner:has(.rf-fig.grid) .rf-socket { flex: 0 0 auto; align-self: stretch; }
-  /* …and with a chart beside it the pad is a column with a column's height, so
-     the slab goes back under the keys where it reads as the end of the pad. */
+  /* A READOUT, NOT A SLAB. 96 units of socket is 52 px, and 52 px is the
+     difference between the SEAL key being on this screen and being off it.
+     Its type is read off the HEIGHT of the frame as well as the rig's unit,
+     for the same reason `--rf-instr` is: on the shortest sideways frame the
+     socket is the only part of the instrument that is free to give, because
+     every key under it is standing on the 44 px floor. */
+  .rf-inner:has(.rf-fig.grid) .rf-socket {
+    flex: 0 0 auto; align-self: stretch;
+    min-height: calc(46px * var(--rf-u)); padding: calc(.35rem * var(--rf-u)) .6rem .1rem;
+  }
+  .rf-inner:has(.rf-fig.grid) .rf-socket .val { font-size: calc(min(1.9rem, 6.4vh) * var(--rf-u)); }
+  .rf-inner:has(.rf-fig.grid) .rf-socket .val.long { font-size: calc(min(1.55rem, 5.4vh) * var(--rf-u)); }
+  .rf-inner:has(.rf-fig.grid) .rf-socket .val.longer { font-size: calc(min(1.25rem, 4.4vh) * var(--rf-u)); }
+  .rf-inner:has(.rf-fig.grid) .rf-socket .val.longest { font-size: calc(min(1rem, 3.6vh) * var(--rf-u)); }
+  .rf-inner:has(.rf-fig.grid) .rf-socket .val.empty { font-size: calc(min(2.2rem, 7.4vh) * var(--rf-u)); }
+  /* FOUR BY FOUR. Sixteen cells, fifteen keys, and SEAL in the two that are
+     left. `grid-auto-rows: auto` rather than `1fr`: a row that stretches to
+     fill spare height is a row that grows the pad past the chart beside it. */
   .rf-inner:has(.rf-fig.grid) .rf-keys {
-    flex: 1 1 auto; grid-template-columns: repeat(4, minmax(0, 1fr));
+    flex: 0 0 auto; gap: calc(.26rem * var(--rf-u));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: auto;
   }
-  .rf-inner:has(.rf-fig.grid) .rf-key.commit { grid-column: span 4; grid-row: auto; }
+  .rf-inner:has(.rf-fig.grid) .rf-key.wide3 { grid-column: auto; }
+  .rf-inner:has(.rf-fig.grid) .rf-key.commit {
+    grid-column: span 2; grid-row: auto;
+    min-height: max(44px, calc(50px * var(--rf-u)));
+    font-size: calc(.66rem * var(--rf-u)); letter-spacing: .04em; padding-inline: .2rem;
+  }
 
   /* THE LAST RESORT, and the only one this panel is allowed.
      The fit pass shrinks the rig by one unit until it fits and then stops at a

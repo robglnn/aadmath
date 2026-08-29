@@ -18,6 +18,8 @@
  *
  *   · `.rf-cell` (the area field) runs `self._click(cell, () => { if (!picked)
  *     return; … })`. With no chip picked, THE CLICK IS A NO-OP.
+ *   · the sorting bays are one bay per LIKE-CLASS now, so "a chip with a
+ *     letter goes in the `var` bay" files three kinds of chip into one bay;
  *   · the area field's chips are `.rf-chip`, the same class the sorting bays
  *     use, so an area card fell into the sorter branch, looked for a `.rf-bay`
  *     that surface does not have, and broke out of the loop having placed
@@ -351,15 +353,35 @@ async function withPad(page, f, s, wait, wrong = false) {
 const KEYNAME = { '-': 'Minus', '/': 'Slash', '+': 'Shift+Equal', '^': 'Shift+Digit6', '(': 'Shift+Digit9', ')': 'Shift+Digit0', '=': 'Equal', ',': 'Comma', '*': 'Shift+Digit8' };
 const keyFor = (ch) => KEYNAME[ch] || ch;
 
-/** The sorting bays: a chip with a letter in it is a multiple of the unknown. */
+/**
+ * A chip's VARIABLE PART, read off the KaTeX the way an eye reads it.
+ * `3x` -> `x`, `-x` -> `x`, `4m^{2}` -> `m^{2}`, `12` -> `` (a bare number).
+ */
+export const partOfChip = (tex) => {
+  const m = /([A-Za-z])(?:\s*\^\s*\{?\s*(\d+)\s*\}?)?\s*$/.exec(String(tex || ''));
+  if (!m) return '';
+  return m[2] && m[2] !== '1' ? `${m[1]}^{${m[2]}}` : m[1];
+};
+
+/**
+ * The sorting bays: a chip goes in the bay whose header is its variable part.
+ *
+ * This used to read `/[A-Za-z]/.test(chip.tex)` and press the bay whose
+ * `data-kind` was `var` or `num`, because the board had exactly two bays and
+ * they were exactly those two glyph classes. `src/ui/rift.js` draws one bay per
+ * LIKE-CLASS now — `x`, `x^{2}`, `y`, the numbers — so a chip with a letter on
+ * it can belong in any of three of them, and the old rule would miss on most of
+ * the board, leave the card unsettled, and count an item as answered. The bay
+ * publishes its own variable part in `data-kind`, which is the header printed
+ * on it; the chip publishes nothing, and this reads the part off the chip.
+ */
 async function withBays(page, f, wait) {
   let moved = 0;
   for (let k = 0; k < 14; k++) {
     const s = await surface(page);
     const chip = s.chips.find((c) => !c.placed);
     if (!chip) break;
-    const wantVar = /[A-Za-z]/.test(chip.tex || '');
-    const bayAt = s.bays.indexOf(wantVar ? 'var' : 'num');
+    const bayAt = s.bays.indexOf(partOfChip(chip.tex));
     if (bayAt < 0) break;
     await page.locator('.rf-chip').nth(chip.i).click({ timeout: 4000 }).catch(() => {});
     await wait(70);

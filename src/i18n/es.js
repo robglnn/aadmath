@@ -2111,12 +2111,16 @@ export default {
       crack: 'Abre la caja',
       lay: 'Cubre el tramo',
       climb: 'Llega al hito',
+      /* EL CRUCE (src/world/meet.js). Clave añadida. */
+      cross: 'Halla el cruce',
     },
 
     site: {
       cache: 'Caja colgante',
       deepcache: 'Caja profunda',
       span: 'Tramo colgante',
+      /* EL CRUCE (src/world/meet.js). Clave añadida. */
+      meet: 'El cruce',
     },
 
     /* Cuando el número baja. Ninguna de las dos frases lleva cifra alguna.
@@ -2198,7 +2202,7 @@ export default {
       charged: 'Las motas doradas crecen junto a una grieta abierta. Pagan el triple. Sella la grieta y paran.',
       husk: 'Las cáscaras son vetas que vaciaste. Cada una se reenciende en unos cinco minutos. Llega más lejos.',
       anchor: 'Un ancla de red. Nada la alcanza desde el suelo, y esa es la idea. Apila dos rampas y tócala.',
-      cache: 'Una caja colgante. La barra sostiene algo verdadero a lo que le falta una pesa. Métete en esa pesa.',
+      cache: 'Una caja colgante. La barra sostiene algo verdadero a lo que le falta una pesa. Sal y ponte bajo la pesa que falta.',
       updraft: 'Esa columna es una ascendencia. Vuela dentro y te sube sesenta metros gratis.',
       verge: 'Esa cortina es el borde: ahí se acaba el Fragmento Nueve. Sostén todas las líneas y la red te saca.',
     },

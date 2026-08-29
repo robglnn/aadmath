@@ -3,12 +3,12 @@
  *
  * WHY THIS FILE EXISTS
  *
- * Two surfaces in this game put a set of readings in front of a learner and ask
- * which one is right, and on both of them the same defect keeps coming back: the
- * right one LOOKS different. Wrong answers drift longer than right ones, so the
- * key came out the shortest string in the set and "pick the shortest" scored 39%
- * against a 25% baseline. The repair for that guaranteed the key was never the
- * unique shortest and never the unique longest, which turned a cue that was
+ * Several surfaces in this game put a set of readings in front of a learner and
+ * ask which one is right, and on all of them the same defect keeps coming back:
+ * the right one LOOKS different. Wrong answers drift longer than right ones, so
+ * the key came out the shortest string in the set and "pick the shortest" scored
+ * 39% against a 25% baseline. The repair for that guaranteed the key was never
+ * the unique shortest and never the unique longest, which turned a cue that was
  * right 39% of the time into an elimination rule that was right 100% of the
  * time. The repair after THAT drew the key's place from the card's own hash,
  * which was right in shape and wrong in measurement: the weights were fitted to
@@ -30,11 +30,13 @@
  *                              — the four-option card shows all three, the
  *                              narrowed field shows the first two.
  *   `src/ui/rift.js`           chooses which four of the beam's legal-but-wrong
- *                              moves to offer beside the ideal one.
+ *                              moves to offer beside the ideal one, and which
+ *                              two shards stand beside each right one on the
+ *                              area field's tray.
  *
- * The two used to be unrelated, and the beam's tray was never balanced at all:
- * "take the unique fewest-digits option" named the ideal move 42% of the time
- * against 24.6%, and the ideal move sat in the LAST slot 30% of the time
+ * The surfaces used to be unrelated, and the beam's tray was never balanced at
+ * all: "take the unique fewest-digits option" named the ideal move 42% of the
+ * time against 24.6%, and the ideal move sat in the LAST slot 30% of the time
  * against 20%, because a shuffle that dropped it simply appended it.
  *
  * WHAT MEASURES IT. Not this file. `tools/critic/choiceshape.mjs` reads every
@@ -42,6 +44,123 @@
  * and judges each surface separately against that surface's own chance. It has
  * to keep its own list: a gate that shares the generator's idea of what a cue is
  * cannot catch a cue the generator never thought of.
+ *
+ * ---------------------------------------------------------------------------
+ * THE FOURTH REPAIR, AND WHY THE THIRD ONE COULD NOT WORK — READ THIS FIRST.
+ * ---------------------------------------------------------------------------
+ *
+ * The third repair — the one this rewrite replaces — asked each cue for a target
+ * of its own, drew those targets INDEPENDENTLY, put the cues in a per-card drawn
+ * order, and took the candidate set answering the longest prefix of that order.
+ * Every single cue then came out at chance, and it was measured and true: on the
+ * narrowed field "take the unique longest option", "take the unique shortest",
+ * "the unique most digits" and "the unique fewest" all sat inside the band.
+ *
+ * And a cadet who struck EVERY unique extreme at once still first-picked
+ * **45.74% against 33.33%**, on 97% of 10,260 route sets.
+ *
+ * THE MECHANISM, because it is not obvious and it cost three rounds. A
+ * three-option set has exactly three places on any ordinal measure: least,
+ * middle, greatest. "The key is not the unique least and not the unique
+ * greatest" therefore means THE KEY IS THE MIDDLE ONE — and if the key is the
+ * middle one, the two distractors ARE the two extremes, so a rule that strikes
+ * every extreme strikes both of them and leaves the key standing alone. Asking
+ * four separate cues each to be at chance pushed the key into the middle far
+ * more often than a third of the time, because "at chance" for a one-option cue
+ * is 1/3 for KEY and 2/3 for OTHER, and OTHER on a three-set means the middle.
+ * Every marginal was flat and the joint was a giveaway.
+ *
+ * Four experiments confirmed the diagnosis by making it worse in four different
+ * ways. Measured on the shipped route, the cadet who reads no mathematics on the
+ * narrowed field (chance 33.33%):
+ *
+ *     size not asked for at all                            45.74%   <- shipped
+ *     + both size ends, its drawn place and its flatness   51.37%
+ *     + both size ends only                                55.95%
+ *     size ends IN PLACE OF the digit ends (budget kept)   55.81%
+ *     + the composite as its own cue                       45.98%
+ *
+ * Adding cues made the composite STRONGER, which is the signature of this
+ * failure and not of a shortage of cues: every cue added is one more reason to
+ * put the key in the middle.
+ *
+ * IT WAS NEVER THE CATALOGUE. That was the first guess and it is measurable and
+ * false: over 3,564 route keypad cards the pack offers a wrong value on BOTH
+ * sides of the key on 96.4% of them, 74.7% can put the key in ANY of the three
+ * places by size, and the median card can offer 17 distinct pairs. The freedom
+ * was there. What was missing was anything that asked for all of it at once.
+ *
+ * WHAT THIS FILE DOES NOW: ONE TARGET FOR EVERY RULE, AND ONE SET CLOSEST TO
+ * ALL OF THEM TOGETHER.
+ *
+ * The null hypothesis every one of these gates tests is a single sentence: THE
+ * KEY IS JUST ANOTHER OPTION. Written out, it says that given the k shapes on
+ * the glass, which of them is the right one is a uniform draw. That statement
+ * has a property worth the whole rewrite: for ANY rule a cadet can play — one
+ * this file knows, one it does not, one nobody has thought of yet — the value of
+ * that rule on a fixed set of shapes, summed over "what if option i were the
+ * key", is exactly 1, because the survivors of the rule share a total of 1
+ * between them. So under exchangeability every strategy is worth exactly 1/k,
+ * with no list of cues anywhere in the argument.
+ *
+ * So for one card this file:
+ *
+ *   1. takes every option set the caller is willing to show and DEDUPLICATES
+ *      them by what is on the glass — the order inside a set is thrown away by
+ *      `arranged()` a moment later, so two orderings of one set are one set and
+ *      must not vote twice;
+ *   2. scores every one of them against TWENTY-NINE rules at once — the least
+ *      and greatest end of three ordinal measures, taken and struck; eight
+ *      written features, taken and struck; and the composite that strikes every
+ *      unique extreme together — as WHAT EACH RULE IS WORTH TO A CADET WHO
+ *      PLAYS IT, `1/|survivors|` when the key survives it and 0 when it does
+ *      not. That is the same arithmetic the gate scores every strategy on, and
+ *      it is what makes twenty-nine rules comparable on one scale;
+ *   3. asks each rule for a value DRAWN from the two ends this card can reach,
+ *      mixed so the mean is exactly `1/k` (`drawTargets`);
+ *   4. shows the set closest to all twenty-nine answers at once, in
+ *      family-weighted squared distance — never the longest prefix of a drawn
+ *      order, which is the design this replaced.
+ *
+ * THE COMPOSITE IS ONE OF THE TWENTY-NINE, and it has to be, because what a
+ * rule is worth is `1/|survivors|` and how many options survive "strike every
+ * unique extreme" is a fact about the WHOLE SET that no statement about one
+ * place in it settles. Two sets that put the key in identical places on all
+ * three measures can leave one option standing and three.
+ *
+ * AND THE WALL THIS CANNOT CLIMB, MEASURED RATHER THAN GUESSED AT. Where only
+ * ONE measure is live on a card, "the key survives the composite" and "the key
+ * is not the unique smallest" are the SAME statement, so a catalogue with no
+ * wrong value above the answer cannot put both at chance whatever this function
+ * does; the best any arrangement could reach is a half on each.
+ * `multi-step/ms-context` is the clearest case: the answer is 5 and the whole
+ * catalogue is 4, 6, 37/6, 22/3, 10, 30 — ONE value below the key and five
+ * above — so the key can be the middle of three or the smallest of three and
+ * can never be the biggest, and the two rules trade off one for one.
+ *
+ * SEVENTEEN route FORMS on the narrowed field are still over the seven-point
+ * band. A GREEDY ORACLE that is allowed to see the whole population — it picks
+ * each card's set knowing the running mean of all 32 of the gate's strategies,
+ * which no per-card rule can ever do — clears SEVEN of them and cannot clear
+ * the other TEN. So seven are worth more work here and ten are a catalogue with
+ * nothing on one side of the key, and the difference is written down so the
+ * next lane does not have to re-derive it:
+ *
+ *     worth more work here   ee-context 3.9, bbs-symbolic 2.4, sr-points 4.4,
+ *                            se-add 4.8, i2-limit 6.0, se-context 6.7,
+ *                            fs-split 6.7   (points the oracle can reach)
+ *     the catalogue's wall   ms-context 33.3, lt-perimeter 33.3,
+ *                            ms-bracket 29.8, ss-forx 15.6, sr-graph 10.4,
+ *                            rft-dispute 9.8, gl-cross 9.3, i2-edge 8.8,
+ *                            ee-graph 8.1, sr-context 7.8
+ *
+ * AND THE TRAP THIS FILE HAS ALREADY FALLEN INTO ONCE. Nothing here forces the
+ * key to be non-extreme, or extreme, or anything else. Forcing the key never to
+ * be the unique shortest is what turned a 39% cue into a 100% elimination rule,
+ * and it is the same move as forcing it to be the middle. RANDOMISE, DO NOT
+ * EQUALISE: the key is the unique biggest about a third of the time, the unique
+ * smallest about a third of the time, and in the middle about a third of the
+ * time, because that is what an option that carries no information looks like.
  */
 
 /**
@@ -66,49 +185,6 @@ export function shapeLen(x) {
     .length;
 }
 
-/**
- * WHY THERE IS NO shapeSize() HERE, AND WHY THAT IS A MEASURED DECISION.
- *
- * There is a third thing an eye reads, and neither count above can see it:
- * HOW BIG THE NUMBER IS. `-800` is longer than `12` and carries more digits
- * while being the smaller number. The lean is real and it is large — over
- * 10,260 route narrowed fields, "take the biggest of the three" names the key
- * 19.96% of the time against 33.33%, so its mirror "strike the biggest" names
- * it 40.02%, and the key's place by size runs 34.0 / 46.0 / 20.0 against 33.3
- * apiece.
- *
- * IT IS NOT THE CATALOGUE. That was the first guess and it is measurable and
- * false: over 3,420 route keypad cards the pack offers a wrong value on BOTH
- * sides of the key on 96.4% of them, and only 2.8% are bigger-only. The
- * freedom is there. What is not there is a cue asking for it — the two the
- * NARROWED FIELD actually shows straddle the key on 44.0% of cards.
- *
- * IT IS THE BUDGET, AND FOUR EXPERIMENTS SAY SO. Fourteen cues already cannot
- * all be had from three options drawn out of six, and this function answers a
- * PREFIX of a drawn order, so a fifteenth cue is paid for by the ones under it.
- * Measured on the shipped route, the cadet who reads no mathematics on the
- * narrowed field (chance 33.33%):
- *
- *     size not asked for at all                            45.74%   <- shipped
- *     + both size ends, its drawn place and its flatness   51.37%
- *     + both size ends only                                55.95%
- *     size ends IN PLACE OF the digit ends (budget kept)   55.81%
- *     + the composite as a cue of its own                  45.98%
- *
- * and the beam went 46.22% -> 52.79% on the first of those. The third is the
- * interesting one: it keeps the budget at fourteen and is still worse, because
- * silencing each ordinal cue separately is what MAKES the composite — a key
- * that is never the unique extreme on anything is exactly what survives
- * "strike every unique extreme at once", and on a three-option set there is not
- * enough room to be non-extreme on three metrics and inconspicuous as well.
- *
- * So the lean stays, and it stays MEASURED: `tools/critic/choiceshape.mjs`
- * reads it on every build with its own `shapeSize`, kept there for the reason
- * written at the top of that file. Closing it needs this function to score a
- * candidate set against ALL of its cues at once instead of the longest prefix
- * of a drawn order — which is a redesign, not another entry in the table above.
- */
-
 /** How many digits an option carries — the other thing an eye counts. */
 export function shapeDigits(x) {
   const s = String(x);
@@ -118,26 +194,65 @@ export function shapeDigits(x) {
 }
 
 /**
- * THE SIX WRITTEN FEATURES, as one bitmask per option.
+ * HOW BIG THE NUMBER AN OPTION CARRIES IS — the third thing an eye reads.
+ *
+ * Neither count above can see it: `-800` is longer than `12` and carries more
+ * digits while being the smaller number, so a set balanced on length and digits
+ * can still put the key at one end of the size order every time. It did. Over
+ * 10,260 route narrowed fields "take the biggest of the three" named the key
+ * 19.96% of the time against 33.33%, so its mirror "strike the biggest" named it
+ * 40.02%, and the key's place by size ran 34.0 / 46.0 / 20.0 against 33.3 apiece.
+ *
+ * This used to be a written argument for why size was NOT read here — a
+ * fifteenth cue could only be paid for out of the fourteen under it, because
+ * the old design answered the longest PREFIX of a drawn cue order. Scoring
+ * every rule at once has no prefix and no budget to pay out of: size is four
+ * rules of twenty-nine, and adding it costs the other twenty-five nothing.
+ *
+ * Anything that does not read as one signed number is NaN, and a set carrying a
+ * NaN leaves every size rule undecided rather than guessing — the same
+ * discipline `tools/critic/choiceshape.mjs` holds, and for the same reason: a
+ * measurement that guesses is worse than one that says it cannot see.
+ */
+export function shapeSize(x) {
+  let t = String(x).replace(/\\left|\\right|\\[,;:!]|\s+/g, '');
+  const fr = t.match(/^(-?)\\frac\{(-?\d+)\}\{(-?\d+)\}$/);
+  if (fr) return (fr[1] === '-' ? -1 : 1) * Number(fr[2]) / Number(fr[3]);
+  t = t.replace(/\\[a-zA-Z]+\{[^{}]*\}/g, '').replace(/\\[a-zA-Z]+/g, '').replace(/\\[^a-zA-Z]/g, '');
+  const m = t.match(/^([+-]?)(\d+)(?:\/(\d+))?/);
+  if (!m) return NaN;
+  const sign = m[1] === '-' ? -1 : 1;
+  return sign * Number(m[2]) / (m[3] ? Number(m[3]) : 1);
+}
+
+/**
+ * THE EIGHT WRITTEN FEATURES, as one bitmask per option.
  *
  * Everything here is something a cadet can see at a glance in a rendered option
  * without knowing what any of it means: a minus hanging off the front, a bar
  * with something over and under it, a relation sign, a phrase in words, a
- * letter, a root. `words` is on the list because of the special-answer card,
- * where the key is a PHRASE and two of the four readings used to be bare
- * numbers — "strike every bare number" first-picked 50.00% against 25%. Writing those two as phrases that
- * NAMED a number moved the same cue one step along — the key was still one of
- * the two readings with no digit in it — which is why the wrong readings on
- * that card now name a COUNT and not a value.
+ * letter, a root, a division glyph, a numeral at all. `words` is on the list
+ * because of the special-answer card, where the key is a PHRASE and two of the
+ * four readings used to be bare numbers — "strike every bare number" first-picked
+ * 50.00% against 25%. Writing those two as phrases that NAMED a number moved the
+ * same cue one step along — the key was still one of the two readings with no
+ * digit in it — which is why the wrong readings on that card now name a COUNT
+ * and not a value.
  *
- * "Does it carry a numeral at all" is deliberately NOT one of these. It is the
- * digit count with everything above zero folded together, and this file already
- * asks four finer questions about that count — the unique fewest, the unique
- * most, which place the key stands in, and how flat that place is. Adding the
- * coarse one took a turn from the fine ones and pushed the beam's ideal move
- * back into the first place by digits, +6.3 points off 20. The GATE measures it
- * anyway, because a gate that only asks what the generator already asks cannot
- * catch a cue the generator never thought of.
+ * THE DIVISION GLYPH. The beam's move tray is an option set whose members differ
+ * by their OPERATOR, and no count above can see one: `\div\; 4` and `+\; 8` are
+ * the same printed length, carry the same digit count and share every other
+ * feature. Written for three locales, because es and pl set division with a
+ * colon and an eye does not care which glyph a locale chose.
+ *
+ * "DOES IT CARRY A NUMERAL AT ALL" is here now, and it was not before, and the
+ * reason it was not is the whole argument for this rewrite. It is the digit
+ * count with everything above zero folded together, so under the old
+ * prefix-scoring scheme it stole a turn from the four finer questions about
+ * that count and pushed the beam's ideal move back into the first place by
+ * digits, +6.3 points off 20. Scoring every rule at once has no turns to
+ * steal: the fine questions and the coarse one are asked in the same pass, and
+ * the gate reads the coarse one whether this file does or not.
  */
 export function shapeFeatures(s) {
   const t = String(s);
@@ -148,12 +263,8 @@ export function shapeFeatures(s) {
   if (/\\text\{/.test(t)) b |= 8;
   if (/[A-Za-z]/.test(t.replace(/\\[a-zA-Z]+/g, ' ').replace(/\\text\{[^}]*\}/g, ' '))) b |= 16;
   if (/\\sqrt/.test(t)) b |= 32;
-  /* THE DIVISION GLYPH. The beam's move tray is an option set whose members
-     differ by their OPERATOR, and no cue above can see one: `\\div\\; 4` and
-     `+\\; 8` are the same printed length, carry the same digit count and share
-     every feature. Written for three locales, because es and pl set division
-     with a colon and an eye does not care which glyph a locale chose. */
   if (/\\div|\\mathbin\{:\}|÷/.test(t)) b |= 64;
+  if (/[0-9]/.test(t)) b |= 128;
   return b;
 }
 
@@ -175,130 +286,355 @@ export function shapeMix(salt) {
 /** A uniform in [0,1) drawn from one hash and one label. */
 export const shapeUnit = (h, tag) => shapeMix(`${h}|${tag}`) / 4294967296;
 
-/** The outcome of one cue on one candidate set. */
-const CUE_NONE = 0, CUE_KEY = 1, CUE_OTHER = 2;
+/** The three ordinal measures a set can be put in order by. */
+const METRICS = [shapeLen, shapeDigits, shapeSize];
+/** The written features, in the order the cue vector lists them. */
+const FEATURE_BITS = [1, 2, 4, 8, 16, 32, 64, 128];
+/**
+ * HOW MANY RULES ARE READ AT ONCE.
+ *
+ * Three measures, each with a least and a greatest end, each end with the rule
+ * that TAKES it and the rule that STRIKES it — a cadet who has learned a cue is
+ * inverted plays it just as well backwards. Eight written features, each with
+ * "take the ones that have it" and "take the ones that do not". And the
+ * composite, which is none of them and all of them at once.
+ */
+/**
+ * AND THE THREE THE SENTENCE OVER THE SET CARRIES.
+ *
+ * Every rule above reads the options alone. A whole family of forms in this
+ * bank prints a reading INTO THE STEM — a graph card names the values it plots,
+ * a dispute card chalks two readings and asks which is true — and quoting is a
+ * cue an eye reads before it reads anything else. Measured on the shipped
+ * route, before this family existed: on `eval-expr/ee-graph` "take the ones the
+ * stem prints" named the key 18.8% against 33.3% over 144 sets, decisive on
+ * 44% of them, and its mirror "take the ones the stem does NOT print" was
+ * therefore worth 40.6%; `graph-linear/gl-cross` read 21.5%. Nothing in the
+ * twenty-nine rules could see either, because both readings are honest numbers
+ * of the same length carrying the same glyphs.
+ *
+ * The stem is OPTIONAL. A caller that has one hands it over; a caller that has
+ * none (the beam's move tray, the area field's shards) leaves these three at
+ * `1/k` on every candidate, which makes them identical on every candidate,
+ * which makes their target a constant and their say in the choice exactly
+ * nothing. One code path, not two.
+ */
+const STEM_CUES = 3;
+const CUE_COUNT = METRICS.length * 4 + FEATURE_BITS.length * 2 + 1 + STEM_CUES;
+
+/* Reading the stem the way `tools/critic/choiceshape.mjs` reads it, and for the
+   reason written down there: a stem writes `$x \ge -4$` and the option is
+   `x \ge -4`, so whitespace collapses to ONE space rather than none — squeezing
+   it all out makes "makesit18" run a letter against the `1` and a boundary test
+   then refuses a quotation that a learner can plainly see. Both normalisations
+   are tried, because an eye does not care which one matched. */
+const stemBare = (x) => String(x).replace(/\\left|\\right/g, '').replace(/\s+/g, ' ').trim();
+const stemSqueeze = (x) => String(x).replace(/\s+/g, '');
+const stemWordish = (c) => c !== undefined && /[0-9A-Za-z]/.test(c);
+function stemFind(hay, needle) {
+  if (needle.length < 2) return -1;
+  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) {
+    if (stemWordish(needle[0]) && stemWordish(hay[i - 1])) continue;
+    const end = i + needle.length;
+    if (stemWordish(needle[needle.length - 1]) && stemWordish(hay[end])) continue;
+    return i;
+  }
+  return -1;
+}
+/** Where the stem prints this reading whole, or -1 — never inside a longer number. */
+function stemAt(hay, needle) {
+  const a = stemFind(hay, needle);
+  return a >= 0 ? a : stemFind(stemSqueeze(hay), stemSqueeze(needle));
+}
 
 /**
- * THE FOURTEEN CUES, in four kinds.
+ * WHAT EVERY CUE IS WORTH TO A CADET WHO PLAYS IT, if option `at` were the key.
  *
- *   kind 0  the unique least / greatest, by printed length and by digit count.
- *           Three answers: the cue names the KEY, it names a distractor
- *           (OTHER), or it does not fire at all (NONE).
- *   kind 1  a written feature. A cue that splits the set names a CLASS, and
- *           the strategy a cadet plays is "take the class the key is in and
- *           guess inside it", which is worth `1/c`. KEY when the key is inside
- *           that class, OTHER when it is not, NONE when the feature does not
- *           split the set.
- *   kind 2  WHICH SORTED PLACE the key stands in. Silencing the two extremes
- *           is not the whole job: on the beam's five-move tray the ideal
- *           stopped being the unique fewest-digits move and simply became one
- *           of the two fewest — 34.6% of the mass in the first sorted place and
- *           33.2% in the second against 20% apiece, and "take one of the two
- *           with the fewest digits" is a cue an eye reads as easily as "take
- *           the fewest". Only the whole distribution answers that, not its ends.
- *   kind 3  HOW FLAT that place is. A key measuring the same as every other
- *           option is the one arrangement that carries no information ON ITS
- *           OWN rather than only on average, and it is asked for first wherever
- *           the catalogue can give it.
+ * One number per rule: `1/|survivors|` when this option survives the rule, 0
+ * when the rule strikes it, and `1/k` when the rule refuses nothing at all —
+ * which is a cadet who learned nothing from it and guesses. That is the same
+ * arithmetic `tools/critic/choiceshape.mjs` scores every strategy on, and it is
+ * what makes twenty-nine rules comparable on one scale: under the null this
+ * whole file is defending — the key is shape-wise just another option — EVERY
+ * one of these is worth exactly `1/k`, whatever the rule is and whatever the
+ * set looks like.
  *
- * `p` is the probability the target draw should give KEY when both KEY and
- * OTHER are reachable: 1/k for a cue that names exactly one option, and `c/k`
- * for a class cue, which is the share of the set that class covers — the two
- * are the same number when c is 1.
+ * A measure that cannot be read on every option in the set (a size that is not
+ * one signed number) puts nothing in order, so its four rules refuse nothing.
+ *
+ * @param {Array<[number, number, number, number, string]>} rows per option:
+ *        printed length, digit count, size, feature mask, and the option as it
+ *        is written, which is what the stem rules match against.
+ * @param {number} at which option to value the rules for.
+ * @param {string} stem the sentence over the set, or '' when there is none.
+ * @param {number[]} out a reusable array of length CUE_COUNT, filled in place.
  */
-const CUES = [[0, -1], [0, +1], [0, -2], [0, +2], [3, 1], [3, 2], [2, 1], [2, 2],
-  [1, 1], [1, 2], [1, 4], [1, 8], [1, 16], [1, 32]];
-
-function cueOutcome(kind, arg, len, dig, feat, k) {
-  if (kind === 0) {
-    const vals = (arg === -1 || arg === 1) ? len : dig;
-    const dir = arg < 0 ? -1 : +1;
-    let best = vals[0], at = 0, ties = 1;
-    for (let i = 1; i < k; i++) {
-      if (dir < 0 ? vals[i] < best : vals[i] > best) { best = vals[i]; at = i; ties = 1; }
-      else if (vals[i] === best) ties++;
-    }
-    if (ties > 1) return { o: CUE_NONE, p: 0 };
-    return { o: at === 0 ? CUE_KEY : CUE_OTHER, p: 1 / k };
-  }
-  if (kind === 2) {
-    // WHICH SORTED PLACES THE KEY COULD BE STANDING IN, as a bitmask.
-    //
-    // A key measuring the same as two others does not have a place; it has a
-    // BLOCK of three, and it puts a third of itself in each. The target this
-    // cue is asked for is one drawn place, and a candidate answers it when its
-    // block COVERS that place — which is the one rule that makes the whole
-    // distribution flat rather than the ends of it. A key alone in a place
-    // covers exactly the place it was asked for, so those cards spread evenly;
-    // a key tied with everything covers every place at 1/k, so those cards are
-    // already flat. Asking instead for the block's CENTRE was measured and is
-    // worse: it piles a third of the mass on the middle place, because a key
-    // that is exactly in the middle of five is in the middle of five every
-    // time it is asked for.
-    const vals = arg === 1 ? len : dig;
-    const key = vals[0];
-    let below = 0, tie = 0;
-    for (let i = 0; i < k; i++) { if (vals[i] < key) below++; else if (vals[i] === key) tie++; }
-    let mask = 0;
-    for (let p = below; p < below + tie && p < k; p++) mask |= 1 << p;
-    return { o: mask, p: 0 };
-  }
-  if (kind === 3) {
-    // HOW FLAT the key's place is over the k places, in units of 1/2k.
-    //
-    // A key that measures the same as every other option puts 1/k of itself in
-    // every place, which is what a set carrying no information looks like, and
-    // it is the one arrangement that is uniform ON ITS OWN rather than only on
-    // average. Where the catalogue can give that, it is asked for first and the
-    // place cue below only breaks the remaining tie. Where it cannot — a beam
-    // whose ideal move is the thinnest thing that can be written — asking only
-    // for a drawn place leaves every reachable block anchored at the bottom and
-    // the distribution 27/28/17/14/13 against 20 apiece, because a block that
-    // covers the drawn place still spreads its mass wherever it likes.
-    const vals = arg === 1 ? len : dig;
-    const key = vals[0];
-    let below = 0, tie = 0;
-    for (let i = 0; i < k; i++) { if (vals[i] < key) below++; else if (vals[i] === key) tie++; }
-    let d = 0;
-    for (let p = 0; p < k; p++) d += Math.abs((p >= below && p < below + tie ? 1 / tie : 0) - 1 / k);
-    return { o: Math.round(d * k), p: 0 };
-  }
+function cueValues(rows, at, stem, out) {
+  const k = rows.length;
+  const flat = 1 / k;
+  for (let c = 0; c < CUE_COUNT; c++) out[c] = flat;
+  /* Struck by "cross off anything that stands out" — the option standing alone
+     at one end of a measure an eye can read. */
+  let struck = 0;
   let c = 0;
-  for (let i = 0; i < k; i++) if (feat[i] & arg) c++;
-  if (c === 0 || c === k) return { o: CUE_NONE, p: 0 };
-  return { o: (feat[0] & arg) ? CUE_KEY : CUE_OTHER, p: c / k };
+  for (let m = 0; m < METRICS.length; m++) {
+    let readable = true;
+    for (let i = 0; i < k; i++) {
+      const v = rows[i][m];
+      if (typeof v !== 'number' || !Number.isFinite(v)) { readable = false; break; }
+    }
+    for (let d = 0; d < 2; d++) {
+      let sole = -1;
+      if (readable) {
+        let best = rows[0][m], where = 0, ties = 1;
+        for (let i = 1; i < k; i++) {
+          const v = rows[i][m];
+          if (d === 0 ? v < best : v > best) { best = v; where = i; ties = 1; }
+          else if (v === best) ties++;
+        }
+        if (ties === 1) sole = where;
+      }
+      if (sole >= 0) {
+        struck |= 1 << sole;
+        out[c] = at === sole ? 1 : 0;
+        out[c + 1] = at === sole ? 0 : 1 / (k - 1);
+      }
+      c += 2;
+    }
+  }
+  for (let f = 0; f < FEATURE_BITS.length; f++) {
+    let n = 0;
+    for (let i = 0; i < k; i++) if (rows[i][3] & FEATURE_BITS[f]) n++;
+    if (n > 0 && n < k) {
+      const has = !!(rows[at][3] & FEATURE_BITS[f]);
+      out[c] = has ? 1 / n : 0;
+      out[c + 1] = has ? 0 : 1 / (k - n);
+    }
+    c += 2;
+  }
+  /* THE COMPOSITE, and why it is one entry and not a summary of the twelve
+     above it. What a rule is worth is `1/|survivors|`, and how many options
+     survive "strike every unique extreme at once" is a fact about the WHOLE SET
+     that no statement about one place in it settles: two sets that put the key
+     in identical places on all three measures can leave one option standing and
+     three. A rule that leaves nothing standing has refused nothing, which is
+     how the gate reads it too. */
+  let live = 0;
+  for (let i = 0; i < k; i++) if (!(struck & (1 << i))) live++;
+  if (live) out[c] = (struck & (1 << at)) ? 0 : 1 / live;
+  c += 1;
+  /* WHAT THE SENTENCE OVER THE SET PRINTS. A reading the stem names is a
+     reading an eye lands on first, so it is read here exactly as the gate reads
+     it: the ones the stem prints, the ones it does not, and the one it prints
+     FIRST. A stem that prints all of them or none of them has refused nothing,
+     which is the same neutral answer every other rule gives in that case. */
+  if (stem) {
+    const s = stemBare(stem);
+    let n = 0, first = -1, best = Infinity;
+    const q = new Array(k);
+    for (let i = 0; i < k; i++) {
+      q[i] = stemAt(s, stemBare(rows[i][4]));
+      if (q[i] >= 0) { n++; if (q[i] < best) { best = q[i]; first = i; } }
+    }
+    if (n > 0 && n < k) {
+      out[c] = q[at] >= 0 ? 1 / n : 0;
+      out[c + 1] = q[at] >= 0 ? 0 : 1 / (k - n);
+    }
+    if (first >= 0) out[c + 2] = at === first ? 1 : 0;
+  }
+  return out;
+}
+
+
+/**
+ * WHAT THIS CARD CAN BE ASKED FOR, ONE RULE AT A TIME, OUT OF WHAT IT CAN REACH.
+ *
+ * A cue's target is not a constant and is not fitted to the bank. It is drawn,
+ * per card, from the two ENDS this card's own catalogue can actually reach on
+ * that rule, mixed so the mean is exactly `1/k`:
+ *
+ *     P(the high end) = (1/k - lo) / (hi - lo)
+ *
+ * Everything the earlier hand-written policy said falls out of that one line,
+ * which is why the policy is gone and the line is here.
+ *
+ *   · both ends reachable — the key can be the unique longest, and some
+ *     distractor can be — then `lo` is 0 and `hi` is 1 and the draw asks for
+ *     the key exactly `1/k` of the time. Over the population the rule names the
+ *     key at chance, which is the whole claim.
+ *   · THE KEY CAN NEVER BE THE UNIQUE LONGEST, but it can TIE for it. Then the
+ *     reachable ends are 0 and `1/k`, the formula gives P = 1, and the card is
+ *     asked for the tie — a rule that does not fire at all. That is the honest
+ *     answer to a one-sided catalogue, and it matters more than it sounds:
+ *     wrong answers drift longer than right ones, so over 3,564 route keypad
+ *     cards the key can be the unique longest of three on 36% and can tie for
+ *     longest on 93%. A cue that fires on a one-sided catalogue is not a weak
+ *     cue, it is an elimination rule with the sign flipped.
+ *   · the key can ONLY be the unique longest — `lo` is `1/k`, P is 0, silence
+ *     again, from the same line.
+ *   · one reachable value — nothing to ask for, and the residual is what
+ *     `tools/critic/choiceshape.mjs` measures and prints.
+ *
+ * The ends, never the middle: aiming at `1/k` where `1/k` is reachable would
+ * pick the most anonymous set on the shelf every time, which is this
+ * repository's oldest mistake wearing a new hat. RANDOMISE, DO NOT EQUALISE.
+ */
+function drawTargets(rows, k, h, out) {
+  let high = false;
+  for (let c = 0; c < CUE_COUNT; c++) {
+    let lo = Infinity, hi = -Infinity;
+    for (const v of rows) { if (v[c] < lo) lo = v[c]; if (v[c] > hi) hi = v[c]; }
+    if (lo === hi) { out[c] = lo; continue; }
+    if (MIRROR[c]) { out[c] = high ? lo : hi; continue; }
+    let p = (1 / k - lo) / (hi - lo);
+    if (p < 0) p = 0; else if (p > 1) p = 1;
+    high = shapeUnit(h, `cue${c}`) < p;
+    out[c] = high ? hi : lo;
+  }
+  return out;
 }
 
 /**
- * WHAT THIS CARD ASKS ONE CUE FOR, out of what its own catalogue can reach.
+ * HOW MUCH EACH RULE COUNTS WHEN THEY CANNOT ALL BE HAD.
  *
- * This is the whole of the correction, and it is LOCAL — it needs no
- * measurement of the bank, so it cannot go stale when the bank changes, which
- * is what happened to the two hand-set weight vectors it replaces.
- *
- *   · both KEY and OTHER reachable → KEY with probability `p`, else OTHER. The
- *     cue fires, and over the population it names the key exactly at chance.
- *     This is the case that matters and it needs no constants at all.
- *   · KEY unreachable → ask for NONE if the catalogue can give it. A cue that
- *     never fires cannot become an elimination rule, and that is the honest
- *     answer to a one-sided catalogue.
- *   · OTHER unreachable → likewise NONE, so a cue that could only ever name the
- *     key is silenced instead of left pointing at it.
- *
- * @param {number} reach bitmask of the outcomes some candidate can give.
- * @param {number} u this card's own uniform for this cue.
- * @param {number} p the probability KEY should be asked for when the cue fires.
+ * Every FAMILY weighs the same — the three ordinal measures, each of the eight
+ * written features, and the composite — and a family's weight is split evenly
+ * between the rules inside it. Without that the sixteen feature rules outvote
+ * the twelve ordinal ones and the composite five to one, and the composite is
+ * the rule this whole file exists to abolish.
  */
-function shapeTarget(reach, u, p) {
-  const K = reach & 1, O = reach & 2, N = reach & 4;
-  if (K && O) return u < p ? CUE_KEY : CUE_OTHER;
-  if (K) return N ? CUE_NONE : CUE_KEY;
-  if (O) return N ? CUE_NONE : CUE_OTHER;
-  return CUE_NONE;
-}
+const FAM_W = (() => {
+  const w = new Array(CUE_COUNT).fill(0);
+  let c = 0;
+  for (let m = 0; m < METRICS.length; m++) { for (let j = 0; j < 4; j++) w[c + j] = 1 / 4; c += 4; }
+  for (let f = 0; f < FEATURE_BITS.length; f++) { w[c] = 1 / 2; w[c + 1] = 1 / 2; c += 2; }
+  w[c++] = 1;
+  for (let j = 0; j < STEM_CUES; j++) w[c + j] = 1 / STEM_CUES;
+  return w;
+})();
+
+/**
+ * WHICH CUE IS THE MIRROR OF THE ONE BEFORE IT, AND WHY THAT IS ONE DRAW.
+ *
+ * `take the unique longest` and `strike the unique longest` are two readings of
+ * ONE fact — is the key the sole longest option or is it not — and until this
+ * map existed they were drawn from two independent uniforms. That asks for
+ * "the key is the sole longest AND the key is not the sole longest" on four
+ * ninths of cards, and a request no set can answer is resolved by the argmin,
+ * which resolves it the same way every time: towards the set that is nobody's
+ * extreme, which is the composite this file exists to abolish.
+ *
+ * The mirror is not drawn. It takes the OTHER end of its own reachable range,
+ * and that keeps its mean at `1/k` for the same reason the primary's does:
+ * where `hi` is `1/n` for the options that carry the mark and the mirror's `hi`
+ * is `1/(k-n)` for the ones that do not, `1 - P(primary high)` IS the mirror's
+ * own probability, because `n + (k - n) = k`.
+ *
+ * Measured on the shipped route, over the 75 route forms the narrowed field
+ * draws, counting the forms the gate calls a finding — the shipped bank, and
+ * then the mean over eight hash streams, because a design chosen on one stream
+ * is fitted to the instrument:
+ *
+ *     shipped (no coupling, no stem)          17    mean 23.6
+ *     + the stem family                       16    mean 22.0
+ *     + mirror coupling                       15    mean 24.3
+ *     + BOTH                                  13    mean 22.1   <- shipped
+ */
+const MIRROR = (() => {
+  const m = new Array(CUE_COUNT).fill(false);
+  let c = 0;
+  for (let i = 0; i < METRICS.length; i++) { m[c + 1] = true; m[c + 3] = true; c += 4; }
+  for (let f = 0; f < FEATURE_BITS.length; f++) { m[c + 1] = true; c += 2; }
+  c += 1;
+  m[c + 1] = true;
+  return m;
+})();
 
 /**
  * CHOOSE THE OPTION SET WHOSE SHAPE SAYS LEAST ABOUT WHICH ONE IS THE KEY.
+ *
+ * Three steps, and the argument for every one of them is at the head of this
+ * file:
+ *
+ *   1. DEDUPLICATE by what is on the glass. `arranged()` throws the order away
+ *      before a learner sees it, so two orderings of one set are one set and
+ *      must not vote twice in step 3.
+ *   2. ASK, for every one of the twenty-nine rules AT ONCE, for a value drawn
+ *      from what this card can reach with mean `1/k` — see `drawTargets`.
+ *   3. SHOW THE SET CLOSEST TO ALL TWENTY-NINE OF THEM TOGETHER, in
+ *      family-weighted SQUARED distance.
+ *
+ * WHY SQUARED, AND WHY THAT IS A MEASURED CHOICE RATHER THAN A TASTE. A LEARNER
+ * PLAYS ONE RULE, so what matters is not the total error over twenty-nine rules
+ * but the WORST of them: three points off on ten rules is a bank nobody can
+ * play, thirty points off on one is a sitting handed over. Plain distance trades
+ * those at par. Squaring buys the spread. Measured on the shipped route, with
+ * everything else identical and only the exponent moved — route findings, and
+ * the narrowed field's own worst rule:
+ *
+ *     plain distance                     49
+ *     ^1.5                               50
+ *     SQUARED                            46   <- shipped
+ *     ^3                                 56
+ *     ^4                                 58
+ *     worst single miss first            57
+ *     each rule scaled by its own span   52
+ *
+ * The last row is the one worth explaining: dividing each rule's error by how
+ * much this card could have done about it sounds fairer and is worse, because
+ * it hands a rule whose whole reachable range is eight points the same say as
+ * one whose range is a hundred. The band this is judged against is in POINTS,
+ * so the error has to be in points too. Scaling only the SIXTEEN FEATURE rules
+ * that way — they are the ones whose ranges are narrow, so they are the ones
+ * squaring quietly gives up on — reads 54, which is the same answer again.
+ *
+ * The family weights were swept the same way — the eight feature families at
+ * two, four and eight times the ordinal ones read 51, 52 and 56, the size
+ * family at two and three times the others read 57 and 55, and drawing a
+ * weight per family per card read 52. Everything weighing the same is not a
+ * default; it is the bottom of the curve.
+ *
+ * AND ONE IDEA THAT LOOKS RIGHT AND IS THE OLD DISEASE. Where the targets
+ * cannot all be had, the obvious repair is to DRAW AGAIN until they can —
+ * keep re-drawing and take the request the catalogue can actually answer. It
+ * was built and measured: 64 route findings at four attempts, 67 at eight, 73
+ * at sixteen, worse the harder it tried. It is "aim at 1/k" wearing a third
+ * hat. Choosing the most satisfiable request is choosing the most anonymous
+ * arrangement, and an arrangement that is always the most anonymous one is a
+ * rule: strike whatever stands out and what is left is the key. The
+ * contradiction has to be resolved by taking the loss, not by asking an easier
+ * question.
+ *
+ * WHAT THIS IS NOT. It is not "answer the first cue in a drawn order, then the
+ * next" — that is the design this replaced, and it is what manufactured the
+ * composite. It is not "aim at 1/k", which would make the most anonymous set on
+ * the shelf a perfect rule. And nothing here clamps the key away from an end:
+ * the key is the biggest of three about a third of the time because that is
+ * what an option carrying no information looks like.
+ *
+ * WHAT IT STILL CANNOT DO, because a measured wall is worth writing down. On a
+ * card where only ONE measure is live, "the key survives the composite" and
+ * "the key is not the unique smallest" are the SAME statement, so a catalogue
+ * with no wrong value above the answer cannot have both at chance whatever this
+ * function does — the best a mixture could reach is a half on each. Ten of the
+ * seventeen route forms still over the band are on that wall, `ms-context`
+ * worst, and the fix for them is a wrong value on the other side of the key,
+ * not an arrangement. The head of this file names all seventeen and says which
+ * side of the wall each is on, measured against a greedy oracle.
+ *
+ * TWO STRUCTURAL IDEAS THAT LOOK RIGHT AND ARE WORSE, both built and measured,
+ * because they are the obvious next two things to try:
+ *
+ *   · EVERY SORTED PLACE AS A RULE OF ITS OWN — "take the one standing third by
+ *     size" — on the grounds that two ends do not pin the three interior places
+ *     of a five-button tray. 53 route findings against 46, and it puts a new
+ *     place finding on the narrowed field while barely moving the tray's.
+ *   · THE TWO ENDS OF ONE MEASURE DRAWN TOGETHER, so the request is never "be
+ *     the shortest and the longest at once" — which an independent draw asks
+ *     for on a ninth of cards. 66 route findings against 46. The contradictory
+ *     request is doing useful work: resolving it costs one card's lean, and
+ *     removing it hands a third of the cards to "neither end", which is the
+ *     middle, which is the composite.
  *
  * @param {string} key the right answer, as it will be written on screen.
  * @param {Array<{show:string[], rank:number}>} cands every set the caller is
@@ -310,118 +646,55 @@ function shapeTarget(reach, u, p) {
  * @param {string} salt what makes this card THIS card. Never the key's shape,
  *        which is the one quantity this whole file exists to keep out of the
  *        arrangement.
+ * @param {string} [stem] the sentence the set stands under, when the caller has
+ *        one. A reading the stem prints is a reading an eye lands on first, and
+ *        no count above can see it. A caller with no sentence — the beam's move
+ *        tray, the area field's shards — passes nothing and the three stem
+ *        rules go silent, because a rule that reads the same on every candidate
+ *        has no say in which candidate is taken.
  * @returns {number} the index of the chosen candidate.
  */
-export function balancedPick(key, cands, salt) {
+export function balancedPick(key, cands, salt, stem = '') {
   if (cands.length < 2) return 0;
-  const k = 1 + cands[0].show.length;
   const h = shapeMix(salt);
-  const R = CUES.length;
+  const say = stem ? String(stem) : '';
 
-  const len = new Array(k), dig = new Array(k), fea = new Array(k);
-  len[0] = shapeLen(key); dig[0] = shapeDigits(key); fea[0] = shapeFeatures(key);
+  const memo = new Map();
+  const look = (x) => {
+    const s = String(x);
+    let v = memo.get(s);
+    if (v === undefined) {
+      v = [shapeLen(s), shapeDigits(s), shapeSize(s), shapeFeatures(s), s];
+      memo.set(s, v);
+    }
+    return v;
+  };
+  const K = look(key);
 
-  const outs = new Array(cands.length);
-  const reach = new Array(R).fill(0);
-  for (let r = 0; r < R; r++) if (CUES[r][0] === 3) reach[r] = 255;
-  const pSum = new Array(R).fill(0), pN = new Array(R).fill(0);
+  const seen = new Map();
+  const sets = [];
   for (let s = 0; s < cands.length; s++) {
     const show = cands[s].show;
-    for (let i = 1; i < k; i++) {
-      const v = String(show[i - 1]);
-      len[i] = shapeLen(v); dig[i] = shapeDigits(v); fea[i] = shapeFeatures(v);
-    }
-    const row = new Uint8Array(R);
-    for (let r = 0; r < R; r++) {
-      const { o, p } = cueOutcome(CUES[r][0], CUES[r][1], len, dig, fea, k);
-      row[r] = o;
-      if (CUES[r][0] === 2) { reach[r] |= o; continue; }
-      // The flatness cue asks for the flattest arrangement this card can reach,
-      // so its target is the smallest number any candidate answered with.
-      if (CUES[r][0] === 3) { if (o < reach[r]) reach[r] = o; continue; }
-      reach[r] |= o === CUE_NONE ? 4 : o === CUE_KEY ? 1 : 2;
-      if (o !== CUE_NONE) { pSum[r] += p; pN[r] += 1; }
-    }
-    outs[s] = row;
-  }
-
-  const want = new Array(R);
-  for (let r = 0; r < R; r++) {
-    if (CUES[r][0] === 3) { want[r] = reach[r]; continue; }
-    if (CUES[r][0] === 2) {
-      // One drawn place out of k. Where the catalogue cannot reach a place at
-      // all, the draw falls back on the places it can reach — a local rule, and
-      // the residual is what `tools/critic/choiceshape.mjs` measures.
-      const can = [];
-      for (let p = 0; p < k; p++) if (reach[r] & (1 << p)) can.push(1 << p);
-      const u = shapeUnit(h, `cue${r}`);
-      const wish = 1 << Math.floor(u * k);
-      want[r] = (reach[r] & wish) ? wish : (can.length ? can[Math.floor(u * can.length)] : 0);
+    const id = show.map(String).sort().join(' ');
+    const at = seen.get(id);
+    if (at !== undefined) {
+      if (cands[s].rank < cands[sets[at].pick].rank) sets[at].pick = s;
       continue;
     }
-    want[r] = shapeTarget(reach[r], shapeUnit(h, `cue${r}`), pN[r] ? pSum[r] / pN[r] : 1 / k);
+    seen.set(id, sets.length);
+    sets.push({ pick: s, rows: [K, ...show.map(look)] });
   }
+  if (sets.length < 2) return sets[0].pick;
 
-  /* THE ORDER THE CUES ARE ASKED IN, AND WHY IT IS NOT UNIFORM.
-     Ten cues cannot all be had from three options drawn out of six, so some
-     target is going to be given up — and what it costs to give one up is not
-     the same for all ten. A cue this card can point EITHER way is cheap to
-     miss: it fires either way and the miss is one card's worth of lean on a
-     large denominator. A cue this card can only ever point ONE way is the
-     expensive one — miss its silence and it becomes a rule that names the key,
-     or strikes it, on 100% of the sets it is decisive on, which is precisely
-     the elimination rule this file exists to abolish. So the one-sided cues are
-     asked first. The PLACE cues come next, above the two-sided ends, because a
-     place cue is a statement about the whole distribution and the two ends are
-     two points of it: on the beam's tray, asking the ends first left the ideal
-     move's place by digits at 31/33/15/11/10 against 20 apiece. The drawn order
-     decides only inside each group. */
-  const cost = new Array(R);
-  for (let r = 0; r < R; r++) {
-    if (CUES[r][0] === 3) { cost[r] = 0; continue; }
-    if (CUES[r][0] === 2) {
-      let n = 0;
-      for (let p = 0; p < k; p++) if (reach[r] & (1 << p)) n++;
-      cost[r] = n > 1 ? 2 : 3;
-      continue;
-    }
-    const K = reach[r] & 1, O = reach[r] & 2, N = reach[r] & 4;
-    cost[r] = (K && O) ? 2 : ((K || O) && N) ? 0 : 3;
-  }
-  const order = Array.from({ length: R }, (_, r) => r).sort((a, b) => cost[a] - cost[b]
-    || (shapeUnit(h ^ 0x5bd1e995, `ord${a}`) - shapeUnit(h ^ 0x5bd1e995, `ord${b}`)));
+  const k = sets[0].rows.length;
+  const rows = sets.map((s) => cueValues(s.rows, 0, say, new Array(CUE_COUNT)));
+  const want = drawTargets(rows, k, h, new Array(CUE_COUNT));
 
-  /* The set that answers the most of what was asked, with the drawn order
-     deciding which cue wins when two cannot both be had: cue `order[0]` is
-     worth more than every cue under it put together, cue `order[1]` more than
-     every cue under IT, and so on. A plain "first mismatch and stop" was
-     measured and is worse — it gives up on every cue below the first one it
-     cannot have, so nine cues in ten were satisfied only by luck. */
-  let take = 0, bestScore = -1;
-  for (let s = 0; s < cands.length; s++) {
-    let bits = 0, hit = 0, kept = 0;
-    for (let i = 0; i < R; i++) {
-      const r = order[i];
-      /* kinds 0, 1 and 3 all answer with one number, so equality is the test;
-         a place cue answers with the block of places the key covers. */
-      const ok = CUES[r][0] === 2 ? (outs[s][r] & want[r]) !== 0 : outs[s][r] === want[r];
-      if (!ok) continue;
-      bits |= 1 << (R - 1 - i);
-      hit++;
-      if (!cost[r]) kept++;
-    }
-    /* THE SILENCES FIRST, THEN HOW MANY, THEN WHICH.
-       A cue this card can only ever point one way is silenced or it becomes an
-       elimination rule; nothing may be traded for that, so those are counted on
-       their own and outrank everything. After them, HOW MANY of the remaining
-       cues were answered comes before WHICH ones, and the drawn order settles
-       the rest. Both halves were measured: protecting only the first cue in the
-       order leaves the other thirteen to luck and the beam's ideal move sat in
-       the bottom two places by digits 55% of the time against 40%; counting
-       without the drawn order spends the effort on whichever cues are cheapest
-       to answer. */
-    const score = kept * (1 << (R + 5)) + hit * (1 << R) + bits;
-    if (score > bestScore || (score === bestScore && cands[s].rank < cands[take].rank)) { bestScore = score; take = s; }
+  let take = sets[0].pick, best = Infinity;
+  for (let i = 0; i < sets.length; i++) {
+    let d = 0;
+    for (let c = 0; c < CUE_COUNT; c++) { const e = rows[i][c] - want[c]; d += FAM_W[c] * e * e; }
+    if (d < best || (d === best && cands[sets[i].pick].rank < cands[take].rank)) { best = d; take = sets[i].pick; }
   }
   return take;
 }

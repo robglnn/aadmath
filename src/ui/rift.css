@@ -949,9 +949,27 @@
    `npm run check:touch` measures `scrollWidth` against `clientWidth` on every
    control on this card and plants a stretched label to prove it can refuse
    one. */
-.rf-key.wipe {
+/* …AND THE RULE ABOVE HAD BEEN LOSING THE CASCADE SINCE THE DAY IT WAS
+   WRITTEN. CLEAR is `class="rf-key util wipe"`, and `.rf-key.util` — three
+   lines down, same specificity, later in the file — sets `font-size:
+   calc(1rem * var(--rf-u))`. So the `.52rem` this comment describes never
+   reached the one key it is about: the Polish cap rendered at TWICE the size
+   the fix specifies. It did not show while the sideways fit pass was pinned at
+   its 0.54 floor by a keypad that did not fit; the moment the keypad fitted
+   and the unit came back up to 0.93, `npm run check:touch` measured CLEAR
+   overflowing its own cap by 3 px in English, 13 in Spanish and 23 in Polish.
+   `.rf-key.util.wipe` is in the selector so the cascade cannot take it again,
+   and the cap wraps rather than clipping, because BORRAR TODO is two words and
+   a two-line cap is a label while a cropped one is a fragment. */
+.rf-key.wipe, .rf-key.util.wipe {
   font-family: var(--rf-mono); font-size: calc(.52rem * var(--rf-u));
   letter-spacing: .06em; text-transform: uppercase; line-height: 1.1;
+  /* `.rf-key` is a grid with `place-items: center`, which sizes its anonymous
+     text item to MAX-CONTENT — so a label wider than the cap overflows it
+     instead of wrapping, whatever `white-space` says. Flex sizes the same text
+     to fit-content and lets it break. */
+  display: flex; align-items: center; justify-content: center;
+  white-space: normal; text-align: center; padding-inline: .1rem;
 }
 .rf-key.wipe:disabled { cursor: default; color: rgba(167, 183, 201, .3); filter: none; }
 .rf-key.util { font-size: calc(1rem * var(--rf-u)); color: #a7b7c9; background: linear-gradient(180deg, #3a4552 0%, #212a35 42%, #101720 100%); }
@@ -1386,6 +1404,16 @@
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .6)) drop-shadow(0 0 16px rgba(53, 217, 255, .8));
 }
 .rf-chip.placed {
+  /* A FILED CHIP IS INERT, AND THIS IS NOT COSMETIC.
+     A placed chip is a `<button disabled>` sitting inside the bay's hold. A
+     click on a disabled button neither fires nor bubbles, so once a bay held a
+     chip or two the middle of that bay was a dead zone: a cadet with a chip
+     picked up taps the bay, the tap lands on a term already in it, and NOTHING
+     HAPPENS. Measured on the real build with real clicks, a seven-chip board
+     stalled with two terms still loose and the card never sealed. It is worse
+     with more bays, because each bay is smaller and its centre is likelier to
+     be over a chip — and it was already there with two. */
+  pointer-events: none;
   cursor: default; color: #d9ffe9;
   background: linear-gradient(180deg, #2a6a4c 0%, #17402f 44%, #102d21 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 2px 0 #08180f;
@@ -1394,7 +1422,22 @@
 .rf-chip.dragging { opacity: .3; }
 .rf-chip .katex { color: inherit; }
 
+/* THE BAYS ARE THE LIKE-CLASSES, so how many there are is a property of the
+   board and not of the rig: two on a board of `x` terms and `x` squared terms,
+   three or four when a second letter and the numbers are on it as well. The
+   count rides on the container as `data-n` and the layout is composed here,
+   at each size, rather than measured in JavaScript.
+
+   MORE BAYS MAY NOT MEAN MORE CARD. A fourth bay stacked under three others is
+   a row of the foot gone on a handset, so the extra bays are bought out of
+   WIDTH — three across, four across sideways, two-by-two on a phone held
+   upright — and out of each bay's own height, never out of the rest of the
+   rig. Nothing here goes under the 44 px a thumb needs: the fit pass floors
+   `--rf-u` at 0.54, so 86 is the smallest multiplier that still clears it
+   (86 x 0.54 = 46.4) and no number below it appears in this file. */
 .rf-bays { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; align-items: stretch; }
+.rf-bays[data-n='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rf-bays[data-n='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .rf-bay {
   display: flex; flex-direction: column; min-height: calc(146px * var(--rf-u)); padding: 0 0 .6rem;
@@ -1406,7 +1449,13 @@
   clip-path: polygon(0 12px, 12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
   transition: box-shadow .16s, background .16s;
 }
-.rf-bay[data-kind='num'] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), inset 0 -22px 34px -26px rgba(255, 179, 71, .75), 0 6px 16px rgba(0, 0, 0, .5); }
+.rf-bay.numbers { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), inset 0 -22px 34px -26px rgba(255, 179, 71, .75), 0 6px 16px rgba(0, 0, 0, .5); }
+/* A denser board gives up bay height, and nothing else. */
+.rf-bays[data-n='3'] > .rf-bay, .rf-bays[data-n='4'] > .rf-bay { min-height: calc(112px * var(--rf-u)); }
+/* The label never breaks mid-word; if a narrow bay cannot hold the label and
+   the running total on one line, the total takes a line of its own. Clipping
+   either of them is not on the table — see `check:truncate`. */
+.rf-bays[data-n='3'] > .rf-bay > header, .rf-bays[data-n='4'] > .rf-bay > header { flex-wrap: wrap; }
 .rf-bay > header {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;
   min-height: calc(37px * var(--rf-u)); flex: 0 0 auto; padding: .1rem .65rem;
@@ -1414,7 +1463,7 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, .07), transparent);
 }
 .rf-bay .name { font-family: var(--rf-mono); font-size: .54rem; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-teal); white-space: nowrap; }
-.rf-bay[data-kind='num'] .name { color: var(--rf-amber); }
+.rf-bay.numbers .name { color: var(--rf-amber); }
 .rf-bay .name .katex { color: inherit; font-size: 1.15em; }
 .rf-bay .sum {
   font-size: 1.08rem; color: #fff; font-variant-numeric: tabular-nums;
@@ -1686,6 +1735,19 @@
 @media (max-width: 760px), (max-height: 520px) and (orientation: landscape) {
   .rift { padding: 0; }
   .rf-frame, .rift.echo-on .rf-frame { width: 100vw; height: 100%; max-height: 100vh; filter: none; }
+  /* AND THE WIDTH IS NOT ANIMATED HERE, BECAUSE HERE IT IS THE VIEWPORT'S.
+     `.rf-frame` transitions `width` so the echo can open the rig outward on a
+     laptop. On a phone both widths are `100vw`, so the only thing that ever
+     changes this number is the handset being turned — and a half-second ease
+     from the old viewport to the new one means the card is WIDER THAN THE
+     SCREEN for that half second. Measured by `npm run check:touch` on the
+     frozen build, turning 844x390 into 568x320: `#rf-close` — the way out of
+     the rift — drawn at x 641..685 in a 568 px frame, off the glass, with the
+     whole keypad shifted right under it. Nothing is animating to a new width
+     here; the frame simply IS the viewport. */
+  .rf-frame, .rift.echo-on .rf-frame {
+    transition: transform .44s cubic-bezier(.2, .9, .25, 1), opacity .3s ease;
+  }
   .rf-plate { min-height: 0; height: 100%; max-height: 100vh; }
   .rf-anchor { display: none; }
   .rf-head { padding: calc(var(--rf-lip-t) + var(--sa-t)) .8rem .5rem; gap: .45rem; flex-wrap: wrap; }
@@ -1722,6 +1784,7 @@
   .rf-key.commit { min-height: calc(54px * var(--rf-u)); }
   .rf-readings { flex: 1 1 auto; grid-auto-rows: minmax(58px, 1fr); }
   .rf-bays { flex: 1 1 auto; grid-auto-rows: minmax(108px, 1fr); }
+  .rf-bays[data-n='3'], .rf-bays[data-n='4'] { grid-auto-rows: minmax(88px, 1fr); }
   /* On a phone the rig keeps its proportions and the room left over is spread
      as air between its parts — never pooled into one dead band. */
   .bal-stage { min-height: calc(230px * var(--rf-u)); max-height: calc(430px * var(--rf-u)); }
@@ -1744,7 +1807,13 @@
   .rf-cell .hintmark { width: 84%; height: auto; padding: calc(.34rem * var(--rf-u)) .2rem; font-size: .46rem; letter-spacing: .1em; }
   .rf-field { flex: 0 0 auto; }
   .rf-bays { grid-template-columns: 1fr; }
+  /* Upright, three across is 116 px a bay and PURE NUMBERS does not fit in it
+     in any of the three languages. Two across, and the odd one takes the full
+     width of the row it is on. */
+  .rf-bays[data-n='3'], .rf-bays[data-n='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rf-bays[data-n='3'] > .rf-bay:last-child { grid-column: 1 / -1; }
   .rf-bay { min-height: calc(106px * var(--rf-u)); }
+  .rf-bays[data-n='3'] > .rf-bay, .rf-bays[data-n='4'] > .rf-bay { min-height: calc(88px * var(--rf-u)); }
   .rf-echo-body { padding: calc(.65rem * var(--rf-u)) .8rem calc(.4rem * var(--rf-u)); }
   .rf-echo-tail { margin: 0 .8rem; }
   .rf-strata { padding-left: .8rem; padding-right: .8rem; }
@@ -1790,10 +1859,59 @@
     min-height: 44px; min-width: 44px;
     display: inline-flex; align-items: center; justify-content: center;
   }
+  /* …AND CALL THE ECHO IS NOT A CONTROL LIKE THE OTHERS.
+     It is the only door in this game to the faded worked trace BRIEF.md's
+     fourth invariant is about — the thing a stuck learner reaches for — and it
+     shipped at 111 x 22, the smallest control on the card. Raised to the floor
+     it was still ON the floor, level with a digit key, which is what three
+     rounds of critics kept saying: 44 px is where a control stops being a
+     defect, not where the one that carries the teaching belongs. It is given
+     the biggest box in the foot and a word-sized amount of air around it.
+     Where the frame is too short to spend twelve pixels on that — a phone on
+     its side, where every key under it is already standing on the floor — it
+     comes back to 44 and no further (src/ui/landscape.css). */
+  #rf-hint {
+    min-height: 56px; padding-inline: 1.25rem;
+    font-size: calc(.7rem * var(--rf-u)); letter-spacing: .2em;
+    /* …AND IT IS STILL NOT A KEY-SIZED BUTTON.
+       Raised to the published floor it was 111 x 44 against a digit key at
+       71 x 44 — over the line, and STILL one of the smallest things on the
+       card, which is what a fourth consecutive round of critics reported: the
+       door to the teaching sat among the keys instead of standing apart from
+       them. 44 px is where a control stops being a defect. It is not where the
+       one control BRIEF.md's fourth invariant is about belongs.
+
+       So it is given a WIDTH off the instrument rather than off its own word:
+       `--rf-instr` is the keypad's own width, the same variable the coordinate
+       chart takes its floor from, so the door to the teaching and the pad that
+       answers the question can only move together — the fit pass may still cut
+       the whole rig down and the PROPORTION holds at every unit it lands on.
+       `min(64%, …)` is the second cap, so the foot can never be taken whole and
+       RETURN can never be pushed off it.
+
+       `npm run check:touch:rule` measures this button against the MEDIAN KEY on
+       the same card, on the real RiftPanel, three phone frames x three locales,
+       and plants this button back on the 44 px floor to prove the rule can
+       still refuse one. */
+    min-width: min(64%, calc(var(--rf-instr) * .72));
+  }
   .rf-x { width: max(44px, calc(34px * var(--rf-u))); height: max(44px, calc(34px * var(--rf-u))); }
   .rf-reading { min-height: max(44px, calc(58px * var(--rf-u))); }
   .rf-move { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .rf-cell { min-height: max(44px, calc(76px * var(--rf-u))); }
+  /* A LOOSE TERM IS THE THING A THUMB PICKS UP, and it was the smallest control
+     on the sorting board: 22 x 22 CSS px at 844x390 with three bays up, 29 x 29
+     with two. `.rf-chip` was in no gate's selector list — `check:reach` measures
+     `.rf-key, .rf-reading, .rf-bay, .rf-move, .rf-cell` — so the one control
+     this whole surface is operated with had no floor at all. It has one now, in
+     the same shape as every other rule in this block: `max(44px, what the unit
+     asks for)`, never a flat 44, so the rig keeps getting denser as the window
+     shrinks and stops short of shrinking a hand. */
+  .rf-chip {
+    min-height: max(44px, calc(46px * var(--rf-u)));
+    min-width: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
   /* `.rf-bay` is deliberately absent. Its height is composed three times over
      — 146u here, 106u in portrait, 86u sideways — and a flat floor written
      last would not raise the small one, it would REPLACE the composed one and

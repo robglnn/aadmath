@@ -2,7 +2,7 @@
 
 *Standards alignment and mapping note — Algebra I, Level 1: The Language of Balance*
 
-Framework: **Common Core State Standards for Mathematics (CCSS-M)**. Level **algebra1-level1**. 10 skills, 66 item forms, 23 content standards, 7 practice standards.
+Framework: **Common Core State Standards for Mathematics (CCSS-M)**. Level **algebra1-level1**. 10 skills, 67 item forms, 23 content standards, 7 practice standards.
 
 This document is the claim, and content/graph/algebra1-l1.json is the machine-readable copy of it. tools/validate-items.mjs fails the build if a graph node cites a standard that is not listed here, if a listed standard is claimed by no node, or if a node claims a representation that none of its item forms can actually produce. Alignment here is therefore checkable rather than asserted.
 
@@ -105,7 +105,7 @@ Evidence: `oa-symbolic`, `oa-context`, `om-symbolic`, `om-context`, `oa-model`, 
 
 Taught in: `like-terms`, `distribute`
 
-Evidence: `lt-collect`, `lt-square`, `ds-expand`, `ds-twoterm`, `ds-factor`, `lt-four`, `ds-share`
+Evidence: `lt-collect`, `lt-square`, `ds-expand`, `ds-twoterm`, `ds-factor`, `lt-four`, `ds-share`, `lt-bays`
 
 #### 7.EE.B.4.A
 
@@ -203,7 +203,7 @@ Evidence: `ee-linear`, `oo-negbase`, `oo-fracbar`, `oo-context`, `oo-dispute`
 
 Taught in: `like-terms`
 
-Evidence: `lt-perimeter`, `lt-square`
+Evidence: `lt-perimeter`, `lt-square`, `lt-bays`
 
 #### HSA.SSE.A.2
 
@@ -274,6 +274,7 @@ An item form that no standard claims is content nobody has justified shipping, s
 | `order-ops` | `oo-table` | table | 1–5 | 6.EE.A.2.C |
 | `like-terms` | `lt-collect` | symbolic | 1–5 | 6.EE.A.3, 7.EE.A.1 |
 | `like-terms` | `lt-three` | symbolic | 3–5 | 6.EE.A.3 |
+| `like-terms` | `lt-bays` | symbolic | 1–5 | 7.EE.A.1, HSA.SSE.A.1.B |
 | `like-terms` | `lt-perimeter` | contextual | 2–5 | HSA.SSE.A.1.B |
 | `like-terms` | `lt-equivalent` | verbal | 1–5 | 6.EE.A.4 |
 | `like-terms` | `lt-square` | symbolic | 4–5 | 7.EE.A.1, HSA.SSE.A.1.B |

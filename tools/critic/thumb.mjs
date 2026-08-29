@@ -125,6 +125,14 @@ const SPECS = [
   { skill: 'eval-expr', d: 4, seed: 16020, tag: 'chart' },
   { skill: 'like-terms', d: 3, seed: 4242, tag: 'plain' },
   { skill: 'multi-step', d: 3, seed: 4242, tag: 'plain' },
+  /* THE SORTING BOARD, NAMED BY FORM AND AT ITS DENSEST — four bays and seven
+     loose terms. The `like-terms` row above it names no form, so which surface
+     it draws is the scheduler's choice and the sorter was measured only by
+     luck; and the sorter is the card with the most controls on it in the whole
+     rig. Its loose terms are `<button>`s, so this selector always covered them
+     — and they were 22 x 22 CSS px at 844x390, because no profile in this list
+     was ever handed a board with more than two bays on it. */
+  { skill: 'like-terms', d: 5, seed: 4242, form: 'lt-bays', tag: 'bays' },
 ];
 
 /* ======================================================== the page side == */
@@ -299,7 +307,7 @@ async function riftSweep(page, { profiles, locales, specs, plant = null, shot = 
         }, { spec, locale, plant });
         const p = await page.evaluate(PROBE_SRC);
         measured++;
-        const where = `rift ${spec.skill} d${spec.d} · ${vp.name} · ${locale}`;
+        const where = `rift ${spec.skill}${spec.form ? '/' + spec.form : ''} d${spec.d} · ${vp.name} · ${locale}`;
         seen.push({ where, fig: p.fig, pad: p.pad, controls: p.controls.length });
         problems.push(...ruleReach(p, where), ...ruleScale(p, where), ...ruleShape(p, where));
         if (shot && locale === 'en' && spec.tag === 'chart' && spec.d === 2) {

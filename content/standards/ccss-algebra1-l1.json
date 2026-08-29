@@ -157,7 +157,8 @@
         "ds-twoterm",
         "ds-factor",
         "lt-four",
-        "ds-share"
+        "ds-share",
+        "lt-bays"
       ]
     },
     {
@@ -281,7 +282,8 @@
       ],
       "evidence": [
         "lt-perimeter",
-        "lt-square"
+        "lt-square",
+        "lt-bays"
       ]
     },
     {

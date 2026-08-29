@@ -76,6 +76,13 @@ export const GATES = [
   ['check:coverage', 'every gate that reads items loads all 62 skills the manifest names, not the 10 in the core bank', 'engine'],
   ['check:handed', 'left is left: every left-or-right the player can feel, run out of the real source and checked against three.js\'s own projection', 'route'],
   ['check:meet', 'THE MEET (src/world/meet.js): its mathematics cut out of the shipped file and re-derived — the rail is the solution set, the beam falls both ways, no pan holds a negative, the rail is walkable, and a cadet crossing the plot cannot give an answer', 'route'],
+  /* THE OTHER HALF OF check:meet's QUESTION, and the one nobody had asked:
+     not is the mathematics right, but CAN ANYBODY GET THERE. Three of the
+     five hanging caches and two of the three spans stood above what the best
+     wing in the game reaches from any launch a cadet can walk to, and every
+     gate was green through thirty-six minutes of play in which nobody opened
+     one. */
+  ['check:archipelago', 'the archipelago: every off-island site is reachable with the access it declares — flood-filled walkable ground, the real wing trims, free air the whole flight — a full sitting can never be played out with nothing off the island inside the leg the objective allows, and an answer cannot be given by walking past', 'route'],
   ['check:i18n', 'no hardcoded English in src/ or content/', 'engine'],
   ['check:prose', 'a situation and its question count the same object, in three languages', 'sweep'],
   ['check:solver', 'the checker itself: planted wrong answers are all caught, clean ones all pass', 'engine'],
@@ -113,6 +120,7 @@ export const GATES = [
   ['check:compose:rule', 'THE ESCAPE PREDICATE, on every commit: notFree() run over the exact frame the report quotes (open 0.00, short 0.73, minD 0.37) and over honest ground — the open plaza and the tightest legitimate standing place on the island. It is the bar the nine-minute walk is judged by, so it may not be moved without the build noticing', 'route'],
   ['check:motion:rule', 'THE THREE BARS a sitting is judged by, on every commit: moving share, longest park and verbs used, run over fabricated sittings — the 614-second park the report describes, a healthy sitting, and a slow learner who works one whole stint from one spot and must still pass', 'route'],
   ['check:traffic:rule', "THE CEILING ON THE WALK THROUGH NOTHING, on every commit: traffic's own bars run over fabricated sittings, and the six answer surfaces this gate presses read back out of the exact strings the shipped rig prints. It is the other half of check:motion:rule — one says the walk must not be through nothing, the other that there must be a walk — and its rule was the only one of the pair that no commit checked", 'route'],
+  ['check:touch:rule', "THE RIFT CARD ON A PHONE, on every commit and with no world in the way: the coordinate chart against the keypad answering it, every control on the card measured against the published 44 px floor, every label against the box that clips it, and every control against the edge of the glass — three phone frames x three locales on the real RiftPanel, with the same four plants the forty-minute gate uses because it calls the same function. The ratio had been reported by four consecutive rounds of critics and re-found by hand between waves each time; a per-wave gate cannot catch a regression the same afternoon it lands", 'route'],
   ['check:mastery', 'THE 80% PROMISE: the composed shipped route reaches true mastery; preview units are advisory', 'route'],
   ['check:record', "the teacher record: the standards it prints are the ones the learner's unit declares", 'sweep'],
   ['check:route', 'the road past the first region: it opens by held lines, and no returning learner loses one', 'route'],
@@ -271,7 +279,7 @@ export const PER_WAVE = [
   ['check:progress', 'route', null],
   ['check:transient', 'route', null],
   ['check:density', 'route', null],
-  ['check:touch', 'route', null],
+  ['check:touch', 'route', 'check:touch:rule'],
   ['check:truncate', 'route', null],
   ['check:quality', 'engine', null],
 ];

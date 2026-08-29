@@ -115,8 +115,10 @@ const queue = [];         // requests awaiting a resolve
 /**
  * A LABEL THIS LEDGER PLACES IS NOT FURNITURE THIS LEDGER MUST AVOID.
  *
- * `.field-tag` is in CHROME because `caches.js` and `span.js` write their own
- * positions and never submit. `meet.js` does submit — and its labels are
+ * `.field-tag` was in CHROME because `caches.js` and `span.js` wrote their own
+ * positions and never submitted; all three of them submit now, and the class
+ * stays on the list because a layer that starts writing its own positions
+ * tomorrow is still furniture. `meet.js` submitted first — and its labels are
  * `.field-tag` too, so the sweep picked them up as immovable furniture sitting
  * at LAST frame's position, and then the same frame asked for room at the same
  * anchor. Measured on the frozen build, standing still 85 m off MEET 1: the

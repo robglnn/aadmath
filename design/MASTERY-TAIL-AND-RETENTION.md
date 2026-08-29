@@ -8,6 +8,13 @@ Everything here was produced by a **second instrument**, written from scratch un
 `design/tools/`, driving the **real** `src/learn/mastery.js` and the **real** item bank.
 Nothing in `src/`, `tools/`, `content/` or anywhere outside `design/` was changed.
 
+**[§11](#11-the-three-day-cadence--the-model-the-schedule-and-what-is-left) was added
+by a later wave** and is about a third question — the three-day cadence — which this
+document's own §6d named and did not pursue. It uses the SHIPPING instrument
+(`tools/simulate.mjs`), not `design/tools/`, and it changed nothing in `src/` that a
+learner meets: the engine's schedule is byte-for-byte what it was, and the section is
+the record of six candidate changes that were measured and refused.
+
 - Simulation code: `design/tools/` (see [§9](#9-the-instrument) and [§10](#10-every-command))
 - Proposed engine changes: `design/tools/lib/patches.mjs` — each one replaces exactly one
   method of the shipping engine, so every figure below is the shipping code with one
@@ -781,3 +788,356 @@ design/tools/invariants.mjs            §5      what a fix may not buy its speed
 design/tools/retention.mjs             §6      day-five retention
 design/tools/ladder.mjs                §6e     the spacing ladders, graded
 ```
+
+---
+
+## 11. The three-day cadence — the model, the schedule, and what is left
+
+A district curriculum director refused this product in one sentence:
+
+> *"Every campus I run has A/B block, UIL pull-outs, lab rotations and ordinary
+> absence; I cannot promise any class a device every single day, and the product's
+> own instrument says that at any gap wider than 24 hours it does not work."*
+
+He is quoting `npm run check:mastery`. On the composed shipped route the same
+learners, the same bank and the same 3,600-item budget read **90.7% true mastery
+delivered every day and 5.7% delivered every third day**, with the lowest ability
+quintile at 0.0% and 14.7% of learners holding a claim that is not true.
+
+This section is what that number is made of. **Nothing in it changes a gate**, and
+after all of it the shipping engine is byte-for-byte the schedule it was before —
+which is the finding, not an admission.
+
+Everything below is `tools/simulate.mjs` driving the real `src/learn/mastery.js`
+over the real bank. Every command is in [§11.8](#118-every-command).
+
+### 11.1 One number was two mechanisms, and that is why the argument could not end
+
+`gapHours` was doing two jobs under one name.
+
+| | what it is | who can see it |
+|---|---|---|
+| the **scheduling** clock | how long the ENGINE is told the learner was away — which re-probe has come round, whether a pass crossed a real gap and counts as durable, whether a belief has gone stale, whether this is a new sitting | `src/learn/mastery.js` |
+| the **forgetting** clock | how much MEMORY the wait costs | nothing in the engine; it is the learner model, and it rests on constants nobody here has calibrated |
+
+While they shared a name, "5.7%" was the sum of *the scheduler meets a three-day
+cadence* and *the learner forgets three nights' worth*, and no evidence could
+separate them. They are separable now (`decayHours` in `runLearner`), and the 2×2
+is printed on every run under `coming back across days`.
+
+**Composed shipped route, 60 learners a cell, identical seeds — this is the block
+`npm run check:mastery` itself printed on 2026-08-29:**
+
+| arm | scheduling clock | forgetting clock | true mastery | Q1 | lines truly held | lines the engine holds |
+|---|---|---|---|---|---|---|
+| daily, as delivered | 24 h | 24 h | **93.3%** | 75.0% | 23.5 / 24 | 23.7 / 24 |
+| every third day, as delivered | 72 h | 72 h | **5.0%** | 0.0% | 15.2 / 24 | 14.0 / 24 |
+| **the scheduler alone** | 72 h | 24 h | **40.0%** | 0.0% | 19.8 / 24 | 16.7 / 24 |
+| **the model alone** | 24 h | 72 h | **41.7%** | 0.0% | 16.3 / 24 | 21.2 / 24 |
+
+Three independent readings of the same 2×2 at N = 60 on this tree gave the two
+middle cells as 46.7 / 45.0, 46.7 / 43.3 and 40.0 / 41.7. **The split is stable and
+the ordering never changes; the cells are within a few points of each other and of
+the halfway mark in every reading.** The mean-lines-held column is the tighter
+statistic and says the same thing: 15.2 as delivered, about 20 with the scheduler's
+half removed, about 16 with the model's half removed, 23.5 with both.
+
+**Neither owns it. Each of the two mechanisms costs about half of the 88-point
+gap on its own, and the two together cost all of it.** Any account of the
+every-third-day figure that names only one of them is wrong.
+
+The same 2×2 on Algebra I Level 1 alone (10 skills, 40 learners) reads
+85.0 / 57.5 / **82.5** / **55.0**: on a short lattice the scheduler costs 2.5
+points and the model costs 30. **The scheduler's share is a property of the
+LATTICE, not of the cadence** — it appears when there are 24 lines to keep alive
+at once and is nearly absent when there are 10.
+
+### 11.2 What the scheduler is doing, measured rather than assumed
+
+The obvious hypothesis was re-entry order: *a learner returns after three days
+and the session planner spends its first ten minutes on new material instead of
+re-proving what is about to lapse.* **That hypothesis is false and it is worth
+saying so plainly, because it is the one everybody reaches for.**
+
+Every sitting after the first, opening ten minutes, composed route:
+
+| arm | due re-probe | interleaved retrieval | re-proving a line that fell | new ground: proving run | new ground: teaching | sounding |
+|---|---|---|---|---|---|---|
+| daily | 42.4% | 1.2% | 12.4% | 8.2% | 12.6% | 23.2% |
+| every third day | **66.5%** | 0.3% | 10.4% | 5.0% | 17.9% | 0.0% |
+| scheduler alone (72 h clock, 24 h loss) | **73.2%** | 0.3% | 8.3% | 5.6% | 12.6% | 0.1% |
+
+A returning learner already meets recovery first, and meets *more* of it at a
+three-day cadence than at a daily one. Re-entry order is not the defect. The
+re-probes themselves are not failing either: they come back right first try
+**85.1%** of the time at 72 h against **82.8%** daily.
+
+What the scheduler is really doing is **serving twice as many of them for a worse
+result**:
+
+| | daily | every third day | scheduler alone (72 h clock, 24 h loss) |
+|---|---|---|---|
+| re-probes served, per learner | 787 | 1,393 | **1,640** |
+| lapses opened | 104.0 | 159.5 | 175.8 |
+| claims lost to a lapse | 43.3 | 53.6 | 56.7 |
+| claims lost to the form floor | 0.3 | 0.2 | 0.2 |
+| lines that never crossed a gap | 0% | 32% | 14% |
+| endgame soundings | 1,075 | **3** | 1 |
+
+**The mechanism has a name: the ladder cannot outrun the learner's own cadence.**
+`reviewMinutes` tops out at 7800 minutes — 130 hours. That is 5.4 nights, so a
+daily returner's proved line rests five sittings. It is **1.8 gaps** for a learner
+on a three-day cadence, so their proved lines are due at, or within two sittings
+of, *every sitting, for ever*. The schedule has no state in which it can say
+"this one is fine, spend the minute on something they cannot do yet" — which is
+exactly what `soundings: 3` means. About one item in five of the whole course is
+a re-probe the daily cohort does not have to serve.
+
+### 11.3 Six scheduling changes, measured in two regimes, none shipped
+
+All six keep the gate identical: the same proving run, the same form floor, the
+same `durableMinutes`, the same two-miss rule. Each is a dial in `DEFAULT_MASTERY`
+with its measurement written beside it, so none of this has to be re-discovered.
+
+1. **`reviewCatchUp`** — a survived gap credits the rung it was actually long
+   enough to pay for, instead of one rung above wherever the line happened to sit.
+   A line that has just come back right after 72 hours has demonstrated 72 hours
+   of retention; putting it back on an 8-hour rung asks a question the learner has
+   this second answered. `tools/simulate.mjs --self-test` proves in both directions
+   that the rung is still bought with elapsed time and cannot be ground out inside
+   a sitting.
+2. **A sixth rung** — `[10, 480, 1260, 3120, 7800, 19500]`, one more ×2.5 step, so
+   the ladder goes on expanding for as long as the strength one survived re-probe
+   buys goes on growing.
+3. **A tighter ladder** — `[10, 120, 480, 1440, 4320]`: ten minutes, two hours,
+   eight hours, one night, three nights, every rung landing on a gap a school
+   actually takes instead of between two of them.
+4. **The design document's own §6e recommendation**, `[10, 180, 720, 1800, 4320, 10080]`.
+5. **`lapseStep`** — a missed re-probe steps the rung down by one instead of
+   throwing the whole ladder away.
+6. **`reviewProvenFactor`** — a line may not be parked longer than a multiple of
+   the longest gap it has actually survived.
+   **`beliefHalfLife` at three days** was measured too and is the worst of the lot
+   (72 h true mastery 6.0% → 0.0%): a returning learner's belief is not the problem.
+
+**Composed route, 150 learners an arm, identical seeds. Two regimes.** The left
+half is the budget-matched arm `npm run check:mastery` certifies — every learner
+plays until the 3,600 items are gone, which is 150 sittings. The right half is a
+**sixty-school-day term**, 22 minutes a day, which is what a district buys.
+
+| | budget-matched, 24 h | budget-matched, 72 h | 60-day term, 24 h | 60-day term, 72 h |
+|---|---|---|---|---|
+| | mastery / truly held / hollow lines | mastery / truly held / hollow lines | truly held / engine holds / hollow lines | truly held / engine holds / hollow lines |
+| **shipping** | 93.3% / 23.5 / 0.09 | **6.0%** / 15.5 / 0.11 | **12.3** / 18.7 / **2.47** | **9.7** / 11.8 / **0.55** |
+| catch-up + a sixth rung | **96.0%** / 23.5 / 0.13 | **14.0%** / **17.2** / 0.41 | 9.7 / 20.1 / 6.01 | **3.9** / 13.6 / **5.39** |
+| catch-up alone | 93.3% / 23.3 / 0.15 | 9.3% / 15.9 / 0.31 | 9.5 / 19.6 / 5.15 | 8.8 / 12.1 / 1.26 |
+| a sixth rung alone | 93.3% / 23.3 / 0.21 | 9.3% / 16.5 / — | 11.5 / 19.7 / 3.83 | 6.8 / 12.9 / 2.41 |
+| tighter ladder | 86.0% / 23.1 / 0.06 | **0.0%** / 14.2 / 0.12 | **14.0** / 17.4 / **0.93** | **10.3** / 10.5 / **0.37** |
+| §6e recommendation | 88.0% / 23.1 / 0.16 | 8.0% / 15.6 / 0.24 | 12.6 / 18.5 / 2.27 | 8.8 / 12.1 / 0.79 |
+| lapse steps down | — | — | 12.0 / 19.8 / 3.31 | 9.4 / 12.1 / 0.71 |
+
+**The two regimes disagree about the schedule, in opposite directions, and the
+build reads only one of them.**
+
+- Everything that makes the certified arm better does it by **serving fewer
+  re-probes** (780 → 350 at 24 h) and spending the items on skills nobody has
+  reached yet. That works when every learner finishes the course, which is what
+  150 sittings buys.
+- Inside a term nobody finishes. The items a longer ladder frees are spent in the
+  middle of the lattice while the early lines rot unasked-about behind them. The
+  engine ends up holding **more** lines while the learner knows **fewer**, and at
+  a three-day cadence **every learner in the cohort** finishes the term holding at
+  least one claim that is not true (hollow rate 45.3% → 100.0%).
+- Push the ladder the other way and it mirrors exactly: the tighter ladder is
+  better inside a term on everything about the learner — more knowledge truly
+  held, a third of the hollow claims — and costs seven points of the headline and
+  twenty points of the lowest ability quintile on the certified arm.
+
+**And per unit, which is where the refusal is easiest to read.** `--unit` runs
+each unit on its own — an advisory lattice, because it models a learner entering
+with nothing behind them — but it is also the shortest course in the tree, and the
+short course is the case the certified arm cannot see. All three arms, 600 learners,
+the shipping engine against the same engine carrying the catch-up rule and a sixth
+rung:
+
+| | one sitting (the cram) | across days, every day | across days, every third day |
+|---|---|---|---|
+| `algebra1-l1` shipping | 100.0% | **87.8%** | **57.7%** |
+| `algebra1-l1` with the change | 100.0% | **82.8%** | **52.0%** |
+| `algebra1-l2` shipping | 82.3% | 17.8% | 0.0% |
+| `algebra1-l2` with the change | 82.3% | 18.7% | 0.5% |
+| the composed route, shipping | 98.0% | 91.0% | 6.3% |
+
+Level 1 is the clearest case in the tree: **five points off the daily arm and
+five and a half off the three-day arm, on the unit a class actually gets first.**
+Learners holding a hollow line on that unit go from 17.5% to 38.5% at a three-day
+cadence. The composed-route row is the reading `npm run check:mastery` printed on
+this tree, exit 1, and it is the row that would have gone up.
+
+**So none of them ships.** The shipping ladder sits between two regimes that want
+opposite things, and a change that improves the arm this build is graded on while
+making the sixty-day term worse is buying the gate's number with the district's.
+`design/MASTERY-TAIL-AND-RETENTION.md` §6e reached the same trade from the other
+end — its `slow` ladder reads 11.5% at thirty days against 48.0% — and this is a
+second, independent measurement of it in the regime a school actually runs.
+
+### 11.4 And the arm the gate certifies is a calendar nobody plays
+
+The every-third-day arm is budget-matched: it plays until the 3,600-item budget is
+gone, which the run itself reports as **149 sittings, 447 days from the first item
+to the last — 64 weeks.** The daily arm's 150 sittings are a school year; the
+three-day arm's 149 are two and a half of them.
+
+That is the same defect shape as the `sessions: 40` finding this document already
+records, one step along: the number is not wrong, it is about a cohort nobody is.
+A three-day cadence inside one 180-day school year is **60 sittings**, and the
+sixty-day term column above is the closest thing here to that reading. The
+budget-matched arm remains the right comparison for *the schedule* — it is the
+only one that holds the work constant — but it is not a statement about a class,
+and `check:mastery` currently certifies nothing else.
+
+### 11.5 What is left, and exactly what it rests on
+
+After the scheduling work the every-third-day figure is where it was, and what it
+rests on is a learner model. Every constant in it, its value, and whether anything
+measured it:
+
+| constant | value | where it came from | swept? |
+|---|---|---|---|
+| `GAP_POW` | 0.35 | **CHOSEN.** Power-law forgetting is measured in the literature; this exponent is not measured here. | yes, 0.25 / 0.35 / 0.45 |
+| `PERMA` | 0.60 | **CHOSEN.** Bahrick permastore is a real effect; this fraction of peak is not measured here. | yes, 0.50 / 0.60 / 0.70 |
+| the composition law | `iterated` | **CHOSEN, AND UNTIL THIS WAVE UNNAMED.** The power law is re-applied at every sitting boundary, so a line left alone for *n* sittings decays by `keep(h)^n` — exponential in the number of boundaries, which is the curve this file's own header says fits nonsense syllables and does not fit meaningful material. `elapsed` takes it once over the real time since the line was last practised. | yes, now printed |
+| `GAP_GROWTH` | 2.5 | **CHOSEN.** Matched by argument to the engine ladder's own expansion, not to data. A 72-hour survival and an 8-hour survival buy the same strength, which is almost certainly wrong. | **no** |
+| strength cap | 60 | **CHOSEN.** About five survived re-probes reach it. | **no** |
+| stability step | 0.7 | **CHOSEN.** What one spaced retrieval takes off the within-sitting interference cost. | **no** |
+| `DECAY` | 0.0018 | **CHOSEN.** Within-sitting interference per item. | **no** |
+| `GAP_HOURS` | 24 | UNIT. The time scale the exponent is expressed in, not a free parameter. | n/a |
+
+**The two that are swept move the answer by a factor of infinity.** Composed
+route, 60 learners a cell, engine identical in all nine, true mastery at the
+buzzer / a week later:
+
+| every third day (72 h) | exponent 0.25 | 0.35 | 0.45 |
+|---|---|---|---|
+| **floor 0.50** | 3% / 3% | 0% / 0% | 0% / 0% |
+| **floor 0.60** *(shipping)* | 18% / 18% | **5% / 5%** | 0% / 0% |
+| **floor 0.70** | **43% / 43%** | 30% / 30% | 10% / 8% |
+
+The daily arm over the same nine cells runs 62% to 98% and is above the 80% bar in
+five of them. **The every-third-day row is 0% in three cells and 43% in another,
+and nothing in this repository can say which cell is right.**
+
+The composition law is a smaller lever than either constant at these values
+(72 h: 5% iterated against 3% elapsed, 15.2 against 15.7 lines truly held), and
+the reason is worth writing down: the median line finishes at the strength cap,
+where the two laws barely differ. It would be a large lever for a cohort whose
+lines never reach the cap — which is 32% of lines at a three-day cadence.
+
+### 11.6 The same question under three defensible parameter choices
+
+Not a sweep of arbitrary cells: three positions a reviewer could actually defend,
+each run whole.
+
+Composed shipped route, 60 learners a cell, identical seeds, the engine
+byte-identical in all three — only the learner's memory moves:
+
+| | `GAP_POW` | `PERMA` | composition | **daily** | Q1 | lines held | **every third day** | Q1 | lines held |
+|---|---|---|---|---|---|---|---|---|---|
+| **A · pessimistic** — fast forgetting, a low permastore floor; the position a sceptical reviewer would take | 0.45 | 0.50 | iterated | **61.7%** | 16.7% | 19.9 / 24 | **0.0%** | 0.0% | 10.4 / 24 |
+| **B · shipping** — what every published figure in this repository is measured on | 0.35 | 0.60 | iterated | **93.3%** | 75.0% | 23.5 / 24 | **5.0%** | 0.0% | 15.2 / 24 |
+| **C · literature-leaning** — a shallow power-law exponent for well-learned meaningful material, a Bahrick-scale floor, and the power law taken once over elapsed time rather than re-applied every boundary | 0.25 | 0.70 | elapsed | **98.3%** | 100.0% | 23.8 / 24 | **51.7%** | 8.3% | 20.6 / 24 |
+
+Read the whole row before reading any cell.
+
+- **Under A the product fails at BOTH cadences** — 61.7% daily, against an 80%
+  bar. The daily claim this build is sold on is not robust to a pessimistic
+  memory model either; it has simply never been asked.
+- **Under C the three-day cadence reads 51.7%** — still under the bar, still not
+  a product a district should be sold, but a completely different conversation
+  from 5.0%: a schedule that is two thirds of the way there rather than one
+  that does not work.
+- **B — what ships — produces the largest gap between the two cadences of the
+  three** (88.3 points, against 61.7 under A and 46.6 under C). That is not
+  evidence of anything crooked. It is evidence that the specific sentence the
+  district was shown — *daily is fine and anything wider is not* — is the
+  sharpest form of the finding available, and it belongs to one uncalibrated
+  setting of two constants and one composition rule.
+
+**Neither the three-day refusal nor the daily promise is a measured claim yet.
+Both are readings of the same uncalibrated model, and they move in the same
+direction together.**
+
+### 11.7 The calibration study that would settle it
+
+It is small, and it is the same instrument the product already runs.
+
+**Design.** A line the learner has proved is re-probed cold — unassisted, at the
+gate band, on a form drawn the way the schedule already draws it. That item is
+served anyway; the only change is that the delay is *randomised* rather than taken
+from the ladder, and the outcome is recorded against the delay.
+
+- **Delays:** 1, 3, 7, 14 and 30 nights, randomised within learner, so ability and
+  item difficulty are balanced across the delay conditions.
+- **The contrast that matters most is 1 night against 3 nights, within subject, on
+  matched lines** — because that is the exact comparison the district's refusal
+  turns on, and a within-subject design removes the ability variance that makes
+  the between-cohort figure so noisy.
+- **Sample.** One cold probe is a coarse instrument: measured here, pass rate runs
+  68.7% at true competence 0.40–0.70 and 85.7% at 0.94–1.00, so a single item
+  separates those two bands with about 17 points of signal. Pinning `GAP_POW` to
+  ±0.05 and `PERMA` to ±0.05 needs on the order of **1,500–3,000 probe outcomes
+  spread over the five delays** — roughly 150 students × 10 held lines × 2 probes
+  each, which is one class-set of the product running normally for six weeks.
+- **Estimation.** The engine's own response model gives `p(correct | k, demand)`;
+  invert it per probe, then fit
+  `k(t) = PERMA·peak + (k₀ − PERMA·peak)·(1 + t/(24·S))^−GAP_POW`
+  by maximum likelihood, with `S` read off the learner's own recorded durable
+  count. Fit the `iterated` and `elapsed` compositions as competing models and
+  report the likelihood ratio — that settles the third choice as data rather than
+  as an argument about functional forms.
+- **`GAP_GROWTH` falls out of the same data for free**, because `S` is observed:
+  regress the fitted per-line decay rate on the number of survived spaced
+  re-probes and on the LENGTH of the gaps survived. If the length matters — and
+  it almost certainly does — then "one durable pass is worth ×2.5 whatever the
+  gap" is wrong, and it is currently the single largest unswept assumption here.
+
+**What no simulation can do:** none of this is answerable from inside the
+instrument. Every arm above holds the learner model fixed and moves the engine,
+and the learner model is the thing in question. A limitation stated with its
+sensitivity is a research plan; a single number nobody can defend is a liability.
+
+### 11.8 Every command
+
+All from `/Users/harrison/dev/aadmath`. None of them binds a port, builds `dist/`
+or writes anything.
+
+```bash
+# §11.1  the 2x2 — it is now printed on every ordinary run, under
+#        "coming back across days", and this is the standalone version
+CADENCE_PROBE=1 PROBE_N=60 node tools/simulate.mjs 60 3600 --units algebra1-l1,algebra1-l2
+
+# §11.2  the same probe prints the re-entry table, the churn ledger and the
+#        durable-strength table; PROBE_ARMS picks a subset of the six arms
+PROBE_ARMS="daily,every third day" CADENCE_PROBE=1 PROBE_N=60 node tools/simulate.mjs 60 3600 --units algebra1-l1,algebra1-l2
+
+# §11.3  the schedule candidates, budget-matched — the arm check:mastery reads
+SCHED_AB=1 PROBE_N=150 node tools/simulate.mjs 150 3600 --units algebra1-l1,algebra1-l2
+#        …and the same candidates bound to a sixty-school-day term
+SCHED_AB=1 SCHED_DAYS=60 PROBE_N=150 node tools/simulate.mjs 150 3600 --units algebra1-l1,algebra1-l2
+#        …and any candidate of your own: label|reviewMinutes|CFG, semicolon separated
+SCHED_AB=1 SCHED_ONLY=1 SCHED_EXTRA="mine|10,120,480,1440,4320|reviewCatchUp=1" node tools/simulate.mjs 150 3600 --units algebra1-l1,algebra1-l2
+#        …and a scheduling change graded against a FIXED rate of forgetting
+SCHED_AB=1 SCHED_DECAY=24 PROBE_N=150 node tools/simulate.mjs 150 3600 --units algebra1-l1,algebra1-l2
+
+# §11.5, §11.6  the constants, and the composition
+SIM_GAP_POW=0.25 SIM_PERMA=0.70 SIM_LAW=elapsed CADENCE_PROBE=1 PROBE_N=60 node tools/simulate.mjs 60 3600 --units algebra1-l1,algebra1-l2
+
+# the rung rule, both directions, and that it cannot be ground out in a sitting
+node tools/simulate.mjs --self-test
+```
+
+`SIM_LAW=elapsed` and `decayHours` are the only two things in `tools/simulate.mjs`
+that can move a published figure, and both default to exactly what the file did
+before this section existed: every number this build has been held against is
+reproduced byte-for-byte by leaving them unset.
+

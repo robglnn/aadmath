@@ -159,10 +159,10 @@ const DEFAULT_MASTERY = {
   gateDemandFloor: 1,
   // --- the spacing schedule, in real elapsed minutes -------------------------
   // Ten minutes, eight hours, twenty-one hours, two days, five and a half days,
-  // and five and a half days for ever after that. The first rung is inside a
-  // sitting on purpose — consolidation after a short gap is real, and it is the
-  // only rung a single session can ever pay out. Every rung above it can only be
-  // reached by leaving and coming back.
+  // thirteen and a half days, and thirteen and a half days for ever after that.
+  // The first rung is inside a sitting on purpose — consolidation after a short
+  // gap is real, and it is the only rung a single session can ever pay out.
+  // Every rung above it can only be reached by leaving and coming back.
   //
   // The rungs expand by about 2.5 because that is what one survived, genuinely
   // spaced re-probe is worth to a memory, and an expanding schedule is only
@@ -176,6 +176,104 @@ const DEFAULT_MASTERY = {
   // +17.0 points of true mastery a month later, and +19.1 points in the lowest
   // ability quintile. Nothing in this file advances the stage on an item that
   // did not wait.
+  //
+  // --- A SIXTH RUNG WAS MEASURED AND REFUSED, AND THE REASON IS THE POINT ----
+  //
+  // The ladder stops at 7800 — five and a half days — while the strength one
+  // survived re-probe buys goes on growing for about five of them, which is the
+  // mis-specification the paragraph above warns about running the other way. It
+  // costs almost nothing to a learner who comes back every night (130 h is 5.4
+  // nights, so their proved line rests five sittings) and it is the whole
+  // product to one who comes back every third day: 130 h is 1.8 of their gaps,
+  // so THEIR proved lines are due at, or within two sittings of, every single
+  // sitting, for ever, and the schedule can never say "this one is fine, spend
+  // the minute on something they cannot do yet".
+  //
+  // So `[10, 480, 1260, 3120, 7800, 19500]` — one more rung at the same x2.5 —
+  // was built, together with `reviewCatchUp` below, and measured. On the
+  // BUDGET-MATCHED arm, which is the arm `tools/simulate-all.mjs` certifies, it
+  // is one of the largest wins ever measured in this file. On the composed
+  // shipped route, 300 learners, item budget 3600:
+  //
+  //                                    24 h            72 h
+  //   true mastery       before        90.0%           6.0%
+  //                      after         93.3%          15.7%
+  //   lowest quintile    before        66.7%           0.0%
+  //                      after         75.0%           0.0%
+  //   re-probe items     before      779 of 4562   1358 of 4644
+  //                      after       350 of 4620   1145 of 4685
+  //
+  // IT IS NOT IN THIS FILE, BECAUSE THE ARM THAT LIKES IT IS 150 SITTINGS LONG
+  // AND NO SCHOOL RUNS ONE. Bound the same run to a term instead of to the item
+  // budget — 60 school days, 22 minutes a day, the same 150 learners and the
+  // same seeds (`SCHED_AB=1 SCHED_DAYS=60 node tools/simulate.mjs 150 3600
+  // --units algebra1-l1,algebra1-l2`) — and every reading reverses:
+  //
+  //                                        24 h                    72 h
+  //                                  shipping   +rung+catch   shipping  +rung+catch
+  //   lines TRULY held, of 24          12.3        9.7          9.7        3.9
+  //   lines the ENGINE holds           18.7       20.1         11.8       13.6
+  //   learners holding a hollow line   79.3%      76.0%        45.3%     100.0%
+  //   hollow lines per learner         2.47       6.01         0.55       5.39
+  //   re-probes served                  267        155          314        158
+  //
+  // The engine holds MORE and the learner knows LESS, and at a three-day cadence
+  // every learner in the cohort ends the term holding at least one claim that is
+  // not true. The mechanism is not subtle and it is the mechanism the longer
+  // rung is FOR: half the re-probes. Inside a term nobody has finished the
+  // course, so the items a longer rung frees are not spent on the last skills —
+  // they are spent on the middle of the lattice while the early lines rot
+  // unasked-about behind them. `design/MASTERY-TAIL-AND-RETENTION.md` §6e
+  // measured the same trade from the other end (its `slow` ladder reads 11.5%
+  // at thirty days against 48.0%) and this is a second, independent measurement
+  // of it, in the regime a district actually buys.
+  //
+  // AND THE LADDER WAS PUSHED THE OTHER WAY TOO, WHICH IS WHY THIS ONE STAYS.
+  // A TIGHTER ladder is the mirror image, in both regimes at once. Same tool,
+  // same seeds, `[10, 120, 480, 1440, 4320]` — ten minutes, two hours, eight
+  // hours, one night, three nights, every rung landing on a gap a school
+  // actually takes instead of between two of them:
+  //
+  //                                    60-day term        budget-matched
+  //                                  24 h     72 h       24 h      72 h
+  //   lines truly held    shipping   12.3      9.7       23.5      15.5
+  //                       tighter    14.0     10.3       23.1      14.2
+  //   hollow lines        shipping   2.47     0.55       0.09      0.11
+  //                       tighter    0.93     0.37       0.06      0.12
+  //   true mastery        shipping    9.3%     0.0%      93.3%      6.0%
+  //                       tighter     6.7%     0.0%      86.0%      0.0%
+  //   lowest quintile     shipping     —        —        73.3%      0.0%
+  //                       tighter      —        —        53.3%      0.0%
+  //   re-probes served    shipping    267      314        780      1364
+  //                       tighter     330      369       1105      1411
+  //
+  // Inside a term the tighter ladder is better on everything that is about the
+  // learner — more knowledge really held, a THIRD of the hollow claims — and on
+  // the budget-matched arm it costs seven points of the headline and twenty
+  // points of the lowest ability quintile, because 325 extra re-probes are 325
+  // items not spent on the skills nobody has reached yet.
+  //
+  // SO THERE IS NO LADDER THAT WINS BOTH, and this one sits between them. That
+  // is the finding, and it is worth more than either move: the two regimes
+  // disagree about the schedule in OPPOSITE DIRECTIONS, and `npm run
+  // check:mastery` reads only the budget-matched one. Anything that makes that
+  // arm better and the sixty-day term worse is buying the number this build is
+  // graded on with the number a school would measure. The dials are all still
+  // here — `reviewCatchUp` below, and `SIM_MINUTES` drives this array from
+  // outside — so the next person to move it can measure both in four minutes:
+  //
+  //   SCHED_AB=1 PROBE_N=150 node tools/simulate.mjs 150 3600 --units algebra1-l1,algebra1-l2
+  //   SCHED_AB=1 SCHED_DAYS=60 PROBE_N=150 node tools/simulate.mjs 150 3600 --units algebra1-l1,algebra1-l2
+  //
+  // …and the third reading, which is the shortest course in the tree and agrees
+  // with the term rather than with the budget: on `--unit algebra1-l1` alone,
+  // 600 learners, the sixth rung and catch-up together take the daily arm from
+  // 87.8% to 82.8% and the three-day arm from 57.7% to 52.0%, with learners
+  // holding a hollow line going 17.5% -> 38.5%. Two of the three regimes refuse
+  // it. `design/MASTERY-TAIL-AND-RETENTION.md` §11 carries all three side by
+  // side, with the 2x2 that says how much of the three-day figure is this
+  // schedule at all (about half; the other half is a forgetting model resting on
+  // constants nobody here has calibrated).
   reviewMinutes: [10, 480, 1260, 3120, 7800],
   // The secondary floor, in attempts of separation. Time alone would let a
   // learner who left the tab open over lunch be re-probed on the same skill
@@ -213,6 +311,140 @@ const DEFAULT_MASTERY = {
   // lapse probe is to find out whether that was a slip, and next Tuesday is too
   // late to ask.
   lapseMinutes: 2,
+  // What a single missed re-probe costs the SPACING LADDER — as opposed to what
+  // it costs the claim, which is `lapse` and is not this dial.
+  //
+  //   0  the rung is thrown away and the line restarts at rung 0
+  //   n  the rung steps down by n and no further
+  //
+  // It shipped at 0 and 0 is the wrong shape of rule at any cadence longer than
+  // a night. A line that has survived four genuinely spaced re-probes and then
+  // slips once is put back on the same schedule as a line proved this morning,
+  // so the schedule spends the next several sittings re-earning ground it had
+  // already measured. That is an expanding schedule collapsing on one
+  // observation, and every spaced-retrieval system in the world steps the
+  // interval down rather than resetting it, for the reason this file gives
+  // everywhere else: one miss cannot tell a slip from rot.
+  //
+  // It changes no gate. The claim still falls on the SECOND miss, on the same
+  // terms, and `durableMinutes` still decides what crossed a real gap.
+  //
+  // MEASURED, AND NOT SHIPPED, IN BOTH REGIMES. On the budget-matched arm it
+  // looks like a win (`+ two rungs AND the lapse step`, 60 learners: 24 h
+  // re-probes 485 -> 370, learners holding a hollow line 5.0% -> 0.0%) and it
+  // is a wash on top of `reviewCatchUp` below, because catch-up already repairs
+  // a collapsed ladder on the very next survived gap. Bound to a sixty-day term
+  // it is simply worse: on the composed route, 150 learners, `SCHED_DAYS=60`,
+  // lines truly held 12.3 -> 12.0 at a daily cadence and 9.7 -> 9.4 at a
+  // three-day one, with hollow lines per learner 2.47 -> 3.31 and 0.55 -> 0.71.
+  // A rung kept after a miss is a re-probe not served, and inside a term that
+  // is the wrong trade. It stays at 0, with both numbers written down.
+  lapseStep: 0,
+  // Whether a survived gap credits the rung it was actually long enough to pay
+  // for, rather than one rung above wherever the line happened to be. See the
+  // block in `observe` that reads it, which carries the argument and the
+  // self-test; `tools/simulate.mjs --self-test` proves in both directions that
+  // the rung is still bought with elapsed time and with nothing else.
+  //
+  // MEASURED, AND NOT SHIPPED, FOR THE SAME REASON THE SIXTH RUNG IS NOT. It is
+  // the one change here whose ARGUMENT is unarguable — a line that has just come
+  // back right after seventy-two hours has demonstrated seventy-two hours of
+  // retention, and putting it back on an eight-hour rung asks a question the
+  // learner has this second answered — and on the budget-matched arm it pays
+  // for itself twice over. Inside a sixty-day term it does what every other
+  // re-probe cut does: composed route, 150 learners, `SCHED_DAYS=60`, lines
+  // truly held 12.3 -> 9.5 at a daily cadence, hollow lines per learner
+  // 2.47 -> 5.15, and at a three-day cadence 9.7 -> 8.8 with 0.55 -> 1.26.
+  // The rung it saves is a look at the line it does not take.
+  reviewCatchUp: 0,
+  // How far past the longest gap a line has actually survived its next re-probe
+  // may be scheduled. 0 turns the cap off. See the block in `observe`.
+  //
+  // MEASURED, AND NOT SHIPPED, AND THE HYPOTHESIS IT TESTED WAS WRONG. It was
+  // written to answer the one cost of `reviewCatchUp` — that the learner-level
+  // hollow rate rises at a three-day cadence — on the theory that the extra
+  // hollow lines were lines parked on a rung their own history had not earned.
+  // They are not. On the composed route, 150 learners a row, at x2 it changes
+  // the 72 h reading by nothing at all (4.7% -> 4.7% on the shipping ladder,
+  // because at that cadence twice the longest survived gap is always longer
+  // than the top rung) and on top of catch-up it makes the hollow rate slightly
+  // WORSE (29.3% -> 30.0%). The extra hollow lines are the marginal lines the
+  // old schedule never had the items to prove at all, and they are more fragile
+  // than the average held line. The dial stays here, at 0, with that result,
+  // because the next person to have this idea should be able to read the answer
+  // rather than re-measure it.
+  reviewProvenFactor: 0,
+  // --- WHICH RE-PROBE COMES FIRST WHEN MORE ARE DUE THAN THE SITTING HOLDS --
+  //
+  // `leverage` scores a due re-probe as `(0.6 + min(overCap, over))`, where
+  // `over` is how many of its own windows late it is. The ceiling is what stops
+  // one forgotten line from outscoring everything in the building for ever.
+  //
+  // It also, at 4, ERASES THE ORDERING exactly where the ordering matters. A
+  // learner who comes back every third day arrives with 4320 minutes on the
+  // clock, so a line on rung 0 reads over = 432, rung 1 reads 9, rung 2 reads
+  // 3.4 — and the first two saturate and tie. Rung is bought one step per
+  // survived gap, so rung IS this line's demonstrated durability, and at the
+  // cadence where the due queue is longer than the sitting the queue is
+  // therefore ordered by nothing but the cost of the item. The line the learner
+  // has proved once and the line they have proved four times are the same
+  // priority, and the one that gets dropped off the end of the sitting is
+  // whichever is dearer to read.
+  //
+  // Raising the ceiling restores the ordering and changes NOTHING ELSE: the same
+  // re-probes, the same intervals, the same bands, the same gate. It cannot
+  // serve a re-probe the clock has not called for and it cannot skip one.
+  // 4 is what shipped.
+  overCap: 4,
+  // --- WHAT SURFACE A RE-PROBE IS READ OFF ---------------------------------
+  //
+  // `task` already says this in words — *"New practice hunts for the forms this
+  // learner has met least… A retention probe does not: it is asking 'is it
+  // still there?', not 'can you transfer it?'"* — and then draws the re-probe
+  // from every form the band offers, so half of them land on the two dearest
+  // surfaces in the bank. `ITEM_SECONDS` prices a context item at 46 s against
+  // a symbolic one at 26 s, and a 22-minute sitting is a SECONDS budget: two
+  // context re-probes and a symbolic one is the same slice of a sitting as
+  // four symbolic ones. Every second a re-probe does not need is a second of
+  // new ground, at every cadence.
+  //
+  // At 1 a re-probe is drawn from the surfaces this learner has ALREADY SOLVED
+  // CLEANLY on this skill, cheapest first. That is not a softer question — it is
+  // the same band, the same absence of support, and it is restricted to
+  // surfaces the learner has already proved themselves on, so a surface they
+  // have never solved can never be quietly dropped out of the retention
+  // schedule. If no such surface is eligible at the band it falls straight back
+  // to today's pool, so it can never fail to produce an item.
+  //
+  // It cannot touch the form floor: `weakForms` counts questions asked of a
+  // shape, and this changes which shape a REVIEW asks, never whether a claim
+  // may stand over a shape at nought. 0 is what shipped.
+  reviewSurface: 0,
+  // --- THE DESCENT A THREE-DAY LEARNER CAN NEVER REACH ----------------------
+  //
+  // `next()` reaches the sounding by finding nothing else worth doing: a held
+  // line that is not due scores -1, so the descent is the answer to *there is
+  // nothing left in this shard to learn*. On a daily cadence that is 27% of
+  // every item served and it is how a daily learner keeps twenty-four lines
+  // alive. On a three-day cadence, measured on the composed route, the whole
+  // course contains THREE soundings against the daily cohort's 1,075 — because
+  // at that cadence there is always something else to do, for ever.
+  //
+  // So the one form of maintenance that costs the schedule nothing is the one
+  // form a returning learner never gets. A rung of the descent is not a
+  // re-probe: it moves no interval, grants no durable credit, and cannot
+  // withdraw a claim (see `observe`, the `deep` branch). It is retrieval
+  // practice on proved ground, and it is already bounded at
+  // `heldReserveCap` items per line per sitting.
+  //
+  // Above 0 a held line that is NOT due may score this much per minute once it
+  // has gone `soundIdle` items untouched, which lets the descent compete rather
+  // than only inherit. It is deliberately small: it must lose to teaching a
+  // line the learner cannot do yet, and it must lose to a re-probe the clock
+  // called for, which scores `W.review * (0.6 + over)` and is never under 0.69.
+  // 0 is what shipped.
+  soundWeight: 0,
+  soundIdle: 40,
   // --- the sight-read -------------------------------------------------------
   // One unscaffolded item at the gate band, served the first time a learner
   // meets a skill. It is not a softer gate; it is the proving run's own first
@@ -542,6 +774,35 @@ const DEFAULT_MASTERY = {
   // Nobody is routed around. An unmastered, unlocked skill that has gone this
   // many observations without an item is served next, whatever the scoring says.
   starveLimit: 40,
+  // --- HOW MANY THINGS ARE HALF-LEARNED AT ONCE ----------------------------
+  //
+  // A work-in-progress limit, and it is a SCHEDULING dial: it changes which
+  // line the router opens next and it changes no gate, no claim, no band and
+  // no interval. 0 is off and is what shipped before it existed.
+  //
+  // Why it exists. Between two sittings a line the learner has not yet proved
+  // is the least protected thing in the record — nothing has crossed a gap on
+  // it, so `durable` is 0 and the whole of what was taught is exposed to the
+  // wait. A learner who comes back every night loses very little of it. One who
+  // comes back every third day loses most of it, three times over, and the
+  // schedule pays for the same ground again on the next visit. Spreading a
+  // 22-minute sitting across six half-taught lines is therefore not neutral at
+  // a long cadence: it is the one way to spend a whole sitting and finish
+  // nothing, and finishing is what buys the protection, because only a proved
+  // line can be re-probed and only a survived re-probe makes a line durable.
+  //
+  // So above this many lines that have been STARTED and not yet proved, the
+  // router will not open one it has never taught. It still serves every one of
+  // those lines, it still serves every re-probe the clock called for first, and
+  // `starveLimit` above still overrides everything — nobody is routed around.
+  // The only thing it refuses is STARTING something new while this many things
+  // are unfinished.
+  //
+  // It is deliberately not a drill: at 3 there are still three open lines to
+  // interleave between, plus every held line the re-probe schedule brings back,
+  // so the anti-massing damp in `leverage` and the situation ledger
+  // tools/scene-audit.mjs measures are both untouched.
+  focusOpen: 0,
   // --- what a held line may cost a sitting ----------------------------------
   // A line this learner has already proved is the most expensive thing in the
   // building to serve, because every item spent on it is an item not spent on
@@ -1278,12 +1539,22 @@ export class MasteryEngine {
       // session and buys nothing the model does not already know. The endgame
       // answer to a spare minute is the sounding, and `next()` reaches it by
       // finding nothing here worth doing.
-      if (!this.isDue(s, now)) return -1;
+      if (!this.isDue(s, now)) {
+        // See `soundWeight`. A line that has gone this long untouched may take
+        // a rung of the descent on its own merits rather than only when the
+        // shard has nothing else to offer — still inside `mayReserve`'s
+        // per-sitting budget, still labelled `deep`, still unable to move an
+        // interval or touch a claim.
+        if (!this.cfg.soundWeight) return -1;
+        if (!this.mayReserve(s)) return -1;
+        if (this.clock - (s.lastSeenAt ?? 0) < (this.cfg.soundIdle | 0)) return -1;
+        return this.cfg.soundWeight / mins;
+      }
       const over = (now - s.dueTime) / this.windowMs(s);
       // A skill already caught lapsing is the one piece of standing in the whole
       // model that is actively rotting; it outranks a routine probe.
       const risk = s.lapsePending ? 2.2 : 1;
-      return (W.review * risk * (0.6 + Math.min(4, over))) / mins;
+      return (W.review * risk * (0.6 + Math.min(this.cfg.overCap, over))) / mins;
     }
 
     const info = expectedInfoGain(s.pL, p);
@@ -1332,8 +1603,25 @@ export class MasteryEngine {
       .sort((a, b) => (a.lastSeenAt ?? a.openedAt ?? 0) - (b.lastSeenAt ?? b.openedAt ?? 0));
     if (starved.length) return { id: starved[0].id, kind: this.kindFor(starved[0]), reason: 'starved' };
 
+    // --- STOP STARTING, START FINISHING -------------------------------------
+    // See `focusOpen`. Above the cap the router scores only lines that are
+    // already held (their re-probes are the first thing a returning learner
+    // meets and nothing here may delay one) and lines this learner has already
+    // been taught something on. A line with no attempt on it is not opened.
+    // Off at 0, which is what shipped; the starvation promise above is settled
+    // before this line is reached, so it cannot route anybody around.
+    let pool = open;
+    const cap = this.cfg.focusOpen | 0;
+    if (cap > 0) {
+      const started = open.filter((s) => !s.mastered && (s.attempts || 0) > 0);
+      if (started.length >= cap) {
+        const held = open.filter((s) => s.mastered || (s.attempts || 0) > 0);
+        if (held.length) pool = held;
+      }
+    }
+
     let best = null, bestV = -Infinity;
-    for (const s of open) {
+    for (const s of pool) {
       const v = this.leverage(s.id);
       if (v > bestV) { bestV = v; best = s; }
     }
@@ -2030,6 +2318,19 @@ export class MasteryEngine {
     // per-skill "met least" rule in play at all — every form has been met — and
     // that is exactly where twelve items collapsed into one template. So those
     // get the global rule. See `varyShape` and `soundingTask`.
+    // --- the cheapest surface this learner has already proved on ------------
+    // See `reviewSurface`. Same band, no support, and only surfaces this
+    // learner has solved cleanly on this skill, so nothing is asked more
+    // easily and no surface can be dropped out of the schedule by never
+    // being asked. Falls back to the whole pool when the band offers none.
+    if (kind === 'review' && this.cfg.reviewSurface) {
+      const proved = chosen.filter((f) => (s.formsSeen[f.id]?.correct || 0) > 0);
+      if (proved.length) {
+        const cost = (f) => itemSeconds({ rep: f.rep, difficulty: d, scaffold: 'none' });
+        const floor = Math.min(...proved.map(cost));
+        chosen = proved.filter((f) => cost(f) <= floor + 1e-9);
+      }
+    }
     const heldItem = kind === 'retrieval';
     chosen = this.varyShape(chosen, {
       forms: heldItem,
@@ -3080,8 +3381,69 @@ export class MasteryEngine {
             s.longestGap = Math.max(s.longestGap || 0, gap);
           }
           s.provedTime = now;
-          s.reviewStage = Math.min(this.cfg.reviewMinutes.length - 1, s.reviewStage + 1);
-          s.dueTime = now + this.windowMs(s);
+          // --- THE RUNG THE WAIT ACTUALLY EARNED ------------------------------
+          // The rule this file already states, read in the direction nobody had
+          // read it: *nothing advances the stage on an item that did not wait.*
+          // Its converse is the same sentence. A line that has just come back
+          // right after seventy-two hours has demonstrated seventy-two hours of
+          // retention, and putting it back on an eight-hour rung asks a question
+          // the learner has this second answered.
+          //
+          // So the stage advances from the highest rung the SURVIVED GAP has
+          // paid for, never from a lower one, and never past the end of the
+          // ladder. It cannot be ground out in one sitting, because it is read
+          // off elapsed wall-clock time and off nothing else: a learner who
+          // returns after ten minutes earns rung 0 and advances to rung 1,
+          // exactly as before.
+          //
+          // IT IS OFF. The argument above is sound and the measurement refused
+          // it anyway — see `reviewCatchUp` in the defaults, which carries both
+          // regimes' numbers. This block stays because the rule is one line, the
+          // self-test that proves it cannot be ground out is written, and the
+          // next person to reach for it should find the answer rather than the
+          // idea. Why it matters at all, and why it took a three-day cadence to see:
+          // a learner who comes back every night meets rungs of 8 h, 21 h and
+          // 52 h that are each a real, distinguishable wait. A learner who comes
+          // back every third day satisfies all three with one gap, so under the
+          // old rule their lines climbed one rung per return however long they
+          // had really been away, and the ladder — whose top rung is 130 h —
+          // could never outrun their own 72 h cadence. Every held line was
+          // therefore due at every sitting, for ever. Measured on the composed
+          // route that is 1,640 re-probes against the daily cohort's 787: about
+          // one item in five of the whole course spent re-asking questions the
+          // schedule had already had answered.
+          const ladder = this.cfg.reviewMinutes;
+          let stage = s.reviewStage + 1;
+          if (this.cfg.reviewCatchUp) {
+            let earned = 0;
+            while (earned + 1 < ladder.length && gap >= ladder[earned + 1] * MINUTE) earned++;
+            stage = Math.max(s.reviewStage, earned) + 1;
+          }
+          s.reviewStage = Math.min(ladder.length - 1, stage);
+          // --- AND THE LINE MAY NOT BE PARKED LONGER THAN IT HAS EVER PROVED --
+          //
+          // Crediting the wait is right and it has one failure mode, which is
+          // the mis-specification this file warns about everywhere else, caused
+          // from the other side: a line whose ONE survived gap was seventy-two
+          // hours can be handed a rung priced for a memory that has survived
+          // four of them, and then it rests for thirteen days on the strength of
+          // three. Measured, that is where the extra hollow claims come from —
+          // not from the claim being wrong when it was made, but from rot going
+          // unasked about while the line sits on a rung it has not earned.
+          //
+          // So the interval is capped at `reviewProvenFactor` times the longest
+          // gap this line has actually come back right across. It is the same
+          // sentence as the ladder itself, said about one line instead of about
+          // the design: an expanding schedule expands FROM WHAT WAS PROVED. It
+          // can only ever shorten an interval, never lengthen one, so it cannot
+          // buy anything — and it never binds below the second rung, because a
+          // line with no survived gap behind it has nothing to be capped by.
+          const win = this.windowMs(s);
+          const factor = this.cfg.reviewProvenFactor || 0;
+          const cap = factor > 0 && s.longestGap
+            ? Math.max(ladder[1] * MINUTE, factor * s.longestGap)
+            : Infinity;
+          s.dueTime = now + Math.min(win, cap);
           s.dueAt = this.clock + this.floorFor(s);
         } else if (!correct) {
           this.lapse(s, now);
@@ -3181,7 +3543,9 @@ export class MasteryEngine {
       s.dueTime = null;
     } else {
       s.lapsePending = true;
-      s.reviewStage = 0;
+      // The rung steps down; it is not thrown away. See `lapseStep`.
+      const step = this.cfg.lapseStep | 0;
+      s.reviewStage = step > 0 ? Math.max(0, (s.reviewStage || 0) - step) : 0;
       s.dueTime = now + this.cfg.lapseMinutes * MINUTE;
       s.dueAt = this.clock + 2;
       s.pL = Math.min(s.pL, 0.9);

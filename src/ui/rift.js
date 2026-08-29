@@ -167,6 +167,77 @@ function parseTerms(str, v) {
 }
 
 function coefStr(c, v) { return c === 1 ? v : c === -1 ? `-${v}` : `${c}${v}`; }
+
+/**
+ * A TERM'S VARIABLE PART — the whole of what decides which terms are alike.
+ *
+ * `parseTerms` above answers one question, "does this term carry the unknown",
+ * and that question has exactly two answers. Two answers is two bays, and two
+ * bays that are "carries a letter" and "carries no letter" are the two GLYPH
+ * classes of the printed board: a variable chip is printed with the letter on
+ * it and a number chip never is, so one look at a chip files it and no
+ * arrangement of the question's own terms can take that back. A cadet could
+ * seal the surface named for like terms without knowing what one is.
+ *
+ * A like term is not "carries a letter". `3x` and `5x` are alike; `3x` and
+ * `5x^{2}` are not; `3x` and `3y` are not. So the thing a chip has to be read
+ * for is its whole variable part — the letter AND the power — and that is what
+ * this reader returns: `''` for a bare number, `x`, `x^{2}`, `y`. The bays are
+ * then those parts, several of them, and two chips that both carry a letter
+ * belong in different bays.
+ *
+ * Refuses anything it cannot read exactly, so a notation this reader has not
+ * met falls through to the keypad rather than being filed by guesswork.
+ */
+const TERM_RE = /^([+-]?)(\d*)(?:([a-zA-Z])(?:\^(?:\{(\d+)\}|(\d)))?)?$/;
+function parsePartTerms(str) {
+  const toks = String(str).replace(/\s+/g, '').match(/[+-]?[^+-]+/g);
+  if (!toks) return null;
+  const out = [];
+  for (const tk of toks) {
+    const m = TERM_RE.exec(tk);
+    if (!m) return null;
+    const sign = m[1] === '-' ? -1 : 1;
+    const letter = m[3] || '';
+    if (!letter) {
+      if (m[2] === '') return null;
+      out.push({ part: '', c: sign * Number(m[2]) });
+      continue;
+    }
+    const k = m[4] ?? m[5];
+    const p = k === undefined ? 1 : Number(k);
+    // Degree three and above is not a kind this bank collects, and a reader
+    // that quietly accepts one would draw a bay nothing else in the game
+    // teaches.
+    if (!(p >= 1 && p <= 2)) return null;
+    out.push({ part: p === 1 ? letter : `${letter}^{${p}}`, c: sign * (m[2] === '' ? 1 : Number(m[2])) });
+  }
+  return out;
+}
+
+/** A term printed the way a chip prints it: `-7x`, `x^{2}`, `30`. */
+function partStr(c, part) { return part ? coefStr(c, part) : String(c); }
+
+/** Variable part -> the count standing in front of it, summed over the board. */
+function collectParts(terms) {
+  const m = new Map();
+  for (const t of terms) m.set(t.part, (m.get(t.part) || 0) + t.c);
+  return m;
+}
+
+/**
+ * Do these two collections say the same thing? A class that cancels to nothing
+ * is not a class the written answer has to name, so zero counts as absent on
+ * both sides — and the comparison is over the classes themselves rather than
+ * over one printed spelling of them, so the order an answer happens to be
+ * written in cannot decide whether this surface will take the card.
+ */
+function samePartSums(a, b) {
+  for (const k of new Set([...a.keys(), ...b.keys()])) {
+    if ((a.get(k) || 0) !== (b.get(k) || 0)) return false;
+  }
+  return true;
+}
 function linStr(a, v, b) {
   if (a === 0 && b === 0) return '0';
   if (a === 0) return String(b);
@@ -3830,66 +3901,163 @@ export class RiftPanel {
   }
 
   // --------------------------------------------------------- modality: bays
+  /**
+   * THE SORTING BAYS — and what the bays ARE is the whole of this surface.
+   *
+   * THE DEFECT THIS IS A REDESIGN OF, not a patch on.
+   *
+   * The board used to have two bays: the terms carrying the unknown, and the
+   * pure numbers. Two rounds went into stopping a cadet filing them without
+   * reading anything — first the chips were painted one material so hue could
+   * not file them, then the tray order was drawn from the card's hash so
+   * "alternate left, right" could not. Both were real and both landed. The
+   * surface was still sealed, by something neither could touch:
+   *
+   *     a variable chip is printed with the unknown's letter on it and a
+   *     number chip never is, so "a chip with a letter goes in the left bay,
+   *     one without goes in the right" filed every chip of every board.
+   *
+   * That is not a cue sitting on top of the question. It IS the question. Two
+   * bays that are "carries a letter" and "carries no letter" are the two glyph
+   * classes of the printed board, and no arrangement of chips can make sorting
+   * into them anything but a glyph match, because the two bays and the two
+   * glyph classes are the same partition.
+   *
+   * AND IT IS NOT WHAT A LIKE TERM IS. `3x` and `5x` are alike. `3x` and
+   * `5x^{2}` are not. `3x` and `3y` are not. A surface that only ever separates
+   * letters from numbers cannot ask the question, and `like-terms` is a node of
+   * the first shipped unit.
+   *
+   * WHAT THE BAYS ARE NOW: the LIKE-CLASSES the board actually carries — the
+   * `x` terms, the `x^{2}` terms, the `y` terms, the numbers — one bay per
+   * distinct variable part on the board, and never fewer than two of them
+   * carrying a letter. On such a board a glyph rule cannot work: two chips that
+   * both carry a letter belong in DIFFERENT bays, and the only thing that says
+   * which is the whole variable part, which is the definition this node is
+   * named for. It is also the surface the node's declared misconceptions need:
+   * Booth's conjoining (`3x + 2 = 5x`) is a number chip dropped in a letter
+   * bay, MacGregor and Stacey's letter-as-object is a `y` chip dropped in the
+   * `x` bay, and `x-and-x-squared` is exactly what its name says — and each of
+   * those three drops is now REFUSED UNDER ITS OWN NAME, so the echo that
+   * follows teaches the error the cadet made rather than a generic one.
+   *
+   * WHAT MAY NOT COME BACK. Nothing on a loose chip may say which bay it
+   * belongs in — not its colour, not an attribute, not a class, not where it
+   * lies in the tray, and not the fact that it has a letter on it at all.
+   *
+   * `tools/critic/choiceshape.mjs` plays a cadet who does no mathematics
+   * against every shape rule over every route board — glyph presence, the
+   * superscript, the letter alone, chip length, digits, the size of the count,
+   * the sign, tray position, bay position, and the rank-to-rank matches
+   * between them — each against a baseline that keeps the board's shape and
+   * shuffles which chip belongs where.
+   */
   _sort(work) {
     const self = this;
     const item = this.item;
     const src = CLEAN(item.check?.math || item.latex);
-    const vm = src.match(/[a-zA-Z]/);
-    if (!vm) return null;
-    const v = item.check?.variable || vm[0];
-    if (/[\\^*()=]/.test(src)) return null;
-    const terms = parseTerms(src, v);
-    if (!terms || terms.length < 3) return null;
+    if (/[\\*()=]/.test(src)) return null;
+    const terms = parsePartTerms(src);
+    if (!terms || terms.length < 3 || terms.length > 8) return null;
+    const answer = parsePartTerms(CLEAN(item.answer));
+    if (!answer) return null;
 
-    const sumV = terms.filter((x) => x.kind === 'var').reduce((a, x) => a + x.c, 0);
-    const sumK = terms.filter((x) => x.kind === 'num').reduce((a, x) => a + x.c, 0);
-    if (norm(linStr(sumV, v, sumK)) !== norm(item.answer)) return null;
+    const sums = collectParts(terms);
+    if (!samePartSums(sums, collectParts(answer))) return null;
+
+    // The classes this board carries, first-appearance order. That order is
+    // NOT the order the bays are drawn in — see `bayOrder` below — it is only
+    // a stable list to draw from.
+    const classes = [...new Set(terms.map((t) => t.part))];
+    /**
+     * THE BAR THIS SURFACE HOLDS ITSELF TO: TWO DIFFERENT LETTERS ON THE BOARD.
+     *
+     * It is not "more than two bays", and it is not "two bays with letters on
+     * them". Both of those still leave a board that ONE GLYPH files:
+     *
+     *   `x` and the numbers      — "is there a letter on it"  (the defect)
+     *   `x` and `x^{2}`          — "is there a power on it"   (the same defect
+     *                              one notch along, and a sorter that only ever
+     *                              asks that has replaced one bit with another)
+     *   `x`, `x^{2}` and numbers — "letter, power, neither": two bits, three
+     *                              bays, still no term read past its decoration
+     *
+     * With two DIFFERENT letters on the board there are always two bays that no
+     * reading short of the whole variable part can tell apart, because they
+     * differ only in the letter itself. Every coarser rule merges them and
+     * cannot file the board. `tools/critic/sortcues.mjs` measures that claim on
+     * every route board rather than trusting this comment.
+     *
+     * A board that does not clear the bar is not filed by guesswork here: it
+     * falls through to the keypad, where a cadet produces the answer instead of
+     * being handed a split they can read off the glyphs.
+     */
+    const letters = new Set(classes.filter(Boolean).map((p) => p[0]));
+    if (letters.size < 2) return null;
+    // Four bays is the layout ceiling. `check:layout` measures ink across 288
+    // frames in three locales, and a fifth bay is a row of card that comes off
+    // the foot on a handset.
+    if (classes.length > 4) return null;
+
+    // NOT DEAD, AND NOT USED HERE. Every bay names its own variable part, so
+    // nothing below needs the card's unknown — but `tools/critic/riftsurfaces.mjs`
+    // cuts this method's pure prefix out of this file and executes it, and its
+    // `CHIPS` closure returns `v` with the rest. Delete the line and
+    // `check:shape` stops being able to read the board at all.
+    const v = item.check?.variable || classes.find(Boolean)[0];
 
     /**
-     * THE ORDER THE CHIPS LIE IN, AND WHY IT IS DRAWN RATHER THAN COPIED.
+     * THE ORDER THE CHIPS LIE IN, AND THE ORDER THE BAYS DO.
      *
-     * The tray used to be built straight out of `parseTerms`, which reads the
+     * The tray used to be built straight out of the reader, which reads the
      * printed statement left to right. So the chips arrived in the statement's
-     * own term order — and a statement like `14a + 30 - 7a + 18` alternates
-     * variable, number, variable, number, because that is how a collect-like-
-     * terms prompt is written. Measured over the shipped route: 95.5% of 3,279
-     * boards alternated strictly, and the FIRST chip carried the unknown on
-     * 3,279 of 3,279. The unknown's bay is always the left one. So "tap the
-     * first loose chip into the left bay, the next into the right, and keep
-     * alternating" filed every chip of every board with no miss — an
-     * UNASSISTED seal, which is the only kind that advances a proving run — on
-     * a node of the FIRST shipped unit, with no idea what a like term is.
+     * own term order — and a collect-like-terms statement alternates the kinds,
+     * because that is how such a prompt is written. Measured over the shipped
+     * route: 95.5% of 3,279 boards alternated strictly and the FIRST chip
+     * carried the unknown on 3,279 of 3,279. So "tap the first loose chip into
+     * the left bay, the next into the right, and keep alternating" filed every
+     * chip of every board with no miss — an UNASSISTED seal, which is the only
+     * kind that advances a proving run.
      *
-     * It is the colour defect one layer along. Nothing on a loose chip may say
-     * which bay it belongs in, and WHERE IT LIES is something a chip says.
+     * Both orders are drawn from the card's own hash now, and the BAYS are
+     * drawn as well as the chips. Bay order matters as much: with the numbers
+     * always on the right, "the chip with no letter goes right" needs no bay
+     * label read at all, and with the classes in a fixed order a cadet learns
+     * the slots once and never reads a header again.
      *
-     * So the tray is drawn from the card's own hash. Not equalised: a rule
-     * that guaranteed the chips never alternate would be a cue of its own, and
-     * this repository has already turned one weak cue into a perfect
-     * elimination rule exactly that way. Drawn means the order carries nothing
-     * about the kinds, and the best fixed positional rule is then worth
-     * 1 / C(n, p) — what a cadet who knows only how many chips of each kind a
-     * board holds gets by guessing, and no more.
-     *
-     * `tools/critic/choiceshape.mjs` plays every positional rule over every
-     * route board and reports the best of them against that number.
+     * Not equalised — a rule that guaranteed the chips never alternate would be
+     * a cue of its own, and this repository has already turned one weak cue
+     * into a perfect elimination rule exactly that way. Drawn means the order
+     * carries nothing, and the best fixed positional rule is then worth what a
+     * cadet gets from knowing only how many chips of each kind a board holds.
      */
     const chipOrder = shuffled(terms, mixed(self.seed, `sort|${src}`));
+    const bayOrder = shuffled(classes, mixed(self.seed, `bays|${src}|${item.answer}`));
 
     const bays = document.createElement('div');
     bays.className = 'rf-bays';
-    const mkBay = (kind, nameHtml) => {
+    // The count is on the container so the stylesheet can lay two, three and
+    // four bays out differently at every size without this file measuring
+    // anything. (see rift.css, `.rf-bays[data-n]`)
+    bays.dataset.n = String(bayOrder.length);
+    const mkBay = (part) => {
       const el = document.createElement('div');
-      el.className = 'rf-bay';
-      el.dataset.kind = kind;
-      el.innerHTML = `<header><span class="name">${nameHtml}</span>
+      el.className = 'rf-bay' + (part ? '' : ' numbers');
+      // The bay's own label, in machine form. It is the header printed on the
+      // bay in words and notation, so publishing it takes nothing back: the
+      // fact a harness must not be given is which bay a CHIP belongs in.
+      el.dataset.kind = part;
+      const name = part ? texProse(t('rift.sort.vars', { v: part })) : texProse(t('rift.sort.nums'));
+      el.innerHTML = `<header><span class="name">${name}</span>
         <span class="sum none">${t('rift.sort.empty')}</span></header><div class="hold"></div>`;
       return el;
     };
-    const bayV = mkBay('var', texProse(t('rift.sort.vars', { v })));
-    const bayK = mkBay('num', texProse(t('rift.sort.nums')));
-    bays.appendChild(bayV);
-    bays.appendChild(bayK);
+    const byPart = new Map();
+    for (const part of bayOrder) {
+      const el = mkBay(part);
+      byPart.set(part, el);
+      bays.appendChild(el);
+    }
 
     const trayLabel = document.createElement('div');
     trayLabel.className = 'rf-label';
@@ -3901,15 +4069,33 @@ export class RiftPanel {
     work.appendChild(trayLabel);
     work.appendChild(tray);
 
-    let placed = 0, vAcc = 0, kAcc = 0;
-    const targets = () => [bayV, bayK];
+    let placed = 0;
+    const acc = new Map(bayOrder.map((p) => [p, 0]));
+    const targets = () => bayOrder.map((p) => byPart.get(p));
 
-    const updateBay = (bay, acc, kind) => {
+    const updateBay = (part) => {
+      const bay = byPart.get(part);
       const sum = bay.querySelector('.sum');
       if (!bay.querySelector('.rf-chip')) { sum.className = 'sum none'; sum.textContent = t('rift.sort.empty'); return; }
       sum.className = 'sum';
-      const s = kind === 'var' ? (acc === 0 ? '0' : coefStr(acc, v)) : String(acc);
+      const total = acc.get(part);
+      const s = total === 0 ? '0' : partStr(total, part);
       sum.innerHTML = texFirst([s]) || s;
+    };
+
+    /**
+     * WHICH ERROR A REFUSED DROP IS, by name.
+     *
+     * Every refused drop used to be `combine-unlike`, because with two bays
+     * there was only one way to be wrong. There are three now, the graph
+     * declares all three on this node, and they are not the same mistake:
+     * putting `x^{2}` in with the `x` terms is the squared-is-the-same error,
+     * and it is the one a faded worked echo has different words for.
+     */
+    const missOf = (from, to) => {
+      const base = (p) => String(p).replace(/\^\{\d+\}$/, '');
+      if (from && to && base(from) === base(to)) return 'x-and-x-squared';
+      return 'combine-unlike';
     };
 
     // The false identity a rejected drop would have asserted, kept so the echo
@@ -3918,41 +4104,74 @@ export class RiftPanel {
     let illegal = null;
     const place = (chip, term, bay) => {
       if (self._settled || chip.disabled) return;
-      if (bay.dataset.kind !== term.kind) {
+      const part = bay.dataset.kind;
+      if (part !== term.part) {
         for (const e of [bay, chip]) { e.classList.remove('reject'); void e.offsetWidth; e.classList.add('reject'); }
         setTimeout(() => { bay.classList.remove('reject'); chip.classList.remove('reject'); }, 460);
-        const into = bay.dataset.kind === 'var' ? vAcc : kAcc;
-        const held = bay.dataset.kind === 'var' ? coefStr(into, v) : String(into);
-        const dropped = term.kind === 'var' ? coefStr(term.c, v) : String(term.c);
-        const merged = bay.dataset.kind === 'var'
-          ? (into + term.c === 0 ? '0' : coefStr(into + term.c, v))
-          : String(into + term.c);
+        const into = acc.get(part);
+        const held = partStr(into, part);
+        const dropped = partStr(term.c, term.part);
+        // What the merge would have claimed, written in the bay's own kind —
+        // which is the claim, and the reason it is false.
+        const merged = into + term.c === 0 && part ? '0' : partStr(into + term.c, part);
         illegal = bay.querySelector('.rf-chip')
           ? `${held} ${term.c < 0 ? '-' : '+'} ${dropped.replace(/^-/, '')} = ${merged}`
           : null;
-        self._miss('combine-unlike', t('rift.sort.rejected'));
+        self._miss(missOf(term.part, part), t('rift.sort.rejected'));
         return;
       }
       chip.classList.remove('picked');
       chip.classList.add('placed');
       chip.disabled = true;
       bay.querySelector('.hold').appendChild(chip);
-      if (term.kind === 'var') { vAcc += term.c; updateBay(bayV, vAcc, 'var'); }
-      else { kAcc += term.c; updateBay(bayK, kAcc, 'num'); }
+      acc.set(part, acc.get(part) + term.c);
+      updateBay(part);
       placed++;
       self.setPressure(1 - placed / terms.length);
       if (placed === terms.length) setTimeout(() => self._solve(), 560);
     };
 
     let picked = null;
-    for (const bay of [bayV, bayK]) {
-      self._click(bay, () => {
+    bayOrder.forEach((part, slot) => {
+      const bay = byPart.get(part);
+      const drop = () => {
         if (!picked) return;
         const { chip, term } = picked;
         picked = null;
         place(chip, term, bay);
+      };
+      self._click(bay, drop);
+      /**
+       * A BAY IS A CONTROL, SO IT HAS TO BE ONE ON A KEYBOARD AND A PAD TOO.
+       *
+       * The chips are `<button>`s and always were, so a keyboard could PICK a
+       * chip and never put it anywhere: the bays were bare `<div>`s with a
+       * delegated `click` listener, and a div with no `tabindex` cannot be
+       * focused, so no key press could ever reach one. Of the six answer
+       * surfaces this file draws, this was the only one a keyboard could not
+       * finish — the readings, the moves and the field are buttons and inputs,
+       * and the coordinate plot publishes its own keys. `BRIEF.md` asks for
+       * keyboard, pad and touch on every surface, and touch was the only one
+       * this had.
+       *
+       * Two ways in, because Tab-to-the-bay-and-back is slow with a chip in
+       * hand: the bay itself answers Enter and Space, and the surface publishes
+       * the digits — `1` is the first bay on screen, `2` the second. The digit
+       * is the bay's PLACE, and the places are drawn from the card's own hash
+       * (see `bayOrder`), so nothing about which digit a kind sits under
+       * survives from one card to the next. `data-key` carries it for anything
+       * reading the surface; nothing is printed, so no ink moves.
+       */
+      bay.tabIndex = 0;
+      bay.setAttribute('role', 'button');
+      bay.dataset.key = String(slot + 1);
+      bay.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        e.preventDefault();
+        e.stopPropagation();
+        drop();
       });
-    }
+    });
 
     // Kept here, in the closure, and NOWHERE on the surface.
     //
@@ -3965,21 +4184,20 @@ export class RiftPanel {
     // A sorter solvable by colour is not a sorter; it is a colour-matching toy
     // with algebra printed on it.
     //
-    // So the chips are now one material. Nothing on a loose chip says which
-    // bay it belongs in — not its colour, not an attribute, not a class. The
-    // only way to file `-7a` is to know that `-7a` is a multiple of the
-    // unknown, which is the whole of what this surface teaches. Colour still
-    // does a job here, but it encodes STATE and never kind: loose chips are
-    // one colour, a chip that has been filed goes green, a refused drop flares
-    // red. All three are things the cadet has already done, never a hint about
-    // what to do next.
+    // So the chips are one material. Nothing on a loose chip says which bay it
+    // belongs in — not its colour, not an attribute, not a class. The only way
+    // to file `-7a` is to read the whole of it and know which kind it is,
+    // which is the whole of what this surface teaches. Colour still does a job
+    // here, but it encodes STATE and never kind: loose chips are one colour, a
+    // chip that has been filed goes green, a refused drop flares red. All three
+    // are things the cadet has already done, never a hint about what to do next.
     const loose = [];
 
     for (const term of chipOrder) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'rf-chip';
-      const s = term.kind === 'var' ? coefStr(term.c, v) : String(term.c);
+      const s = partStr(term.c, term.part);
       chip.innerHTML = texFirst([s]) || s;
       draggable(chip, {
         targets,
@@ -4003,6 +4221,21 @@ export class RiftPanel {
       // things, so "how much of the tear is still open" counts something a
       // cadet can point at: the terms still loose in the tray. (see setPressure)
       gauge: true,
+      /**
+       * The digits send the chip in hand to a bay by its PLACE on screen — `1`
+       * the first, `2` the second. With a chip picked and no bay focused there
+       * is otherwise nothing a key can do here. The places are drawn from the
+       * card's own hash, so the digit a kind sits under changes every card.
+       */
+      key(e) {
+        if (!picked || !/^[1-9]$/.test(e.key)) return;
+        const bay = byPart.get(bayOrder[Number(e.key) - 1]);
+        if (!bay) return;
+        e.preventDefault();
+        const { chip, term } = picked;
+        picked = null;
+        place(chip, term, bay);
+      },
       stateTex: () => illegal,
       stateKey: 'echo.thatMergeSays',
       /**
@@ -4014,7 +4247,8 @@ export class RiftPanel {
       pickBad() {
         const next = loose.find((x) => !x.chip.disabled);
         if (!next) return false;
-        place(next.chip, next.term, next.term.kind === 'var' ? bayK : bayV);
+        const wrong = bayOrder.find((p) => p !== next.term.part);
+        place(next.chip, next.term, byPart.get(wrong));
         return true;
       },
     };

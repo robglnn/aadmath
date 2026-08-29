@@ -711,18 +711,66 @@ export function varsOf(src) {
 }
 
 /**
- * Are two expressions the same function of one variable? For the linear and
- * quadratic forms this bank produces, agreement on enough sample points is a
- * proof, not a heuristic — but we sample generously anyway.
+ * Five values for a letter that is not the one named. Five, because agreeing
+ * at five points settles any polynomial of degree four or less in it, and
+ * nothing this bank prints comes near degree four in a second letter.
+ */
+const HOLDS = [0, 1, -2, 3, -5];
+
+/**
+ * Are two expressions the same function? For the linear and quadratic forms
+ * this bank produces, agreement on enough sample points is a proof, not a
+ * heuristic — but we sample generously anyway.
+ *
+ * EVERY LETTER IN EITHER EXPRESSION IS BOUND, not only the one named.
+ *
+ * This used to bind `v` alone. A second letter therefore left `evalAst` with
+ * an unbound name, which throws, which this function catches and reports as
+ * NOT EQUIVALENT — so `3x + 2y + 5 - x + y` and `2x + 3y + 5` read as
+ * different expressions, every time, on every caller. That was invisible while
+ * Algebra I Level 1 was single-unknown throughout, and it is not any more:
+ * `like-terms` now prints boards carrying two unlike variable parts, because a
+ * sorter whose bays are "has a letter" and "has no letter" is a glyph match
+ * and not a question about like terms. Three callers depend on this reading
+ * and each of them would have been wrong in a different direction —
+ * `generators.js` refuses to ship an item whose worked line is "not an
+ * identity", `validate-items.mjs` proves no distractor is secretly the answer,
+ * and `diagnose.js` decides whether a learner's own line is right.
+ *
+ * The other letters are held at five fixed values, every combination, and the
+ * named one sweeps its own fourteen points inside each. The single-variable
+ * path is byte-identical to what it was: no other letters, one pass, the same
+ * fourteen points. (A deliberate grid, not an offset sequence: values that
+ * move in step with `v` put every sample on one line through the plane, where
+ * `4x + y` and `3x + 2y - 3` agree everywhere and are not the same expression.)
  */
 export function equivalent(srcA, srcB, v, samples = 14) {
   const A = parse(srcA), B = parse(srcB);
-  for (let i = 0; i < samples; i++) {
-    const x = R(i * 2 - samples + 1, i % 3 === 2 ? 2 : 1);
-    let ea, eb;
-    try { ea = evalAst(A, { [v]: x }); } catch { return false; }
-    try { eb = evalAst(B, { [v]: x }); } catch { return false; }
-    if (!eq(ea, eb)) return false;
+  const others = [...new Set([...varsOf(srcA), ...varsOf(srcB)])].filter((x) => x !== v);
+  // A grid over every other letter. Capped, because 5^n stops being cheap:
+  // past three the letters are walked in step instead, which is weaker and is
+  // a case this bank does not produce.
+  const grid = [];
+  if (others.length && others.length <= 3) {
+    const walk = (k, env) => {
+      if (k === others.length) { grid.push(env); return; }
+      for (const h of HOLDS) walk(k + 1, { ...env, [others[k]]: R(h) });
+    };
+    walk(0, {});
+  } else if (others.length) {
+    for (const h of HOLDS) grid.push(Object.fromEntries(others.map((n, k) => [n, R(HOLDS[(HOLDS.indexOf(h) + k * 2) % HOLDS.length])])));
+  } else {
+    grid.push(null);
+  }
+  for (const held of grid) {
+    for (let i = 0; i < samples; i++) {
+      const x = R(i * 2 - samples + 1, i % 3 === 2 ? 2 : 1);
+      const env = held ? { ...held, [v]: x } : { [v]: x };
+      let ea, eb;
+      try { ea = evalAst(A, env); } catch { return false; }
+      try { eb = evalAst(B, env); } catch { return false; }
+      if (!eq(ea, eb)) return false;
+    }
   }
   return true;
 }

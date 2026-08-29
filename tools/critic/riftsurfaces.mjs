@@ -14,7 +14,7 @@
  *     the narrowed field     `_narrow`   — the key and the FIRST TWO, after two
  *                                          honest misses, under the keypad
  *     the balance move tray  `_balance`  — five moves, one of them the ideal
- *     the sorter             `_sort`     — chips, and two bays to file them in
+ *     the sorter             `_sort`     — chips, and one bay per like-class
  *     the area field         `_area`     — two cells, typed into
  *     the coordinate plane   `_plot`     — a line, dragged
  *
@@ -119,7 +119,7 @@ ${balance}
 };
 const CHIPS = function () {
 ${sorter}
-  return { terms, v, chipOrder };
+  return { terms, v, chipOrder, classes, bayOrder };
 };
 const FIELD = function () {
 ${area}

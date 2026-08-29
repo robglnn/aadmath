@@ -96,6 +96,30 @@ function readNode(node, out) {
     out.push(`√(${inner.join('').trim()})`);
     return;
   }
+  /* AN EXPONENT IS A POSITION, NOT A LETTER — the same bug as the surd above,
+     one class along, and it had simply never had an exponent to be wrong about.
+     KaTeX sets `2^{x}` as a "2" with the "x" raised inside a `.msupsub` vlist,
+     and the DOM reads it back as the flat string "2x". So this audit reported
+     that `2x` and `2^{x}` are "two options a learner sees as identical" on
+     `exponential-model/em-rule`, in three locales — the linear misreading and
+     the exponential rule, which is the one distinction that card exists to
+     draw. The raised group is now read out with the mark that raised it.
+
+     `glyphs()` strips `^` along with every other mark that does not change what
+     a number IS, so nothing about `render-mismatch` or the answer comparison
+     moves: this is visible to the duplicate test, which reads `canon()`, and to
+     nothing else. A SUBSCRIPT reads the same way — the two share one
+     `.msupsub` — which is still strictly better than reading neither, and no
+     option this surface draws carries one (measured over 7,806 route and
+     preview option sets, 54 forms with an exponent and none with a subscript).
+  */
+  if (node.classList.contains('msupsub')) {
+    const inner = [];
+    for (const c of node.childNodes) readNode(c, inner);
+    const t = inner.join('').trim();
+    if (t) out.push(`^${t}`);
+    return;
+  }
   for (const c of node.childNodes) readNode(c, out);
 }
 function visibleText(el) {

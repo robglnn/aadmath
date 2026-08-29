@@ -146,7 +146,8 @@
         "ds-negative",
         "ds-twoterm",
         "ds-share",
-        "ds-table"
+        "ds-table",
+        "lt-bays"
       ],
       "i18n": {
         "es": {
@@ -457,7 +458,8 @@
         "lt-four",
         "lt-square",
         "lt-perimeter",
-        "lt-table"
+        "lt-table",
+        "lt-bays"
       ],
       "i18n": {
         "es": {

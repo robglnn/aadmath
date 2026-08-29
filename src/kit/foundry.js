@@ -302,6 +302,8 @@ export function createFoundry(opts = {}) {
   let toneNow = 'none';
   let flareT = 0;
   let padPrev = false;
+  /** Is the cadet standing ON the deck this frame? See the keydown below. */
+  let onDeckNow = false;
   const rows = new Map();
 
   function distance() {
@@ -513,13 +515,14 @@ export function createFoundry(opts = {}) {
     // making the decision for them. One key, one click, one pad button, all
     // still open it instantly. The player asks; the shop answers.
     const onDeck = d < OPEN_R && player.pos.y - y > -2.4 && player.pos.y - y < 4.2;
+    onDeckNow = onDeck;
     hail.classList.toggle('here', onDeck && wantHail);
 
     // A pad has no E. Read the same button the world's interact verb reads,
     // edge-triggered here because the kit ticks after `input.endFrame()` has
     // already cleared the frame's own edge.
     const padDown = !!(input?.gamepad && input.source === 'pad' && input.gamepad.buttons[2]?.pressed);
-    if (padDown && !padPrev && near) open();
+    if (padDown && !padPrev && onDeck) open();
     padPrev = padDown;
   }
 
@@ -527,7 +530,28 @@ export function createFoundry(opts = {}) {
     if (e.repeat) return;
     if (e.code === 'Escape' && open_) { close(); e.preventDefault(); return; }
     if (e.code !== 'KeyE' || input?.uiOpen || isBusy()) return;
-    if (distance() < HAIL_R) { open(); e.preventDefault(); }
+    /* ---- THE KEY WORKS WHERE THE HAIL IS LOUD, AND NOWHERE ELSE ----------
+       It used to answer anywhere inside `HAIL_R`, which is TWENTY-SIX METRES,
+       and the crucible stands thirteen metres from the spawn *"in the middle
+       of the only flat ground on the plateau, which is to say: on the route to
+       everywhere"* — this file's own words. Every tear on the plateau is
+       inside that circle, so the interact key at the first rift in the game
+       could answer with a full-screen shop instead of the aperture the
+       objective card had just sent the cadet to.
+
+       Measured, `npm run check:traffic` on this tree, eighteen minutes from a
+       cleared save: 28.9% OF THE SITTING WAS BEHIND AN OVERLAY against a 15%
+       bar, 326 of those seconds the foundry's. That gate's own comment already
+       names this shape — *"an overlay that can own a whole sitting is exactly
+       the failure this line exists to name"*.
+
+       The hail carries the key from twenty-six metres and goes LOUD on the
+       deck (`.here`, six and a half metres, with a vertical band). The key now
+       answers exactly where it says it will, which is what the block above
+       promised and what `tools/critic/shopask.mjs` walks in and presses. A
+       tear outranks a shop, and this is the cheapest way to say so without
+       either module having to know about the other. */
+    if (onDeckNow) { open(); e.preventDefault(); }
   });
 
   onLocaleChange(() => { if (open_) paint(); });

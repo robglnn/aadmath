@@ -46,6 +46,9 @@
  *               its own name inside it, and is ON THE GLASS — CALL THE ECHO
  *               included. This panel forbids itself an overflow, so a control
  *               below the fold is a control no gesture reaches
+ *   echo:rift   CALL THE ECHO is not one key among fifteen. See THE DOOR,
+ *               below — 44 px is where a control stops being a defect, and it
+ *               is not where the one that carries the teaching belongs
  *   scale:*     wherever a coordinate chart and a keypad stand on one card, the
  *               chart is not narrower than the keypad. See THE QUESTION, below
  *   console     no console error anywhere in the case
@@ -91,7 +94,19 @@
  * is delivered as a real touch event to real pixels; `__ascent` is read, never
  * called, except for `--self-test`, which plants the fault it is checking for.
  *
- * SELF-TEST. `--self-test` plants four faults and requires the gate to catch
+ * THE DOOR. CALL THE ECHO (`#rf-hint`) is the only route in this whole game to
+ * the faded worked echo BRIEF.md's fourth invariant is about. It shipped at
+ * 111 x 22 CSS px, the smallest control on the card; it was raised to the
+ * published 44 px floor; and a FOURTH consecutive round of critics reported the
+ * same thing about it — *still among the smallest controls on the card*. Both
+ * readings were true at once, because a floor says where a control stops being
+ * a defect and nothing at all about where the one that carries the teaching
+ * belongs. `echoFinding()` measures it against THE MEDIAN KEYCAP ON THE SAME
+ * CARD and requires twice the area: a comparison rather than a number, so the
+ * fit pass may still cut the whole rig down and the proportion holds at every
+ * unit it lands on.
+ *
+ * SELF-TEST. `--self-test` plants five faults and requires the gate to catch
  * every one of them before the real run starts, and requires the honest tree
  * beside them to stay clean — a rule that fires on honest content gets switched
  * off.
@@ -118,6 +133,10 @@
  *      rounds of critics reported — and a key label stretched past the box that
  *      clips it, which is the shape of the Polish CLEAR key. Both must stay
  *      silent on the honest panel beside them.
+ *   5. CALL THE ECHO put back on the 44 px floor and no further — a key-sized
+ *      door to the teaching. Refused in every reading, silent on the honest
+ *      panel. This one is not hypothetical: it is what the tree shipped for
+ *      four rounds while every 44 px reading on the same card said "ok".
  *
  *   node tools/critic/touch.mjs --url http://127.0.0.1:4477 --out shots/touch
  *   tools/critic/rungate.sh tools/critic/touch.mjs --out shots/touch --self-test
@@ -431,6 +450,59 @@ function scaleFinding(fig, pad, where) {
     + ` ANSWERING IT — chart ${fig.w}x${fig.h}, keypad ${pad.w} CSS px wide`;
 }
 
+/**
+ * THE DOOR TO THE TEACHING IS NOT ONE KEY AMONG FIFTEEN.
+ *
+ * `#rf-hint` is CALL THE ECHO, and it is the only route in this game to the
+ * faded worked trace BRIEF.md's fourth invariant is about. It shipped at
+ * 111 x 22 CSS px — the smallest control on the card. It was raised to the
+ * published 44 px floor, and a FOURTH consecutive round of critics reported
+ * the same thing about it: *still among the smallest controls on the card*.
+ * Both readings were true at once, because 44 x 44 is where a control stops
+ * being a defect and says nothing at all about where the one control that
+ * carries the teaching belongs.
+ *
+ * So this is a second rule, over the first and never instead of it: measured
+ * against THE MEDIAN KEY ON THE SAME CARD — the thing the learner presses to
+ * answer — the door to the teaching may not be smaller than twice it. A
+ * comparison and not a number, so the fit pass can still cut the whole rig
+ * down and the proportion holds at every unit it lands on, exactly as the
+ * chart-against-keypad rule above does.
+ *
+ * It answers only where there is a keypad to compare against, and says so
+ * rather than passing quietly on a card that has none.
+ */
+const ECHO_OVER_KEY = 2.0;
+
+function echoMeasure(controls) {
+  const keys = controls.filter((c) => /\.rf-key\b/.test(c.sel) && !/\bcommit\b/.test(c.sel));
+  if (keys.length < 4) return null;          // no keypad on this card to compare against
+  const hint = controls.find((c) => /#rf-hint\b/.test(c.sel));
+  const areas = keys.map((c) => c.w * c.h).sort((a, b) => a - b);
+  const mid = areas.length >> 1;
+  const med = areas.length % 2 ? areas[mid] : (areas[mid - 1] + areas[mid]) / 2;
+  return { hint, keys: keys.length, med, a: hint ? hint.w * hint.h : 0,
+    ratio: hint && med ? (hint.w * hint.h) / med : 0 };
+}
+
+function echoFinding(controls, where) {
+  const m = echoMeasure(controls);
+  if (!m) return null;
+  const { hint, med, a, keys } = m;
+  if (!hint) {
+    return `${where}: THERE IS NO CALL THE ECHO ON THIS CARD — #rf-hint is not on the glass,`
+      + ' and it is the only route in this game to the faded worked trace a stuck learner reaches for.';
+  }
+  if (a + 1 >= ECHO_OVER_KEY * med) {
+    return null;
+  }
+  return `${where}: CALL THE ECHO IS ONE KEY AMONG FIFTEEN — #rf-hint is ${hint.w}x${hint.h}`
+    + ` (${Math.round(a)} px2) against a median keycap of ${Math.round(med)} px2 over ${keys} keys,`
+    + ` which is ${(a / med).toFixed(2)}x it and not the ${ECHO_OVER_KEY.toFixed(1)}x this rule publishes.`
+    + ' It is the only route in this game to the faded worked echo, and 44 px is where a control stops'
+    + ' being a defect, not where the one that carries the teaching belongs.';
+}
+
 /** A held touch. Playwright's touchscreen only taps; the stick needs a finger. */
 class Finger {
   constructor(cdp) { this.cdp = cdp; this.down = false; }
@@ -451,6 +523,38 @@ async function tapAndWatch(page, btn, ms = 900, step = 55) {
 /**
  * Walk to the nearest live tear on the pad's own stick, and stop in the band
  * where the boot will not open it but the button will.
+ *
+ * THE BAND IS 3.2 METRES WIDE AND THE CADET DOES NOT STOP DEAD.
+ *
+ * `src/world/beckon.js` opens a tear on contact inside RIFT_STEP (5.8 m) and
+ * `src/world/rifts.js` lets the interact verb reach 9.0 m, so the only frame
+ * from which "the BUTTON opened it" is a claim about the button and not about
+ * the boot is the 3.2 m ring between them. This walk used to hold the stick
+ * until a reading came back under 8.4 m and then let go — and a reading is
+ * taken every ~150 ms of round trip, at ~6 m/s, on a cadet who then coasts.
+ * Measured on this tree, nine phone profiles: it arrived at 5.6, 5.7 and 4.5 m
+ * and the tear opened on contact in every case, so nine of nine runs proved
+ * nothing about the interact button and the gate said so nine times.
+ *
+ * TWO THINGS ARE WRONG AND BOTH ARE THE HARNESS.
+ *
+ *   1. THE CADET IS ALREADY THERE. `dash` carries him 7 m and the gate runs it
+ *      immediately before this, so the walk begins 6.4 m from a live tear with
+ *      nothing to walk. `walked to 5.8 m (closest 6.4 m) in 0.7s` is the log
+ *      line: 0.7 s, and the 0.6 m he moved was the settle. So he BACKS OFF
+ *      first, on the same stick, past `RIFT_REARM` (8.5 m) and out to 14 m,
+ *      which is what re-arms the tear, and then walks in — which is a truer
+ *      account of the control anyway, because backing away from a thing is
+ *      something the left thumb has to be able to do.
+ *   2. HE COASTS. The last stretch is walked in PULSES with the stick let go
+ *      between them, and the reading that decides is taken after he has
+ *      actually stopped (`player.speed`, off `src/player/locomotion.js:728`) —
+ *      never while he is still carrying momentum into the plate.
+ *
+ * NOTHING THE GATE ASSERTS MOVES. The button must still open a tear from
+ * inside 5.8-9.0 m, on one real tap, and `--self-test` still requires the
+ * shipped 0.16 s of deafness to kill it. This is the same rule, reached from a
+ * frame the rule can be asked in.
  */
 async function walkToRift(page, cdp, vp, log) {
   const sens = await page.evaluate(() => window.__ascent.input.sensitivity);
@@ -460,15 +564,38 @@ async function walkToRift(page, cdp, vp, log) {
   let lastAim = 0;
   let best = Infinity;
 
-  // aim: a real look-drag on the free half of the glass. src/player/touch.js
-  // turns Δpx into Δlook at 0.0052 · sensitivity, and controller.js:734
-  // subtracts it from yaw.
-  const aim = async () => {
-    const s = await page.evaluate(READ);
-    if (!s.near) return false;
+  /* The ring the button owns, with a little air inside each edge so a reading
+     taken while he rocks on his heels cannot fall out of it. */
+  const BAND_LO = STEP_M + 0.15;   // 5.95 m — clear of the boot's contact radius
+  const BAND_HI = REACH_M - 0.4;   // 8.6 m — inside the interact verb's reach
+  const AIM_M = (STEP_M + REACH_M) / 2;  // 7.4 m — the middle of the ring to stop in
+  /* src/world/beckon.js:RIFT_REARM. A tear that has just opened will not open
+     again until he has been this far off it, so backing off past it is what
+     makes the next approach a real approach. */
+  const REARM_M = 8.5;
+
+  const bearing = (s) => {
     let e = Math.atan2(s.near.fx - s.x, s.near.fz - s.z) - s.yaw;
     while (e > Math.PI) e -= 2 * Math.PI;
     while (e < -Math.PI) e += 2 * Math.PI;
+    return e;
+  };
+
+  // aim: a real look-drag on the free half of the glass. src/player/touch.js
+  // turns Δpx into Δlook at 0.0052 · sensitivity, and controller.js:734
+  // subtracts it from yaw.
+  /* THE OTHER WAY ROUND, when `away` is set. `bearing` is the angle from where
+     he is looking to where the tear is; the angle to its opposite is that ± π,
+     taken on the short side so the turn is a turn and not a spin. */
+  const bearingTo = (s, away) => {
+    const e = bearing(s);
+    if (!away) return e;
+    return e > 0 ? e - Math.PI : e + Math.PI;
+  };
+  const aim = async (away = false) => {
+    const s = await page.evaluate(READ);
+    if (!s.near) return false;
+    const e = bearingTo(s, away);
     if (Math.abs(e) < 0.06) return true;
     const dx = Math.max(-320, Math.min(320, -e / (0.0052 * sens)));
     const ax = Math.round(vp.w * 0.62), ay = Math.round(vp.h * 0.28);
@@ -480,50 +607,155 @@ async function walkToRift(page, cdp, vp, log) {
     return false;
   };
 
+  /** Why a surface owning the frame is fatal here, said as an address. */
+  const tookIt = async (s) => {
+    const who = await page.evaluate(WHO_TOOK_IT);
+    const d = s.near ? s.near.d.toFixed(1) : '?';
+    if (who.some((x) => /\.rift\b/.test(x))) {
+      return { ok: false, why: `the tear opened ON CONTACT at ${d} m, before the button was pressed —`
+        + ` src/world/beckon.js opens one inside ${STEP_M} m and the walk did not stop in the`
+        + ` ${STEP_M}-${REACH_M} m band where the BUTTON is the only thing that can open it,`
+        + ` so this run proves nothing about the interact button. Surfaces holding the frame:`
+        + ` ${who.join(' over ')}` };
+    }
+    return { ok: false, why: `a surface took the frame mid-walk (uiOpen) at ${d} m`
+      + ` — ${who.length ? who.join(' over ') : 'and nothing on the glass is big enough to name, which is its own defect'}` };
+  };
+
   for (let i = 0; i < 6; i++) if (await aim()) break;
   lastAim = Date.now();
 
+  /* ---- 0. BACK OFF, IF THE DASH LEFT HIM STANDING ON THE PLATE ----
+     Backwards on the same stick — the finger goes DOWN the glass, which
+     src/player/touch.js turns into `input.move.y < 0` — so he keeps facing the
+     tear and the approach below needs no second aim.
+
+     AND FIRST, HAND THE FRAME BACK IF THE BOOT HAS ALREADY TAKEN IT. `dash` is
+     the claim immediately before this one and it carries him about 6.5 m, so on
+     this tree it regularly ends INSIDE the 5.8 m contact radius — measured at
+     2.3, 2.8, 3.3 and 4.1 m across the nine profiles — and the tear is open
+     before the interact button has been looked at. That is not the button
+     failing and it is not the world failing: it is the gate walking its own
+     cadet onto the plate and then asking whether the plate was reached by
+     button. The card is shut with A REAL TAP ON ITS OWN CLOSE CONTROL — no
+     debug call, no key — and the walk starts from there. If the tap does not
+     shut it, THAT is a finding and it is made, because a card a thumb cannot
+     dismiss is the same defect as a button a thumb cannot press. */
+  {
+    let s0 = await page.evaluate(READ);
+    if (s0.uiOpen && s0.panel) {
+      const x = await page.evaluate(() => {
+        const b = document.querySelector('.rift.show .rf-x');
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: +r.width.toFixed(1), h: +r.height.toFixed(1) };
+      });
+      if (!x) {
+        return { ok: false, why: `the boot opened the tear at ${s0.near ? s0.near.d.toFixed(1) : '?'} m and the card`
+          + ' carries no .rf-x to shut it with a thumb' };
+      }
+      await page.touchscreen.tap(x.cx, x.cy);
+      await page.waitForFunction(() => window.__ascent.input.uiOpen === false, null, { timeout: 8000 }).catch(() => {});
+      await sleep(500);
+      s0 = await page.evaluate(READ);
+      if (s0.uiOpen) {
+        return { ok: false, why: `the boot opened the tear at ${s0.near ? s0.near.d.toFixed(1) : '?'} m and a real tap`
+          + ` on its close control (${x.w}x${x.h} at ${Math.round(x.cx)},${Math.round(x.cy)}) did not hand the frame back` };
+      }
+      log(`      the boot had opened a tear on contact; shut it with a real tap on .rf-x and backed off`);
+    }
+    if (s0.uiOpen) return tookIt(s0);
+    if (s0.near && s0.near.d < REARM_M + 5) {
+      const want = Math.max(14, REARM_M + 5);
+      const tb = Date.now();
+      let awayAt = 0;
+      /* HE TURNS ROUND AND WALKS. He does NOT backpedal.
+         `src/player/controller.js:740` slews the camera yaw towards
+         `loco.facing`, and the stick is read in the camera's basis — so a
+         sustained backwards push rotates the frame it is measured in and the
+         cadet walks a CIRCLE. Measured: 22 s of full backwards stick with the
+         distance to `var-meaning` reading 1.4, 3.4, 3.0, 2.3, 2.6, 3.2, 1.6,
+         3.1 m at a flat 5.6 m/s — six laps of a 3 m orbit, and the gate then
+         blamed the interact button for it. Facing away and walking forward is
+         a straight line, and it is also what a player does. */
+      for (let i = 0; i < 8; i++) if (await aim(true)) break;
+      awayAt = Date.now();
+      await finger.start(sx, sy);
+      while (Date.now() - tb < 25000) {
+        const s = await page.evaluate(READ);
+        if (s.uiOpen) { await finger.end(); return tookIt(s); }
+        if (!s.near) { await finger.end(); return { ok: false, why: 'no live tear in the world to walk to' }; }
+        if (s.near.d >= want) break;
+        if (Date.now() - awayAt > 2200 && Math.abs(bearingTo(s, true)) > 0.16) {
+          await finger.end();
+          for (let i = 0; i < 4; i++) if (await aim(true)) break;
+          awayAt = Date.now();
+        }
+        if (!finger.down) await finger.start(sx, sy);
+        await finger.move(sx, sy - 70);
+        await sleep(110);
+      }
+      await finger.end();
+      // he is still carrying momentum backwards; let it die before turning round
+      for (let i = 0; i < 14; i++) { await sleep(70); if ((await page.evaluate(READ)).speed < 0.6) break; }
+      const s1 = await page.evaluate(READ);
+      log(`      backed off to ${s1.near ? s1.near.d.toFixed(1) : '?'} m so the tear re-arms (${REARM_M} m, src/world/beckon.js)`);
+      for (let i = 0; i < 6; i++) if (await aim()) break;
+      lastAim = Date.now();
+    }
+  }
+
   while (Date.now() - t0 < NAV_S * 1000) {
     const s = await page.evaluate(READ);
-    if (s.uiOpen) {
-      await finger.end();
-      const who = await page.evaluate(WHO_TOOK_IT);
-      const d = s.near ? s.near.d.toFixed(1) : '?';
-      /* `input.uiOpen` goes true before `panel.open` does, so the vague branch
-         gets there first and the report loses the diagnosis the specific branch
-         below already knew how to write. If the surface holding the frame is
-         the rift, say the thing that is actually wrong. */
-      if (who.some((x) => /\.rift\b/.test(x))) {
-        return { ok: false, why: `the tear opened ON CONTACT at ${d} m, before the button was pressed —`
-          + ` src/world/beckon.js opens one inside ${STEP_M} m and the walk did not stop in the`
-          + ` ${STEP_M}-${REACH_M} m band where the BUTTON is the only thing that can open it,`
-          + ` so this run proves nothing about the interact button. Surfaces holding the frame:`
-          + ` ${who.join(' over ')}` };
-      }
-      return { ok: false, why: `a surface took the frame mid-walk (uiOpen) at ${d} m`
-        + ` — ${who.length ? who.join(' over ') : 'and nothing on the glass is big enough to name, which is its own defect'}` };
-    }
+    if (s.uiOpen) { await finger.end(); return tookIt(s); }
     if (!s.near) { await finger.end(); return { ok: false, why: 'no live tear in the world to walk to' }; }
     best = Math.min(best, s.near.d);
     if (s.panel) { await finger.end(); return { ok: false, why: `the tear opened on contact at ${s.near.d.toFixed(1)} m — the boot got there before the button` }; }
-    if (s.near.d < REACH_M - 0.6) break;
-    // full stick far out, a walk close in, so he stops inside the band
-    const pull = s.near.d > 18 ? 70 : 26;
+
+    /* STOPPED, INSIDE THE BAND. That is the frame the claim is about, and
+       there is nothing left to walk. */
+    if (s.near.d <= BAND_HI && s.near.d >= BAND_LO && s.speed < 0.6) break;
+
     // re-aim on a timer, letting go of the stick to do it: a bearing that has
     // drifted twenty degrees walks past the tear and the gate blames the button
     if (Date.now() - lastAim > 2500 && s.near.d > 11) {
-      let e = Math.atan2(s.near.fx - s.x, s.near.fz - s.z) - s.yaw;
-      while (e > Math.PI) e -= 2 * Math.PI;
-      while (e < -Math.PI) e += 2 * Math.PI;
-      if (Math.abs(e) > 0.10) { await finger.end(); await aim(); }
+      if (Math.abs(bearing(s)) > 0.10) { await finger.end(); await aim(); }
       lastAim = Date.now();
     }
-    if (!finger.down) await finger.start(sx, sy);
-    await finger.move(sx, sy - pull);
-    await sleep(110);
+
+    if (s.near.d > 12) {
+      /* GROSS APPROACH — full stick far out, a walk as it closes. */
+      const pull = s.near.d > 18 ? 70 : 30;
+      if (!finger.down) await finger.start(sx, sy);
+      await finger.move(sx, sy - pull);
+      await sleep(110);
+      continue;
+    }
+
+    /* CREEP. The last four metres, in pulses, with the stick LET GO between
+       them and the next reading taken only once he has stopped — because a
+       reading taken at 6 m/s is a reading about where he was, and the band is
+       3.2 m wide. */
+    await finger.end();
+    if (s.near.d < BAND_LO) {
+      if (Math.abs(bearing(s)) < 2.6) {
+        return { ok: false, why: `overshot into the contact radius (${s.near.d.toFixed(1)} m < ${BAND_LO} m)`
+          + ' — the creep could not stop him inside the band' };
+      }
+      // facing away from it: a step forward opens the distance again
+    }
+    const ms = Math.max(55, Math.min(210, Math.round((s.near.d - AIM_M) * 55)));
+    if (ms > 0) {
+      await finger.start(sx, sy);
+      await finger.move(sx, sy - 22);
+      await sleep(ms);
+      await finger.end();
+    }
+    for (let i = 0; i < 16; i++) { await sleep(70); if ((await page.evaluate(READ)).speed < 0.6) break; }
+    if (Math.abs(bearing(await page.evaluate(READ))) > 0.10) { await aim(); lastAim = Date.now(); }
   }
   await finger.end();
-  await sleep(700);
+  await sleep(500);
   const s = await page.evaluate(READ);
   log(`      walked to ${s.near ? s.near.d.toFixed(1) : '?'} m (closest ${best.toFixed(1)} m) in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   if (s.panel) return { ok: false, why: 'the tear opened on contact before the button was pressed' };
@@ -983,6 +1215,9 @@ async function runCase(browser, { locale, vp, plantOverlay = false, plantDeafnes
                   + ` (${c.left}..${c.right} x ${c.top}..${c.bottom} in ${c.vw}x${c.vh}) and this panel does not scroll`)].join('; ')
               : `${r.controls.length} control(s) on the rift card, all at least ${TOUCH_PX}x${TOUCH_PX},`
                 + ' none with its name cut and none off the glass');
+          const ec = echoFinding(r.controls, `the card the interact button opened · ${tag}`);
+          claim('echo:rift', !ec, ec || 'CALL THE ECHO stands clear of the keys on this card,'
+            + ' or this card carries no keypad to measure it against');
           const sc = scaleFinding(r.fig, r.pad, `the card the interact button opened · ${tag}`);
           claim('scale:rift', !sc, sc || (r.fig && r.pad
             ? `chart ${r.fig.w}, keypad ${r.pad.w} — the question is ${(100 * (r.fig.w / r.pad.w - 1)).toFixed(1)}% wider`
@@ -1074,6 +1309,18 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
               document.head.appendChild(st);
               await f();
             }
+            if (plant === 'echo') {
+              /* CALL THE ECHO PUT BACK ON THE FLOOR AND NO FURTHER — which is
+                 not a hypothetical: it is what this tree shipped for four
+                 rounds while `reach:rift` said "all at least 44x44" every
+                 time. A key-sized door to the teaching, level with a `7`. */
+              const st = document.createElement('style');
+              st.id = 'touch-plant';
+              st.textContent = '#rf-hint { min-width: 44px !important; min-height: 44px !important;'
+                + ' padding-inline: 0 !important; font-size: .4rem !important; letter-spacing: 0 !important; }';
+              document.head.appendChild(st);
+              await f();
+            }
             if (plant === 'below') {
               /* A CONTROL PUSHED UNDER THE FOLD OF A PANEL THAT CANNOT SCROLL —
                  the shape of the SEAL slab on a sideways phone with a chart. */
@@ -1090,10 +1337,26 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
                  the cap used to carry the Polish word measured 57 px of text in
                  a 52 px key on a 390x844 phone — so a Polish student's CLEAR
                  key read WYCZYS. Tracking is the cheapest way to make any label
-                 too long for its box, so it is what the plant uses. */
+                 too long for its box, so it is what the plant uses.
+
+                 AND THE PLANT IS 2.4em, NOT THE .9em IT WAS, BECAUSE TRACKING
+                 IS A MULTIPLE OF THE TYPE AND THE TYPE CHANGED UNDER IT.
+                 `.rf-key.wipe` had been losing the cascade to `.rf-key.util`
+                 since the day it was written — same specificity, three lines
+                 later, `font-size: calc(1rem * var(--rf-u))` — so the cap this
+                 gate was planting against was rendering at nearly TWICE the
+                 size its own stylesheet asks for. When that was fixed the cap
+                 got smaller, and .9em of a smaller em stopped overflowing it:
+                 this plant went from 18 of 18 readings refused to 8, in one
+                 commit, with the rule untouched. A plant calibrated against a
+                 bug is a plant that stops proving anything the moment the bug
+                 is fixed, so it is now sized to overflow the cap at every unit
+                 the fit pass can land on rather than at one of them. The rule
+                 itself — scrollWidth against clientWidth — is not touched, and
+                 the honest panel beside it must still produce nothing. */
               const st = document.createElement('style');
               st.id = 'touch-plant';
-              st.textContent = '.rf-key.wipe { letter-spacing: .9em !important; }';
+              st.textContent = '.rf-key.wipe { letter-spacing: 2.4em !important; }';
               document.head.appendChild(st);
               await f();
             }
@@ -1121,7 +1384,11 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
               + ` and carries ${p.fig ? 'no keypad' : 'no chart'}. A gate that quietly measures nothing is not a gate.`);
             continue;
           }
+          const em = echoMeasure(p.controls);
           seen.push({ where, ratio: p.fig.w / p.pad.w, fig: p.fig, pad: p.pad,
+            echo: em && em.hint ? em.ratio : null,
+            echoBox: em && em.hint ? `${em.hint.w}x${em.hint.h}` : null,
+            echoMed: em ? Math.round(em.med) : null,
             /* Whether the one control the clip plant stretches was ON THE GLASS
                in this reading. `REACH` skips a control scrolled out of the
                frame — right for the 44 px question, and it means the number of
@@ -1131,6 +1398,8 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
             wipe: p.controls.some((c) => /\bwipe\b/.test(c.sel)) });
           const sc = scaleFinding(p.fig, p.pad, where);
           if (sc) problems.push(sc);
+          const ec = echoFinding(p.controls, where);
+          if (ec) problems.push(ec);
           for (const c of underFloor(p.controls)) {
             problems.push(`${where}: ${c.sel} "${c.label}" is ${c.w}x${c.h} CSS px — under the published ${TOUCH_PX}x${TOUCH_PX} floor for a touch target`);
           }
@@ -1150,9 +1419,42 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
               + ` label is outside a box that clips. A control whose word is cut is a control in one language and`
               + ` a fragment in another.`);
           }
-          if (out && locale === 'en' && spec === CHART_SPECS[0]) {
-            await page.screenshot({ path: path.join(out, `chart-${vp.name}-${locale}.png`) });
-          }
+        }
+      }
+    }
+    /* ---- THE ALBUM, AFTER EVERY MEASUREMENT AND NEVER BESIDE ONE ----
+       Two frames per phone x locale: the coordinate chart against the keypad
+       that answers it, and then the same card with CALL THE ECHO PRESSED, which
+       is the only picture in this repository of the teaching arriving on a
+       phone. It is a separate pass because pressing that button changes the
+       composition of the card, and a measurement taken next to a screenshot
+       that has changed the card is a measurement about the screenshot. */
+    if (out) {
+      for (const vp of profiles) {
+        await page.setViewportSize({ width: vp.w, height: vp.h });
+        for (const locale of LOCALES) {
+          await page.evaluate(async ({ spec, locale }) => {
+            document.getElementById('touch-plant')?.remove();
+            window.__show({ ...spec, locale });
+            const f = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            await f(); await new Promise((r) => setTimeout(r, 0)); await f();
+          }, { spec: CHART_SPECS[0], locale });
+          await page.waitForFunction(() => {
+            const e = document.querySelector('.rf-fig.grid svg');
+            return !!e && e.getBoundingClientRect().width > 1;
+          }, null, { timeout: 4000 }).catch(() => {});
+          await page.screenshot({ path: path.join(out, `chart-${vp.name}-${locale}.png`) });
+          const opened = await page.evaluate(async () => {
+            const b = document.getElementById('rf-hint');
+            if (!b || b.hidden || b.disabled) return false;
+            b.click();
+            const f = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            await f(); await new Promise((r) => setTimeout(r, 420)); await f();
+            return document.querySelector('.rift.echo-on') !== null;
+          });
+          if (opened) await page.screenshot({ path: path.join(out, `echo-${vp.name}-${locale}.png`) });
+          else problems.push(`the teaching on ${vp.name} · ${locale}: CALL THE ECHO was pressed and no echo`
+            + ' came up — #rf-hint is the only route in this game to the faded worked trace.');
         }
       }
     }
@@ -1166,6 +1468,14 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
     log(`      tightest chart-to-keypad ratio over ${seen.length} reading(s): ${tightest.ratio.toFixed(3)}x`
       + `  (${tightest.where}: chart ${tightest.fig.w}, keypad ${tightest.pad.w})`);
   }
+  /* The same reading for the door to the teaching, printed on every run and not
+     only when it is refused — a margin nobody can see is a margin that erodes. */
+  const tightEcho = seen.filter((x) => x.echo != null).sort((a, b) => a.echo - b.echo)[0];
+  if (tightEcho) {
+    log(`      tightest CALL THE ECHO against the median keycap: ${tightEcho.echo.toFixed(2)}x`
+      + ` (bar ${ECHO_OVER_KEY.toFixed(1)}x) — ${tightEcho.where}: #rf-hint ${tightEcho.echoBox},`
+      + ` median keycap ${tightEcho.echoMed} px2`);
+  }
   return { problems, seen };
 }
 
@@ -1174,6 +1484,137 @@ async function figureSweep(browser, { plant = null, out = null, log = console.lo
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
 let bad = 0;
+
+
+/**
+ * THE FOUR PLANTS THAT LIVE ON THE RIFT CARD, AND THE HONEST CARD BESIDE THEM.
+ *
+ * Lifted out of the self-test verbatim so that `--figures-only` runs THIS and
+ * not a second copy of it. A gate with one detector per entry point is two
+ * gates wearing one name, and the one nobody looks at goes quietly wrong —
+ * which is the whole argument of `tools/critic/_play.mjs`'s header.
+ */
+async function figurePlants() {
+    console.log('\nSELF-TEST 4 — the coordinate chart cut to 60% of the keypad answering it, the');
+    console.log('shape three consecutive rounds of critics reported. The gate must name it in');
+    console.log('every locale and both orientations, and must stay silent on the honest panel.');
+    const honest = await figureSweep(browser, { log: (s) => console.log(s) });
+    const kind = (re) => honest.problems.filter((x) => re.test(x));
+    const honestScale = kind(/NARROWER THAN THE KEYPAD/);
+    const honestClip = kind(/HAS ITS OWN NAME CUT OFF/);
+    const honestOff = kind(/OFF THE GLASS/);
+    const honestOther = honest.problems.filter((x) => !/NARROWER THAN THE KEYPAD|HAS ITS OWN NAME CUT OFF|OFF THE GLASS|CALL THE ECHO/.test(x));
+    console.log(`  the honest panel, ${honest.seen.length} reading(s): ${honestScale.length} scale,`
+      + ` ${honestClip.length} clipped, ${honestOff.length} off-glass, ${honestOther.length} other`);
+    for (const x of [...honestScale, ...honestClip, ...honestOther].slice(0, 4)) console.log('     · ' + x);
+    /* THE OFF-GLASS RULE'S HONEST CONTROL IS THE PORTRAIT CARD, AND ONLY THAT —
+       said out loud, because a self-test that quietly forgives a real finding is
+       the same disease as a gate excluded for being red. On a phone held up the
+       rift card fits and this rule must be silent, so that is the control it is
+       held to. SIDEWAYS IT IS NOT SILENT, and that is not a fault in the rule: at
+       844x390 and 568x320 with a coordinate chart the real panel puts the SEAL
+       slab — the only way to commit an answer on the keypad — below the fold of a
+       card that forbids itself a scrollbar. That finding is printed here and it
+       is carried by the REAL RUN below, where it turns this gate red. It is not
+       forgiven anywhere. */
+    const offControl = await figureSweep(browser, { profiles: [ORIENTATIONS[0]], log: () => {} });
+    const offQuiet = offControl.problems.filter((x) => /OFF THE GLASS/.test(x));
+    console.log(`  the off-glass rule on the card that FITS (portrait, ${offControl.seen.length} readings):`
+      + ` ${offQuiet.length} finding(s) — it must be silent here`);
+    if (honestOff.length) {
+      console.log(`  AND IT IS NOT SILENT SIDEWAYS — ${honestOff.length} finding(s), carried into the run below:`);
+      for (const x of honestOff.slice(0, 2)) console.log('     · ' + x);
+    }
+    const planted = await figureSweep(browser, { plant: 'figure', log: () => {} });
+    const caughtFig = planted.problems.filter((x) => /NARROWER THAN THE KEYPAD/.test(x));
+    console.log(`  the shrunken chart: ${caughtFig.length === planted.seen.length && planted.seen.length ? 'CAUGHT' : 'MISSED'}`
+      + ` — ${caughtFig.length} of ${planted.seen.length} reading(s) refused`);
+    for (const x of caughtFig.slice(0, 2)) console.log('     · ' + x);
+
+    console.log('\n  PLANTED as well: a key label stretched past the box that clips it — the shape of');
+    console.log('  the Polish CLEAR key, which read WYCZYS in every phone frame while English and');
+    console.log('  Spanish were fine.');
+    const stretched = await figureSweep(browser, { plant: 'clip', log: () => {} });
+    const caughtCut = stretched.problems.filter((x) => /HAS ITS OWN NAME CUT OFF/.test(x));
+    const chances = stretched.seen.filter((x) => x.wipe).length;
+    console.log(`     ${caughtCut.length === chances && chances >= ORIENTATIONS.length ? 'CAUGHT' : 'MISSED'}`
+      + ` — ${caughtCut.length} of the ${chances} reading(s) that had the stretched control on the glass`
+      + ` (of ${stretched.seen.length} readings in all)`);
+    for (const x of caughtCut.slice(0, 2)) console.log('       · ' + x);
+    /* EVERY reading must refuse it, not most of them: a chart cut to 60% of the
+       instrument answering it is the defect in every frame it is drawn in, and a
+       plant that only fires in portrait leaves the sideways composition — which
+       is where this defect was actually reported — unproven. */
+    console.log('\n  PLANTED as well: a control pushed under the fold of a panel that cannot scroll —');
+    console.log('  the shape of the SEAL slab, the only way to commit an answer on the keypad.');
+    const under = await figureSweep(browser, { plant: 'below', log: () => {} });
+    const caughtUnder = under.problems.filter((x) => /OFF THE GLASS/.test(x));
+    console.log(`     ${caughtUnder.length >= under.seen.length && under.seen.length ? 'CAUGHT' : 'MISSED'}`
+      + ` — ${caughtUnder.length} finding(s) over ${under.seen.length} reading(s)`);
+    for (const x of caughtUnder.slice(0, 2)) console.log('       · ' + x);
+
+    console.log('\n  PLANTED as well: CALL THE ECHO put back on the 44 px floor and no further —');
+    console.log('  a key-sized door to the teaching, which is what four consecutive rounds of');
+    console.log('  critics reported while every 44 px reading on the same card said "ok".');
+    const keyed = await figureSweep(browser, { plant: 'echo', log: () => {} });
+    const caughtEcho = keyed.problems.filter((x) => /CALL THE ECHO IS ONE KEY AMONG FIFTEEN/.test(x));
+    console.log(`     ${caughtEcho.length === keyed.seen.length && keyed.seen.length ? 'CAUGHT' : 'MISSED'}`
+      + ` — ${caughtEcho.length} of ${keyed.seen.length} reading(s) refused`);
+    for (const x of caughtEcho.slice(0, 2)) console.log('       · ' + x);
+    const honestEcho = kind(/CALL THE ECHO IS ONE KEY AMONG FIFTEEN|THERE IS NO CALL THE ECHO/);
+    console.log(`  the honest panel on the same rule, ${honest.seen.length} reading(s): ${honestEcho.length} finding(s)`
+      + ' — it must be silent here');
+
+    if (honestScale.length || honestClip.length || honestOther.length || offQuiet.length
+      || honestEcho.length
+      || caughtFig.length !== planted.seen.length || !planted.seen.length
+      || caughtCut.length !== chances || chances < ORIENTATIONS.length
+      || caughtEcho.length !== keyed.seen.length || !keyed.seen.length
+      || caughtUnder.length < under.seen.length || !under.seen.length) {
+      console.log('SELF-TEST FAILED: the chart-to-keypad rule, the clipped-label rule or the');
+      console.log('door-to-the-teaching rule fired on the honest panel, or did not refuse its own');
+      console.log('planted defect in every case.');
+      await browser.close();
+      process.exit(1);
+    }
+  return true;
+}
+
+/* ---------------------------------------------------------------------------
+   THE CHEAP HALF, ON EVERY COMMIT — `npm run check:touch:rule`.
+
+   The whole of this gate is forty minutes of real play, so it is recorded per
+   wave rather than run per commit, and for four consecutive rounds the ONE
+   finding it kept making — the coordinate chart drawing narrower than the
+   keypad answering it, and then the keypad running off the bottom of a card
+   with no scrollbar — was re-found by a human between waves. A gate whose
+   finding a person has to re-find is a finding the schedule buried.
+
+   `--figures-only` runs the half that needs no world, no session and no walk:
+   the four plants on the real `RiftPanel` (`figurePlants`, which is the SAME
+   function the full self-test calls — not a copy of it), and then the real
+   sweep over three phone frames x three locales. About ninety seconds, and it
+   is the same rule, the same plant and the same ledger.
+
+   It is a STRICT SUBSET, never a substitute: it does not put a finger on the
+   pad, does not open a tear, and does not touch the pause card. `check:touch`
+   is still recorded per wave and its recorded red still fails the build.
+   --------------------------------------------------------------------------- */
+if (has('figures-only')) {
+  if (has('self-test') && !await figurePlants()) { await browser.close(); process.exit(1); }
+  if (has('self-test')) console.log('SELF-TEST PASSED.\n');
+  console.log('=== the coordinate chart against the keypad answering it ===');
+  const only = await figureSweep(browser, { out: OUT, log: (s) => console.log(s) });
+  console.log(`      ${only.seen.length} reading(s) over ${ORIENTATIONS.length} phone frames x ${LOCALES.length} locales`);
+  for (const x of only.problems) console.log(`      FAIL ${x}`);
+  console.log(`\n${only.problems.length === 0 ? 'CHART-AGAINST-KEYPAD RULE PASSED'
+    : `CHART-AGAINST-KEYPAD RULE FAILED — ${only.problems.length} finding(s)`}`);
+  await browser.close();
+  findings('check:touch:rule', { scope: 'route' })
+    .route(only.problems.map((f) => `the chart against the keypad: ${f}`))
+    .done();
+  process.exit(0);
+}
 
 if (has('self-test')) {
   console.log('SELF-TEST — a transparent lid over the jump button. The gate must catch it.');
@@ -1248,73 +1689,7 @@ if (has('self-test')) {
     process.exit(1);
   }
 
-  console.log('\nSELF-TEST 4 — the coordinate chart cut to 60% of the keypad answering it, the');
-  console.log('shape three consecutive rounds of critics reported. The gate must name it in');
-  console.log('every locale and both orientations, and must stay silent on the honest panel.');
-  const honest = await figureSweep(browser, { log: (s) => console.log(s) });
-  const kind = (re) => honest.problems.filter((x) => re.test(x));
-  const honestScale = kind(/NARROWER THAN THE KEYPAD/);
-  const honestClip = kind(/HAS ITS OWN NAME CUT OFF/);
-  const honestOff = kind(/OFF THE GLASS/);
-  const honestOther = honest.problems.filter((x) => !/NARROWER THAN THE KEYPAD|HAS ITS OWN NAME CUT OFF|OFF THE GLASS/.test(x));
-  console.log(`  the honest panel, ${honest.seen.length} reading(s): ${honestScale.length} scale,`
-    + ` ${honestClip.length} clipped, ${honestOff.length} off-glass, ${honestOther.length} other`);
-  for (const x of [...honestScale, ...honestClip, ...honestOther].slice(0, 4)) console.log('     · ' + x);
-  /* THE OFF-GLASS RULE'S HONEST CONTROL IS THE PORTRAIT CARD, AND ONLY THAT —
-     said out loud, because a self-test that quietly forgives a real finding is
-     the same disease as a gate excluded for being red. On a phone held up the
-     rift card fits and this rule must be silent, so that is the control it is
-     held to. SIDEWAYS IT IS NOT SILENT, and that is not a fault in the rule: at
-     844x390 and 568x320 with a coordinate chart the real panel puts the SEAL
-     slab — the only way to commit an answer on the keypad — below the fold of a
-     card that forbids itself a scrollbar. That finding is printed here and it
-     is carried by the REAL RUN below, where it turns this gate red. It is not
-     forgiven anywhere. */
-  const offControl = await figureSweep(browser, { profiles: [ORIENTATIONS[0]], log: () => {} });
-  const offQuiet = offControl.problems.filter((x) => /OFF THE GLASS/.test(x));
-  console.log(`  the off-glass rule on the card that FITS (portrait, ${offControl.seen.length} readings):`
-    + ` ${offQuiet.length} finding(s) — it must be silent here`);
-  if (honestOff.length) {
-    console.log(`  AND IT IS NOT SILENT SIDEWAYS — ${honestOff.length} finding(s), carried into the run below:`);
-    for (const x of honestOff.slice(0, 2)) console.log('     · ' + x);
-  }
-  const planted = await figureSweep(browser, { plant: 'figure', log: () => {} });
-  const caughtFig = planted.problems.filter((x) => /NARROWER THAN THE KEYPAD/.test(x));
-  console.log(`  the shrunken chart: ${caughtFig.length === planted.seen.length && planted.seen.length ? 'CAUGHT' : 'MISSED'}`
-    + ` — ${caughtFig.length} of ${planted.seen.length} reading(s) refused`);
-  for (const x of caughtFig.slice(0, 2)) console.log('     · ' + x);
-
-  console.log('\n  PLANTED as well: a key label stretched past the box that clips it — the shape of');
-  console.log('  the Polish CLEAR key, which read WYCZYS in every phone frame while English and');
-  console.log('  Spanish were fine.');
-  const stretched = await figureSweep(browser, { plant: 'clip', log: () => {} });
-  const caughtCut = stretched.problems.filter((x) => /HAS ITS OWN NAME CUT OFF/.test(x));
-  const chances = stretched.seen.filter((x) => x.wipe).length;
-  console.log(`     ${caughtCut.length === chances && chances >= ORIENTATIONS.length ? 'CAUGHT' : 'MISSED'}`
-    + ` — ${caughtCut.length} of the ${chances} reading(s) that had the stretched control on the glass`
-    + ` (of ${stretched.seen.length} readings in all)`);
-  for (const x of caughtCut.slice(0, 2)) console.log('       · ' + x);
-  /* EVERY reading must refuse it, not most of them: a chart cut to 60% of the
-     instrument answering it is the defect in every frame it is drawn in, and a
-     plant that only fires in portrait leaves the sideways composition — which
-     is where this defect was actually reported — unproven. */
-  console.log('\n  PLANTED as well: a control pushed under the fold of a panel that cannot scroll —');
-  console.log('  the shape of the SEAL slab, the only way to commit an answer on the keypad.');
-  const under = await figureSweep(browser, { plant: 'below', log: () => {} });
-  const caughtUnder = under.problems.filter((x) => /OFF THE GLASS/.test(x));
-  console.log(`     ${caughtUnder.length >= under.seen.length && under.seen.length ? 'CAUGHT' : 'MISSED'}`
-    + ` — ${caughtUnder.length} finding(s) over ${under.seen.length} reading(s)`);
-  for (const x of caughtUnder.slice(0, 2)) console.log('       · ' + x);
-
-  if (honestScale.length || honestClip.length || honestOther.length || offQuiet.length
-    || caughtFig.length !== planted.seen.length || !planted.seen.length
-    || caughtCut.length !== chances || chances < ORIENTATIONS.length
-    || caughtUnder.length < under.seen.length || !under.seen.length) {
-    console.log('SELF-TEST FAILED: the chart-to-keypad rule or the clipped-label rule fired on the');
-    console.log('honest panel, or did not refuse its own planted defect in every case.');
-    await browser.close();
-    process.exit(1);
-  }
+  if (!await figurePlants()) { await browser.close(); process.exit(1); }
 
   console.log('SELF-TEST PASSED.\n');
   /* THE PLANTS, WITHOUT THE FORTY MINUTES.

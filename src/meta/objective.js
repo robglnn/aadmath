@@ -85,6 +85,79 @@
  * the same line it wanted before — and this function names it again on the very
  * next poll. The wanted line is on the card for the whole of the other tear's
  * arrival. A learner alternates between two open lines; nothing drops one.
+ *
+ * ---------------------------------------------------------------------------
+ * AND THE CORRECTION THIS ROUND: THE RULE ABOVE ONLY EVER RAN FOR THE CADET WHO
+ * WAS ALREADY FINE.
+ *
+ * Two cold eighteen-minute sittings on the frozen build, same code, the only
+ * difference being whether the answer handed in was the right one:
+ *
+ *   ANSWERING WELL   median leg 4.36 m, 13 legs over 20 m.
+ *   MISSING          43 consecutive openings of one ring from inside a 2 m
+ *                    circle in 290 s, this function naming one node on 94.9%
+ *                    of samples, 5.9% of the window moving — and `spent` FALSE
+ *                    on 1158 of 1158 samples.
+ *
+ * Every sentence above was written about a spend that never happened. The three
+ * bounds that finish an arrival all lived in `src/session/stint.js` and all
+ * three were unreachable for a learner who was missing (that file's fourth
+ * correction has the measurement); with none of them able to fire, this
+ * function was being told — honestly — that the tear the cadet was standing on
+ * still had an arrival in it, and it duly named it again, and again.
+ *
+ * With the arrival able to end, one thing here had to change as well: WHICH
+ * SOMEWHERE-ELSE A DRY ARRIVAL BUYS. A diversion to the nearest other open tear
+ * is a change of LINE, and the cadet who has just missed for a hundred and
+ * fifty seconds is precisely the one the brief forbids moving off a line. So an
+ * arrival that landed nothing asks for a PLACE first — a cache, a span, a mark
+ * — which is a change of scene and a change of representation and not a change
+ * of topic. See the block above `FIELD_EVERY`. The distance is read off the kit
+ * the cadet holds, exactly as before, so a cadet who is missing is offered the
+ * SHORTEST leg in the table and never a longer one.
+ *
+ * ---------------------------------------------------------------------------
+ * AND THE FIFTH CORRECTION: THE PLACE THIS FILE PROMISED DID NOT EXIST.
+ *
+ * All of the above landed and the sitting did not move. Re-measured on the
+ * frozen build with the arrival clock working (`tools/critic/_laneB-probe.mjs`,
+ * 220 s at the boot tear, missing every answer):
+ *
+ *   age  1 → 147 of 150   the clock now runs through the card, as promised;
+ *   t≈150                 `expired()` closes it and `end()` FILLS the arrival;
+ *   t≈151                 `spent` already reads null and `age` reads 0 again;
+ *   t≈153                 the SAME ring re-opens on the same square metre.
+ *   objective             `var-meaning` on 100% of samples, both openings.
+ *
+ * The spend was being handed back inside the same frame it was granted, by the
+ * `release` at the bottom of this function — and that branch was right about
+ * the facts. `tools/critic/_laneB-boot.mjs` on a cleared save:
+ *
+ *   TEARS   10 in the world, **1 OPEN**. `content/graph/algebra1-l1.json` has
+ *           one root, so a cadet who lands nothing never unlocks a second door.
+ *   PLACES  every cache, span and meet is registered `air: true`
+ *           (src/kit/kit.js), which `REACH` gates behind `kite` — THREE HELD
+ *           LINES — and the three marks that stand on the ground
+ *           (src/world/errand.js) are 98 m, 128 m and 170 m from the seat of
+ *           `var-meaning`, against a first-row envelope of **70 m**.
+ *
+ * So for the cadet holding nothing — which is every cadet on their first line,
+ * and every struggling cadet for the whole of a sitting — the set of places
+ * this file was allowed to name was EMPTY. `pickField()` returned null on every
+ * poll, `away` was null because there is one door, and the only branch left was
+ * to give the arrival back and name the ring again. Every rule above was
+ * working. None of them had anywhere to point.
+ *
+ * WHAT CHANGED: `REACH` grew a second envelope, `relief`, used on exactly the
+ * frames where the alternative is a leg of length ZERO — no other tear open at
+ * all. That condition is a fact about THE WORLD and never about the learner, so
+ * the cadet who is answering well and the cadet who is missing are handed the
+ * same envelope on the same frames; nothing here reads a miss, a streak or a
+ * clock to decide a distance. And inside it the ladder is climbed from the
+ * bottom: `pickField` now prefers the LOWEST RUNG before the shortest walk,
+ * which is `src/world/errand.js`'s own rule for `offer()` — so the card names
+ * the rung-0 mark the world is already lighting instead of the rung-1 summit
+ * eighty metres beyond it, and the two instruments agree.
  */
 import * as THREE from 'three';
 import { linesHeld } from './progress.js';
@@ -133,12 +206,16 @@ const VERB_FOR = {
  * replace a leg of length zero. It cannot lengthen a leg that already existed.
  *
  * AND A STRUGGLING LEARNER IS NEVER SENT FURTHER — the rule is the exact
- * opposite, by construction. How far the game may point is read off THE KIT THE
- * CADET IS HOLDING, and the kit is bought with held lines (src/kit/ladder.js).
- * A cadet who has bought nothing is offered a rung-0 site inside a diversion's
- * own reach and nothing else; a cadet holding the wing is offered the coast.
- * The walk gets longer as the mathematics gets better, never as it gets worse,
- * and nothing here reads a miss, a streak or a clock.
+ * opposite, by construction. How far the game may point is read off TWO things
+ * and neither of them is the learner: THE KIT THE CADET IS HOLDING, which is
+ * bought with held lines (src/kit/ladder.js), and WHETHER THE WORLD HAS ANOTHER
+ * DOOR — the `relief` column in `REACH`, which widens the envelope on the
+ * frames where the only other answer available is the ground the cadet is
+ * standing on. Both readings are identical for the cadet who is landing them
+ * and the cadet who is not, on the same frame, at the same tear. A cadet
+ * holding the wing is offered the coast; the walk gets longer as the
+ * mathematics gets better, never as it gets worse, and nothing here reads a
+ * miss, a streak or a clock.
  *
  * That is also the answer to the experiment recorded further down this file,
  * which sent a first-line cadet to a survey mark on the Ossuary and measured
@@ -156,6 +233,13 @@ const FIELD_VERB = {
   deepcache: 'crack',
   span: 'lay',
   mark: 'climb',
+  /* THE MEET (src/world/meet.js) — the fifth kind of place, registered by
+     `src/kit/kit.js` alongside the caches and the spans, and the only site in
+     the archipelago whose reading is continuous. It had no row here, so
+     `FIELD_VERB[site.kind] || 'climb'` printed REACH THE MARK at a crossing, in
+     all three locales. The word was already waiting: `guide.verb.cross` is in
+     en, es and pl, and its own comment says the one line this file needed. */
+  meet: 'cross',
 };
 
 /**
@@ -188,11 +272,53 @@ const FIELD_VERB = {
  * `src/world/errand.js` states the rule this borrows from: an errand you cannot
  * physically complete teaches the player that the marker lies.
  */
+/**
+ * …AND `relief`, THE ENVELOPE THAT APPLIES WHEN THE ALTERNATIVE IS A LEG OF
+ * LENGTH ZERO. This is the column the fifth correction added, and it is worth
+ * the paragraph because it is the one number that decides whether the world can
+ * open for a cadet who is missing.
+ *
+ * MEASURED, on the frozen build, from a cleared save
+ * (`tools/critic/_laneB-boot.mjs`): the seat of `var-meaning` is at (0.1, −22),
+ * and the three places a cadet holding no kit is allowed to be shown — the
+ * marks, the only sites registered with `air: false` — stand at **98 m**
+ * (`spine`, rung 1), **128 m** (`reckoning`, rung 0) and **170 m** (`ossuary`,
+ * rung 1). Every cache, span and meet is `air: true` and is therefore gated
+ * behind `kite`, which is three held lines. Against a first-row envelope of
+ * 70 m that is an empty set: on the first line of the first sitting this file
+ * could name NO place at all, so the field leg — the whole of its answer to
+ * "a change of scene and a change of way in" — was unreachable in exactly the
+ * state it was written for, and the only branch left was to hand the arrival
+ * back and name the same ring again.
+ *
+ * 70 m was never a measurement of where a place stands. It was copied off
+ * `DIVERT_MAX`, which is a rule about diverting to ANOTHER TEAR and is sized on
+ * how far apart tears are seated (26–40 m, `SEPARATIONS` in src/world/rifts.js).
+ * The bottom rung of the errand ladder is 128 m away, and `src/world/errand.js`
+ * calls that rung *a walk*.
+ *
+ * WHEN IT IS USED, AND WHY THAT IS NOT A PENALTY ON STRUGGLE. Only when there
+ * is no other open tear to divert to — `!away` in `resolveObjective`. That is a
+ * fact about the WORLD (this lattice has one root, so the first line has one
+ * door) and not a fact about the learner: the cadet who is answering well and
+ * the cadet who is missing are handed the same envelope on the same frames, and
+ * the moment a second line unlocks BOTH of them go back to the 70 m column.
+ * Nothing in this table is read off a miss, a streak or a clock. It replaces a
+ * leg of length zero and can never lengthen a leg that already existed.
+ *
+ * 140 m, because the lowest rung of the ladder stands at 128 and the rule must
+ * not depend on a cadet's exact footing on the dais. It is deliberately NOT
+ * wide enough to reach the Ossuary at 170 — that is the site the experiment
+ * recorded further down this file measured at 33 items in ten minutes against
+ * 51 in six, and it stays out of reach of a cadet who has bought nothing.
+ * Past the first two rows the two columns are the same number: a cadet holding
+ * the wing already has the coast.
+ */
 const REACH = [
-  { need: null, rung: 1, metres: 70, air: false },
-  { need: 'vault', rung: 2, metres: 150, air: false },
-  { need: 'kite', rung: 3, metres: 260, air: true },
-  { need: 'legs', rung: 3, metres: 340, air: true },
+  { need: null, rung: 1, metres: 70, relief: 140, air: false },
+  { need: 'vault', rung: 2, metres: 150, relief: 150, air: false },
+  { need: 'kite', rung: 3, metres: 260, relief: 260, air: true },
+  { need: 'legs', rung: 3, metres: 340, relief: 340, air: true },
 ];
 
 /**
@@ -384,22 +510,43 @@ function onAnOpenPlate(rifts, player, isSpent) {
  * for the best thing it owns rather than the closest — the envelope is where
  * "is this a hike" is decided, and it is decided once.
  */
-const KIND_RANK = { cache: 0, deepcache: 0, span: 1, mark: 2 };
+const KIND_RANK = { cache: 0, deepcache: 0, span: 1, meet: 2, mark: 2 };
 
-/** The open field site this cadet's kit is entitled to be shown. */
-function pickField(sites, player, kit) {
+/**
+ * The open field site this cadet's kit is entitled to be shown.
+ *
+ * `relief` asks for the wider of the two envelopes in `REACH`, and it is passed
+ * on exactly one condition: there is no other open tear, so the only other
+ * answer this function can give is the ground the cadet is already standing on.
+ * See the block above `REACH`.
+ *
+ * THE LADDER IS CLIMBED FROM THE BOTTOM. Inside a kind, the LOWEST RUNG wins
+ * and distance only breaks a tie — which is `offer()`'s rule in
+ * src/world/errand.js, in the same words ("always lights the LOWEST unclaimed
+ * rung … distance breaks ties inside a rung"). It used to be distance alone,
+ * and the two instruments then disagreed on the one frame it matters most: from
+ * the boot tear the rung-1 summit is 98 m and the rung-0 stone ring is 128 m, so
+ * the card would have sent a cadet who has bought nothing up the Spine while the
+ * world's own marker stood on the Reckoning.
+ */
+function pickField(sites, player, kit, relief = false) {
   const step = reachOf(kit);
+  const cap = relief ? (step.relief ?? step.metres) : step.metres;
   let best = null;
   let bd = Infinity;
   let bk = 99;
+  let br = 99;
   for (const s of sites) {
     if (!(s.rung <= step.rung)) continue;
     if (s.air && !step.air) continue;
     const d = Math.hypot(player.pos.x - s.x, player.pos.z - s.z);
-    if (d > step.metres) continue;
+    if (d > cap) continue;
     const k = KIND_RANK[s.kind] ?? 3;
-    if (k > bk || (k === bk && d >= bd)) continue;
-    bk = k; bd = d; best = s;
+    const r = s.rung ?? 0;
+    if (k > bk) continue;
+    if (k === bk && r > br) continue;
+    if (k === bk && r === br && d >= bd) continue;
+    bk = k; br = r; bd = d; best = s;
   }
   return best;
 }
@@ -456,6 +603,8 @@ export function resolveObjective(ctx) {
   // be edited to thread it through.
   const stint = ctx.stint || liveStint();
   const isSpent = (id) => { try { return !!stint?.spent?.(id); } catch { return false; } };
+  /** Did that arrival land anything? See the block above `FIELD_EVERY`. */
+  const isDry = (id) => { try { return !!stint?.spentDry?.(id); } catch { return false; } };
 
   const sites = fieldSites();
   /* A LEG ALREADY UNDER WAY OUTRANKS EVERYTHING except the cadet. It is
@@ -493,12 +642,45 @@ export function resolveObjective(ctx) {
     const away = nearOpen(rifts, player, false, isSpent, rift)
       || nearOpen(rifts, player, true, isSpent, rift);
     /* ---- THE FIELD LEG ---------------------------------------------------
-       Every third filled arrival, and every arrival with nowhere else to open,
-       the game asks for the other thing it owns: a place. See `FIELD_EVERY`
-       and `REACH` — how far it may point is read off the kit the cadet has
-       bought with held lines, never off how they are doing. */
+       Every third filled arrival, every arrival with nowhere else to open, and
+       EVERY ARRIVAL THAT LANDED NOTHING. See `FIELD_EVERY` and `REACH` — how
+       far it may point is read off the kit the cadet has bought with held
+       lines, never off how they are doing.
+
+       THE DRY ARRIVAL IS THE ONE THIS FILE WAS RE-OPENED FOR. A cadet who has
+       just spent a whole arrival missing is the cadet a diversion to the next
+       tear serves worst: the next tear is a different LINE, and the product
+       brief is explicit that a learner who is struggling stays on the topic
+       until it is mastered. A place is not a different line. A hanging cache is
+       a balance, a span is an area, a survey mark is a climb — the same
+       mathematics, in a representation the keypad cannot draw, in a part of the
+       island they have not been standing on. That is the change of scene and
+       the change of way in that the sitting measured on this build never once
+       produced: 43 consecutive openings of ONE ring from inside a 2 m circle.
+
+       AND IT IS NOT A LONGER WALK. The site is chosen out of the same `REACH`
+       envelope as every other leg, and that envelope is read off two facts:
+       what the cadet HOLDS, and whether the world has another door. Neither is
+       a fact about how they are doing. On the frames where a second tear is
+       open both learners get the seventy metres a diversion was already allowed
+       to be; on the frames where there is one door — the first line, for
+       everybody — both get the relief column, because the only other sentence
+       available is the name of the ground under their feet. Nothing here reads
+       a miss, a streak or a clock to decide a distance. */
+    const dry = isDry(rift.id);
     const due = spends > 0 && spends % FIELD_EVERY === 0;
-    const site = (spends !== legAt && (due || !away)) ? pickField(sites, player, kit) : null;
+    /* THE RELIEF ENVELOPE, and the whole of the condition for it: there is no
+       other tear open, so the only other sentence this function can say is the
+       name of the ground under the cadet's feet. That is a fact about the world
+       — `content/graph/algebra1-l1.json` has one root, so the first line has one
+       door — and it is the same fact for the cadet who is landing them and the
+       cadet who is missing. Measured before it existed: 1 open tear, 0 places
+       inside 70 m, `spent` handed back inside the frame it was granted, the same
+       ring re-opened at 100% of samples. See the block above `REACH`. */
+    const relief = !away;
+    const site = (spends !== legAt && (dry || due || !away))
+      ? pickField(sites, player, kit, relief)
+      : null;
     if (site) {
       leg = { id: site.id, kind: site.kind, at: Date.now() };
       legAt = spends;
@@ -527,12 +709,24 @@ export function resolveObjective(ctx) {
          The arrival clock in src/session/stint.js is what stops that becoming
          a worksheet: one arrival is still one arrival, however it ends.
 
-         WHAT CHANGED, AND WHAT DID NOT. The field leg above is asked FIRST now,
-         so this branch is reached only when there is also no place in reach —
-         which on a fresh save is the true state at the boot tear (`var-meaning`
-         has no rung-0 or rung-1 mark inside seventy metres). The experiment
-         quoted above is therefore still honoured exactly where it was measured:
-         the first line of the first sitting is never a hike. */
+         WHAT CHANGED, AND WHAT DID NOT. The field leg above is asked FIRST, so
+         this branch is reached only when there is also no place in reach at all.
+         That USED TO BE the state at the boot tear on every save — `var-meaning`
+         has no mark inside seventy metres — and it is why the fifth correction
+         at the head of this file exists: "no place in reach" was not a property
+         of the island, it was a property of the envelope, and it made this
+         branch the whole of the first line for a cadet who was missing. With
+         `relief` it is reached only when the shard genuinely has nothing left
+         standing: every mark held, every cache cracked, no other tear open.
+
+         The experiment quoted above is still honoured where it was measured.
+         It sent a first-line cadet to the OSSUARY, 170 m out and up, and the
+         relief envelope stops at 140 — so the site that experiment measured is
+         still not one a cadet holding nothing is ever shown. What they are shown
+         is the rung-0 stone ring `src/world/errand.js` calls "the first mark
+         anybody is ever shown … it stands on the ground", which is the mark the
+         world's own marker was already lighting at them while this card pointed
+         at their feet. */
       try { stint.release(rift.id); } catch { /* a beat must never stop the loop */ }
       spent = true;
     }

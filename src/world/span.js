@@ -4,6 +4,8 @@ import { tex } from '../ui/tex.js';
 import { t } from '../i18n/index.js';
 import { CELL } from '../build/pieces.js';
 import { merge } from './geom.js';
+import { beginTagFrame, submitTag } from './tagspace.js';
+import { bidField } from './fieldtalk.js';
 // A span is a place the game sends a cadet to. (src/world/clearings.js)
 import { reserve } from './clearings.js';
 import './field.css';
@@ -125,7 +127,19 @@ const ARC = [-0.62, -1.02, -1.42];
  * second or the third. That is not a leak. That is the game paying out for
  * being good at it. The road is the route that always works.
  */
-const LIFT = [-26, -2, 22];
+/* -26 WAS 0.2 m OUT, AND THE MEASUREMENT THAT FOUND IT IS THE ONE THE WHOLE
+   ARCHIPELAGO NEEDED. `datum` above is the highest ground on the first span's
+   own bearing, which is honest ground a cadet can run to — but the ceiling a
+   wing actually reaches from it is not `datum.hi - gulf / ratio`, because the
+   island is in the way of the descent line. Recomputed the way
+   `src/world/meet.js` computes its own — flood-fill the ground a cadet can WALK
+   to, solve the base wing at 1:7.6, and require the glide to clear `heightAt`
+   by three metres for the whole flight — the honest base-wing ceiling over this
+   deck is 72.2 m and the deck stood at 69, which is 3.2 m of margin on a flight
+   this file's own comment calls "comfortable rather than frame-perfect".
+   -30 puts the deck at 65 and the margin at 7.2 m, which is what the sentence
+   above says. `tools/critic/archipelago.mjs` rule `reach` re-measures it. */
+const LIFT = [-30, -2, 22];
 
 const REWARD = 140;
 /** Perch half-width in lattice cells. 2 -> 20 m of real floor across. */
@@ -667,7 +681,7 @@ export function createSpans(opts = {}) {
         { n: partial, form: 'partial', latex: `${a}\\cdot ${b} + ${c}` },
         { n: inner, form: 'inner', latex: `${a}\\cdot ${b}\\cdot ${c}` },
       ];
-      return { a, b, c, total, latex: `${a}(${b} + ${c})`, choices: shuffle(set, rnd) };
+      return { a, b, c, total, latex: `${a}(${b} + ${c})`, choices: rank(set, rnd) };
     }
     return {
       a: 3, b: 2, c: 4, total: 18, latex: '3(2 + 4)',
@@ -677,6 +691,54 @@ export function createSpans(opts = {}) {
         { n: 24, form: 'inner', latex: '3\\cdot 2\\cdot 4' },
       ],
     };
+  }
+
+  /**
+   * THE ORDER THE THREE STACKS STAND IN — and the one place it may not put the
+   * true one.
+   *
+   * `design/ARCHIPELAGO-PATTERN.md` Rule 1 has a corollary that costs: if
+   * position is the only input then position is a commitment you cannot take
+   * back, and *the player must never be able to answer by walking past*. The
+   * three stacks stand on ONE RANK 7.4 m apart with `TOUCH = 2.4` measured to a
+   * marker bobbing 1.6 m up, so the horizontal capture disc is 1.55-1.86 m and
+   * a straight walk from the left stack to the right one goes through the
+   * middle one — because three points on a line always do. `lay()` below
+   * documents that and accepts it: *"that is fine — it costs him a guess and he
+   * can see why."*
+   *
+   * IT IS ONLY FINE WHILE THE MIDDLE ONE IS A DISTRACTOR. If the shuffle puts
+   * the TRUE stack in the middle, crossing the deck does not cost a guess — it
+   * OPENS THE SITE, pays 140 motes and lays a hundred metres of permanent road
+   * for an answer nobody chose. That is the exact defect the pattern study
+   * reproduced twice at a hanging cache, and `src/world/caches.js` paid for it
+   * with piers and claim cells.
+   *
+   * Swept over the generator's own seeds, the true stack came out in the middle
+   * in 26 of 64. The three spans this island hangs are seeds 13, 990 and 1967
+   * and none of the three is one of those, so nobody has ever been able to hit
+   * it here — which is luck, and luck is not a property. This makes it one:
+   * the true stack is never the middle of the rank, so a brush past can cost a
+   * guess and can never do anything else. `tools/critic/archipelago.mjs` rule
+   * `brush` sweeps every seed and proves it.
+   *
+   * WHAT THIS DOES NOT DO, said plainly rather than left to be discovered: it
+   * does not make the rank safe to cross. A cadet who walks the deck still
+   * spends a candidate he did not choose. The honest fix is the caches' one — a
+   * pier per stack with open air between them — and it does not fit here yet,
+   * because a pier has to jut off an edge and every edge of this deck is either
+   * the plot the cadet has to be looking at when he commits (Rule 3) or the
+   * hole he lands beside (`slab(20, 12, 0, 4)` above, on why there is no side
+   * ledge). That is written down here rather than in a document nobody reads.
+   */
+  function rank(set, rnd) {
+    const out = shuffle(set, rnd);
+    const at = out.findIndex((ch) => ch.form === 'true');
+    if (at === 1) {
+      const to = rnd(2) * 2;      // 0 or 2, from the same seeded die
+      const t = out[at]; out[at] = out[to]; out[to] = t;
+    }
+    return out;
   }
 
   /** A small seeded die, so a span asks the same question for ever. */
@@ -967,7 +1029,7 @@ export function createSpans(opts = {}) {
         if (tag.tex) el.innerHTML = tex(tag.tex);
         else el.textContent = t(tag.key);
         tags.appendChild(el);
-        nodes.push({ el, c, local: tag.local, near: tag.near || tag.local, stack });
+        nodes.push({ el, c, local: tag.local, near: tag.near || tag.local, stack, pri: tag.pri || 40 });
       }
     }
     tagNodes = nodes;
@@ -979,15 +1041,40 @@ export function createSpans(opts = {}) {
   const _c = new THREE.Vector3();
   /** How far the label has come down to meet you: 0 far out, 1 on the deck. */
   const DESCEND_FAR = 60, DESCEND_NEAR = 26;
-  function placeTags(camera) {
+  /**
+   * ONE PLOT TALKS, AND IT ASKS FOR ITS ROOM.
+   *
+   * `.field-tag` is CHROME to `src/world/tagspace.js` — a box every other layer
+   * walks around, arbitrated by nothing among itself — and this file wrote its
+   * own positions for three plots at once, out to 84 m or 150 m with RESONANT
+   * SIGHT, against sites that stand about a hundred metres apart and a hanging
+   * cache that stands 59 m from span 1. `src/world/waygate.js` paid 452 label
+   * overlaps across 126 of 288 layout frames for exactly this, and
+   * `src/world/meet.js` and `src/world/caches.js` both go through the ledger
+   * now. This was the last unarbitrated writer of `.field-tag` in the world.
+   */
+  function placeTags(camera, time) {
     if (!tagNodes.length) return;
+    beginTagFrame(time);
     const w = window.innerWidth, h = window.innerHeight;
+    let near = null, nd0 = Infinity;
     for (const c of list) {
       _c.setFromMatrixPosition(c.group.matrixWorld);
       const dc = _c.distanceTo(camera.position);
       c.descend = Math.max(0, Math.min(1, (DESCEND_FAR - dc) / (DESCEND_FAR - DESCEND_NEAR)));
+      if (c.opened || dc >= nd0) continue;
+      nd0 = dc; near = c;
+    }
+    const reach = sight ? 150 : 84;
+    /* …AND ONE FAMILY TALKS. This file's own header already named the case it
+       could not answer from inside itself — *"a hanging cache that stands 59 m
+       from span 1"* — and src/world/fieldtalk.js is that answer. */
+    if (!bidField(time, 'span', nd0)) {
+      for (const nd of tagNodes) hideTag(nd);
+      return;
     }
     for (const nd of tagNodes) {
+      if (nd.c !== near) { hideTag(nd); continue; }
       const k = nd.c.descend || 0;
       _v.set(
         nd.local[0] + (nd.near[0] - nd.local[0]) * k,
@@ -996,14 +1083,25 @@ export function createSpans(opts = {}) {
       ).applyMatrix4(nd.c.group.matrixWorld);
       const d = _v.distanceTo(camera.position);
       _v.project(camera);
-      const reach = sight ? 150 : 84;
       const on = _v.z < 1 && d < reach && Math.abs(_v.x) < 1.2 && Math.abs(_v.y) < 1.2;
-      if (!on) { if (nd.el.style.display !== 'none') nd.el.style.display = 'none'; continue; }
+      if (!on) { hideTag(nd); continue; }
       nd.el.style.display = '';
-      nd.el.style.left = `${(_v.x * 0.5 + 0.5) * w}px`;
-      nd.el.style.top = `${(-_v.y * 0.5 + 0.5) * h}px`;
       nd.el.style.opacity = String(Math.max(0.12, 1 - Math.max(0, d - reach * 0.55) / (reach * 0.45)));
+      submitTag({
+        measure: nd.el,
+        x: (_v.x * 0.5 + 0.5) * w, y: (-_v.y * 0.5 + 0.5) * h,
+        gap: 6, dir: 'mid', pri: nd.pri, dist: d,
+        place: (cx, top) => {
+          nd.el.style.left = `${Math.round(cx)}px`;
+          nd.el.style.top = `${Math.round(top)}px`;
+          nd.el.style.transform = 'translate(-50%, 0)';
+        },
+        hide: () => hideTag(nd),
+      });
     }
+  }
+  function hideTag(nd) {
+    if (nd.el.style.display !== 'none') nd.el.style.display = 'none';
   }
 
   // ------------------------------------------------------------------- frame
@@ -1110,7 +1208,7 @@ export function createSpans(opts = {}) {
     holes.instanceMatrix.needsUpdate = true;
     if (slabs.instanceColor) slabs.instanceColor.needsUpdate = true;
     if (holes.instanceColor) holes.instanceColor.needsUpdate = true;
-    if (camera) placeTags(camera);
+    if (camera) placeTags(camera, time);
   }
 
   // -------------------------------------------------------------------- save
@@ -1163,6 +1261,13 @@ export function createSpans(opts = {}) {
       at: list.map((c) => ({
         i: c.i, x: c.x, y: c.y, z: c.z, opened: c.opened,
         need: c.plot.length, road: c.roadFrom ? c.roadFrom.steps : 0,
+        /* Where a stack can be TAKEN, in world metres, so a critic can walk to
+           one on real keys without being told which. Read-only facts; the same
+           reading `src/world/caches.js` publishes for its claim cells. */
+        stacks: c.stacks.map((st) => {
+          const w = local(c, st.px, 4);
+          return { n: st.n, latex: st.latex, spent: st.spent, x: c.x + w.x, z: c.z + w.z };
+        }),
       })),
     }),
     reset() {

@@ -186,11 +186,22 @@ function sides(latex) {
  * already on the learner's screen — the strongest kind, because there is
  * nothing to take on trust.
  */
-function promptTruth(item, v) {
+function promptTruth(item, v, allowed = null) {
   const raw = String(item.latex || '');
   if (/\\begin|\\Rightarrow/.test(raw)) return null;
   const parts = raw.split('=').map((p) => p.trim());
-  const usable = parts.filter((p) => p && !/\\square/.test(p) && varsOf(p).length === 1 && varsOf(p)[0] === v);
+  // `allowed` is the set of letters the caller is prepared to write a number
+  // in for. With none given the rule is what it always was — one letter, and it
+  // must be this one — so every existing caller reads exactly as before. The
+  // value probe passes the whole letter set now, because `like-terms` prints
+  // boards carrying two of them and a prompt with `x` and `y` on it is still a
+  // prompt a number can be put into, once both get one.
+  const usable = parts.filter((p) => {
+    if (!p || /\\square/.test(p)) return false;
+    const vs = varsOf(p);
+    if (!vs.includes(v)) return false;
+    return allowed ? vs.every((x) => allowed.has(x)) : vs.length === 1;
+  });
   if (usable.length !== 1) return null;
   return usable[0];
 }
@@ -3220,28 +3231,62 @@ export function counterexample(item, entry, T) {
     }
 
     // --- a reading of a situation: try their reading on a real number ------
+    //
+    // EVERY LETTER GETS A NUMBER, not only the one the item is "about".
+    //
+    // This bound `v` alone, so a second letter left `evaluate` with an unbound
+    // name, which throws, which broke the loop — and the whole probe was lost.
+    // Every wrong entry on such an item then fell through to the last resort,
+    // which reprints the prompt: the cadet pressed for help and was handed back
+    // the question. That was invisible while Level 1 was single-unknown
+    // throughout, and it is not any more — the sorting bays draw boards of
+    // several unlike variable parts, because two bays that are "carries a
+    // letter" and "carries no letter" are a glyph match and not a question
+    // about like terms.
+    //
+    // The held letters are written into the SENTENCE as well as the notation,
+    // and they need no new string in any locale: the binding lives inside the
+    // mathematics span the line already has, so "Take $m = 3$" becomes
+    // "Take $m = 3,\; y = 4$" and reads correctly in en, es and pl.
     if ((kind === 'equivalent' || item.type === 'expression') && v) {
       const target = item.check?.math || item.answer;
-      const truth = promptTruth(item, v);
+      const letters = [...new Set([...varsOf(raw), ...varsOf(target)])];
+      const others = letters.filter((x) => x !== v);
+      const truth = promptTruth(item, v, new Set(letters));
       for (const t of [3, 4, 5, 2, 6, 7]) {
+        // Distinct from `t` and from each other, so two letters can never
+        // stand in for one another and make two different lines agree.
+        const env = { [v]: t };
+        let clash = false;
+        others.forEach((name, k) => {
+          const pool = [2, 5, 7, 4, 9, 6, 8, 3].filter((n) => n !== t && !Object.values(env).includes(n));
+          if (!pool.length) clash = true; else env[name] = pool[k % pool.length];
+        });
+        if (clash) break;
         let mine, theirs;
-        try { mine = evaluate(raw, { [v]: t }); } catch { break; }
-        try { theirs = evaluate(target, { [v]: t }); } catch { break; }
+        try { mine = evaluate(raw, env); } catch { break; }
+        try { theirs = evaluate(target, env); } catch { break; }
         if (reqq(mine, theirs)) continue;
         // The statement the rift is holding open, with a number in it. It is
         // already on the learner's screen, so nothing is given away by writing
         // it out — and the arithmetic that settles the argument is theirs.
-        const put = truth ? substituteVerified(truth, v, R(t)) : null;
+        const put = truth ? substituteAll(truth, Object.fromEntries(letters.map((n) => [n, R(env[n])]))) : null;
+        // Everything up to the last `=`, and the value after it: the two slots
+        // `echo.yourReadingAt` already has, filled so that one letter reads
+        // exactly as it always did.
+        const bind = letters.map((n) => `${n} = ${env[n]}`).join(',\\; ');
+        const head = bind.slice(0, bind.lastIndexOf(' = '));
+        const tail = env[letters[letters.length - 1]];
         return [
           {
             cls: 'rf-echo-probe',
-            latex: `\\left. ${raw} \\right|_{${v} = ${t}} = ${rstr(mine)}`,
-            why: T('echo.yourReadingAt', { v, t, val: rstr(mine) }),
+            latex: `\\left. ${raw} \\right|_{${bind}} = ${rstr(mine)}`,
+            why: T('echo.yourReadingAt', { v: head, t: tail, val: rstr(mine) }),
           },
           {
             cls: 'rf-echo-probe verdict',
-            latex: put ? `${put} \\ne ${rstr(mine)}` : `\\left. ${BOX} \\right|_{${v} = ${t}} \\ne ${rstr(mine)}`,
-            why: T('echo.countItByHand', { v, t, val: rstr(mine) }),
+            latex: put ? `${put} \\ne ${rstr(mine)}` : `\\left. ${BOX} \\right|_{${bind}} \\ne ${rstr(mine)}`,
+            why: T('echo.countItByHand', { v: head, t: tail, val: rstr(mine) }),
           },
         ];
       }

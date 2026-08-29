@@ -178,6 +178,11 @@ import { fileURLToPath } from 'node:url';
 import { generate, SKILLS, FORMS_BY_SKILL } from '../../src/learn/generators.js';
 import { allUnits, loadUnit, routeUnits, ROOT } from '../_courses.mjs';
 import { realSurfaces } from './riftsurfaces.mjs';
+// THE SORTER IS JUDGED IN ITS OWN FILE. It has no option set, so none of the
+// first-pick machinery above can read it, and what has to be asked of it is a
+// different question with a different null. See tools/critic/sortcues.mjs.
+import { playSorter, honestBoards } from './sortcues.mjs';
+import { headerOf } from './sortboards.mjs';
 import { findings, sandbox } from '../_findings.mjs';
 
 export const LOCALES = ['en', 'es', 'pl'];
@@ -864,194 +869,33 @@ export function judge(tally, { all = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// THE SORTER. It has no option set: it has chips, and two bays to file them in.
+// THE SORTER. It has no option set: it has chips, and one bay per like-class.
 //
-// The leak worth measuring is therefore not "which option is the key" but "can
-// a chip's bay be read off anything but the mathematics". The mathematics here
-// is one question — does this term carry the unknown — so the cues to test are
-// the ones that are NOT that: how long the chip is, and how many digits it
-// carries.
+// WHAT USED TO BE HERE, AND WHY IT IS GONE.
 //
-// A card SEPARATES on a metric when every chip in one bay measures strictly
-// above every chip in the other. On such a card a cadet who has learned the
-// direction once files the whole board with no algebra in it. Under the null
-// the direction is a coin, so the bar is 50% and it is two-sided.
+// This file used to judge the sorter itself, on the premise written into it in
+// as many words: "a chip belongs in the unknown's bay exactly when it carries
+// the unknown's letter, that mark is on every chip, and reading it IS the
+// mathematics `like-terms` teaches". Every shape correlation was therefore
+// printed as a NOTE — the length one, the digit one — under the line "the
+// letter already does".
+//
+// The premise was the defect. Two bays that are "carries a letter" and "carries
+// no letter" are the two glyph classes of the printed board, so filing that
+// board is a glyph match and the surface never asks whether `3x` and `5x^{2}`
+// are alike, or `3x` and `3y`. `src/ui/rift.js` now draws one bay per
+// like-class and refuses any board that does not carry two different letters,
+// and the judging moved to `tools/critic/sortcues.mjs`, which plays a cadet who
+// does no mathematics against every shape rule AND a cadet who holds each error
+// the graph declares on this node.
 // ---------------------------------------------------------------------------
-const emptySorter = (label) => ({
-  label, cards: 0, chips: 0, letter: 0, by: METRICS.map(() => ({ sep: 0, varHigh: 0 })),
-  // The kind of every chip IN THE ORDER THE TRAY LAYS IT OUT — the whole of
-  // what the positional attack below reads. `printed` is the same board in the
-  // order the STATEMENT writes its terms, which is what the tray used to be
-  // built out of: it is measured and printed beside the tray so that a revert
-  // to `parseTerms` order is a number in the report and not a silence.
-  boards: [], printed: [],
-});
+const emptySorter = (label) => ({ label, boards: [] });
 
-function absorbSorter(t, strs, isVar, v, printedVar = null) {
-  t.cards += 1;
-  t.chips += strs.length;
-  if (isVar.length >= 2 && isVar.length <= 8) {
-    t.boards.push(isVar.slice());
-    t.printed.push((printedVar || isVar).slice());
-  }
-  // THE CUE THIS SURFACE MEANS TO GIVE. A chip belongs in the unknown's bay
-  // exactly when it carries the unknown, and on this skill reading that IS the
-  // mathematics — the whole of what a sorter teaches is that `-7a` is a
-  // multiple of the unknown and `30` is not. It is measured, not assumed,
-  // because the verdict below depends on it.
-  const byLetter = strs.every((s, i) => s.includes(v) === isVar[i]);
-  if (byLetter) t.letter += 1;
-  const anyVar = isVar.some(Boolean), anyNum = isVar.some((x) => !x);
-  if (!anyVar || !anyNum) return;
-  for (let m = 0; m < METRICS.length; m++) {
-    const vals = strs.map(METRICS[m][1]);
-    const vLo = Math.min(...vals.filter((_, i) => isVar[i]));
-    const vHi = Math.max(...vals.filter((_, i) => isVar[i]));
-    const nLo = Math.min(...vals.filter((_, i) => !isVar[i]));
-    const nHi = Math.max(...vals.filter((_, i) => !isVar[i]));
-    if (vLo > nHi) { t.by[m].sep += 1; t.by[m].varHigh += 1; }
-    else if (vHi < nLo) { t.by[m].sep += 1; }
-  }
-}
+/** One board, exactly as `_sort` lays it out. */
+function absorbSorter(t, board) { t.boards.push(board); }
 
-/**
- * THE POSITIONAL ATTACK — can a board be filed by WHERE a chip lies?
- *
- * The two rules above ask whether a chip's SIZE says which bay it belongs in.
- * Neither of them can see the cue that actually shipped, because it is not a
- * property of any chip: it is a property of the ORDER.
- *
- * `parseTerms` reads the printed statement left to right, and a collect-like-
- * terms statement is written `14a + 30 - 7a + 18` — variable, number,
- * variable, number. The tray was built straight out of that list, so 95.5% of
- * 3,279 route boards alternated strictly and the FIRST chip carried the
- * unknown on 3,279 of 3,279. The unknown's bay is the left one on every board.
- * So "tap the first loose chip into the left bay, the next into the right, and
- * keep alternating" filed EVERY chip of EVERY board with no miss — and a board
- * filed with no miss is an UNASSISTED seal, the only kind that advances a
- * proving run.
- *
- * WHAT IS MEASURED. A positional rule is one bit per slot: this slot goes to
- * the unknown's bay, that one to the numbers'. There are 2^n of them for a
- * board of n chips and a cadet needs no arithmetic to play one. The rule is
- * FITTED on half the boards of each size and SCORED on the other half, so a
- * rule that wins by luck on the sample it was chosen from cannot be reported.
- *
- * WHAT IT IS COMPARED WITH. Not zero, and not a hand-set number: the SAME
- * procedure run over the same boards with the chip order permuted at random.
- * That is exactly the null this gate is testing — the order says nothing about
- * the kinds — and it prices in the fact that a board of two unknowns and two
- * numbers is filed by one rule in six however it is laid out. A permutation
- * baseline cannot go stale when the bank changes, which a written constant
- * would.
- */
-function positionalAttack(boards, shuffle) {
-  const bySize = new Map();
-  for (const b of boards) {
-    const n = b.length;
-    if (!bySize.has(n)) bySize.set(n, []);
-    bySize.get(n).push(b);
-  }
-  let sealed = 0, total = 0;
-  for (const [n, list] of bySize) {
-    if (list.length < 8) continue;
-    const rows = shuffle ? list.map(shuffle) : list;
-    const R = 1 << n;
-    const fit = new Int32Array(R);
-    let trained = 0;
-    for (let i = 0; i < rows.length; i += 2) {
-      let mask = 0;
-      for (let j = 0; j < n; j++) if (rows[i][j]) mask |= 1 << j;
-      fit[mask] += 1;
-      trained += 1;
-    }
-    if (!trained) continue;
-    let best = 0;
-    for (let m = 1; m < R; m++) if (fit[m] > fit[best]) best = m;
-    for (let i = 1; i < rows.length; i += 2) {
-      let mask = 0;
-      for (let j = 0; j < n; j++) if (rows[i][j]) mask |= 1 << j;
-      total += 1;
-      if (mask === best) sealed += 1;
-    }
-  }
-  return { sealed, total, rate: total ? sealed / total : 0 };
-}
-
-/**
- * Judge the sorter.
- *
- * THE RULE IS CONDITIONAL, AND THE CONDITION IS MEASURED.
- *
- * A shape cue on this surface is only a leak if it buys a cadet something the
- * surface does not already hand them. It does not: a chip belongs in the
- * unknown's bay exactly when it carries the unknown's letter, that mark is on
- * every chip, and reading it IS the mathematics `like-terms` teaches. The
- * length correlation that follows from it is not a defect either — it is the
- * letter, counted: `14a` is one character longer than `14` because of the very
- * mark that decides its bay, and no arrangement of the question's own terms can
- * take that back without changing the question.
- *
- * So the length and digit directions are printed in full and are a NOTE — but
- * ONLY while the letter really does file every chip. That is measured on every
- * run, and if it ever stops being true the same numbers become a fault,
- * because then a cadet would be filing boards by something that is not the
- * mathematics and nothing else on the surface would be. `--self-test` plants
- * both sides of that.
- */
-function judgeSorter(t) {
-  const lines = [], faults = [];
-  if (!t.cards) return { lines: [`  ${t.label}: no boards drawn`], faults };
-  const letter = t.letter / t.cards;
-  lines.push(`  ${t.label} — ${t.cards.toLocaleString('en-US')} boards, ${t.chips.toLocaleString('en-US')} chips   (chips filed into two bays)`);
-  lines.push(`    the unknown's letter files every chip on ${(100 * letter).toFixed(1)}% of boards`
-    + `   — that mark IS the mathematics here, so a shape cue below can only repeat it`);
-  for (let m = 0; m < METRICS.length; m++) {
-    const { sep, varHigh } = t.by[m];
-    const share = sep / t.cards;
-    const dir = sep ? 100 * varHigh / sep : 50;
-    const clears = 100 * share * Math.max(dir, 100 - dir) / 100;
-    const rare = share < RULE_MIN_SHARE;
-    lines.push(`    ${METRICS[m][0].padEnd(7)} splits the two bays on ${(100 * share).toFixed(1)}% of boards`
-      + `   the unknown's chips are the ${dir >= 50 ? 'longer' : 'shorter'} ones ${Math.max(dir, 100 - dir).toFixed(1)}% of the time (chance 50%)`
-      + `${rare ? '  — too rare to judge' : ''}`);
-    lines.push(`      a cadet who has learned that direction files a whole board with no algebra on ${clears.toFixed(1)}% of them`
-      + `${letter >= 0.999 ? '  — a note, not a finding: the letter already does' : ''}`);
-    if (!rare && t.cards >= SURFACE_MIN_SETS && Math.abs(dir - 50) > RULE_BAND && letter < 0.999) {
-      faults.push(`${t.label}: the unknown's letter files every chip on only ${(100 * letter).toFixed(1)}% of boards, `
-        + `and on the ${(100 * share).toFixed(1)}% where ${METRICS[m][0]} splits the two bays the unknown's chips are the `
-        + `${dir >= 50 ? 'longer' : 'shorter'} ones ${Math.max(dir, 100 - dir).toFixed(1)}% of the time against 50% — `
-        + `a cadet who learns that once files a whole board with no algebra in it on ${clears.toFixed(1)}% of boards`);
-    }
-  }
-
-  // THE ORDER. Unconditional: no reading of any chip can excuse it, because it
-  // is not about the chips.
-  if (t.boards.length >= 40) {
-    let seed = 0x9e3779b9;
-    const rnd = () => { seed = (Math.imul(seed ^ (seed >>> 15), 0x2545f491) + 0x9e3779b9) >>> 0; return seed / 4294967296; };
-    const perm = (b) => { const a = b.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-    const real = positionalAttack(t.boards, null);
-    const null_ = positionalAttack(t.boards, perm);
-    const printed = positionalAttack(t.printed, null);
-    const off = 100 * (real.rate - null_.rate);
-    const pooled = (real.sealed + null_.sealed) / Math.max(1, real.total + null_.total);
-    const se = Math.sqrt(Math.max(1e-12, pooled * (1 - pooled) * (1 / Math.max(1, real.total) + 1 / Math.max(1, null_.total))));
-    const z = Math.abs(real.rate - null_.rate) / se;
-    lines.push(`    the best fixed POSITIONAL rule — one bay per slot, no chip read — seals a whole board with no miss`);
-    lines.push(`      on ${(100 * real.rate).toFixed(1)}% of boards   (the same rule over a DRAWN chip order: ${(100 * null_.rate).toFixed(1)}%`
-      + `, ${real.total} boards held out of the fit, z ${z === Infinity ? 'inf' : z.toFixed(1)})`);
-    lines.push(`      … and over the order the STATEMENT writes its terms in, which the tray used to be built out of: `
-      + `${(100 * printed.rate).toFixed(1)}%`);
-    if (t.cards >= SURFACE_MIN_SETS && off > RULE_BAND && z > Z_P001) {
-      faults.push(`${t.label}: the chips lie in an order that files them. The best fixed positional rule — tap slot 1 into `
-        + `one bay, slot 2 into the other, no chip ever read — seals a whole board with NO MISS on ${(100 * real.rate).toFixed(1)}% `
-        + `of boards against ${(100 * null_.rate).toFixed(1)}% for the same rule over a drawn order, +${off.toFixed(1)} points over `
-        + `${real.total} held-out boards. A board sealed with no miss is an UNASSISTED seal, which is what advances a proving run`);
-    }
-  }
-  return { lines, faults };
-}
+/** Judge the sorter. The rules, the nulls and the bars live in `sortcues.mjs`. */
+function judgeSorter(t) { return playSorter(t.boards, t.label); }
 
 // ---------------------------------------------------------------------------
 // THE AREA FIELD. Two cells and one tray, so it is TWO option sets on one card
@@ -1240,15 +1084,18 @@ async function run() {
               const opts = [list[at].tex, ...list.filter((_, i) => i !== at).map((o) => o.tex)];
               absorb(t.balance, readSet(opts, ctx), where2, at, opts, card);
             } else if (r.name === 'sort') {
-              // THE TRAY, not the parse. `chipOrder` is the list the surface
-              // really lays out; `terms` is the statement's own order, which is
-              // what it used to be, and both are read so the report can say
-              // what the change bought.
-              const { terms, v, chipOrder } = r.chips;
-              const lay = chipOrder || terms;
-              const co = (c) => (c === 1 ? v : c === -1 ? `-${v}` : `${c}${v}`);
-              absorbSorter(t.sort, lay.map((x) => (x.kind === 'var' ? co(x.c) : String(x.c))),
-                lay.map((x) => x.kind === 'var'), v, terms.map((x) => x.kind === 'var'));
+              // THE TRAY AND THE BAYS, not the parse. Both orders are drawn
+              // from the card's own hash by the shipped file, and both are read
+              // here as the surface laid them out.
+              const { chipOrder, bayOrder } = r.chips;
+              absorbSorter(t.sort, {
+                chips: chipOrder.map((x) => (x.part ? (x.c === 1 ? x.part : x.c === -1 ? `-${x.part}` : `${x.c}${x.part}`) : String(x.c))),
+                truth: chipOrder.map((x) => bayOrder.indexOf(x.part)),
+                parts: bayOrder.slice(),
+                bays: bayOrder.map((p) => headerOf(p, loc)),
+                // The same card in three locales is one card. (see `memSide`)
+                card,
+              });
             }
           }
         }
@@ -1477,34 +1324,33 @@ function selfTest() {
   }
   say(judge(trayOk).faults.length === 0,
     '  … and is quiet when the ideal move lands on every button equally and no move looks different');
-  // 6. The sorter: the unknown's chips are always the longer ones.
-  // A board whose chips no longer carry the unknown — the mark that IS the
-  // mathematics — and which is therefore filed by nothing but its shape.
-  const sortBad = emptySorter('ROUTE · the sorter');
-  for (let i = 0; i < 2000; i++) absorbSorter(sortBad, ['13?', '25?', '4', '9'], [true, true, false, false], 'n');
-  say(judgeSorter(sortBad).faults.some((f) => /sorter/.test(f) && /longer/.test(f)),
-    'THE SORTER refuses a board the letter cannot file and the shape can — 100% against 50%');
-  // The ORDER is drawn in all three of these, because what they are about is
-  // whether a chip's SIZE files it; a fixed layout would set off the
-  // positional rule below and prove nothing about the rule under test.
-  const lay = (strs, isVar) => {
-    const ix = strs.map((_, i) => i);
-    for (let i = ix.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ix[i], ix[j]] = [ix[j], ix[i]]; }
-    return [ix.map((i) => strs[i]), ix.map((i) => isVar[i])];
+  // ------------------------------------------------------------------
+  // 6. THE SORTER. Three plants, and the first of them is the defect this
+  //    surface was redesigned for: two bays that ARE the two glyph classes.
+  //    The rules, the nulls and the bars are `tools/critic/sortcues.mjs`, and
+  //    that file plants every cue against itself as well; what is proved here
+  //    is that THIS gate's verdict still carries them.
+  // ------------------------------------------------------------------
+  const glyphBoard = (i) => {
+    const chips = ['3n', '7n', '4', '12'], truth = [1, 1, 0, 0];
+    const ix = [0, 1, 2, 3];
+    for (let j = 3; j > 0; j--) { const k = Math.floor(rnd() * (j + 1)); [ix[j], ix[k]] = [ix[k], ix[j]]; }
+    return { chips: ix.map((j) => chips[j]), truth: ix.map((j) => truth[j]), parts: ['', 'n'], bays: ['pure numbers', 'n terms'] };
   };
-  const sortLetter = emptySorter('ROUTE · the sorter');
-  for (let i = 0; i < 2000; i++) absorbSorter(sortLetter, ...lay(['13n', '25n', '4', '9'], [true, true, false, false]), 'n');
-  const sl = judgeSorter(sortLetter);
-  say(sl.faults.length === 0 && sl.lines.some((l) => /letter already does/.test(l)),
-    '  … and calls the SAME shape correlation a note when the letter files every chip itself');
+  const sortGlyph = emptySorter('ROUTE · the sorter');
+  for (let i = 0; i < 900; i++) absorbSorter(sortGlyph, glyphBoard(i));
+  const sg = judgeSorter(sortGlyph);
+  say(sg.faults.some((f) => /it carries a letter/.test(f)),
+    'THE SORTER refuses the board it used to draw — two bays, one letter, and "a chip with a letter goes left" seals every one');
+  say(sg.faults.some((f) => /one letter is as good as another/.test(f)),
+    '  … and names the learner it cannot see: a cadet who thinks one letter is as good as another files every chip of it');
+
+  // The honest control, and it is the half that matters: a board of several
+  // unlike variable parts, two different letters on it, both orders drawn.
   const sortOk = emptySorter('ROUTE · the sorter');
-  for (let i = 0; i < 2000; i++) {
-    const flip = rnd() < 0.5;
-    absorbSorter(sortOk, ...lay(flip ? ['13?', '25?', '4', '9'] : ['3?', '7?', '124', '195'],
-      [true, true, false, false]), 'n');
-  }
+  for (const bd of honestBoards(900, 5)) absorbSorter(sortOk, bd);
   say(judgeSorter(sortOk).faults.length === 0,
-    '  … and is quiet on a letterless board when the direction is a coin');
+    '  … and is quiet on a board of several unlike kinds with two different letters on it, both orders drawn');
 
   // ------------------------------------------------------------------
   // 7. THE RETURNING CADET. Plant a surface whose option set never changes and
@@ -1559,39 +1405,31 @@ function selfTest() {
   say(perRow.faults.length === 0, '  … and the honest control beside it is clean');
 
   // ------------------------------------------------------------------
-  // 8. THE SORTER'S ORDER. The defect that shipped: chips laid out in the
-  //    statement's own term order, which alternates.
+  // 8. THE SORTER'S ORDER. The cue that shipped before the glyph one: chips
+  //    laid out in the statement's own term order, which alternates the kinds,
+  //    and a numbers bay that was always on the right.
   // ------------------------------------------------------------------
   console.log('\nTHE SORTER, BY POSITION — the cue that is not a property of any chip');
-  const sortBoards = (make) => {
-    const t = emptySorter('ROUTE · the sorter');
-    for (let i = 0; i < 900; i++) {
-      const isVar = make(i);
-      const strs = isVar.map((b, j) => (b ? `${2 + j}n` : String(3 + j)));
-      absorbSorter(t, strs, isVar, 'n');
-    }
-    return t;
-  };
-  const alt = judgeSorter(sortBoards(() => [true, false, true, false]));
-  say(alt.faults.some((f) => /order that files them/.test(f)),
-    'THE SORTER refuses a tray laid out variable, number, variable, number — one rule seals every board with no miss');
-  const drawn = judgeSorter(sortBoards(() => {
-    const a = [true, true, false, false];
-    for (let i = 3; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return a;
-  }));
-  say(drawn.faults.length === 0,
-    '  … and is quiet on the same two-and-two boards when the order is drawn');
-  // The half that keeps it switched on: a board of three unknowns and one
-  // number is filed by one rule in four HOWEVER it is laid out, and that is
-  // arithmetic about the board and not a leak. The permutation null prices it.
-  const lopsided = judgeSorter(sortBoards(() => {
-    const a = [true, true, true, false];
-    for (let i = 3; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return a;
-  }));
-  say(lopsided.faults.length === 0,
-    '  … and quiet on a lopsided board that ONE rule in four seals by construction — the null is a permutation, not a constant');
+  const laid = emptySorter('ROUTE · the sorter');
+  for (const bd of honestBoards(900, 9)) {
+    const ix = bd.chips.map((_, i) => i).sort((x, y) => bd.truth[x] - bd.truth[y]);
+    absorbSorter(laid, { ...bd, chips: ix.map((i) => bd.chips[i]), truth: ix.map((i) => bd.truth[i]) });
+  }
+  say(judgeSorter(laid).faults.some((f) => /where it lies in the tray/.test(f)),
+    'THE SORTER refuses a tray laid out in bay order — one fixed rule seals every board with no miss');
+  const pinned = emptySorter('ROUTE · the sorter');
+  for (const bd of honestBoards(900, 13)) {
+    const order = bd.parts.map((p, i) => [p, i]).sort((x, y) => (x[0] === '' ? 1 : 0) - (y[0] === '' ? 1 : 0) || x[1] - y[1]);
+    const at = new Map(order.map(([, was], now) => [was, now]));
+    absorbSorter(pinned, {
+      ...bd,
+      parts: order.map(([, was]) => bd.parts[was]),
+      bays: order.map(([, was]) => bd.bays[was]),
+      truth: bd.truth.map((t) => at.get(t)),
+    });
+  }
+  say(judgeSorter(pinned).faults.some((f) => /does not sit in every slot equally often/.test(f)),
+    '  … and refuses a numbers bay that is always in the same place, measured rather than asserted');
 
   // ------------------------------------------------------------------
   // 9. THE AREA FIELD. Two cells, one tray, and the reading that seals a card
@@ -1712,7 +1550,13 @@ async function selfTestLive(state) {
   const cases = [
     ['var-meaning', 'vm-share', 'choice'],
     ['both-sides', 'bs-special', 'choice'],
-    ['like-terms', 'lt-collect', 'sort'],
+    // `lt-bays` is the form the sorting bays exist for: several unlike variable
+    // parts on one line, two different letters among them. `lt-collect` is one
+    // letter and the numbers, and the sorter REFUSES it now — two bays that are
+    // "carries a letter" and "carries no letter" are the two glyph classes, so
+    // it goes to the keypad, where the cadet has to produce the answer.
+    ['like-terms', 'lt-bays', 'sort'],
+    ['like-terms', 'lt-collect', 'keypad'],
     ['two-step', 'ts-symbolic', 'balance'],
     ['eval-expr', 'ee-linear', 'keypad'],
   ];

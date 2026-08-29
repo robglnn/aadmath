@@ -188,7 +188,12 @@ await page.waitForTimeout(2400);
 const SURFACE_CASES = [
   ['choice', 'var-meaning', 'vm-share', null],
   ['keypad', 'eval-expr', 'ee-linear', null],
-  ['sort', 'like-terms', 'lt-collect', null],
+  // `lt-bays`, not `lt-collect`: the sorting bays are one bay per LIKE-CLASS
+  // now, and `src/ui/rift.js` refuses a board that does not carry two
+  // different letters — a two-bay board of "has a letter" and "has no
+  // letter" is a glyph match, not a question about like terms — so
+  // `lt-collect` goes to the keypad and this leg would prove nothing.
+  ['sort', 'like-terms', 'lt-bays', null],
   ['balance', 'two-step', 'ts-symbolic', null],
   ['area', 'distribute', 'ds-area', null],
   /* THE COORDINATE PLOT IS IN LEVEL 2, and a boot with no query string

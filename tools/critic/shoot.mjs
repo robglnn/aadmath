@@ -370,7 +370,10 @@ await shot('08-vista', 1000, {
 // photographing the balance beam.
 for (const [name, skill, mode, form] of [
   ['10-balance', 'two-step', 'balance', 'ts-symbolic'],
-  ['11-sort', 'like-terms', 'sort', 'lt-collect'],
+  // `lt-bays` is the form the sorting bays draw: several unlike variable
+  // parts on one line. `lt-collect` is one letter and the numbers, and the
+  // sorter refuses it now — see `_sort` in src/ui/rift.js.
+  ['11-sort', 'like-terms', 'sort', 'lt-bays'],
   ['12-area', 'distribute', 'area', 'ds-area'],
 ]) {
   const got = await openSurface(name, skill, mode, { form });

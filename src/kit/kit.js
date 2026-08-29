@@ -307,7 +307,7 @@ const SOUND_KEY = 'ascent.sound';
 
 export function createKit(opts = {}) {
   const {
-    root, mastery, builder, player, input, hud, audio, drift, caches, spans, fx, wallet,
+    root, mastery, builder, player, input, hud, audio, drift, caches, spans, meets, fx, wallet,
     scene,
     /**
      * THE STANDING ORDER (src/meta/night.js), read through an accessor because
@@ -335,52 +335,93 @@ export function createKit(opts = {}) {
   /* ------------------------------------------------------------------------
      WHAT THE OBJECTIVE MAY POINT AT THAT IS NOT A TEAR.
 
-     Two kinds of place, and their access ladders are not invented here: they
-     are the ones src/world/caches.js and src/world/span.js already write down
-     in their own headers, read back as a rung.
+     THREE kinds of place now, and the rule under all of them changed, because
+     the old one was measured and it was false.
 
-       CACHES   `LIFT = [-16, -9, 3, 17, 34]`, relative to the highest ground
-                on each one's own bearing. The first two are a glide off the
-                ridge and need nothing bought (rung 1); the third stands above
-                every hill on its line and wants a plate or a column (rung 2);
-                the last two want the wing trimmed or an updraft a cache paid
-                for (rung 3). A DEEP cache is one a warden dropped, wherever it
-                fell, so it is rung 3 as well.
-       SPANS    `LIFT = [-26, -2, 22]`. The first is a glide that needs nothing
-                bought (rung 1). Every one after it is WALKED, on the road the
-                one before it laid — so it is rung 1 once that road stands, and
-                out of reach until it does.
+     THE DEFECT. This table used to hand `src/meta/objective.js` a hand-written
+     rung per site — `CACHE_RUNG = [1, 1, 2, 3, 3]`, "the ones
+     src/world/caches.js already writes down in its own header". Those numbers
+     were read off `LIFT`, which was metres above the highest ground on each
+     site's own bearing, sampled straight off `heightAt`. Recomputed against the
+     ground a cadet can actually WALK to, on the wings this game actually flies,
+     with the island in the way of the descent line, THREE OF THE FIVE HANGING
+     CACHES AND TWO OF THE THREE SPANS STOOD ABOVE WHAT THE BEST WING IN THE
+     GAME CAN REACH — cache 0 by thirty-five metres. The objective picks the
+     NEAREST site of the best kind, so from most tears it picked one of those,
+     and the leg ran its clock out over open water. That is the measured reason
+     nobody has ever opened one.
+
+     THE RULE THAT REPLACES IT. Nothing here invents a ladder. Each site
+     DECLARES what its own way in is denominated in — `null` for the wing every
+     cadet has from boot, a grant id from src/kit/ladder.js, or the index of the
+     cache whose standing column is the route — and this file asks the site
+     whether that route exists RIGHT NOW. A place whose column has not been
+     planted yet is not offered at all; it is not a harder objective, it is an
+     objective that cannot be completed, and `src/world/errand.js` already
+     states the rule: an errand you cannot physically complete teaches the
+     player that the marker lies.
 
      `open` is the half that matters: a signpost pointing at a puzzle somebody
-     has already solved is worse than no signpost. */
-  const CACHE_RUNG = [1, 1, 2, 3, 3];
+     has already solved is worse than no signpost, and a signpost pointing at a
+     place no wing reaches is worse than both. */
+  /**
+   * The rung a site's own access is worth: 1 the wing every cadet has, 2 a
+   * route the cadet earned in the world (a column another site paid, a road
+   * another site laid), 3 a kit grant. Read off the site, never written here.
+   */
+  const rungFor = (access) => (access === null || access === undefined ? 1
+    : (typeof access === 'number' ? 2 : 3));
   function fieldRows() {
     const rows = [];
+    const reach = caches?.canReach?.((id) => held.has(id)) || (() => true);
     for (const c of (caches?.list || [])) {
-      if (c.opened) continue;
+      if (c.opened || !reach(c)) continue;
       const deep = c.tier === 2;
       rows.push({
         id: 'cache-' + c.key, kind: deep ? 'deepcache' : 'cache',
         x: c.x, y: c.y, z: c.z, open: true, air: true,
-        rung: deep ? 3 : (CACHE_RUNG[c.i] ?? 3),
+        rung: rungFor(c.access),
         nameKey: deep ? 'guide.site.deepcache' : 'guide.site.cache',
       });
     }
+    /* SPANS. The first is a glide that needs nothing bought. Every one after
+       it is WALKED, on the road the one before it laid — so until that road
+       stands there is no way in at all and the place is not named. It used to
+       be named at rung 3, which is a kit grant, and two of the three spans are
+       fourteen and thirty-three metres above what any wing reaches. */
     const sp = spans?.list || [];
     for (let i = 0; i < sp.length; i++) {
       const c = sp[i];
       if (c.opened) continue;
+      if (i > 0 && !sp[i - 1]?.opened) continue;
       rows.push({
         id: 'span-' + (c.key ?? i), kind: 'span',
         x: c.x, y: c.y, z: c.z, open: true, air: true,
-        rung: i === 0 || sp[i - 1]?.opened ? 1 : 3,
+        rung: i === 0 ? 1 : 2,
         nameKey: 'guide.site.span',
+      });
+    }
+    /* THE MEET (src/world/meet.js) — built two waves ago and NEVER ENTERED,
+       because `registerField` had exactly two callers and neither of them knew
+       it existed. It is the only site in the archipelago whose reading is
+       continuous, and the objective could not name it. */
+    for (const c of (meets?.list || [])) {
+      if (c.opened) continue;
+      if (c.access && !held.has(c.access)) continue;
+      rows.push({
+        id: 'meet-' + c.key, kind: 'meet',
+        x: c.x, y: c.y, z: c.z, open: true, air: true,
+        rung: rungFor(c.access),
+        nameKey: 'guide.site.meet',
       });
     }
     return rows;
   }
-  registerField(fieldRows);
   const held = new Set();
+  /* AFTER `held`, on purpose. `fieldRows` reads it, and this codebase has paid
+     twice for a factory that reaches a `const` before the line that declares it
+     — see the scratch-binding block at the top of src/world/meet.js. */
+  registerField(fieldRows);
   let depth = -1;
   let lines = 0;
   let temper = 0;

@@ -99,39 +99,39 @@
   "check:touch": {
    "gate": "check:touch",
    "code": 1,
-   "secs": 636.041,
+   "secs": 660.594,
    "scope": "route",
-   "at": "2026-08-29T08:17:31.722Z",
+   "at": "2026-08-29T16:30:52.714Z",
    "cmd": "tools/critic/rungate.sh tools/critic/touch.mjs --out shots/touch --self-test",
    "fingerprint": {
-    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
-    "tool": "3f5065c83f1d1be153df335550c3e802491cb8ba",
-    "key": "1889f4f4eccbed979fc71ed681ce4f195060992e",
+    "product": "bc5b4348adbf1efab0834be519126f273209a350",
+    "tool": "7cc1ff08acdba82a8774de50ae9f50300553e344",
+    "key": "9331f1965dc1a7a0be677e7db22f1aef44dc4f6d",
     "tools": [
      "tools/critic/rungate.sh",
      "tools/critic/touch.mjs"
     ]
    },
    "movedDuringRun": false,
-   "said": "76 finding(s) a learner meets today — check:touch"
+   "said": "7 finding(s) a learner meets today — check:touch"
   },
   "check:layout": {
    "gate": "check:layout",
    "code": 0,
-   "secs": 1728.964,
+   "secs": 2049.872,
    "scope": "route",
-   "at": "2026-08-29T07:31:36.062Z",
+   "at": "2026-08-29T16:19:51.927Z",
    "cmd": "tools/critic/rungate.sh tools/critic/landscape.mjs --out shots/landscape",
    "fingerprint": {
-    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "product": "bd25cde2822d8e414bc11de2295bc5cfd0f96eac",
     "tool": "e1541e39e11f84df0f41534b7f5af954fede58b4",
-    "key": "1af8b69a224d87225e26b14e725432697d3178fa",
+    "key": "ca590e82521cd97d68c0e9d0880f9c20d1c26ddd",
     "tools": [
      "tools/critic/rungate.sh",
      "tools/critic/landscape.mjs"
     ]
    },
-   "movedDuringRun": false,
+   "movedDuringRun": true,
    "said": null
   }
  }

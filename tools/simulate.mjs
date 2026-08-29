@@ -80,7 +80,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MasteryEngine, itemSeconds, MASTERY_DEFAULTS as DEFAULT_MASTERY } from '../src/learn/mastery.js';
+import { MasteryEngine, itemSeconds, ITEM_SECONDS, MASTERY_DEFAULTS as DEFAULT_MASTERY } from '../src/learn/mastery.js';
 import { FORMS_BY_SKILL, generate, demandOf } from '../src/learn/generators.js';
 import { echoScript } from '../src/learn/echo.js';
 // The REAL session planner, so the workload assertion below is about the plan
@@ -932,6 +932,64 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   const perma = opts.perma ?? PERMA;
   const sessionCap = (opts.sessionMinutes ?? SESSION_MINUTES) * 60;
   const gapHours = opts.gapHours ?? SESSION_GAP_HOURS;
+  /**
+   * THE FORGETTING CLOCK, SEPARATED FROM THE SCHEDULING CLOCK.
+   *
+   * `gapHours` used to be two different things wearing one name. It is how long
+   * the learner is away — which the ENGINE reads, through `vnow`, to decide
+   * which re-probe has come round, whether a pass counts as durable, and
+   * whether a belief has gone stale — and it is also how much MEMORY is lost
+   * across that wait, which nothing in the engine can see. Those are two
+   * different mechanisms with two different fixes, and while they shared a name
+   * the every-third-day figure could not be attributed to either of them: it
+   * was the sum of "the scheduler meets a three-day cadence" and "the learner
+   * forgets three nights' worth", and nobody could say how much was which.
+   *
+   * So they are separable now. `decayHours` defaults to `gapHours`, so every
+   * figure this file has ever printed is byte-identical; setting it apart runs
+   * the 2x2 that says which of the two owns the gap. See the CADENCE PROBE.
+   */
+  const decayHours = opts.decayHours ?? gapHours;
+  /**
+   * WHICH FORGETTING LAW, and why this is not a free parameter.
+   *
+   * `iterated` is what shipped: at every sitting boundary the power law is
+   * applied AGAIN to whatever competence is left. Composing a power law with
+   * itself is not a power law — `keep(h)^n` is exponential in the number of
+   * boundaries — so a line untouched for ten sittings decays as
+   * `(1 + h/24S)^(-0.35n)`, which is the exponential curve this file's own
+   * header says fits nonsense syllables and does not fit meaningful material.
+   *
+   * `elapsed` is the law as written: the power law taken ONCE over the real
+   * elapsed time since that line was last practised, from the competence it
+   * held at that moment. It is the same constants, the same floor and the same
+   * strength term; only the composition changes.
+   *
+   * Both are run and both are printed. `iterated` stays the default because it
+   * is what every published figure in this repo was measured on, and because
+   * changing the default would silently rewrite numbers other people are
+   * holding this build against.
+   */
+  const decayMode = opts.decayMode || process.env.SIM_LAW || 'iterated';
+  // The elapsed-law anchors: when this line was last practised, and what it was
+  // worth then. Only read when `decayMode === 'elapsed'`.
+  const restK = new Map(SKILLS.map((s) => [s, k.get(s)]));
+  const restAt = new Map(SKILLS.map((s) => [s, vnow]));
+  const touchedThisSitting = new Set();
+  // Claims this learner held and then lost DURING a sitting — a missed re-probe
+  // twice over (`lapse`), or a shape that went never-once-solved on a held line
+  // (`formFloor`). Counted here rather than inferred from the end state, which
+  // can only see the lines that were still down at the buzzer.
+  let demotions = 0;
+  /* AND WHAT TOOK THEM. Two mechanisms can pull a claim down mid-sitting and
+     they have opposite fixes, so one counter for both is the same mistake this
+     probe exists to correct one level up: `lapse` (a re-probe missed twice) is
+     the SCHEDULE, and the form-floor withdrawal in `observe` (a shape that went
+     never-once-solved on a line already held) is the BANK and the descent. */
+  const demoBy = { lapse: 0, formFloor: 0 };
+  // The re-probe ledger: how many the schedule served, and how many came back
+  // right first try with no help — which is the only outcome that moves it.
+  let reviewsServed = 0, reviewsClean = 0, lapsesOpened = 0;
   const sessionTrace = [];
   let sitting = 1;
   let sessionSeconds = 0;
@@ -1108,6 +1166,9 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // the card. Only unsupported, first-try solves can satisfy the gate.
     let assisted = task.scaffold !== 'none';
     let solved = false;
+    // Right, first try, with no help on the card — the only outcome the engine
+    // calls `clean`, and the only one that moves a spacing rung.
+    let firstTryOK = false;
 
     // The engine's own count of re-probes this line has survived across a real
     // gap, read before and after the answer. It is the engine that decides what
@@ -1115,6 +1176,12 @@ function runLearner(seed, policy = 'engine', opts = {}) {
     // model here is exactly what the shipping schedule is prepared to call
     // durable retention.
     const durableBefore = engine.get(task.skill)?.durable || 0;
+    // Was this line standing when the item was served? A claim can only be lost
+    // on the line the item is about — `lapse` and the form-floor withdrawal in
+    // `observe` both act on the skill just observed — so one read here and one
+    // after the attempts is the whole ledger.
+    const heldBeforeItem = !!engine.get(task.skill)?.mastered;
+    const wasLapsingBefore = !!engine.get(task.skill)?.lapsePending;
     // Diagnostic only: what the engine believed about this learner *before* the
     // answer landed. Read here rather than in the watch hook below because the
     // observation changes both, and the question a tail probe asks is which
@@ -1151,6 +1218,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
           strength.set(task.skill, Math.min(60, strength.get(task.skill) * GAP_GROWTH));
         }
         repSeen.get(task.skill)[rep] = exposures + 1;
+        if (attempt === 0 && !assisted) firstTryOK = true;
         solved = true;
       } else {
         res = engine.observe(task.skill, false, { assisted: true, form, rep, scene, kind: task.kind });
@@ -1217,6 +1285,12 @@ function runLearner(seed, policy = 'engine', opts = {}) {
       }
     }
     if (!solved) learn(task.skill, GAIN.studyExample);
+    if (heldBeforeItem && !engine.get(task.skill).mastered) {
+      demotions++;
+      if (engine.get(task.skill).reopenedFor === 'formFloor') demoBy.formFloor++; else demoBy.lapse++;
+    }
+    if (task.kind === 'review') { reviewsServed++; if (firstTryOK) reviewsClean++; }
+    if (heldBeforeItem && engine.get(task.skill).lapsePending && !wasLapsingBefore) lapsesOpened++;
 
     // --- the clock ----------------------------------------------------------
     const cost = itemSeconds({ rep, difficulty: task.difficulty, scaffold: task.scaffold, attempts: tries });
@@ -1248,11 +1322,18 @@ function runLearner(seed, policy = 'engine', opts = {}) {
         // How far this run has been extended, and why. Diagnostic only.
         checkExt: engine.get(task.skill).check?.ext ?? null,
         checkFormExt: engine.get(task.skill).check?.formExt ?? null,
+        // Where in the SITTING this item fell, and what standing the line had
+        // when it was served. This is what makes "what does a returning learner
+        // meet in the first ten minutes" a measurement rather than a reading of
+        // the router's source.
+        sitting, atSecond: sessionSeconds - cost, everHeld: !!engine.get(task.skill).everMastered,
+        heldBeforeItem, lapsingBefore: wasLapsingBefore, firstTryOK,
         before, events,
       });
     }
 
     // --- nobody is routed around --------------------------------------------
+    if (decayMode === 'elapsed') touchedThisSitting.add(task.skill);
     lastTouch.set(task.skill, step);
     for (const s of SKILLS) {
       // Mastered or locked means not servable, so the clock on it does not run:
@@ -1288,10 +1369,23 @@ function runLearner(seed, policy = 'engine', opts = {}) {
       if (!frozen) {
         for (const s of SKILLS) {
           const floor = perma * (peak.get(s) || 0);
-          const keep = Math.pow(1 + gapHours / (GAP_HOURS * strength.get(s)), -gpow);
-          k.set(s, Math.max(floor, floor + (k.get(s) - floor) * keep));
+          if (decayMode === 'elapsed') {
+            // A line practised in the sitting just closed restarts its curve
+            // here, at what it is worth now. One that was not keeps the anchor
+            // it already had, so the wait it is decayed over is the REAL wait
+            // since it was last retrieved and not the wait since the last
+            // boundary. That is the whole difference between the two laws.
+            if (touchedThisSitting.has(s)) { restK.set(s, k.get(s)); restAt.set(s, vnow); }
+            const hours = (vnow - restAt.get(s)) / HOUR + decayHours;
+            const keep = Math.pow(1 + hours / (GAP_HOURS * strength.get(s)), -gpow);
+            k.set(s, Math.max(floor, floor + (restK.get(s) - floor) * keep));
+          } else {
+            const keep = Math.pow(1 + decayHours / (GAP_HOURS * strength.get(s)), -gpow);
+            k.set(s, Math.max(floor, floor + (k.get(s) - floor) * keep));
+          }
         }
       }
+      touchedThisSitting.clear();
       vnow += gapHours * HOUR;
       /* …AND THE RECORD IS RELOADED, because that is what happens next.
          The clock has moved first, so the engine that comes back reads the new
@@ -1326,7 +1420,8 @@ function runLearner(seed, policy = 'engine', opts = {}) {
 
   return {
     theta, lr, items, trace, seconds, claims, cleared, spent, starve, knownSkills,
-    withdrawnOnLoad, withdrawnLines: withdrawnLines.size,
+    withdrawnOnLoad, withdrawnLines: withdrawnLines.size, demotions, demoBy,
+    reviewsServed, reviewsClean, lapsesOpened,
     sessionTrace, reviewItems, deepItems, durable: engine.durableCount(),
     heldItems, heldReview, heldRetrieval, heldDeep, heldOther, heldWorst,
     heldWorstKind: Object.fromEntries(heldWorstKind),
@@ -1587,6 +1682,325 @@ if (process.argv.includes('--self-test')) {
       c.floor <= c.pL && c.floor <= 0.6666 && c.floor < 0.5 && c.why === 'form',
       `pL ${c.pL.toFixed(3)}, plan 0.667, printed ${c.floor.toFixed(3)} (${c.why})`);
   }
+  // 6. THE SPACING RUNG IS BOUGHT WITH ELAPSED TIME AND WITH NOTHING ELSE.
+  //
+  // `reviewCatchUp` lets a survived gap credit the rung it was actually long
+  // enough to pay for, which is the change that makes the ladder able to outrun
+  // a three-day cadence. The whole thing rests on ONE property: the credit is
+  // read off the wall clock, so it cannot be ground out in a sitting. That was
+  // a habit until this assertion existed, and a habit is what the attempt-
+  // counted schedule this replaced turned out to be.
+  //
+  // Both directions, on the real engine, at the shipping ladder:
+  //   a re-probe passed ten minutes after the claim earns rung 0 and advances
+  //     to rung 1, exactly as it did before this rule existed;
+  //   a re-probe passed seventy-two hours after the claim earns every rung the
+  //     ladder prices under 72 h and advances one past it;
+  //   and NO gap, however many re-probes are stacked on it, ever reaches a rung
+  //     the wall clock has not paid for.
+  {
+    const MIN = 60000;
+    const ladder = DEFAULT_MASTERY.reviewMinutes;
+    // Where the rule says a wait of `mins` should land a line that starts at 0.
+    const priced = (mins) => { let e = 0; while (e + 1 < ladder.length && mins >= ladder[e + 1]) e++; return Math.min(ladder.length - 1, e + 1); };
+    const afterGap = (mins, catchUp) => {
+      const m = fresh();
+      m.cfg.reviewCatchUp = catchUp;
+      let t = 1e12;
+      m.setClock(() => t);
+      const st = m.get(ROOT_SKILL);
+      m.place(st);
+      st.mastered = true; st.everMastered = true; st.probe = null; st.check = null;
+      st.reviewStage = 0; st.provedTime = t; st.masteredTime = t;
+      st.formsSeen[rootForm] = { seen: 2, items: 2, correct: 2 };
+      t += mins * MIN;
+      st.lastServed = { difficulty: 4, kind: 'review', seq: 1 };
+      m.observe(ROOT_SKILL, true, { assisted: false, form: rootForm, rep: 'symbolic', kind: 'review' });
+      return st.reviewStage;
+    };
+    const tenMin = afterGap(10, 1);
+    const threeDays = afterGap(72 * 60, 1);
+    const noWait = afterGap(0, 1);
+    const off = afterGap(72 * 60, 0);
+    ok('a spacing rung is bought with elapsed time and with nothing else',
+      tenMin === 1 && noWait === 1 && threeDays === priced(72 * 60) && off === 1
+      && threeDays <= ladder.length - 1,
+      `10 min -> rung ${tenMin}; no wait at all -> rung ${noWait}; 72 h -> rung ${threeDays} `
+      + `(the ladder prices ${priced(72 * 60)}); rule off -> rung ${off}`);
+    // …and the same rule cannot be reached by repeating a short gap: ten
+    // re-probes ten minutes apart must not arrive anywhere a single 72-hour
+    // wait arrives, or the ladder is climbable inside one sitting again.
+    {
+      const m = fresh();
+      m.cfg.reviewCatchUp = 1;
+      let t = 1e12;
+      m.setClock(() => t);
+      const st = m.get(ROOT_SKILL);
+      m.place(st);
+      st.mastered = true; st.everMastered = true; st.probe = null; st.check = null;
+      st.reviewStage = 0; st.provedTime = t; st.masteredTime = t;
+      st.formsSeen[rootForm] = { seen: 2, items: 2, correct: 2 };
+      const seen = [];
+      for (let i = 0; i < 10; i++) {
+        t += 10 * MIN;
+        st.lastServed = { difficulty: 4, kind: 'review', seq: i + 2 };
+        m.observe(ROOT_SKILL, true, { assisted: false, form: rootForm, rep: 'symbolic', kind: 'review' });
+        seen.push(st.reviewStage);
+      }
+      // Every one of those ten waits prices rung 0, so the stage may climb by
+      // one each time and may never jump: the ladder is climbed, not skipped.
+      const climbedByOne = seen.every((v, i) => v === Math.min(ladder.length - 1, i + 1));
+      ok('ten re-probes ten minutes apart climb the ladder one rung at a time and skip nothing',
+        climbedByOne, `stages ${seen.join(' ')}`);
+    }
+    // …and the property the whole thing is FOR, asked of the routing rather
+    // than of the arithmetic: above the first rung, `isDue` refuses a second
+    // re-probe inside a sitting however long the learner sits there. The block
+    // above deliberately bypasses `isDue` to test the ladder in isolation, so
+    // without this assertion the two together would prove nothing about a
+    // schedule that cannot be ground out before lunch — which is the one
+    // promise this ladder exists to make.
+    {
+      const m = fresh();
+      m.cfg.reviewCatchUp = 1;
+      let t = 1e12;
+      m.setClock(() => t);
+      const st = m.get(ROOT_SKILL);
+      m.place(st);
+      st.mastered = true; st.everMastered = true; st.probe = null; st.check = null;
+      st.reviewStage = 0; st.provedTime = t; st.masteredTime = t;
+      st.dueTime = t + 10 * MIN; st.dueAt = 0;
+      st.formsSeen[rootForm] = { seen: 2, items: 2, correct: 2 };
+      t += 10 * MIN;
+      const dueAtTen = m.isDue(st);
+      st.lastServed = { difficulty: 4, kind: 'review', seq: 2 };
+      m.observe(ROOT_SKILL, true, { assisted: false, form: rootForm, rep: 'symbolic', kind: 'review' });
+      // Now sit there for eight hours less a minute — a sitting nobody has ever
+      // played — and the line must still not be due.
+      m.clock += 999;
+      t += (ladder[1] - 1) * MIN;
+      const dueLater = m.isDue(st);
+      ok('above the first rung the ladder cannot be paid inside one sitting',
+        dueAtTen === true && dueLater === false && st.durable === 0,
+        `rung 0 came due after 10 min: ${dueAtTen}; rung 1 (${ladder[1]} min) still not due after ${ladder[1] - 1} more minutes: ${!dueLater}; durable credit earned: ${st.durable}`);
+    }
+  }
+  // -------------------------------------------------------------------------
+  // THE WORK-IN-PROGRESS CAP — `focusOpen`.
+  //
+  // It is the one dial in this wave that can decide which line a learner is
+  // sent to, so it is asserted in four directions: it must refuse to OPEN
+  // something new while the cap is full, it must still open it when the cap is
+  // off (or a rule that does nothing would pass the first half), it must never
+  // route a struggling line around — `starveLimit` is a promise and this sits
+  // below it — and it must never delay a re-probe the wall clock has called
+  // for, because a returning learner meeting recovery first is the whole point
+  // of the schedule.
+  // -------------------------------------------------------------------------
+  {
+    const MIN = 60000;
+    /* A learner mid-lattice: four lines proved and quiet, two lines started and
+       unproved, one line unlocked and never touched. Built by hand so the
+       question the assertion asks is the only thing moving. */
+    const build = (cap) => {
+      const m = fresh();
+      let t = 1e12;
+      m.setClock(() => t);
+      m.clock = 500;
+      for (const id of ['var-meaning', 'eval-expr', 'like-terms', 'one-step-add']) {
+        const st = m.get(id);
+        m.place(st);
+        st.mastered = true; st.everMastered = true; st.probe = null; st.check = null;
+        st.pL = 0.97; st.difficulty = 4; st.attempts = 12; st.lastSeenAt = m.clock;
+        st.reviewStage = 2; st.provedTime = t; st.masteredTime = t;
+        st.dueTime = t + 10 * 24 * 60 * MIN; st.dueAt = 0;   // proved, quiet, not due
+        for (const f of FORMS_BY_SKILL[id]) st.formsSeen[f.id] = { seen: 2, items: 2, correct: 2 };
+      }
+      for (const id of ['order-ops', 'distribute']) {
+        const st = m.get(id);
+        m.place(st);
+        /* Started, and deliberately worth little: a high posterior, no
+           sight-read outstanding and just seen, so the only thing that can beat
+           them is the untouched line. */
+        st.attempts = 6; st.pL = 0.985; st.probe = null; st.lastSeenAt = m.clock; st.difficulty = 3;
+      }
+      m.cfg.focusOpen = cap;
+      return m;
+    };
+    const untouched = 'one-step-mul';
+    const capped = build(2).next();
+    const off = build(0).next();
+    ok('the work-in-progress cap refuses to OPEN a new line, and only that',
+      capped && capped.id !== untouched && off && off.id === untouched,
+      `cap 2 -> ${capped && capped.id}; cap off -> ${off && off.id} (the untouched line)`);
+
+    // …and it sits UNDER the starvation promise, not over it.
+    const starved = build(2);
+    const sv = starved.get('order-ops');
+    sv.lastSeenAt = starved.clock - starved.cfg.starveLimit - 1;
+    const spick = starved.next();
+    // …and a line the cap has never let the router open cannot be starved into
+    // existence either, because nothing has been taken from it: the promise is
+    // about a learner being routed OFF a topic, and this one was never on it.
+    ok('the cap never routes a started line around — starvation still outranks it',
+      spick && spick.id === 'order-ops' && spick.reason === 'starved',
+      `${spick && spick.id} (${spick && spick.reason})`);
+
+    // …and a re-probe the clock called for still comes first, cap or no cap.
+    const due = build(2);
+    const dl = due.get('like-terms');
+    dl.dueTime = 1e12 - 60 * MIN; dl.dueAt = 0;
+    const dpick = due.next();
+    ok('the cap never delays a re-probe the wall clock has called for',
+      dpick && dpick.id === 'like-terms' && dpick.kind === 'review',
+      `${dpick && dpick.id} (${dpick && dpick.kind})`);
+  }
+
+  // -------------------------------------------------------------------------
+  // WHAT SURFACE A RE-PROBE IS READ OFF — `reviewSurface`.
+  //
+  // Cheaper must never mean easier, and it must never mean a surface quietly
+  // dropping out of the retention schedule. Both directions are asserted, and
+  // so is the fall-back, because a rule that can return an empty pool is a rule
+  // that can leave the engine with nothing to say.
+  // -------------------------------------------------------------------------
+  {
+    const band = 4;
+    const at = (id) => (FORMS_BY_SKILL[id] || []).filter((f) => band >= f.dMin && band <= f.dMax);
+    const skill = SKILLS.find((id) => {
+      const f = at(id);
+      return f.length > 1 && new Set(f.map((x) => x.rep)).size > 1;
+    });
+    const build = (on, provedOnly) => {
+      const m = fresh();
+      m.cfg.reviewSurface = on;
+      const st = m.get(skill);
+      m.place(st);
+      st.mastered = true; st.everMastered = true; st.probe = null; st.check = null;
+      st.difficulty = band; st.attempts = 20;
+      const pool = at(skill);
+      const dear = pool.slice().sort((a, b) => ITEM_SECONDS[b.rep] - ITEM_SECONDS[a.rep])[0];
+      for (const f of pool) {
+        /* Every shape has been ASKED. `provedOnly` decides which have been
+           answered: in the first arm all of them, in the second only the
+           dearest surface, which is the case the fall-back has to survive. */
+        const solved = provedOnly ? (f.id === dear.id ? 2 : 0) : 2;
+        st.formsSeen[f.id] = { seen: 2, items: 2, correct: solved };
+      }
+      return { m, st, pool, dear };
+    };
+    const secs = (fid, pool) => {
+      const f = pool.find((x) => x.id === fid);
+      return f ? ITEM_SECONDS[f.rep] : Infinity;
+    };
+    const onArm = build(1, false);
+    const offArm = build(0, false);
+    const onPick = onArm.m.task(onArm.st, 'review', { difficulty: band, scaffold: 'none' });
+    const offPick = offArm.m.task(offArm.st, 'review', { difficulty: band, scaffold: 'none' });
+    const cheapest = Math.min(...onArm.pool.map((f) => ITEM_SECONDS[f.rep]));
+    const dearestOffered = Math.max(...offPick.formCandidates.map((fid) => secs(fid, offArm.pool)));
+    ok('a re-probe is read off the cheapest surface this learner has already solved',
+      onPick.formCandidates.length > 0
+      && onPick.formCandidates.every((fid) => secs(fid, onArm.pool) === cheapest)
+      && dearestOffered > cheapest,
+      `${skill} d${band}: on -> ${cheapest}s surfaces only; off -> up to ${dearestOffered}s`);
+
+    // The fall-back: the only surface with a clean solve behind it is the
+    // dearest one, so the rule must serve THAT rather than reach for a cheaper
+    // surface this learner has never once got right.
+    const fb = build(1, true);
+    const fbPick = fb.m.task(fb.st, 'review', { difficulty: band, scaffold: 'none' });
+    ok('it never reaches for a surface the learner has never once solved',
+      fbPick.formCandidates.length > 0
+      && fbPick.formCandidates.every((fid) => fid === fb.dear.id),
+      `only ${fb.dear.rep} has a clean solve behind it; served ${fbPick.formCandidates.join(', ')}`);
+
+    // …and it cannot touch what the form floor calls a hole. Same record, both
+    // settings: `weakForms` reads questions asked and clean solves, and this
+    // dial changes neither.
+    const holesOn = onArm.m.weakForms(onArm.st).join(',');
+    const holesFb = fb.m.weakForms(fb.st).join(',');
+    const holesOff = build(0, true).m.weakForms(build(0, true).st).join(',');
+    ok('choosing the surface cannot change what the form floor calls a hole',
+      holesOn === '' && holesFb === holesOff && holesFb !== '',
+      `all solved -> "${holesOn}"; one solved, rule on -> "${holesFb}"; rule off -> "${holesOff}"`);
+  }
+
+  // -------------------------------------------------------------------------
+  // THE DESCENT AS A COMPETITOR — `soundWeight`.
+  //
+  // A rung of the descent must be reachable when a held line has gone a long
+  // time untouched, and it must lose to both of the things that outrank it: a
+  // line the learner cannot do yet, and a re-probe the wall clock called for.
+  // A maintenance rule that can beat teaching is not maintenance.
+  // -------------------------------------------------------------------------
+  {
+    const MIN = 60000;
+    const build = ({ weight, open }) => {
+      const m = fresh();
+      let t = 1e12;
+      m.setClock(() => t);
+      m.clock = 5000;
+      /* EVERY line proved and quiet, so the shard really has nothing left to
+         teach — the descent's own precondition. Mastering only some of them
+         unlocks their children, and a newly-opened line with a sight-read
+         outstanding outranks everything here, which is correct behaviour and
+         not the question this block asks. */
+      const OPEN = open ? ['order-ops', 'distribute', 'one-step-mul'] : [];
+      for (const id of SKILLS) {
+        const st = m.get(id);
+        m.place(st);
+        if (OPEN.includes(id)) {
+          st.attempts = 4; st.pL = 0.4; st.lastSeenAt = m.clock; st.difficulty = 3;
+          continue;
+        }
+        st.mastered = true; st.everMastered = true; st.probe = null; st.check = null;
+        st.pL = 0.97; st.difficulty = 4; st.attempts = 12;
+        st.reviewStage = 2; st.provedTime = t; st.masteredTime = t;
+        st.dueTime = t + 10 * 24 * 60 * MIN; st.dueAt = 0;
+        st.lastSeenAt = m.clock - 200;               // long untouched
+        for (const f of FORMS_BY_SKILL[id]) st.formsSeen[f.id] = { seen: 2, items: 2, correct: 2 };
+      }
+      m.cfg.soundWeight = weight;
+      return m;
+    };
+    /* Nothing open. Off, this is the descent by inheritance — `next()` finds
+       nothing above zero and falls through — so both settings must produce a
+       rung, and the assertion below is about the case that separates them. */
+    const idleOn = build({ weight: 0.35, open: false }).next();
+    const idleOff = build({ weight: 0, open: false }).next();
+    ok('the descent is still the answer when a shard has nothing left to learn',
+      idleOn && idleOn.kind === 'deep' && idleOff && idleOff.kind === 'deep',
+      `weighted -> ${idleOn && idleOn.kind}; unweighted -> ${idleOff && idleOff.kind}`);
+
+    /* …and the case that separates them: three lines the learner cannot do yet
+       are on the table. The descent must lose to every one of them. */
+    const busy = build({ weight: 0.35, open: true }).next();
+    ok('a rung of the descent never beats a line the learner cannot do yet',
+      busy && busy.kind !== 'deep',
+      `${busy && busy.id} (${busy && busy.kind})`);
+
+    /* …and it must lose to a re-probe the wall clock called for. */
+    const dueM = build({ weight: 0.35, open: false });
+    const dl = dueM.get('like-terms');
+    dl.dueTime = 1e12 - 60 * MIN; dl.dueAt = 0;
+    const duePick = dueM.next();
+    ok('a rung of the descent never beats a re-probe that has come round',
+      duePick && duePick.id === 'like-terms' && duePick.kind === 'review',
+      `${duePick && duePick.id} (${duePick && duePick.kind})`);
+
+    /* …and the per-sitting budget for held lines still bounds it: a line that
+       has spent `heldReserveCap` rungs is not offered another. */
+    const spentM = build({ weight: 0.35, open: false });
+    for (const id of SKILLS) {
+      const st = spentM.get(id);
+      st.heldServed = spentM.cfg.heldReserveCap; st.heldServedClock = null;
+    }
+    const scores = ['var-meaning', 'like-terms'].map((id) => spentM.leverage(id));
+    ok('the descent is still bounded by the held-line budget for a sitting',
+      scores.every((v) => v === -1), `leverage over a spent line: ${scores.join(', ')}`);
+  }
+
   const bad = out.filter((x) => !x.pass).length;
   console.log(bad ? `\nself-test FAILED — ${bad} of ${out.length}` : `\nself-test passed — ${out.length} assertions`);
   process.exit(bad ? 1 : 0);
@@ -2092,6 +2506,337 @@ if (process.env.SITTINGS_PROBE) {
   process.exit(0);
 }
 
+// ---------------------------------------------------------------------------
+// SCHEDULE A/B — `SCHED_AB=1 node tools/simulate.mjs [learners] [budget]`
+//
+// The scheduler half of the cadence question, graded. Every candidate below is
+// a change to the SCHEDULE — which re-probe comes round when, and what a single
+// missed one costs the ladder. None of them touches a gate: the proving run,
+// the form floor, `durableMinutes` and the two-miss rule are byte-identical in
+// every arm, and the classifier table is measured separately and must not move.
+//
+// Both cadences are run for every candidate, on identical seeds, because a
+// ladder graded against a daily returner is a ladder graded against one
+// customer. That is how the shipping one came to top out at 130 hours: at 24 h
+// that is 5.4 nights and a proved line rests five sittings, and at 72 h it is
+// 1.8 gaps and NOTHING EVER RESTS.
+//
+// Diagnostic only. It exits; no shipping figure passes through it.
+// ---------------------------------------------------------------------------
+if (process.env.SCHED_AB) {
+  const N = Number(process.env.PROBE_N || 60);
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+  const SHIP = DEFAULT_MASTERY.reviewMinutes.join(',');
+  /* Each candidate is [label, reviewMinutes, CFG]. The environment is what
+     `configure()` reads, so a candidate is applied by writing it and every arm
+     of one process shares the expensive setup above. */
+  const CANDIDATES = (process.env.SCHED_ONLY ? [] : [
+    ['shipping                       ' + SHIP, SHIP, ''],
+    ['+ one rung   ' + SHIP + ',19500', SHIP + ',19500', ''],
+    ['+ two rungs  ' + SHIP + ',19500,48750', SHIP + ',19500,48750', ''],
+    ['tighter early (design doc)     10,180,720,1800,4320,10080', '10,180,720,1800,4320,10080', ''],
+    ['tighter early + two rungs      10,180,720,1800,4320,10080,25200,63000', '10,180,720,1800,4320,10080,25200,63000', ''],
+    ['lapse steps the rung down, shipping ladder', SHIP, 'lapseStep=1'],
+    ['+ two rungs AND the lapse step', SHIP + ',19500,48750', 'lapseStep=1'],
+  ]).concat((process.env.SCHED_EXTRA || '').split(';').filter(Boolean).map((spec) => {
+    const [label, mins, cfg] = spec.split('|');
+    return [label, mins || SHIP, cfg || ''];
+  }));
+
+  console.log(`SCHEDULE A/B — ${LATTICE}, ${SKILLS.length} skills, needs ${SKILLS_NEEDED} at true competence >= ${TRUE_MASTERY}`);
+  console.log(`  ${N} learners an arm, identical seeds, budget ${BUDGET}, ${SESSION_MINUTES}-minute sittings`);
+  console.log('  every arm keeps the same gate: the proving run, the form floor, durableMinutes and the two-miss rule\n');
+  console.log('  candidate                                                        cadence  true mastery    Q1     +7d    +30d  truly held  engine held  hollow/learner  of which k<bar  a hole  hollow lines  hollow/claim  re-probes  demotions  new ground');
+  const envMins = process.env.SIM_MINUTES, envCfg = process.env.CFG;
+  for (const [label, mins, cfg] of CANDIDATES) {
+    for (const gap of [24, 72]) {
+      process.env.SIM_MINUTES = mins;
+      if (cfg) process.env.CFG = envCfg ? `${envCfg},${cfg}` : cfg; else if (envCfg) process.env.CFG = envCfg; else delete process.env.CFG;
+      const rows = [];
+      let newGround = 0, allItems = 0;
+      for (let i = 0; i < N; i++) {
+        rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+          /* SCHED_DAYS bounds the CALENDAR instead of the item budget — the
+             regime a school actually buys, and the one where a longer terminal
+             rung can cost what it buys elsewhere, because a line parked past
+             the end of term is never re-probed at all. Unset, the arm is
+             budget-matched exactly as the headline is. */
+          record: false, sessions: Number(process.env.SCHED_DAYS) || BUDGET,
+          sessionMinutes: SESSION_MINUTES, gapHours: gap,
+          /* SCHED_DECAY pins the FORGETTING clock while the scheduling clock
+             moves, so a scheduling change can be graded against a learner who
+             forgets at a rate the model is not being asked to decide. See the
+             2x2 under `coming back across days`. */
+          decayHours: process.env.SCHED_DECAY ? Number(process.env.SCHED_DECAY) : undefined,
+          watch: (e) => {
+            allItems++;
+            if (!e.everHeld && (e.kind === 'learn' || e.kind === 'check' || e.kind === 'probe')) newGround++;
+          },
+        }));
+      }
+      const got = 100 * rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rows.length;
+      const byTheta = [...rows].sort((x, y) => x.theta - y.theta);
+      const fifth = byTheta.slice(0, Math.max(1, Math.floor(byTheta.length / 5)));
+      const q1 = 100 * fifth.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / fifth.length;
+      const anyHS = 100 * rows.filter((r) => r.hollowStrict > 0).length / rows.length;
+      /* A LONGER RUNG IS A CHEAPER SCHEDULE AND IT IS NOT FREE, so the two
+         columns that catch it are here rather than in a follow-up: the same
+         learners scored a week and a month after their last item, taught
+         nothing in between. `design/MASTERY-TAIL-AND-RETENTION.md` §6e measured
+         a slow ladder at 11.5% after thirty days against 48.0%, which is
+         exactly the trade a longer terminal rung can buy without saying so. */
+      const after = (d) => 100 * rows.map((r) => scoreAfter(r, d)).filter((x) => x.trueMastered >= SKILLS_NEEDED).length / rows.length;
+      const cl = rows.flatMap((r) => r.claims);
+      const clBad = cl.filter((c) => c.k < HOLLOW || c.holes > 0 || c.surface < HOLLOW).length;
+      /* A HOLLOW CLAIM HAS TWO CAUSES AND THEY DO NOT HAVE THE SAME FIX.
+         `hollowAtEnd` is the aggregate: the line is held and the learner is
+         genuinely under the bar, which is ROT the schedule did not catch.
+         The strict set adds a line held over a shape that was served and never
+         once solved, and a line whose WEAKEST SURFACE is under the bar, which
+         are bank and routing defects. A schedule change can only be judged on
+         the first of them, so it is printed on its own. */
+      const anyOld = 100 * rows.filter((r) => r.hollowAtEnd.length > 0).length / rows.length;
+      const anyHole = 100 * rows.filter((r) => [...r.servedHoleSet].some((x) => r.engineMasteredSet.has(x))).length / rows.length;
+      console.log(`  ${(gap === 24 ? label : '').padEnd(64)} ${String(gap + 'h').padStart(6)}  ${got.toFixed(1).padStart(11)}%  ${q1.toFixed(1).padStart(4)}%  ${after(7).toFixed(1).padStart(5)}%  ${after(30).toFixed(1).padStart(5)}%  ${mean(rows.map((r) => r.trueMastered)).toFixed(1).padStart(8)}/${SKILLS.length}  ${mean(rows.map((r) => r.engineMastered)).toFixed(1).padStart(7)}/${SKILLS.length}  ${anyHS.toFixed(1).padStart(13)}%  ${anyOld.toFixed(1).padStart(13)}%  ${anyHole.toFixed(1).padStart(5)}%  ${mean(rows.map((r) => r.hollowAtEndStrict.length)).toFixed(2).padStart(12)}  ${(100 * clBad / Math.max(1, cl.length)).toFixed(2).padStart(11)}%  ${mean(rows.map((r) => r.reviewsServed)).toFixed(0).padStart(9)}  ${mean(rows.map((r) => r.demotions)).toFixed(1).padStart(9)}  ${(100 * newGround / Math.max(1, allItems)).toFixed(1).padStart(9)}%`);
+    }
+  }
+  if (envMins) process.env.SIM_MINUTES = envMins; else delete process.env.SIM_MINUTES;
+  if (envCfg) process.env.CFG = envCfg; else delete process.env.CFG;
+  console.log('\n  NEW GROUND is the share of every item served that went to a line this learner has never proved.');
+  console.log('  A schedule that cannot rest a proved line spends the sitting re-asking questions it has already had answered.');
+  process.exit(0);
+}
+
+// ---------------------------------------------------------------------------
+// CADENCE PROBE — `CADENCE_PROBE=1 node tools/simulate.mjs [learners] [budget]`
+//
+// IS THE EVERY-THIRD-DAY FIGURE THE FORGETTING MODEL, OR IS IT THE SCHEDULER?
+//
+// Those are different problems with different fixes and for as long as one
+// number carried both, neither could be worked on. The block below is the
+// experiment that separates them, and it is a 2x2 rather than an argument.
+//
+// `gapHours` was two mechanisms wearing one name:
+//
+//   the SCHEDULING clock   what the engine is told — which re-probe has come
+//                          round, whether a pass crossed a real gap and counts
+//                          as durable, whether a belief has gone stale, whether
+//                          this is a new sitting at all.
+//   the FORGETTING clock   how much memory the wait costs. Nothing in the
+//                          engine can see this; it is the learner model.
+//
+// Cross them:
+//
+//   sched 24 / forget 24   the daily arm, as shipped
+//   sched 72 / forget 72   the every-third-day arm, as shipped
+//   sched 72 / forget 24   THE SCHEDULER ALONE. The engine meets a three-day
+//                          cadence — its ladder, its durability rule, its
+//                          staleness — while the learner forgets one night's
+//                          worth. Whatever this arm loses against the daily
+//                          arm is a scheduling defect and is fixable without
+//                          touching a forgetting constant.
+//   sched 24 / forget 72   THE MODEL ALONE. The engine sees a daily returner;
+//                          the learner forgets as if three nights had passed.
+//                          Whatever this arm loses is the forgetting model.
+//
+// A fifth arm changes the LAW rather than either clock: `decayMode: 'elapsed'`
+// applies the power law once over the real time since a line was last
+// practised, instead of applying it again at every sitting boundary. Composing
+// a power law with itself is an exponential, which is the curve this file's own
+// header says does not fit meaningful material. Same constants, same floor,
+// same strength term.
+//
+// Diagnostic only. It exits; no shipping figure passes through it.
+// ---------------------------------------------------------------------------
+if (process.env.CADENCE_PROBE) {
+  const N = Number(process.env.PROBE_N || 120);
+  const med = (xs) => { if (!xs.length) return NaN; const v = [...xs].sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+  console.log(`CADENCE PROBE — ${LATTICE}, ${SKILLS.length} skills, needs ${SKILLS_NEEDED} at true competence >= ${TRUE_MASTERY}`);
+  console.log(`  ${N} learners an arm, identical seeds, item budget ${BUDGET}, ${SESSION_MINUTES}-minute sittings`);
+  console.log(`  PERMA ${PERMA}   exponent ${GAP_POW}   growth ${GAP_GROWTH}   strength cap 60\n`);
+
+  const LAW = process.env.SIM_LAW || 'iterated';
+  /* PROBE_ARMS is a comma-separated list of substrings; only the arms whose
+     label matches one of them are run. It exists so a sensitivity question —
+     "what does this cadence read under a different pair of constants" — costs
+     two arms rather than six. */
+  const WANT = (process.env.PROBE_ARMS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const ARMS = [
+    ['daily — shipping', 24, 24, LAW],
+    ['every third day — shipping', 72, 72, LAW],
+    ['SCHEDULER ALONE  72h clock, 24h loss', 72, 24, LAW],
+    ['MODEL ALONE      24h clock, 72h loss', 24, 72, LAW],
+    ['every third day, elapsed-time law', 72, 72, 'elapsed'],
+    ['every day, elapsed-time law', 24, 24, 'elapsed'],
+  ].filter(([label]) => !WANT.length || WANT.some((w) => label.includes(w)));
+  const EARLY = 600;  // the first ten minutes of a sitting, in seconds
+  const store = [];
+  for (const [label, sched, forget, mode] of ARMS) {
+    const rows = [];
+    // What the learner MET, bucketed by where in the sitting it fell. `early`
+    // is the opening ten minutes of every sitting after the first — the frame
+    // the question is actually about.
+    const early = {}, late = {};
+    let earlyN = 0, lateN = 0;
+    /* WHERE THE ITEMS WENT, and what became of the line they went to.
+       The re-entry table below says what a returning learner MEETS. This says
+       what the whole run was SPENT ON, classified at the buzzer by whether the
+       line it was spent on ever got there — which is the only reading that can
+       tell a schedule that is maintaining knowledge apart from one that is
+       paying twice for ground it keeps losing. Nothing here is a model
+       assumption: it is items, seconds, and the hidden competence at the end. */
+    const went = {};          // `${kind}|${outcome}` -> { n, sec }
+    let warmDurable = 0, coldDurable = 0;
+    for (let i = 0; i < N; i++) {
+      const bump = (bag, kind) => { bag[kind] = (bag[kind] || 0) + 1; };
+      const mine = new Map();  // skill -> Map(kind -> {n, sec})
+      rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+        record: false, sessions: BUDGET, sessionMinutes: SESSION_MINUTES,
+        gapHours: sched, decayHours: forget, decayMode: mode,
+        watch: (e) => {
+          let m = mine.get(e.skill);
+          if (!m) { m = new Map(); mine.set(e.skill, m); }
+          const cell = m.get(e.kind) || { n: 0, sec: 0 };
+          cell.n += 1; cell.sec += e.cost;
+          m.set(e.kind, cell);
+          /* A re-probe that came back right ON THE FIRST ASK, cold, after a
+             real gap, against one that only came back right on the lapse probe
+             two minutes later — after the echo had just answered it. Both buy
+             the same durable credit today. They are not the same evidence. */
+          if (e.kind === 'review' && e.solved) {
+            if (e.lapsingBefore) warmDurable++; else if (e.firstTryOK) coldDurable++;
+          }
+          if (e.sitting < 2) return;
+          // A held line that is due, or one caught lapsing, is RECOVERY. A line
+          // that has never been proved is NEW GROUND. The distinction is the
+          // whole question.
+          const bag = e.atSecond < EARLY ? early : late;
+          if (e.atSecond < EARLY) earlyN++; else lateN++;
+          if (e.kind === 'review') bump(bag, 'recovery: due re-probe');
+          else if (e.kind === 'retrieval') bump(bag, 'recovery: interleaved');
+          else if (e.kind === 'deep') bump(bag, 'sounding');
+          else if (e.heldBeforeItem) bump(bag, 'recovery: other, held line');
+          else if (e.everHeld) bump(bag, 're-proving a line that fell');
+          else if (e.kind === 'check' || e.kind === 'probe') bump(bag, 'new ground: proving run');
+          else bump(bag, 'new ground: teaching');
+        },
+      }));
+      const r = rows[rows.length - 1];
+      for (const [sk, m] of mine) {
+        /* Three outcomes, and they are read off the hidden truth and the
+           engine's own save, never off anything the schedule believes:
+           ARRIVED  the learner really holds it at the buzzer;
+           CLAIMED  the engine holds it and the learner does not;
+           LOST     neither. */
+        const truly = r.k.get(sk) >= TRUE_MASTERY;
+        const claimed = r.engineMasteredSet.has(sk);
+        const outcome = truly ? 'arrived' : claimed ? 'claimed only' : 'lost';
+        for (const [kind, cell] of m) {
+          const key = `${kind}|${outcome}`;
+          const at = went[key] || { n: 0, sec: 0 };
+          at.n += cell.n; at.sec += cell.sec;
+          went[key] = at;
+        }
+      }
+    }
+    store.push({ label, sched, forget, mode, rows, early, late, earlyN, lateN, went, warmDurable, coldDurable });
+  }
+
+  console.log('  THE 2x2 — the same seeds, the same bank, the same budget; only the two clocks move');
+  console.log('  arm                                     sched  loss   true mastery   Q1     truly held   engine held   hollow(NEW)');
+  for (const a of store) {
+    const got = 100 * a.rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / a.rows.length;
+    const byTheta = [...a.rows].sort((x, y) => x.theta - y.theta);
+    const fifth = byTheta.slice(0, Math.max(1, Math.floor(byTheta.length / 5)));
+    const q1 = 100 * fifth.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / fifth.length;
+    const anyHS = 100 * a.rows.filter((r) => r.hollowStrict > 0).length / a.rows.length;
+    console.log(`  ${a.label.padEnd(38)} ${String(a.sched + 'h').padStart(4)}  ${String(a.forget + 'h').padStart(4)}${a.mode === 'elapsed' ? '*' : ' '} ${got.toFixed(1).padStart(11)}%  ${q1.toFixed(1).padStart(5)}%  ${mean(a.rows.map((r) => r.trueMastered)).toFixed(1).padStart(8)}/${SKILLS.length}  ${mean(a.rows.map((r) => r.engineMastered)).toFixed(1).padStart(9)}/${SKILLS.length}  ${anyHS.toFixed(1).padStart(9)}%`);
+  }
+  console.log('  (* = the power law taken ONCE over the elapsed time since the line was last practised,');
+  console.log('   rather than applied again at every sitting boundary. Same constants.)');
+
+  console.log('\n  WHAT IT COST, MECHANISM BY MECHANISM');
+  console.log('  arm                                     mean k   k on held lines   demotions/learner   lapsed at buzzer   durable/learner');
+  for (const a of store) {
+    const kHeld = [];
+    for (const r of a.rows) for (const s2 of r.engineMasteredSet) kHeld.push(r.k.get(s2));
+    console.log(`  ${a.label.padEnd(38)} ${mean(a.rows.map((r) => r.avg)).toFixed(3).padStart(6)}   ${(kHeld.length ? mean(kHeld) : NaN).toFixed(3).padStart(15)}   ${mean(a.rows.map((r) => r.demotions)).toFixed(1).padStart(17)}   ${mean(a.rows.map((r) => r.lapsed)).toFixed(2).padStart(16)}   ${med(a.rows.map((r) => r.durable)).toFixed(0).padStart(15)}`);
+  }
+
+  console.log('\n  THE CHURN — a claim lost mid-sitting, by the mechanism that took it');
+  console.log('  arm                                     re-probes served   right first try   lapses opened   demoted by a lapse   demoted by the form floor');
+  for (const a of store) {
+    const rs = mean(a.rows.map((r) => r.reviewsServed));
+    const rc = mean(a.rows.map((r) => r.reviewsClean));
+    console.log(`  ${a.label.padEnd(38)} ${rs.toFixed(0).padStart(16)}   ${(100 * rc / Math.max(1e-9, rs)).toFixed(1).padStart(14)}%   ${mean(a.rows.map((r) => r.lapsesOpened)).toFixed(1).padStart(13)}   ${mean(a.rows.map((r) => r.demoBy.lapse)).toFixed(1).padStart(18)}   ${mean(a.rows.map((r) => r.demoBy.formFloor)).toFixed(1).padStart(25)}`);
+  }
+
+  console.log('\n  DURABLE STRENGTH, AND WHAT ONE GAP IS THEREFORE WORTH');
+  console.log('  arm                                     median S   at the cap   never crossed a gap   this gap costs   one line, ten sittings untouched');
+  for (const a of store) {
+    const all = a.rows.flatMap((r) => SKILLS.map((s2) => r.strength.get(s2)));
+    const keepOf = (S, h) => Math.pow(1 + h / (GAP_HOURS * S), -GAP_POW);
+    const cost = all.map((S) => 1 - keepOf(S, a.forget));
+    // What the two LAWS say about the same line and the same wait, so the
+    // difference between them is a number and not a claim about composition.
+    const S = med(all);
+    const ten = a.mode === 'elapsed'
+      ? 1 - keepOf(S, a.forget * 10)
+      : 1 - Math.pow(keepOf(S, a.forget), 10);
+    console.log(`  ${a.label.padEnd(38)} ${med(all).toFixed(1).padStart(8)}   ${(100 * all.filter((x) => x >= 60).length / all.length).toFixed(0).padStart(9)}%   ${(100 * all.filter((x) => x < 2).length / all.length).toFixed(0).padStart(18)}%   ${(100 * mean(cost)).toFixed(1).padStart(13)}%   ${(100 * ten).toFixed(1).padStart(31)}%`);
+  }
+  console.log('  (the last column is the same line and the same wait under each arm\'s own law: what ten');
+  console.log('   sittings of being left alone take off the competence a line holds above its floor.)');
+
+  console.log('\n  WHAT A RETURNING LEARNER MEETS FIRST — every sitting after the first, opening 10 minutes');
+  const KINDS = ['recovery: due re-probe', 'recovery: interleaved', 'recovery: other, held line',
+    're-proving a line that fell', 'new ground: proving run', 'new ground: teaching', 'sounding'];
+  console.log('  arm                                     ' + KINDS.map((k2) => k2.slice(0, 12).padStart(13)).join(''));
+  for (const a of store) {
+    console.log(`  ${a.label.padEnd(38)} ` + KINDS.map((k2) => `${(100 * (a.early[k2] || 0) / Math.max(1, a.earlyN)).toFixed(1)}%`.padStart(13)).join(''));
+  }
+  console.log('  …and the rest of the sitting, for comparison');
+  for (const a of store) {
+    console.log(`  ${a.label.padEnd(38)} ` + KINDS.map((k2) => `${(100 * (a.late[k2] || 0) / Math.max(1, a.lateN)).toFixed(1)}%`.padStart(13)).join(''));
+  }
+  console.log('\n  WHERE THE WHOLE RUN WENT — every item of every learner, by what the schedule called it');
+  console.log('  and by what became of the line it was spent on. ARRIVED = the learner really holds it at');
+  console.log('  the buzzer; CLAIMED ONLY = the engine holds it and the learner does not; LOST = neither.');
+  {
+    const KIND = ['learn', 'probe', 'check', 'review', 'retrieval', 'deep'];
+    const OUT = ['arrived', 'claimed only', 'lost'];
+    console.log('  arm                                     ' + KIND.map((k2) => k2.padStart(11)).join('') + '        total');
+    for (const a of store) {
+      const tot = Object.values(a.went).reduce((x, c) => x + c.n, 0);
+      for (const o of OUT) {
+        const cells = KIND.map((k2) => {
+          const c = a.went[`${k2}|${o}`];
+          return `${(100 * (c ? c.n : 0) / Math.max(1, tot)).toFixed(1)}%`.padStart(11);
+        });
+        const row = KIND.reduce((x, k2) => x + (a.went[`${k2}|${o}`]?.n || 0), 0);
+        console.log(`  ${(o === 'arrived' ? a.label : '').padEnd(38)} ${o.padEnd(13)}`.slice(0, 39) + cells.join('') + `${(100 * row / Math.max(1, tot)).toFixed(1)}%`.padStart(13));
+      }
+      const lost = KIND.reduce((x, k2) => x + (a.went[`${k2}|lost`]?.n || 0), 0);
+      const lostSec = KIND.reduce((x, k2) => x + (a.went[`${k2}|lost`]?.sec || 0), 0);
+      const allSec = Object.values(a.went).reduce((x, c) => x + c.sec, 0);
+      console.log(`    ${a.label.padEnd(38)} spent on lines that never arrived: ${(100 * lost / Math.max(1, tot)).toFixed(1)}% of items, ${(100 * lostSec / Math.max(1, allSec)).toFixed(1)}% of the seconds`);
+    }
+    console.log('\n  RE-PROBES PASSED COLD vs PASSED WARM — both buy the same durable credit today');
+    console.log('  arm                                     passed cold, first ask   passed only on the lapse probe (2 min later, after the echo)');
+    for (const a of store) {
+      const t = a.warmDurable + a.coldDurable;
+      console.log(`  ${a.label.padEnd(38)} ${`${(100 * a.coldDurable / Math.max(1, t)).toFixed(1)}%`.padStart(22)}   ${`${(100 * a.warmDurable / Math.max(1, t)).toFixed(1)}%`.padStart(22)}`);
+    }
+  }
+
+  console.log('  RECOVERY is a line that already stands being re-proved before it lapses; NEW GROUND is a');
+  console.log('  line that has never been proved. A returning learner who meets new ground first is a');
+  console.log('  scheduling defect. A returning learner who meets recovery first and still loses the line');
+  console.log('  is a forgetting-model finding, and no amount of re-ordering will fix it.');
+  process.exit(0);
+}
+
 console.log(`ASCENT — mastery simulation`);
 console.log(`${LEARNERS} synthetic learners, budget ${BUDGET} items each, ${SKILLS.length} skills\n`);
 
@@ -2400,7 +3145,17 @@ for (const [name, val, prov] of [
   ['strength cap', 60, 'CHOSEN — the ceiling on durable strength; ~5 survived re-probes reach it; NOT swept'],
   ['stability step', 0.7, 'CHOSEN — what one spaced retrieval takes off the within-sitting interference cost; NOT swept'],
   ['DECAY', DECAY, 'CHOSEN — within-sitting interference per item; unchanged from the build these figures are held against'],
-]) console.log(`    ${String(name).padEnd(20)} ${String(val).padEnd(7)} ${prov}`);
+  /* THE ONE THAT WAS NOT ON THIS LIST AND DECIDES MORE THAN THE TWO THAT WERE.
+     The law above is applied AGAIN at every sitting boundary, so a line left
+     alone for n sittings decays by keep(h)^n — which is EXPONENTIAL in the
+     number of boundaries, and the exponential is precisely the curve this
+     file's own header says fits nonsense syllables and does not fit meaningful
+     material. Composing a power law with itself is not a power law. Taken once
+     over the real elapsed time since the line was last practised it is the law
+     as written. Both are run; the row beneath the sweep prints the difference,
+     and `decayMode` in `runLearner` is the arm. */
+  ['the composition law', 'iterated', 'CHOSEN, AND UNTIL NOW UNNAMED — the power law is re-applied at EVERY sitting boundary, which composes to an exponential in the number of boundaries; \'elapsed\' takes it once over the real time since the line was last practised. Printed below.'],
+]) console.log(`    ${String(name).padEnd(20)} ${String(val).padEnd(9)} ${prov}`);
 for (const gap of [24, 72]) {
   const rows = returners[gap];
   const got = rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length;
@@ -2536,6 +3291,58 @@ console.log('\n  the retention test — the same learners asked again a week lat
   console.log('     and none of its re-probes crossed a night, so nothing it holds is durable strength.)');
 }
 
+// ---------------------------------------------------------------------------
+// MODEL OR SCHEDULE? — the 2x2 that separates two mechanisms one name was
+// hiding, printed on every run because the answer decides who owns the defect.
+//
+// `gapHours` was two clocks:
+//
+//   the SCHEDULING clock   what the ENGINE is told the learner was away —
+//                          which re-probe has come round, whether a pass
+//                          crossed a real gap, whether a belief has gone stale.
+//   the FORGETTING clock   how much MEMORY the wait costs. Nothing in the
+//                          engine can see it; it is the learner model, and it
+//                          rests on two constants nobody here has calibrated.
+//
+// While they shared a name the every-third-day figure was the sum of both and
+// could be attributed to neither, so the argument about it could not end. Cross
+// them and it can. Read the two middle rows: whatever the 72 h SCHEDULING clock
+// loses on its own is a scheduling defect and is fixable without touching a
+// forgetting constant; whatever the 72 h FORGETTING clock loses on its own is
+// not, and no amount of re-ordering the session will move it.
+// ---------------------------------------------------------------------------
+{
+  const N = Math.min(60, RETURN_N);
+  console.log('\n  model or schedule? — the two clocks that used to be one, crossed');
+  console.log('    scheduling clock  what the ENGINE is told the learner was away (the ladder, durability, staleness)');
+  console.log('    forgetting clock  how much MEMORY the wait costs, which the engine cannot see');
+  console.log('    arm                                              sched   loss   true mastery   Q1      truly held   engine held');
+  const cells = [
+    ['daily, as delivered', 24, 24],
+    ['every third day, as delivered', 72, 72],
+    ['THE SCHEDULER ALONE  72 h clock, 24 h loss', 72, 24],
+    ['THE MODEL ALONE      24 h clock, 72 h loss', 24, 72],
+  ];
+  for (const [label, sched, forget] of cells) {
+    const rows = [];
+    for (let i = 0; i < N; i++) {
+      rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+        record: false, sessions: RETURN_SESSIONS, sessionMinutes: SESSION_MINUTES,
+        gapHours: sched, decayHours: forget,
+      }));
+    }
+    const got = 100 * rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rows.length;
+    const byTheta = [...rows].sort((a, b) => a.theta - b.theta);
+    const fifth = byTheta.slice(0, Math.max(1, Math.floor(byTheta.length / 5)));
+    const q1 = 100 * fifth.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / fifth.length;
+    const mn = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    console.log(`    ${label.padEnd(46)} ${String(sched + 'h').padStart(5)}  ${String(forget + 'h').padStart(5)}  ${got.toFixed(1).padStart(11)}%  ${q1.toFixed(1).padStart(5)}%  ${mn(rows.map((r) => r.trueMastered)).toFixed(1).padStart(10)}/${SKILLS.length}  ${mn(rows.map((r) => r.engineMastered)).toFixed(1).padStart(9)}/${SKILLS.length}`);
+  }
+  console.log(`    (${N} learners a cell against ${RETURN_N} above, identical seeds. READ THE MEAN LINES HELD as well as the`);
+  console.log(`     headline: the bar is ${SKILLS_NEEDED} of ${SKILLS.length} truly held, so at a cadence where the mean sits several lines under it`);
+  console.log('     the percentage is the tail of a distribution and moves in jumps, while the mean moves smoothly.)');
+}
+
 console.log('\n  how much of that is the forgetting model? (both cadences, both constants swept)');
 {
   /* THE SWEEP HAS TO RUN THE SAME ARM AS THE HEADLINE, AND BOTH CADENCES.
@@ -2574,6 +3381,32 @@ console.log('\n  how much of that is the forgetting model? (both cadences, both 
   console.log(`     middle cell of each table is that cadence's row to within sampling noise. The engine is identical`);
   console.log(`     in all eighteen; only the forgetting model moves. The shipping figures use PERMA ${PERMA}, exponent ${GAP_POW}.`);
   console.log('     Read the SPREAD of each table before quoting either row: these two constants are chosen, not measured.)');
+
+  /* …AND THE THIRD CHOICE, WHICH IS NOT A CONSTANT AT ALL. Same constants,
+     same floor, same strength term, one composition: the power law taken ONCE
+     over the elapsed time since the line was last practised, instead of again
+     at every sitting boundary. It is a bigger lever than either constant on the
+     cadence that matters, and it had no name until this line. */
+  console.log('\n    the composition, at the shipping constants — the same nine-cell middle, both laws');
+  for (const gap of [24, 72]) {
+    const out = [];
+    for (const mode of ['iterated', 'elapsed']) {
+      const rows = [];
+      for (let i = 0; i < N; i++) {
+        rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+          record: false, sessions: RETURN_SESSIONS, sessionMinutes: SESSION_MINUTES, gapHours: gap,
+          decayMode: mode,
+        }));
+      }
+      const at = 100 * rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rows.length;
+      const wk = 100 * rows.map((r) => scoreAfter(r, 7)).filter((x) => x.trueMastered >= SKILLS_NEEDED).length / rows.length;
+      const held = rows.reduce((a, r) => a + r.trueMastered, 0) / rows.length;
+      out.push(`${mode.padEnd(9)} ${at.toFixed(0).padStart(3)}% / ${wk.toFixed(0)}% at a week, ${held.toFixed(1)} of ${SKILLS.length} lines truly held`);
+    }
+    console.log(`      ${(gap === 24 ? 'every day (24 h)' : 'every third day (72 h)').padEnd(24)} ${out.join('    ')}`);
+  }
+  console.log('      (a power law re-applied at every boundary is an exponential in the number of boundaries.');
+  console.log('       Neither law is calibrated here. The point of the row is the SIZE of the choice.)');
 }
 
 {

@@ -1,6 +1,6 @@
 # Standards alignment — ASCENT, Algebra I Level 1
 
-*The Cipher Worlds · level `algebra1-level1` · 10 skills, 66 item forms*
+*The Cipher Worlds · level `algebra1-level1` · 10 skills, 67 item forms*
 
 | | |
 |---|---|
@@ -25,7 +25,7 @@ One row per skill, in prerequisite order. Nothing unlocks before everything abov
 | 1 | `var-meaning` | — | 6.EE.A.2.A<br>6.EE.B.6<br>HSA.SSE.A.1.A | 6.6(C) *(core)*<br>7.7 *(supporting)*<br>A.12(B) *(introduced)* | 8 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 2 | `eval-expr` | `var-meaning` | 6.EE.A.2.C<br>6.EE.C.9<br>7.EE.B.3 | 7.7 *(supporting)*<br>A.12(B) *(introduced)* | 7 item forms across 4 representations (symbolic, contextual, graph, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 3 | `order-ops` | `eval-expr` | 6.EE.A.1<br>6.EE.A.2.C<br>7.EE.B.3 | 6.7(A) *(core)* | 8 item forms across 4 representations (contextual, symbolic, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
-| 4 | `like-terms` | `eval-expr` | 6.EE.A.3<br>6.EE.A.4<br>7.EE.A.1<br>HSA.SSE.A.1.B | 6.7(C) *(core)*<br>6.7(D) *(core)*<br>A.10(A) *(core)* | 7 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
+| 4 | `like-terms` | `eval-expr` | 6.EE.A.3<br>6.EE.A.4<br>7.EE.A.1<br>HSA.SSE.A.1.B | 6.7(C) *(core)*<br>6.7(D) *(core)*<br>A.10(A) *(core)* | 8 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 5 | `distribute` | `like-terms` | 6.EE.A.3<br>7.EE.A.1<br>7.EE.A.2<br>HSA.SSE.A.2 | 6.7(C) *(supporting)*<br>6.7(D) *(core)*<br>A.10(B) *(supporting)*<br>A.10(D) *(core)* | 7 item forms across 4 representations (symbolic, contextual, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 6 | `one-step-add` | `var-meaning` | 6.EE.B.5<br>6.EE.B.7<br>HSA.REI.B.3 | 6.9(A) *(core)*<br>6.10(A) *(core)*<br>A.5(A) *(supporting)* | 5 item forms across 5 representations (symbolic, contextual, graph, table, verbal); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
 | 7 | `one-step-mul` | `one-step-add` | 6.EE.B.7<br>7.EE.B.4.A<br>HSA.REI.B.3 | 6.10(A) *(core)*<br>A.5(A) *(supporting)* | 6 item forms across 5 representations (symbolic, contextual, graph, verbal, table); gate: 3 unassisted correct at band 3+, then a proving run of 3 unassisted items at band 4+ |
@@ -115,8 +115,8 @@ A code is not a citation. Each block below gives the knowledge-and-skills statem
 | TEKS | Depth | 19 TAC citation | Knowledge and skills statement | Student expectation | Evidence in this skill |
 |---|---|---|---|---|---|
 | **6.7(C)** | core | `19 TAC §111.26(b)(7)(C)` | The student applies mathematical process standards to develop concepts of expressions and equations. The student is expected to: | determine if two expressions are equivalent using concrete models, pictorial models, and algebraic representations; and | `lt-equivalent` |
-| **6.7(D)** | core | `19 TAC §111.26(b)(7)(D)` | The student applies mathematical process standards to develop concepts of expressions and equations. The student is expected to: | generate equivalent expressions using the properties of operations: inverse, identity, commutative, associative, and distributive properties. | `lt-collect`, `lt-three`, `lt-four`, `lt-square`, `lt-perimeter` |
-| **A.10(A)** | core | `19 TAC §111.39(c)(10)(A)` | The student applies the mathematical process standards and algebraic methods to rewrite in equivalent forms and perform operations on polynomial expressions. The student is expected to: | add and subtract polynomials of degree one and degree two; | `lt-collect`, `lt-three`, `lt-four`, `lt-square`, `lt-perimeter`, `lt-table` |
+| **6.7(D)** | core | `19 TAC §111.26(b)(7)(D)` | The student applies mathematical process standards to develop concepts of expressions and equations. The student is expected to: | generate equivalent expressions using the properties of operations: inverse, identity, commutative, associative, and distributive properties. | `lt-collect`, `lt-three`, `lt-four`, `lt-square`, `lt-perimeter`, `lt-bays` |
+| **A.10(A)** | core | `19 TAC §111.39(c)(10)(A)` | The student applies the mathematical process standards and algebraic methods to rewrite in equivalent forms and perform operations on polynomial expressions. The student is expected to: | add and subtract polynomials of degree one and degree two; | `lt-collect`, `lt-three`, `lt-four`, `lt-square`, `lt-perimeter`, `lt-table`, `lt-bays` |
 
 **6.7(C) — what is and is not claimed.** Algebraic representations, and the pictorial model in the split-rectangle area form. Concrete manipulatives are outside what a browser game does, and are not claimed. The equivalence claim is enforced literally: the item verifier proves a distractor is *not* equivalent to the prompt before it is allowed on screen.
 
@@ -332,6 +332,7 @@ An item form that no standard claims is content nobody has justified shipping, a
 | `order-ops` | `oo-table` | table | 1–5 | 6.EE.A.2.C | 6.7(A) |
 | `like-terms` | `lt-collect` | symbolic | 1–5 | 6.EE.A.3, 7.EE.A.1 | 6.7(D), A.10(A) |
 | `like-terms` | `lt-three` | symbolic | 3–5 | 6.EE.A.3 | 6.7(D), A.10(A) |
+| `like-terms` | `lt-bays` | symbolic | 1–5 | 7.EE.A.1, HSA.SSE.A.1.B | 6.7(D), A.10(A) |
 | `like-terms` | `lt-perimeter` | contextual | 2–5 | HSA.SSE.A.1.B | 6.7(D), A.10(A) |
 | `like-terms` | `lt-equivalent` | verbal | 1–5 | 6.EE.A.4 | 6.7(C) |
 | `like-terms` | `lt-square` | symbolic | 4–5 | 7.EE.A.1, HSA.SSE.A.1.B | 6.7(D), A.10(A) |

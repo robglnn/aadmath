@@ -42,6 +42,7 @@
     "check:mastery:full": "node tools/simulate-all.mjs --full",
     "check:handed": "node tools/critic/handed.mjs --self-test && node tools/critic/handed.mjs",
     "check:meet": "node tools/critic/meet.mjs --self-test && node tools/critic/meet.mjs",
+    "check:archipelago": "node tools/critic/archipelago.mjs --self-test && node tools/critic/archipelago.mjs",
     "check:scaffold": "node tools/critic/scaffoldhonesty.mjs",
     "check:takeover": "tools/critic/takeover.sh shots/takeover --minutes 15",
     "check:sustain": "node tools/critic/sustain.mjs --self-test && tools/critic/sustain.sh shots/sustain --minutes 15",
@@ -66,6 +67,7 @@
     "check:locklayout": "node tools/critic/nolocklayout.mjs",
     "check:modal": "node tools/critic/modal.mjs --self-test && tools/critic/rungate.sh tools/critic/modal.mjs --out shots/modal --plant",
     "check:touch": "tools/critic/rungate.sh tools/critic/touch.mjs --out shots/touch --self-test",
+    "check:touch:rule": "node tools/critic/touch.mjs --figures-only --out shots/touchrule --self-test",
     "check:reach": "node tools/critic/thumb.mjs --self-test && tools/critic/rungate.sh tools/critic/thumb.mjs --out shots/thumb",
     "check:figures:render": "node tools/check-figures.mjs --self-test && node tools/check-figures.mjs --render",
     "check:traffic:rule": "node tools/critic/_play.mjs --self-test && node tools/critic/traffic.mjs --self-test"

@@ -350,6 +350,15 @@ export const FORM_ASK = {
   'lt-perimeter': 'ask.perimeterGather',
   'ds-area': 'ask.areaMultiplyOut',
   'lt-collect': 'ask.simplifyAlt2',
+  // The board the sorting bays are for: several unlike variable parts on one
+  // line, two different letters among them. It asks with `deck(sr,
+  // 'askSimplify')`, exactly as `lt-collect`, `lt-three`, `lt-four` and
+  // `lt-square` do — a deck of three keys, `ask.simplify`, `ask.simplifyAlt`
+  // and `ask.simplifyAlt2`, every one of which is in `REWRITE_ASKS` above, so
+  // whichever the deck draws names the rewriting as the task in all three
+  // locales. `ask.simplifyAlt2` stands for the deck here, as it does for the
+  // four rows around it.
+  'lt-bays': 'ask.simplifyAlt2',
   'lt-three': 'ask.simplifyAlt2',
   'lt-four': 'ask.simplifyAlt2',
   'lt-square': 'ask.simplifyAlt2',

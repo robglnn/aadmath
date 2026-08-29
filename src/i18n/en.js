@@ -2427,6 +2427,11 @@ export default {
       crack: 'Crack the cache',
       lay: 'Lay the span',
       climb: 'Reach the mark',
+      /* THE MEET (src/world/meet.js) was registered by nobody and had never
+         been entered. The place is named now; the word is here so that the
+         one line src/meta/objective.js needs (`FIELD_VERB.meet = 'cross'`)
+         carries no i18n work with it. Additive key. */
+      cross: 'Find the crossing',
     },
 
     /* The places, by their own names. A cache, a span and a survey mark are
@@ -2435,6 +2440,9 @@ export default {
       cache: 'Hanging cache',
       deepcache: 'Deep cache',
       span: 'Hanging span',
+      /* THE MEET (src/world/meet.js) — the objective card could not name it,
+         because nothing registered it as a place. Additive key. */
+      meet: 'The crossing',
     },
 
     /* WHEN THE ONE NUMBER GOES DOWN. It is a posterior, not a ratchet, so it
@@ -2547,7 +2555,7 @@ export default {
       charged: 'Gold motes grew beside an open rift. Each pays three times a pale one. Seal it and the surges stop.',
       husk: 'Husks are veins you emptied. Each lights up again in about five minutes. Range further out.',
       anchor: 'A lattice anchor. Nothing reaches one from flat ground, on purpose. Stack two ramps, then touch it.',
-      cache: 'A hanging cache. The beam holds a true statement with one weight missing. Stand on the missing weight.',
+      cache: 'A hanging cache. The beam holds a true statement with one weight missing. Walk out and stand under the missing weight.',
       updraft: 'That column is an updraft. Fly into it and it lifts you sixty metres, free.',
       verge: 'That curtain is the verge, where Shard Nine stops. Hold every line and the lattice carries you out.',
     },

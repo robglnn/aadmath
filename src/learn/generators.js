@@ -1528,6 +1528,162 @@ const FORMS = {
       },
     },
     {
+      /**
+       * THE BOARD THE SORTING BAYS ARE FOR — several unlike variable parts on
+       * one line.
+       *
+       * WHY THIS FORM EXISTS, and it is not "another collect-like-terms form".
+       *
+       * `src/ui/rift.js` files an expression's terms into bays. For as long as
+       * every expression this skill printed carried ONE letter, the bays could
+       * only be two — the terms in that letter, and the pure numbers — and
+       * those two bays ARE the two glyph classes: a variable chip is printed
+       * with the letter on it and a number chip never is. So "a chip with a
+       * letter goes left, a chip without goes right" filed every chip of every
+       * board with no miss, and a cadet could seal the surface named for like
+       * terms without knowing what a like term is. That is not a cue that can
+       * be patched out by rearranging the chips; it is what the question was.
+       *
+       * A like term is not "carries a letter". `3x` and `5x` are alike; `3x`
+       * and `5x^{2}` are not; `3x` and `3y` are not. So the board has to carry
+       * SEVERAL unlike variable parts, and then the bays are like-classes and
+       * the only rule that files a chip is reading its whole variable part —
+       * which is the definition this node is named for, and exactly what
+       * Booth's conjoining error (`3x + 2 = 5x`) and MacGregor and Stacey's
+       * letter-as-object error refuse to do.
+       *
+       * WHAT THE BANDS CHANGE. Band 1 and 2: two letters and the numbers,
+       * small positive counts — the arithmetic is nothing, the whole demand is
+       * telling the three kinds apart. Band 3: signs. Bands 4 and 5: a squared
+       * class as well, so a cadet who has learned "same letter, same bay"
+       * meets `x^{2}` and has to read further.
+       *
+       * Every class sum is non-zero on purpose: a class that cancels away
+       * leaves a bay whose total is 0 and an answer that does not name it, and
+       * the first thing that surface should teach is that a kind you were
+       * given is a kind you must account for.
+       */
+      id: 'lt-bays', rep: 'symbolic', dMin: 1, dMax: 5,
+      build({ r, d, T, sr }) {
+        const v = pick(r, VARS);
+        const w = pick(r, VARS.filter((x) => x !== v));
+        /**
+         * WHAT EACH BAND CHANGES: HOW MANY KINDS ARE ON THE BOARD.
+         *
+         * Not the magnitude alone. Band 1 is two letters and nothing else —
+         * four chips, two bays, small positive counts, and the whole demand is
+         * "`4x` and `2y` are not the same kind of thing". Band 2 brings the
+         * numbers in, which is where Booth's `3x + 2 = 5x` becomes possible at
+         * all. Band 3 brings the signs. Bands 4 and 5 bring a squared class, so
+         * a cadet who has learned "same letter, same bay" meets `x^{2}` and has
+         * to read past the letter.
+         *
+         * That ladder is also why band 1 carries a two-numeral answer. The
+         * faded worked echo needs an ANALOGUE whose numerals miss every numeral
+         * of the live answer (see `analogueFor`), and at band 1 the pools are
+         * small: a three-numeral answer over coefficients 2 to 4 leaves so
+         * little room that the search fails outright about once in fifty, and
+         * an item with no analogue falls back on the learner's own trace, which
+         * is the one trace that prints the live answer. Widening band 1 until
+         * the search always succeeds means band-3 magnitudes at band 1. Fewer
+         * KINDS at band 1 costs nothing pedagogically and is the honest rung.
+         */
+        const sq = d >= 4;
+        const withK = d >= 2;
+        // Counts. Bands 1 and 2 stay positive; band 3 lets the signs in, which
+        // is where `coefficient-sign-lost` starts to cost something.
+        // Bands 1 and 2 draw wider than `band(d).coef` says, and it is not a
+        // difficulty decision: the faded worked echo needs an ANALOGUE whose
+        // numerals miss every numeral of the live answer, this form's answer
+        // carries one count per kind, and a coefficient pool of three values
+        // leaves the search nothing to find. Measured over 750 items: 15 with
+        // the band's own pool, 0 with this one. The magnitudes are still under
+        // what `lt-collect` prints at the same band.
+        const C = () => (d >= 3 ? nz(r, ...band(d).coef) : int(r, 2, 3 + 2 * d));
+        const K = () => Bkonst(r, d);
+        const a1 = C(), a2 = C(), b1 = C(), b2 = C();
+        const k1 = withK ? K() : 0;
+        // The number bay is the one place a second chip buys nothing: at the
+        // top two bands the board already carries three letter classes, and a
+        // seventh chip is a row of tray on a phone. (see `_sort` on layout)
+        const k2 = withK && !sq ? K() : 0;
+        const q1 = sq ? C() : 0, q2 = sq ? C() : 0;
+        const sumA = a1 + a2, sumB = b1 + b2, sumK = k1 + k2, sumQ = q1 + q2;
+        if (sumA === 0 || sumB === 0 || (withK && sumK === 0) || (sq && sumQ === 0)) {
+          throw new Error('retry: a whole kind cancels away');
+        }
+        // The statement writes its terms interleaved, the way a textbook line
+        // is written — the tray does NOT copy this order (see `_sort`), so it
+        // is free to read naturally.
+        const sqv = `${v}^{2}`;
+        const parts = sq
+          ? [co(q1, sqv), sgc(a1, v), sgc(b1, w), sg(k1), sgc(q2, sqv), sgc(a2, v), sgc(b2, w)]
+          : [co(a1, v), sgc(b1, w), ...(withK ? [sg(k1)] : []), sgc(a2, v), sgc(b2, w), ...(k2 ? [sg(k2)] : [])];
+        const expr = parts.join(' ');
+        // Highest power first, then the two letters, then the number: one
+        // spelling, so the worked line and the answer cannot drift apart.
+        const ans = [
+          ...(sq ? [co(sumQ, sqv)] : []),
+          sq ? sgc(sumA, v) : co(sumA, v),
+          sgc(sumB, w),
+          ...(withK ? [sg(sumK)] : []),
+        ].join(' ');
+        /**
+         * A reading in the answer's own spelling. `null` drops that kind, and a
+         * count of zero drops the term rather than printing `0m` — a wrong
+         * reading has to be one a person could actually write down.
+         */
+        const line = (q, a, b, k) => {
+          const bits = [
+            ...(sq && q !== null && q !== 0 ? [co(q, sqv)] : []),
+            ...(a === null || a === 0 ? [] : [sq ? sgc(a, v) : co(a, v)]),
+            ...(b === null || b === 0 ? [] : [sgc(b, w)]),
+            ...(withK && k !== null && k !== 0 ? [sg(k)] : []),
+          ];
+          if (!bits.length) return '0';
+          return bits.join(' ').replace(/^\+\s*/, '').replace(/^-\s+/, '-');
+        };
+        const gathered = [
+          ...(sq ? [co(q1, sqv), sgc(q2, sqv)] : []),
+          sq ? sgc(a1, v) : co(a1, v), sgc(a2, v),
+          sgc(b1, w), sgc(b2, w),
+          ...(withK ? [sg(k1)] : []), ...(k2 ? [sg(k2)] : []),
+        ].join(' ');
+        return {
+          stem: T(deck(sr, 'askSimplify')),
+          latex: expr,
+          type: 'expression',
+          answer: ans,
+          check: { kind: 'equivalent', math: expr, variable: v },
+          steps: [
+            { latex: `${expr} = ${gathered}`, why: T('why.onlySameKindCombine') },
+            { latex: `${gathered} = ${ans}`, why: T(sq ? 'why.squaredIsItsOwnKind' : 'why.addCoefficients', { v }) },
+          ],
+          // Every one of these is a real reading of the board, and each is one
+          // of the errors the graph declares for this node.
+          // Every one of these is a real reading of the board, and each is one
+          // of the errors the graph declares for this node. `line` writes them
+          // in the answer's own spelling, so a band with no numbers bay never
+          // prints a constant that is not on the board.
+          distractors: [
+            // Booth: the unlike kinds conjoined into one.
+            { v: term(sumA + sumB + sumK + sumQ, v), m: 'combine-unlike' },
+            { v: String(sumA + sumB + sumK + sumQ), m: 'combine-unlike' },
+            // MacGregor and Stacey: the two letters treated as one quantity.
+            { v: line(sumQ, sumA + sumB, null, sumK), m: 'combine-unlike' },
+            // A kind collected and another left where it was.
+            { v: line(sumQ, sumA, sumB, null), m: 'partial-rule' },
+            { v: line(sumQ, sumA, b1, sumK), m: 'partial-rule' },
+            // The sign dropped off one of the counts.
+            { v: line(sumQ, a1 - a2, sumB, sumK), m: 'coefficient-sign-lost' },
+            { v: line(sumQ, sumA, sumB, k1 - k2), m: 'coefficient-sign-lost' },
+            // The counts multiplied instead of added.
+            { v: line(sumQ, a1 * a2, sumB, sumK), m: 'arith-slip' },
+          ],
+        };
+      },
+    },
+    {
       id: 'lt-perimeter', rep: 'context', dMin: 2, dMax: 5, scenes: 'plate',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'plate');
@@ -4998,6 +5154,40 @@ function checkStepsInequality(steps, v, sol) {
 const normalise = (s) => String(s).replace(/\s+/g, '');
 
 /**
+ * DOES THIS SENTENCE PRINT THIS READING WHOLE?
+ *
+ * Two normalisations, and both are needed. A stem writes `$x \ge -4$` and the
+ * reading is `x \ge -4`, so the spacing and `\left`/`\right` have to go; a stem
+ * writes "makes it 18." and the reading is `18`, and squeezing ALL the space
+ * out of that puts a letter against the `1`, so a boundary test refuses it and
+ * a real giveaway is missed. A run of whitespace therefore collapses to ONE
+ * space, which is not a word character and keeps the boundary honest, and the
+ * fully squeezed form is tried as well — a hit from either is a hit, because a
+ * cadet reading the glass does not care which.
+ *
+ * NEVER INSIDE A LONGER NUMBER: `18` printed inside `180` is not the answer
+ * being handed over, and a reading of one character is not either — a stem
+ * about six cells that happens to have the answer 6 is a coincidence an eye
+ * cannot spend, and refusing every one of those would empty whole forms.
+ */
+function stemQuotes(stem, reading) {
+  const bare = (x) => String(x).replace(/\\left|\\right/g, '').replace(/\s+/g, ' ').trim();
+  const wordish = (c) => c !== undefined && /[0-9A-Za-z]/.test(c);
+  const whole = (hay, needle) => {
+    if (needle.length < 2) return false;
+    for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) {
+      if (wordish(needle[0]) && wordish(hay[i - 1])) continue;
+      if (wordish(needle[needle.length - 1]) && wordish(hay[i + needle.length])) continue;
+      return true;
+    }
+    return false;
+  };
+  const s = bare(stem || '');
+  const r = bare(reading || '');
+  return whole(s, r) || whole(s.replace(/ /g, ''), r.replace(/ /g, ''));
+}
+
+/**
  * Notation that is valid LaTeX but is not what anybody meant: a control
  * sequence whose backslash was eaten somewhere between the source and the
  * screen. `2left(7x + 5<CR>ight)` renders happily under strict KaTeX.
@@ -5219,6 +5409,38 @@ function finalize(raw, meta) {
   if (item.steps.length < 2) throw new Error('a single-move derivation cannot be faded into an echo');
 
   verify(item);
+
+  /**
+   * A SENTENCE MAY NOT PRINT THE ANSWER IT IS ASKING FOR.
+   *
+   * The free keypad has no option set — a cadet has to produce the value — so
+   * the one cue left on it is the stem itself, and 24 of 10,692 route cards
+   * were handing it over: `eval-expr/ee-fraction` asks "when $x = 6$" of an
+   * expression that evaluates to 6, and `eval-expr/ee-graph` asks for the
+   * height above $x = -3$ on a line whose height there is $-3$. Nothing had to
+   * go wrong for that: both numbers are drawn independently and sometimes land
+   * on each other, and every other gate is happy because the mathematics is
+   * right and the sentence is short.
+   *
+   * The rule is stated once, here, rather than as a retry line inside the two
+   * forms that were caught — the next form to draw two numbers independently
+   * would have shipped the same defect and nobody would have written the line
+   * again.
+   *
+   * THE ONE EXEMPTION IS DECLARED, NOT INFERRED. A `dispute` form quotes two
+   * readings into its sentence on purpose and asks which is true, so on a
+   * four-option card one of the quoted readings IS the key. Those forms carry
+   * `quote`, and `quoteReadings` below decides WHICH readings they name — from
+   * the card's own hash, and on a keypad card never from a pool holding the
+   * answer. A form with no `quote` has no business printing it.
+   *
+   * `tools/critic/choiceshape.mjs` keeps its own reader and measures the same
+   * thing on every build, which is why this one may exist at all: a generator
+   * that grades its own homework is not evidence.
+   */
+  if (!raw.quote && stemQuotes(item.stem, item.answer)) {
+    throw new Error('retry: the stem prints the answer it is asking for');
+  }
 
   // The tagged catalogue. Everything here is a wrong value that this item can
   // *recognise*; `./diagnose.js` will never name a misconception that is not
@@ -5514,10 +5736,18 @@ function balanceShape(item) {
 
   const key = String(item.answer);
   const salt = `${item.skill}|${item.form}|${item.difficulty}|${item.seed}|${key}`;
+  /* THE SENTENCE OVER THE SET IS PART OF THE SET. A card whose stem prints a
+     value the option list also carries hands a cadet a rule no count of glyphs
+     can see: on `eval-expr/ee-graph` the narrowed field's readings were quoted
+     by the stem on 44% of cards and the KEY was almost never one of them, so
+     "strike whatever the sentence already said" was worth 40.6% against 33.3%.
+     What is handed over is the stem as it stands NOW — `quoteReadings` runs
+     after this and, on a keypad card, deliberately quotes readings from BEYOND
+     the two this field will show, so the two cannot contradict each other. */
   const at = balancedPick(key, live.map((x) => ({
     show: x.o.slice(0, width - 1).map((i) => String(pool[i].value)),
     rank: x.near,
-  })), salt);
+  })), salt, String(item.stem || ''));
   let take = live[at];
 
   /* THE THIRD READING ON A KEYPAD CARD IS NOT SHOWN, AND IS STILL WORTH
@@ -5535,7 +5765,7 @@ function balanceShape(item) {
     if (same.length > 1) {
       const j = balancedPick(key, same.map((x) => ({
         show: x.o.map((i) => String(pool[i].value)), rank: x.near,
-      })), `${salt}|spare`);
+      })), `${salt}|spare`, String(item.stem || ''));
       take = same[j];
     }
   }

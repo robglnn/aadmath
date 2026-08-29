@@ -358,6 +358,11 @@ const waygates = createWaygates({
 
 const kit = createKit({
   root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, spans, fx,
+  // lane C: the third kind of off-island place. `src/kit/kit.js` is the one
+  // module handed every site list, so it is where `registerField` speaks for
+  // all of them — and THE MEET was registered by nobody, which is why nothing
+  // in a session has ever sent anybody to it. Wiring only.
+  meets,
   // src/ui P1 — the grant card's own header has always said it queues behind
   // the rank rite and the session's close card, but `isBusy` only ever asked
   // about the tear, so neither of those two actually held it back. It now asks
@@ -471,13 +476,16 @@ function openRift(rift, override) {
   /* THE TEAR GIVES A HUNDRED AND FIFTY SECONDS, AND THEN IT SETTLES.
      One arrival is three pieces of work, nine answers, or a hundred and fifty
      seconds standing at this tear — whichever comes first (src/session/stint.js).
-     Past that it declines, and the remedy is one step: the clock is time spent
-     ON the dais, so walking off it for a couple of seconds gives the tear back.
+     Past that it declines, and the remedy is going somewhere: the clock is time
+     spent AT this tear, and walking a dozen metres off it gives the tear back.
      It is never a silent key — `relay.onward` answers with the next place, its
-     bearing and its distance — and it is never a wall, because the step that
-     clears it is shorter than the walk the card is already asking for.
-     `override` is the critic hook and is never refused. */
-  if (!override && stint.expired() && relay?.onward?.(rift)) return;
+     bearing and its distance — and it is never a wall, because it only stands
+     while the relay has somewhere to name.
+     `override` is the critic hook and is never refused.
+     THE ARGUMENT IS THE TEAR BEING ASKED FOR, and it is not dressing: the whole
+     point of the rule is to send a cadet from A to B, so an answer about A must
+     never refuse them at B. (lane B: `expired(id)` in src/session/stint.js.) */
+  if (!override && stint.expired(rift.id) && relay?.onward?.(rift)) return;
   const locale = getLocale();
   // `override` is the critic hook only: a harness that has to photograph a
   // named form at a named band drives the SAME path a player does, rather than
