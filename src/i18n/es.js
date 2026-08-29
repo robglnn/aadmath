@@ -58,7 +58,7 @@ export default {
     keyClear: 'Q · quitar',
     turn: 'Girar',
     // --- que tu propia red nunca te deje encerrado (src/build/builder.js) ---
-    sealDoor: 'Este muro cierra la sala. Llevará una puerta.',
+    sealDoor: 'Este muro cierra la sala y llevará una puerta.',
     doorCut: 'Sala cerrada. Ese muro tiene una puerta.',
     boxedIn: 'Tu red te ha dejado encerrado',
     cutFree: 'Ya tienes salida',
@@ -146,6 +146,35 @@ export default {
     'factor-common': 'Sacar el factor común',
     'linear-vs-exponential': 'Crecimiento lineal o exponencial',
     'exponential-rule': 'Reglas exponenciales',
+    // Nivel 4 (content/graph/algebra1-l4.json).
+    'radical-simplify': 'Simplificar raíces cuadradas',
+    'radical-arith': 'Sumar y multiplicar raíces',
+    'factor-trinomial-monic': 'Factorizar tres términos',
+    'factor-trinomial-lead': 'Factorizar con número delante',
+    'difference-of-squares': 'Diferencia de dos cuadrados',
+    'poly-divide': 'Dividir polinomios',
+    'quadratic-zero-product': 'La regla del producto cero',
+    'solve-by-factoring': 'Resolver factorizando',
+    'square-root-method': 'Resolver por raíz cuadrada',
+    'complete-the-square': 'Completar el cuadrado',
+    'quadratic-formula': 'La fórmula cuadrática',
+    'parabola-features': 'Leer una parábola',
+    'quadratic-from-vertex': 'Escribir una regla cuadrática',
+    'quadratic-model': 'Modelos cuadráticos',
+    // Nivel 5 (content/graph/algebra1-l5.json).
+    'rational-exponent': 'Exponentes fraccionarios',
+    'relation-is-function': 'Decidir si una regla es función',
+    'sequence-terms': 'Términos de una sucesión',
+    'sequence-nth-term': 'Fórmula para cualquier término',
+    'point-slope-form': 'Forma punto-pendiente',
+    'parallel-perpendicular': 'Rectas paralelas y perpendiculares',
+    'inequality-two-var': 'Desigualdades con dos letras',
+    'write-system': 'Escribir un sistema',
+    'system-graphically': 'Sistemas con la gráfica',
+    'scatter-regression': 'La recta de mejor ajuste',
+    'residual-and-fit': 'Residuos y ajuste',
+    'association-strength': 'Fuerza de la asociación',
+    'exponential-model': 'Modelos exponenciales',
   },
 
   course: {
@@ -156,8 +185,10 @@ export default {
   },
   unit: {
     'algebra1-l1': { title: 'Nivel 1 — El lenguaje del equilibrio' },
-    'algebra1-l2': { title: 'Nivel 2 — Estructura y ritmo' },
+    'algebra1-l2': { title: 'Nivel 2 — Inclinación, ritmo y par' },
     'algebra1-l3': { title: 'Nivel 3 — Nombre, potencia y forma' },
+    'algebra1-l4': { title: 'Nivel 4 — Raíz, factor y giro' },
+    'algebra1-l5': { title: 'Nivel 5 — Regla, ajuste y patrón' },
   },
 
   settings: {
@@ -289,7 +320,7 @@ export default {
     wordIs: {
       rift: 'Una grieta es un anillo de aire desgarrado. Cada grieta sostiene un enunciado que todavía no es verdadero.',
       line: 'Una línea es una idea, y todas las grietas que la prueban. Trabajas una línea cada vez.',
-      held: 'Sostenida quiere decir que probaste esta línea sin ayuda, en cada tipo de pregunta que te planteó. Una línea sostenida ya no se te enseña. El equipo sí la vuelve a comprobar más adelante. Si esa comprobación falla, la línea se abre otra vez.',
+      held: 'Sostenida quiere decir que probaste esta línea sin ayuda, en cada tipo de pregunta que te planteó. El equipo ya no te enseña una línea sostenida. Sí la vuelve a comprobar más adelante. Si esa comprobación falla, la línea se abre otra vez.',
       lattice: 'La red es el razonamiento que sostiene este mundo. Hay suelo donde el razonamiento aún funciona.',
       mote: 'Las motas de cifra son lo que deja una grieta sellada. La fundición toma motas y te da equipo.',
       rank: 'Tu rango es lo que la orden piensa de ti. Cobre es el primer rango. Repara el mundo para subirlo.',
@@ -358,6 +389,27 @@ export default {
     help: {
       keypad: 'Escribe el valor que hace verdadera la afirmación. Luego pulsa Sellar.',
       keypadExpression: 'Escribe la expresión en su forma más corta. Luego pulsa Sellar.',
+      // …y el tercer trabajo del mismo teclado. Un elemento numérico no
+      // siempre es una ecuación: no hay ninguna afirmación que hacer
+      // verdadera. Ver `ask.evaluateWhen` en content/lang/items.es.js.
+      keypadValue: 'Sustituye el valor y evalúa. Luego pulsa Sellar.',
+      // learn-ux: una línea por TAREA, no por instrumento. El teclado sirve a
+      // nueve trabajos distintos y solo describía dos. Ver `_taskKey`.
+      factor: 'Escríbelo como paréntesis multiplicados entre sí. Luego pulsa Sellar.',
+      expand: 'Multiplícalo del todo. No dejes ningún paréntesis. Luego pulsa Sellar.',
+      vertex: 'Escríbelo como un paréntesis al cuadrado, más un número. Luego pulsa Sellar.',
+      simplify: 'Saca de la raíz todos los cuadrados enteros. Luego pulsa Sellar.',
+      // learn-ux: cinco tareas más, y ninguna la nombra la FORMA que exige el
+      // corrector. Ver `_taskKey`.
+      power: 'Usa las reglas de las potencias. Escribe la respuesta en un solo término. Luego pulsa Sellar.',
+      common: 'Saca lo que comparten todos los términos y deja el resto en un paréntesis. Luego pulsa Sellar.',
+      radsum: 'Suma las raíces que coinciden. Luego pulsa Sellar.',
+      rationalise: 'Quita la raíz de abajo. Luego pulsa Sellar.',
+      divide: 'Divide lo de arriba entre lo de abajo. Luego pulsa Sellar.',
+      roots: 'Escribe cada valor que hace verdadera la afirmación. Luego pulsa Sellar.',
+      point: 'Escribe el punto: primero a lo ancho, después a lo alto. Luego pulsa Sellar.',
+      bound: 'Escribe el intervalo dentro del cual se quedan los valores. Luego pulsa Sellar.',
+      rule: 'Escribe la regla que une las dos letras. Luego pulsa Sellar.',
       balance: 'Elige un movimiento. La viga lo aplica a los dos lados. A los dos, siempre: esa es toda la ley.',
       sort: 'Envía cada término a la bodega que le corresponde.',
       area: 'Cubre cada parte del campo con el área que esa parte lleva.',
@@ -371,6 +423,19 @@ export default {
       back: 'Borrar',
       minus: 'Negativo',
       over: 'Barra de fracción',
+      // learn-ux: las teclas de notación. Un teclado sin paréntesis, raíz, signo
+      // igual ni coma no podía escribir la mayoría de sus propias respuestas.
+      clear: 'Borrar todo',
+      take: 'Restar',
+      open: 'Abrir paréntesis',
+      close: 'Cerrar paréntesis',
+      root: 'Raíz cuadrada',
+      power: 'Elevado a',
+      equals: 'Igual a',
+      also: 'Y además',
+      plusMinus: 'Más o menos',
+      atMost: 'Como máximo',
+      atLeast: 'Como mínimo',
       empty: 'Escribe antes un valor',
       narrow: 'Reducir el campo',
       // Cuenta lo que hay en pantalla: si el equipo rechaza un distractor,
@@ -447,7 +512,26 @@ export default {
       liveOnly: 'El equipo no tiene registrada ninguna otra grieta de esta forma. Así que el eco te devuelve tu propio trazo.',
       nudge: {
         keypad: 'Dite la afirmación en voz baja antes de escribir nada. El valor que buscas es el que la hace verdadera, no el que queda más a mano.',
-        keypadExpression: 'Aquí no se resuelve nada. Escribe la misma cantidad con menos términos, y la línea más corta debe seguir valiendo para cualquier valor de la letra.',
+        keypadExpression: 'Aquí no resuelves nada. Escribe la misma cantidad con menos términos, y la línea más corta debe seguir valiendo para cualquier valor de la letra.',
+        // El susurro de la tarea `keypadValue`. Sin él, `t()` caería en la
+        // CLAVE y escribiría `rift.echo.nudge.keypadValue` en la tarjeta.
+        keypadValue: 'Pon el número en lugar de la letra, en cada sitio donde esté la letra. Luego haz las cuentas en orden.',
+        // El susurro sigue la TAREA. Antes seguía el tipo del ítem, así que 179
+        // de 341 formas compartían la línea de términos semejantes, incluida una
+        // bajo una raíz cuadrada, que no tiene términos.
+        factor: 'Aquí trabajan dos números. Multiplicados dan el último número y sumados dan el del medio. Pon cada uno en su propio paréntesis.',
+        expand: 'Cada parte del primer paréntesis se encuentra con cada parte del segundo. Multiplica todas esas parejas y después junta las que coinciden.',
+        vertex: 'Parte por la mitad el número que va delante de la letra sola. Eleva al cuadrado esa mitad: el paréntesis quiere ese número dentro. Después repara el total.',
+        simplify: 'Busca un cuadrado entero escondido dentro de la raíz. Saca su raíz al frente y deja el resto bajo el signo.',
+        power: 'La base no cambia; solo se mueve el número pequeño. Al multiplicar se suman los dos números pequeños, al dividir se restan, y una potencia de otra potencia los multiplica. Una potencia cero vale uno.',
+        common: 'Busca el número más grande que divide a todos los términos, y las letras que todos llevan. La parte común sale delante; el resto se queda en el paréntesis.',
+        radsum: 'Dos raíces solo se suman si el número bajo el signo es el mismo. Simplifica primero cada raíz y luego cuenta cuántas coinciden.',
+        rationalise: 'Una raíz debajo de la barra no es el final del trabajo. Multiplica arriba y abajo por esa misma raíz, y después reduce.',
+        divide: 'Lo de abajo cabe en lo de arriba un número entero de veces. Pregúntate por cuánto debes multiplicar lo de abajo para llegar a lo de arriba.',
+        roots: 'Halla todos los valores que puede tomar la incógnita, no solo el primero. Escribe cada uno como la letra, un signo igual y su valor.',
+        point: 'Lee primero a lo ancho, por abajo, y después a lo alto, por el lado. Las dos lecturas son el punto, en ese orden.',
+        bound: 'Halla primero el valor del borde. Después pregunta de qué lado la afirmación sigue siendo verdadera.',
+        rule: 'Halla cuánto sube la salida por cada paso de la entrada. Después halla dónde empieza.',
         balance: 'Algo va pegado a la incógnita. Deshaz primero lo de fuera. La viga hace el resto.',
         sort: 'Dos términos son semejantes solo si la parte con letra coincide exactamente. Un número nunca es semejante a una letra.',
         area: 'El factor de fuera toca cada parte de dentro. Todas.',
@@ -534,6 +618,20 @@ export default {
   // nunca como animadora. Fue cadete aquí, y le costó caro.
   // ---------------------------------------------------------------------
   story: {
+    /* EL CAMINO (src/meta/region.js, src/content/route.js). La red se abre por
+       regiones. Nunca un número de nivel: una región es un lugar con nombre. */
+    region: {
+      kick: 'La red se abre',
+      open1: 'La última línea de este anillo aguanta. Mira al horizonte.',
+      open2: 'Allá fuera crece suelo nuevo. {region}.',
+      open3: 'Aterrizamos allí en tu próxima ronda. Termina aquí primero.',
+      arrive: 'Aterrizaje. {region}. {ground}',
+      'algebra1-l1': { name: 'El Anillo del Equilibrio', ground: 'Dos lados de una balanza, y coinciden.' },
+      'algebra1-l2': { name: 'El Tramo Inclinado', ground: 'Suelo que se inclina. Ritmos, pares y líneas que se cruzan.' },
+      'algebra1-l3': { name: 'La Extensión de los Nombres', ground: 'Suelo con nombres. Potencias, y reglas que puedes llamar por su nombre.' },
+      'algebra1-l4': { name: 'La Hondura que Gira', ground: 'Suelo que se curva. Raíces, factores y giros.' },
+      'algebra1-l5': { name: 'El Campo de los Patrones', ground: 'Suelo con un patrón dentro. Reglas, ajustes y modelos.' },
+    },
     hud: {
       act: 'Capítulo {n}',
       question: 'Pregunta abierta',
@@ -569,6 +667,14 @@ export default {
     order: {
       kept: 'La marca se ha apagado. Sabías {skill} después de «n|one:# noche|other:# noches» fuera, que es lo único que esta red ha pedido demostrar a nadie.',
       keptCharter: 'Marca apagada, y van tres. La orden te ha extendido una cédula. Pulsa H en el terreno que prefieras para levantar un puesto.',
+    },
+
+    /* Una afirmación retirada al entrar (src/meta/withdrawn.js). INSTRUCTIVO:
+       frases cortas, voz activa, y la última línea dice qué hacer. */
+    withdrawn: {
+      one: '{skill} vuelve a estar abierta. Sostenías esa línea. Un tipo de pregunta suyo nunca te ha salido bien, así que el equipo retira el sello.',
+      many: '«n|one:# línea vuelve|other:# líneas vuelven» a estar abiertas: {skills}. Cada una tiene un tipo de pregunta que nunca te ha salido bien.',
+      why: 'Conservas todo lo que hiciste. Responde bien ese tipo de pregunta una vez, sin ayuda. Entonces la línea vuelve a ser tuya.',
     },
     day: {
       d2: {
@@ -606,7 +712,7 @@ export default {
         b: 'Lleva un enunciado y suelta las respuestas detrás. Toma la pesa correcta.',
       },
       wake: 'Ha salido otro guardián. Ha asomado por la cresta hace un minuto y ya se mueve.',
-      left: 'El guardián se ha deshecho. Lo que llevaba sigue colgado donde lo sujetaste.',
+      left: 'El guardián se ha deshecho. La carga sigue colgada donde la sujetaste.',
       full: 'El guardián se ha deshecho. El fragmento no sostiene más cajas, así que cobraste en motas.',
     },
 
@@ -740,7 +846,7 @@ export default {
       lockedShort: 'Sellado',
       here: 'Estás aquí · {have} de {need} de posición',
       hereNights: 'Estás aquí · la posición ya está, «n|one:falta # noche mantenida|other:faltan # noches mantenidas»',
-      hereReady: 'Estás aquí · el siguiente rito ya está ganado',
+      hereReady: 'Estás aquí · ya ganaste el siguiente rito',
       costs: 'Se abre con {n} de posición',
       costsNights: 'Se abre con {n} de posición y «nights|one:# noche mantenida|other:# noches mantenidas»',
       outOf: 'de los {n} que puede otorgar el fragmento',
@@ -1167,9 +1273,13 @@ export default {
       // distancia y del rumbo no es el mismo fuera del inglés.
       mark: {
         ahead: 'La grieta está a {n} m, justo al frente.',
-        left: 'La grieta está a {n} m, hacia tu izquierda.',
+        aheadRight: 'La grieta está a {n} m, al frente y a la derecha.',
         right: 'La grieta está a {n} m, hacia tu derecha.',
+        backRight: 'La grieta está a {n} m, a tu espalda por la derecha.',
         behind: 'La grieta está a {n} m, a tu espalda.',
+        backLeft: 'La grieta está a {n} m, a tu espalda por la izquierda.',
+        left: 'La grieta está a {n} m, hacia tu izquierda.',
+        aheadLeft: 'La grieta está a {n} m, al frente y a la izquierda.',
         here: 'Estás dentro de la grieta.',
       },
       title: 'Órdenes',
@@ -1203,8 +1313,8 @@ export default {
          sesión y con las que abre el informe. */
       linesHeld: '{n} de {total} líneas sostenidas',
       linesHeldNote: 'Este es el número. Una línea sostenida es una que este motor defiende, y no se pierde.',
-      linesHeldNone: 'Todavía no se sostiene ninguna línea. Una línea cuesta más de una ronda, y nada de lo de hoy se ha perdido.',
-      linesHeldAll: 'Se sostienen todas las líneas de este fragmento. La demostración está cerrada.',
+      linesHeldNone: 'Todavía no se sostiene ninguna línea. Una línea cuesta más de una ronda. Conservas todo lo de hoy.',
+      linesHeldAll: 'Sostienes todas las líneas de este fragmento. Cerraste la demostración.',
       heldLab: 'Sostenidas',
       groundLab: 'Terreno ganado',
       heldNote: 'Lo demostraste sin ayuda, en la banda de dificultad más alta y sin ningún ejemplo resuelto. La línea ya es tuya.',
@@ -1215,6 +1325,8 @@ export default {
       groundNone: 'Todo lo que has tocado hoy ya era tuyo.',
       openedLab: 'Abierto',
       openedNote: 'Una nueva línea de grietas, abierta para ti.',
+      regionNote: 'Toda una nueva región de la red. Cada línea de aquí ya aguanta.',
+      regionNext: 'Tu próxima ronda aterriza allí. Este suelo sigue en el mapa.',
       chapterNote: 'El registro pasa página.',
       rankNote: 'La orden ha revisado lo que piensa de ti.',
       openedNoneStrong: 'La red, sin cambios',
@@ -1240,13 +1352,14 @@ export default {
       signWorked: 'Aquí nadie pone nota y aquí no se pierde nada. La próxima vez abrimos por la línea en la que estabas. Estará justo donde la dejaste.',
       signHeld: 'Esa línea ni se estropea ni se reinicia. Todo lo que hay por encima ya está a tu alcance.',
       rest: 'Retirarse',
+      restKey: 'Esc',
       more: 'Una línea más',
       aria: 'Ronda cerrada. «n|one:# grieta sellada|other:# grietas selladas» en esta ronda.',
       repairedN: '{n} %',
       repairedLab: 'del mundo reparado',
       repairedGain: '+{n} % en esta ronda',
       repairedFlat: 'El terreno que ganaste hoy queda debajo de la próxima línea.',
-      ariaRepaired: 'Ronda cerrada. El mundo está reparado al {n} por ciento.',
+      ariaRepaired: 'Ronda cerrada. Has reparado el {n} por ciento del mundo.',
       ariaWorked: 'Ronda cerrada. «n|one:# pregunta trabajada|other:# preguntas trabajadas» en esta ronda.',
       workedLab: '«n|one:pregunta|other:preguntas» en esta ronda',
       workedSub: 'Ninguna selló. El fragmento no cuenta los intentos, y yo tampoco. Pero el trabajo ha comprado algo, y abajo está el qué.',
@@ -1296,6 +1409,8 @@ export default {
       off: 'Cerrar el canal',
       signOff: 'Canal cerrado. La red aguanta mientras no estás, y yo dejo la luz encendida. Mismo cielo mañana, cadete.',
       wakeUp: 'Abrir el canal',
+      leave: 'Salir del descanso',
+      leaveKey: 'Esc',
       aria: 'Descanso. Respira con el anillo. Nadie te pide nada.',
     },
     voice: {
@@ -1322,7 +1437,7 @@ export default {
     title: 'Informe de progreso',
     sub: 'Qué has demostrado, con qué lo has demostrado y qué viene ahora.',
     close: 'Cerrar',
-    skillsHead: 'Las diez líneas',
+    skillsHead: 'Todas las líneas',
     recordHead: 'El expediente',
     recordSub: 'Cuánto vale cada sello, dicho sin adornos. Un profesor comprueba estas cifras. La última es la incómoda.',
     foot: 'Aquí no hay ninguna nota guardada. Este informe recalcula cada cifra en vivo desde el modelo del estudiante cada vez que se abre. Detrás de una línea sellada está el recibo que se escribió al conceder el sello, y ese recibo ya no se mueve. Abre una línea para verlo.',
@@ -1333,7 +1448,7 @@ export default {
       masteredNote: 'Demostradas, no solo intentadas.',
       repairedNote: 'El número. Cada línea cuenta lo que este motor cree ahora mismo sobre ella, y se mueve con cada sellado.',
       time: 'Tiempo de trabajo',
-      timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo. No es el reloj de la sesión, y está pensado para marcar menos que él.',
+      timeNote: 'Se mide entre respuestas y con tope, para que estar parado nunca cuente como trabajo. No es el reloj de la sesión, y marca menos que él a propósito.',
       timeAll: 'Tiempo de trabajo en total',
       timeAllNote: 'Todos los minutos que este expediente ha medido, en todas las sesiones. Se cuentan entre respuestas y con tope, para que estar parado nunca cuente como trabajo: por eso marca menos que el reloj de la pared.',
       session: 'Esta sesión',
@@ -1344,7 +1459,7 @@ export default {
       // separase. Misma regla que la barra: el alcance forma parte del nombre.
       items: 'Preguntas respondidas en total',
       sealed: 'Grietas selladas en total',
-      sealedNote: 'Cada enunciado que has cerrado en este fragmento, en todas las sesiones. Una respuesta correcta, una grieta sellada. Es el recuento con el que se marca el ritmo de los capítulos.',
+      sealedNote: 'Cada enunciado que has cerrado en este fragmento, en todas las sesiones. Una respuesta correcta, una grieta sellada. La ficha del capítulo marca su ritmo con este recuento.',
       itemsNote: 'Todas las preguntas que ha visto este registro, en todas las rondas. Cada una generada de nuevo y resuelta por máquina antes de llegar a ti.',
       accuracy: 'Resueltas sin ayuda',
       accuracyNote: 'Correctas a la primera, sin pista y sin ejemplo resuelto, sobre el total de preguntas respondidas.',
@@ -1353,8 +1468,8 @@ export default {
       hollowNone: 'Todavía no hay ningún sello. Nada que comprobar.',
       ofHeld: 'de {n} selladas',
       sight: 'Abiertas en frío',
-      sightNote: 'En estas líneas la primerísima pregunta se respondió en frío, en lo más alto del banco y sin nada enseñado por delante. Mismo sello, con las preguntas mínimas que este motor acepta. Abre una línea para ver si su tanda de prueba salió de una. El reexamen en frío les llega antes que a nadie.',
-      sightNone: 'Ninguna línea se abrió en frío. Todos estos sellos llegaron después de practicar.',
+      sightNote: 'En estas líneas respondiste en frío la primerísima pregunta, en lo más alto del banco y sin nada enseñado por delante. Mismo sello, con las preguntas mínimas que este motor acepta. Abre una línea para ver si su tanda de prueba salió de una. El reexamen en frío les llega antes que a nadie.',
+      sightNone: 'No abriste ninguna línea en frío. Todos estos sellos llegaron después de practicar.',
       timeUnknown: 'No se puede medir. Parte de este expediente volvió sin su registro, así que los minutos anteriores se han perdido. El informe los muestra como desconocidos, no como cero.',
       accuracyUnknown: 'No se puede medir en un expediente restaurado. El modelo recuerda las preguntas, pero no cuáles respondiste sin ayuda.',
     },
@@ -1371,9 +1486,9 @@ export default {
     },
 
     pctTerm: 'El porcentaje',
-    pctIs: 'Tu lectura más floja en esa línea, no un promedio: el tipo de pregunta que peor llevas, o tu resultado en el nivel más difícil, lo que sea más bajo. Abre una línea para ver cuál es.',
+    pctIs: 'Tu lectura más floja en esa línea, no un promedio. El equipo toma el tipo de pregunta que peor llevas, o tu resultado en el nivel más difícil, lo que sea más bajo. Abre una línea para ver cuál es.',
     flag: { under: 'Terreno reabierto' },
-    flagNote: { under: 'Esta línea sigue sellada. Una línea de debajo falló un reexamen en frío y ha vuelto a práctica, así que el equipo está volviendo a demostrar el terreno antes de mandarte otra vez aquí arriba.' },
+    flagNote: { under: 'Esta línea sigue sellada. Una línea de debajo falló un reexamen en frío y ha vuelto a práctica. El equipo está volviendo a demostrar el terreno antes de mandarte otra vez aquí arriba.' },
 
     road: {
       sight: 'En frío',
@@ -1389,7 +1504,7 @@ export default {
     },
     flagIs: { under: 'La línea sigue siendo tuya. El equipo vuelve a demostrar una línea de debajo.' },
     roadNote: {
-      sight: 'Abierta en frío: la primera pregunta de esta línea se respondió en lo más alto del banco, sin nada enseñado por delante, y contó como la primera pregunta de la tanda de prueba. Abre la línea para ver lo que costó la tanda.',
+      sight: 'Abierta en frío: respondiste la primera pregunta de esta línea en lo más alto del banco, sin nada enseñado por delante. Esa respuesta contó como la primera pregunta de la tanda de prueba. Abre la línea para ver lo que costó la tanda.',
       fast: 'Un solo acierto limpio y sin ayuda, en la banda del sello, abrió la tanda de prueba. Menos preguntas que por el camino largo, y cada una más difícil.',
       long: 'La tanda de prueba se abrió por el camino largo. Tres aciertos limpios seguidos, y la confianza del modelo en el umbral completo.',
     },
@@ -1450,23 +1565,23 @@ export default {
       retentionNote: 'Los reexámenes en frío vuelven con un calendario cada vez más espaciado. Dos fallos y el sello se retira.',
       probeCount: '{hit} de {n} superados',
       probeNone: 'aún no toca',
-      posteriorNone: 'Todavía no se ha preguntado nada en esta línea, así que no hay ninguna medida de la que estar seguro. El modelo la abre a un nivel deducido de las líneas de debajo. Eso es un punto de partida, no una prueba.',
+      posteriorNone: 'El equipo todavía no ha preguntado nada en esta línea, así que no hay ninguna medida de la que estar seguro. El modelo la abre a un nivel deducido de las líneas de debajo. Ese nivel es un punto de partida, no una prueba.',
       coldVal: 'en frío, banda {band}',
       cleanSight: 'Ninguna hizo falta. Esta línea salió adelante al primer contacto. La pregunta en frío es la primera de la propia tanda. La fila de abajo la cuenta una sola vez.',
-      cleanSightCharged: 'La primera pregunta de esta línea se respondió en frío, en la banda {band}, sin nada enseñado por delante: eso fue lo que abrió la tanda de prueba. Después la tanda «n|one:falló una vez|other:falló # veces» y lo pagó con preguntas sin ayuda de más.',
-      cleanSightOld: 'La primera pregunta de esta línea se respondió en frío, en la banda {band}, y eso abrió la tanda de prueba. Este registro viene de una versión anterior y no anota cómo fue la tanda.',
+      cleanSightCharged: 'Respondiste en frío la primera pregunta de esta línea, en la banda {band}, sin nada enseñado por delante. Esa respuesta abrió la tanda de prueba. Después la tanda «n|one:falló una vez|other:falló # veces» y lo pagó con preguntas sin ayuda de más.',
+      cleanSightOld: 'Respondiste en frío la primera pregunta de esta línea, en la banda {band}, y eso abrió la tanda de prueba. Este registro viene de una versión anterior y no anota cómo fue la tanda.',
       cleanRoad: {
         long: 'Tres seguidos, sin ayuda, en la banda de dificultad {band}: el camino largo hasta la tanda de prueba.',
         fast: 'Un solo acierto limpio y sin ayuda, tomado en la banda de dificultad {band}, la del sello. El camino corto pide menos preguntas, y más difíciles.',
       },
-      provingExtended: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda se alargó {n} pregunta(s) para abarcar una segunda representación y una de modelización.',
-      provingCharged: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda «n|one:encajó un fallo|other:encajó # fallos» y se cobró preguntas sin ayuda de más por ello, así que cerró con más pruebas que una tanda limpia, no con menos.',
+      provingExtended: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda se alargó {n} pregunta(s) para alcanzar una segunda etiqueta de superficie y una etiqueta de modelización.',
+      provingCharged: 'Sin ayuda, con el apoyo apagado, en la banda {band} o superior. La tanda «n|one:encajó un fallo|other:encajó # fallos» y se cobró preguntas sin ayuda de más por ello. Así cerró con más pruebas que una tanda limpia, no con menos.',
       noReceipt: 'sin registrar',
       noReceiptNote: 'Este sello lo concedió una versión anterior que no guardaba constancia de qué lo demostró. Se declara sin pruebas en lugar de reconstruirlo desde los ajustes: un umbral que se cita a sí mismo no es una prueba.',
       rests: 'Este sello se apoya en {n} preguntas sin ayuda, de las {of} respondidas en esta línea.',
-      restsSplit: 'Este sello se apoya en {n} preguntas sin ayuda, tomadas de las {of} respondidas en esta línea antes de concederlo.',
-      sinceClaim: 'Desde entonces «n|one:se ha respondido # pregunta|other:se han respondido # preguntas» aquí, sobre una línea ya sellada: el {pct} sin ayuda. Eso es práctica y reexamen. No es lo que sostiene el sello.',
-      sinceNone: 'Desde que se concedió el sello no se ha preguntado nada en esta línea.',
+      restsSplit: 'Este sello se apoya en {n} preguntas sin ayuda, tomadas de las {of} respondidas en esta línea antes de que el equipo lo concediera.',
+      sinceClaim: 'Desde entonces «n|one:se ha respondido # pregunta|other:se han respondido # preguntas» aquí, sobre una línea ya sellada: el {pct} sin ayuda. Esas respuestas son práctica y reexamen. El sello no se apoya en ellas.',
+      sinceNone: 'El equipo no ha preguntado nada en esta línea desde que concedió el sello.',
       restsUnknown: 'Esta versión no registró en qué preguntas se apoya el sello. En esta línea has respondido {of} preguntas.',
       grantedOn: 'Concedido el {date}.',
       forms: 'Cada tipo de pregunta',
@@ -1645,9 +1760,17 @@ export default {
       classSub: '{n} expedientes de estudiantes · reunidos el {date}',
       classEmpty: 'Todavía no hay expedientes. Cada estudiante exporta el suyo desde esta pantalla; añade aquí los archivos y se quedan en este dispositivo.',
       classFoot: 'Reunido a partir de los expedientes que los propios estudiantes han exportado. No se ha subido nada: esta lista vive solo en este navegador y desaparece al borrar los datos del sitio.',
+      custody: {
+        head: 'Dónde vive este expediente',
+        device: 'Cada cifra de esta hoja vive en un navegador, en un dispositivo. Nadie ha subido nada. No hay cuenta, ni lista de clase, ni servidor detrás de esta hoja.',
+        shared: 'En un dispositivo compartido o borrado, el expediente se va con el dispositivo. El archivo exportado y esta hoja impresa son las copias que duran.',
+        name: 'Quien tiene el teclado escribe el nombre de arriba. Aquí nadie compara ese nombre con una lista de clase.',
+        klass: 'El profesor reúne el expediente de clase a mano, con los archivos que los estudiantes exportan.',
+      },
       claimItemsShort: '{n} preguntas sin ayuda en la banda {band}',
       claimMissed: '«n|one:encajó un fallo|other:encajó # fallos»',
-      claimReps: 'en {n} representaciones',
+      claimReps: 'preguntas etiquetadas con {n} representaciones',
+      repsNote: 'Un tipo de pregunta lleva una etiqueta de su superficie: una tabla, un gráfico, un dibujo o una historia. El equipo cuenta esas etiquetas cuando concede un sello. No comprueba si dos tipos etiquetados piden lo mismo. En algunas líneas piden lo mismo.',
       claimRegrant: 'recuperado tras una retirada',
       foot: 'Expediente {id} · {n} observaciones. Aquí no hay ninguna nota guardada. Esta hoja recalcula cada cifra desde el modelo del estudiante y el registro de pruebas de este dispositivo. Una línea solo se sella tras una tanda de prueba sin ayuda, en la banda del sello. Dos reexámenes en frío fallidos retiran el sello otra vez.',
       trust: {
@@ -1749,6 +1872,35 @@ export default {
       'factor-common': 'Factorizar es expandir al revés: saca todo lo que comparten los términos.',
       'linear-vs-exponential': 'Una regla recta suma lo mismo; una regla que crece multiplica por el mismo factor.',
       'exponential-rule': 'Un principio multiplicado por un factor una vez por paso, y en cero pasos, el principio.',
+      // Nivel 4 (content/graph/algebra1-l4.json).
+      'radical-simplify': 'Una raíz cuadrada pregunta qué número, por sí mismo, da el de debajo. El mayor cuadrado que hay dentro sale fuera y el resto se queda.',
+      'radical-arith': 'Dos raíces solo se suman cuando el número de debajo es el mismo. Dos raíces siempre se multiplican.',
+      'factor-trinomial-monic': 'Factorizar es multiplicar paréntesis al revés. Busca la pareja de números que multiplica al último término y suma al del medio.',
+      'factor-trinomial-lead': 'El número delante del cuadrado se reparte entre los dos paréntesis. Ahora la pareja multiplica al primer coeficiente por el último.',
+      'difference-of-squares': 'Dos cuadrados con un menos en medio se abren en un paréntesis suma y otro resta. Con un más no se abren nunca.',
+      'poly-divide': 'Dividir pregunta por cuánto multiplicar el segundo para dar el primero. Multiplica la respuesta de vuelta y tienen que volver todos los términos.',
+      'quadratic-zero-product': 'Si dos cantidades multiplican y dan cero, al menos una vale cero. Un producto de paréntesis vale cero justo donde un paréntesis vale cero.',
+      'solve-by-factoring': 'Pasa todo a un lado y deja cero en el otro. Después factorizar convierte un enunciado difícil en dos fáciles.',
+      'square-root-method': 'Sacar la raíz a los dos lados deshace el cuadrado. Un cuadrado tiene dos raíces, así que salen dos respuestas.',
+      'complete-the-square': 'La mitad del coeficiente del medio, al cuadrado, completa un cuadrado perfecto. Súmala a los dos lados y aparece un paréntesis al cuadrado.',
+      'quadratic-formula': 'Completar el cuadrado en general da una fórmula que siempre sirve. La parte de debajo de la raíz dice cuántas respuestas reales hay.',
+      'parabola-features': 'Una regla al cuadrado dibuja una curva que baja, gira y sube. El giro, los cortes y el valor mayor o menor salen de los mismos tres números.',
+      'quadratic-from-vertex': 'Una regla al cuadrado puede enseñar su punto de giro, o los dos paréntesis que dan sus ceros. Las dos escrituras describen una sola curva.',
+      'quadratic-model': 'Un objeto lanzado, un cercado y un precio frente a la recaudación siguen una regla al cuadrado. El giro es el mejor valor y los ceros cierran la historia.',
+      // Nivel 5 (content/graph/algebra1-l5.json).
+      'rational-exponent': 'Un exponente no tiene por qué ser entero. La parte de abajo dice qué raíz tomar y la de arriba, a qué potencia elevar.',
+      'relation-is-function': 'Una regla es función cuando cada entrada tiene una sola salida. Una entrada con dos salidas la rompe. Dos entradas que comparten salida, no.',
+      'sequence-terms': 'Una lista de números es una regla cuyas entradas son las posiciones 1, 2, 3 y así. Una regla recursiva da el valor siguiente desde el anterior.',
+      'sequence-nth-term': 'Una sola fórmula da cualquier valor directamente desde su posición. La lista que suma pide una fórmula de paso, y la que multiplica, una de potencia.',
+      'point-slope-form': 'Una lectura y una tasa fijan la recta. La misma recta tiene tres escrituras, y cada una deja fácil un dato distinto.',
+      'parallel-perpendicular': 'Dos rectas que nunca se cruzan tienen la misma tasa. Dos rectas que se cortan en ángulo recto tienen tasas que multiplican a menos uno.',
+      'inequality-two-var': 'Una desigualdad con dos letras nombra una región, no una recta. La frontera dice dónde acaba y una lectura de prueba dice de qué lado.',
+      'write-system': 'Un solo enunciado no basta cuando hay dos incógnitas. Dos enunciados distintos sobre la misma pareja las fijan a la vez.',
+      'system-graphically': 'Dos enunciados en forma de trazo se cruzan donde los dos son ciertos. El cruce es la respuesta y tiene que cumplir los dos.',
+      'scatter-regression': 'Las lecturas reales nunca caen justo sobre una recta. La recta más cercana a todas a la vez es la que sirve para predecir.',
+      'residual-and-fit': 'La distancia entre una lectura real y el modelo es el residuo. Residuos con un mismo signo seguidos avisan de que la forma no encaja.',
+      'association-strength': 'Dos medidas pueden subir juntas, ir al revés o no tener ningún patrón. Una proporción nunca es una causa.',
+      'exponential-model': 'Una regla que multiplica por el mismo factor en cada paso crece o mengua un porcentaje fijo. Multiplicar siempre acaba ganando a sumar.',
     },
 
     slip: {
@@ -1954,14 +2106,39 @@ export default {
       prove: 'Demuestra la línea',
       watch: 'Monta la guardia',
       sound: 'Sondea la red',
+      /* Los tres que no son un teclado: el objetivo ya puede mandarte a un
+         sitio que se resuelve con los pies. (src/meta/objective.js) */
+      crack: 'Abre la caja',
+      lay: 'Cubre el tramo',
+      climb: 'Llega al hito',
+    },
+
+    site: {
+      cache: 'Caja colgante',
+      deepcache: 'Caja profunda',
+      span: 'Tramo colgante',
+    },
+
+    /* Cuando el número baja. Ninguna de las dos frases lleva cifra alguna.
+       (src/meta/progress.js `createRepairWatch`) */
+    slip: {
+      line: 'Mundo reparado ha bajado. Ese fallo te ha costado terreno en esta línea: {skill}. Acierta y el terreno vuelve.',
+      held: 'Mundo reparado ha bajado. Esta línea no ha vuelto esta vez: {skill}. Trabájala otra vez y recuperas el mérito.',
     },
 
     metres: '{n} m',
+    /* Ocho puntos, no cuatro. Cada uno es una frase entera: la distancia va en
+       su propio elemento, al lado, y ningún idioma tiene que meter un número
+       dentro de un rumbo. (src/world/bearing.js) */
     rel: {
-      ahead: 'Al frente',
-      left: 'A tu izquierda',
+      ahead: 'Justo al frente',
+      aheadRight: 'Al frente, tirando a la derecha',
       right: 'A tu derecha',
-      behind: 'A tu espalda',
+      backRight: 'A tu espalda, por la derecha',
+      behind: 'Date la vuelta',
+      backLeft: 'A tu espalda, por la izquierda',
+      left: 'A tu izquierda',
+      aheadLeft: 'Al frente, tirando a la izquierda',
       here: 'Lo tienes bajo los pies',
     },
 
@@ -1976,6 +2153,7 @@ export default {
          del equipo son masculinos y femeninos, y la concordancia se rompía en
          la mitad de ellos. */
       kit: 'Sostenla y ganas {name}: {gist}.',
+      field: 'Este lo resuelves con los pies. El sitio queda abierto para siempre.',
       calm: 'Séllalo y las sacudidas de aquí se acaban para siempre.',
       sound: 'Ya sostienes esta línea. Un sondeo la recorre hacia abajo, cada pregunta más difícil.',
     },
@@ -2015,7 +2193,7 @@ export default {
     // -------------------------------------------------------------------
     n: {
       rift: 'Ese anillo es una grieta. Métete dentro y te muestra un enunciado. Hazlo verdadero y se cierra.',
-      surge: 'Ese anillo de luz es una sacudida de la grieta. Te tira motas y te quita el equilibrio. Sáltala.',
+      surge: 'Ese anillo de luz es una sacudida de la grieta. La sacudida te tira motas y te quita el equilibrio. Sáltala.',
       mote: 'Motas de cifra: red suelta, donde el suelo sangró. Pasa por encima. La fundición las cambia por equipo.',
       charged: 'Las motas doradas crecen junto a una grieta abierta. Pagan el triple. Sella la grieta y paran.',
       husk: 'Las cáscaras son vetas que vaciaste. Cada una se reenciende en unos cinco minutos. Llega más lejos.',
@@ -2062,6 +2240,16 @@ export default {
     balanceNo: 'La barra lo rechaza',
     balanceReset: 'Las pesas se rehacen',
     cacheOpen: 'Caja abierta: {n} motas, y aquí el aire ya sube para siempre',
+
+    // --- el cruce (src/world/meet.js): el tercer tipo de sitio fuera de la
+    // isla. Una caja es una balanza que cargas con una pesa y un tramo es una
+    // parcela que cubres. Un cruce es una parcela que RECORRES.
+    meetLock: 'Cierre de cruce',
+    meetFirst: 'Camina por el riel. Bájate donde la barra no se incline.',
+    meetNo: 'Aquí la barra se inclina',
+    meetReset: 'El riel se rehace',
+    meetOpen: 'Cruce hallado: {n} motas, y desde aquí sale un camino para siempre',
+    meetNone: 'No hay cruce en ninguna parte: {n} motas, y los dos rieles siguen para siempre',
 
     // --- los tramos (src/world/span.js): el segundo tipo de sitio fuera de la
     // isla. Una caja es una balanza y paga aire ascendente. Un tramo es un
@@ -2123,6 +2311,14 @@ export default {
     toMark: 'Hito de prospección · {name}: {n} m',
     stay: 'Esta línea sigue siendo lo que más te conviene. Vuelve a la placa cuando quieras.',
     rhythm: 'Una grieta da un puñado de preguntas y luego se calma. Aprovecha el hueco: siempre hay algo ahí fuera que merece el paseo.',
+    /* La respuesta en una grieta ya calmada. La tecla sigue respondiendo, y
+       responde con un lugar. (src/session/stint.js) */
+    onwardTear: 'La grieta se ha calmado. Siguiente línea · {skill}: {n} m',
+    onwardMark: 'La grieta se ha calmado. Hito de prospección · {name}: {n} m',
+    /* La respuesta en una grieta ya calmada (src/session/stint.js gasta la
+       visita). Una visita da tres preguntas y luego la grieta se calma hasta
+       que el cadete abre otra. La tecla sigue respondiendo, y
+       responde con un lugar. */
   },
   // --- la capa de afordancia (src/world/afford.js): qué ofrece una grieta,
   // qué tecla lo hace y hacia dónde queda la siguiente ---------------------
@@ -2138,6 +2334,10 @@ export default {
     tap: 'Toca',
     next: 'Próxima grieta',
     metres: '{n} m',
+    /* La última palabra de la regla de rumbo perdido (src/world/afford.js).
+       Se dice una vez por sesión, después de que el camino ya haya llamado dos
+       veces sin palabras. Nunca hay una cuarta respuesta. */
+    lost: 'La grieta te queda a la espalda. Date la vuelta y sigue el camino dorado.',
   },
 
   // ---------------------------------------------------------------------
@@ -2173,6 +2373,7 @@ export default {
       bind: 'Guardián sujetado: alcanzaste el constructo y tomaste la pesa que hace cierto su enunciado.',
       deepcache: 'Caja profunda: una caja colgante con una incógnita en los dos platillos. La dejó un guardián.',
       span: 'Tramo: un rectángulo de suelo en el cielo. Cúbrelo justo, y te paga un camino.',
+      meet: 'Cruce: dos enunciados sobre una misma parcela. Camina por el riel hasta donde la barra deja de inclinarse, y te paga un camino.',
       surge: 'Sacudida de la grieta: el anillo que lanza una grieta abierta. Sáltalo o te cuesta motas.',
       vault: 'Placa de bóveda puesta: písala y te lanza doce metros hacia arriba.',
       plate: 'Placa de bóveda comprada: una quinta pieza para la red.',
@@ -2191,6 +2392,7 @@ export default {
       bind: 'Guardián sujetado',
       deepcache: 'Caja profunda',
       span: 'Tramo cubierto',
+      meet: 'Cruce abierto',
       order: 'Marca apagada',
       found: 'Recogidas',
       surge: 'Sacudida de la grieta',

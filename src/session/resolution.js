@@ -50,13 +50,46 @@ import { t, num } from '../i18n/index.js';
 import { RANK_INK, RANK_GLOW, sigilSVG } from '../meta/arc.js';
 import { FIG, tagFigure, untagFigure } from '../meta/progress.js';
 
+/**
+ * THE CARD THAT COULD NOT BE CLOSED.
+ *
+ * This surface takes the whole frame and `src/session/index.js` holds
+ * `input.uiOpen` for as long as it is up. `uiOpen` stops every verb the player
+ * owns AND sets `#touchpad` to `display: none` — so on a phone it takes every
+ * control there is. For as long as this file has existed there was **no key
+ * handler on it at all**: Escape did nothing, F1 did nothing (the menu hands
+ * Escape back whenever `uiOpen` is true, by design), and the only way out was
+ * an aimed click on one of two buttons. Measured on the frozen build, real key
+ * events, cleared save: the card up, `uiOpen` true, three Escapes and an F1
+ * refused, and **0.00 m of movement from 1.6 s of held W**.
+ *
+ * That is this project's third card of this exact shape — after the closed
+ * full-screen rift dialog that ate every click, and the ORDERS card whose BEGIN
+ * fell below the fold and killed every control on the device.
+ *
+ * So: Escape stands the run down, which is what the primary button does and
+ * what the keycap printed on that button now says; a click anywhere on the dim
+ * does the same, exactly as the orders card has always allowed; and neither of
+ * them can fire in the first `GRACE` ms, because the keystroke that closed the
+ * last rift is still in the queue when this card opens and it was aimed at the
+ * rift. See `charter.js` for the run of that defect in the other direction.
+ */
+
+/**
+ * Nothing dismisses this card for this long after it opens. Under a second, so
+ * it cannot be felt as a lock; longer than any input queue, so the key that
+ * sealed the last tear cannot be the key that throws away the résumé.
+ * Deliberately the same number the orders card uses.
+ */
+const GRACE = 700;
+
 export class Resolution {
-  constructor(root, { onRest, onMore }) {
+  constructor(root, { onRest, onMore, onDismiss }) {
     this.el = document.createElement('div');
     this.el.className = 'ses-close';
     this.el.innerHTML = `
       <div class="sx-dim"></div>
-      <div class="sx-in" role="dialog" aria-modal="true">
+      <div class="sx-in" role="dialog" aria-modal="true" aria-keyshortcuts="Escape">
         <!-- THE SHELF IS NOT IN THE SCROLLER.
 
              It used to be: .sx-acts sat last in this flow on position:sticky,
@@ -122,7 +155,7 @@ export class Resolution {
              scrolls. -->
         <div class="sx-acts">
           <p class="sx-cap"></p>
-          <button type="button" class="sx-rest"></button>
+          <button type="button" class="sx-rest"><span></span><kbd></kbd></button>
           <button type="button" class="sx-more"></button>
         </div>
       </div>`;
@@ -147,8 +180,47 @@ export class Resolution {
     this.rest = this.el.querySelector('.sx-rest');
     this.more = this.el.querySelector('.sx-more');
     this.inn = this.el.querySelector('.sx-in');
+    this.restLabel = this.el.querySelector('.sx-rest span');
+    this.restKey = this.el.querySelector('.sx-rest kbd');
+    this.dim = this.el.querySelector('.sx-dim');
     this.rest.addEventListener('click', () => { this.hide(); onRest?.(); });
     this.more.addEventListener('click', () => { this.hide(); onMore?.(); });
+    this._onDismiss = onDismiss || onRest;
+    this._openedAt = 0;
+    this._downAtOpen = new Set();
+    /* The card keeps its own record of what is under the player's fingers, in
+       the capture phase, so the answer is true at the instant it is asked —
+       the same construction the orders card uses and for the same reason. */
+    this._held = new Set();
+    addEventListener('keydown', (e) => { if (e.isTrusted !== false) this._held.add(e.code); }, true);
+    addEventListener('keyup', (e) => {
+      this._held.delete(e.code);
+      this._downAtOpen.delete(e.code);
+    }, true);
+    addEventListener('blur', () => { this._held.clear(); this._downAtOpen.clear(); });
+    /* ESCAPE, IN THE CAPTURE PHASE.
+       The menu (src/ui/menu.js) hands Escape straight back whenever `uiOpen` is
+       true, so nothing downstream of this was ever going to close this card.
+       Capture, so this surface answers for its own key before anything else
+       reads it; `stopImmediatePropagation` so the SAME keystroke cannot then be
+       heard by the break beat this hands the frame to, which is one window
+       listener away and would otherwise be dismissed in the same millisecond. */
+    addEventListener('keydown', (e) => {
+      if (!this.open || e.repeat || e.code !== 'Escape') return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+      if (!this._canAct(e.code)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.dismiss();
+    }, true);
+    /* A CLICK ON THE DIM IS THE SAME DECISION. The dim is the whole frame and
+       it swallowed every click in it; the orders card has always let that click
+       mean something, and there is no reason this one should not. */
+    this.el.addEventListener('click', (e) => {
+      if (!this.open || !this._canAct(null)) return;
+      if (e.target === this.el || e.target === this.dim) this.dismiss();
+    });
     root.appendChild(this.el);
     this._live = null;
     // A rotation, a Chromebook window being dragged taller, a phone keyboard
@@ -179,6 +251,29 @@ export class Resolution {
    * overflows — asking it would answer "no" on every screen and the shelf would
    * lose its fade exactly where it is needed.
    */
+  /**
+   * Is this input a decision the player made about THIS card?
+   *
+   * @param {string|null} code the key, or null for a pointer
+   */
+  _canAct(code) {
+    if (performance.now() - this._openedAt < GRACE) return false;
+    if (code && this._downAtOpen.has(code)) return false;
+    return true;
+  }
+
+  /**
+   * Escape, or a click on the dim. It takes the same road the primary button
+   * takes — the run is over either way, and standing the cadet down is the one
+   * outcome that neither throws the break away nor spends an extension the
+   * player did not ask for. The keycap on that button says so.
+   */
+  dismiss() {
+    if (!this.open) return;
+    this.hide();
+    this._onDismiss?.();
+  }
+
   fit() {
     if (!this.scroll || !this.open) return;
     const on = this.el.classList.contains('scrolls');
@@ -211,6 +306,8 @@ export class Resolution {
     this.el.classList.remove('show');
     void this.el.offsetWidth;
     this.el.classList.add('show');
+    this._openedAt = performance.now();
+    this._downAtOpen = new Set(this._held);
     this.fit();
     // …and again once the web fonts have settled, since a fallback face can be
     // a line shorter than the real one and that is the whole margin at 1280x720.
@@ -335,6 +432,16 @@ export class Resolution {
       : groundRows(r));
 
     const opened = [];
+    /* THE ROAD COMES FIRST. A line opening is a line; a REGION opening is a
+       whole new part of the knowledge graph, and it is the largest thing that
+       can happen in a sitting. It is named as a place, never as a level number
+       — this game teaches invisibly. (src/meta/region.js) */
+    if (r.region?.opened) {
+      opened.push({
+        strong: t(`story.region.${r.region.opened}.name`),
+        note: t('session.close.regionNote'),
+      });
+    }
     for (const id of r.opened) opened.push({ strong: t('skills.' + id), note: t('session.close.openedNote') });
     if (r.chapter) opened.push({ strong: t('story.hud.act', { n: r.chapter }), note: t('session.close.chapterNote') });
     if (r.rank) opened.push({ strong: r.rank, note: t('session.close.rankNote') });
@@ -359,7 +466,12 @@ export class Resolution {
     );
 
     this.sign.textContent = t(signKey(r, held, leadWork));
-    this.rest.textContent = t('session.close.rest');
+    this.restLabel.textContent = t('session.close.rest');
+    /* THE KEY IS PRINTED ON THE BUTTON IT WORKS. A keycap inside the button's
+       own line box costs the card no height, which matters on this surface more
+       than most — see THE SHELF above. */
+    this.restKey.textContent = t('session.close.restKey');
+    this.rest.setAttribute('aria-keyshortcuts', 'Escape');
     this.more.textContent = t('session.close.more');
     // ONE MORE LINE is an offer the window can run out of, and when it has, the
     // card says so instead of quietly serving a fifth eight-minute run.
@@ -445,24 +557,33 @@ function openedNoneRow(r, held) {
  * Nothing here is a promise the engine has not already made good on somewhere.
  */
 function nextRows(r) {
+  /* WHERE THE NEXT RUN LANDS. A region earned this sitting is not on the island
+     yet — the ground is made at planetfall — so the hook is the crossing itself,
+     and it outranks the next line because it is a place rather than a task.
+     (src/meta/region.js, src/session/index.js `crossIfWaiting`.) */
+  const crossing = r.region?.waiting
+    ? [{ strong: t(`story.region.${r.region.waiting}.name`), note: t('session.close.regionNext') }]
+    : [];
   if (r.next) {
     // The line comes first — it is the mathematics, and the mathematics is the
     // point — and then at most two of the things that keep going. Three rows is
     // the most this block may ever hold with a line still open: a list nobody
     // finishes reading is a list that named nothing.
     return [
+      ...crossing,
       {
         strong: t('skills.' + r.next.id),
         note: r.next.minutes != null
           ? t('session.close.nextNote', { n: r.next.minutes })
           : t('session.close.nextNoteUnknown'),
       },
-      ...continuing(r).slice(0, 2),
+      ...continuing(r).slice(0, crossing.length ? 1 : 2),
     ];
   }
   return [
+    ...crossing,
     { strong: t('session.close.nextDoneStrong'), note: t('session.close.nextDone') },
-    ...continuing(r, true).slice(0, 3),
+    ...continuing(r, true).slice(0, crossing.length ? 2 : 3),
   ];
 }
 

@@ -17,7 +17,11 @@
  *   · every misconception a distractor names is declared by the graph;
  *   · every declared representation can actually be produced;
  *   · items generate, verify and render under strict KaTeX in EN, ES and PL;
- *   · the difficulty ladder really rises, band 1 to band 5, per skill;
+ *   · the difficulty ladder really rises, band 1 to band 5, per skill — and is
+ *     a ladder rather than a flat floor or a wall (tools/critic/ladder.mjs);
+ *   · EVERY OPTION A LEARNER IS SHOWN IS IN THE FORM THE BANK DEMANDS — a root
+ *     with the largest square already out, a factorisation carried all the way
+ *     (`simplestFaults`, `factorFaults` below);
  *   · the three locale bundles of every pack have identical key sets.
  *
  *   node tools/validate-courses.mjs [seeds]
@@ -27,6 +31,8 @@ import { generate, demandOf, verify } from '../src/learn/generators.js';
 import { hasSkill, formsFor, packStrings } from '../src/content/registry.js';
 import { alignmentOf, practicesOf, alignmentNote, DEPTHS, coverage } from '../src/content/standards.js';
 import { allUnits, loadUnit, standalone } from './_courses.mjs';
+import { ladderFaults } from './critic/ladder.mjs';
+import { findings } from './_findings.mjs';
 
 /** Seeds per band, per skill. The difficulty ladder is a mean, so it needs volume. */
 const N = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) || 240);
@@ -36,6 +42,201 @@ const LOCALES = ['en', 'es', 'pl'];
 const problems = [];
 const fail = (m) => problems.push(m);
 let checked = 0;
+
+// ---------------------------------------------------------------------------
+// THE FORM AN OPTION IS WRITTEN IN.
+//
+// Two families of defect that every other gate passed, because every other
+// gate asks whether the mathematics is RIGHT and these options are wrong in a
+// way that has nothing to do with their value.
+//
+//  1. `re-radical` and `re-surd` — the two forms in `rational-exponent` whose
+//     whole subject is simplest form — offered `3\sqrt{9}`, which is secretly
+//     the whole number nine, and `3\sqrt{12}`, which is `6\sqrt{3}`. A cadet
+//     who simplifies every option finds one that stops being a root and picks
+//     the odd one out. That is a shape cue, not mathematics, and it was in a
+//     skill about the very thing being cued. Fifteen more forms across
+//     `radical-simplify`, `radical-arith`, `complete-the-square`,
+//     `square-root-method` and `quadratic-formula` did the same. Note that the
+//     old hand-written guards tested `isWholeSquare` — "is what is left under
+//     the bar a perfect square" — which catches `2\sqrt{4}` and lets
+//     `3\sqrt{12}` through. Squarefree is the test; being a square is not.
+//
+//  2. `ds-factor` in the SHIPPED unit keyed `12y + 8` as `2\left(6y + 4\right)`
+//     — a product, but not a factorisation — with a worked echo that read
+//     "Pull the 2 out in front." CCSS A-SSE.3a and TEKS A.10(E) both say
+//     factor completely, so the bank was teaching the habit of stopping early,
+//     in three languages, in the unit a class would be given on Monday.
+//
+// Both rules read only what a learner is SHOWN: the key and the options. Both
+// are proved against a planted defect and its honest twin on every run, at the
+// bottom of this file — see `proveFormRules`.
+// ---------------------------------------------------------------------------
+
+/** Is `n` free of every square factor above one? */
+export function squarefree(n) {
+  const v = Math.abs(n);
+  for (let p = 2; p * p <= v; p++) if (v % (p * p) === 0) return false;
+  return v >= 1;
+}
+
+/**
+ * Every plain whole-number radicand printed in `tex`, for SQUARE roots only.
+ *
+ * A root with a written index — `\sqrt[3]{8}` — is a different question with a
+ * different notion of simplest, and this pattern steps over it by construction:
+ * an index puts a `[` where the brace has to be, so the match fails there and
+ * nowhere else in the same string.
+ */
+export function radicandsOf(tex) {
+  return [...String(tex ?? '').matchAll(/\\sqrt\s*\{\s*(\d+)\s*\}/g)].map((m) => Number(m[1]));
+}
+
+/**
+ * Options that are not written the way this bank writes an answer.
+ * @param {{answer:string, distractors:{value:string}[]}} item
+ */
+export function simplestFaults(item) {
+  const out = [];
+  const shown = [
+    { what: 'the key', v: item.answer },
+    ...(item.distractors || []).map((dd) => ({ what: 'an option', v: dd.value })),
+  ];
+  for (const { what, v } of shown) {
+    for (const rad of radicandsOf(v)) {
+      if (squarefree(rad)) continue;
+      out.push(`${what} is written "${v}", and ${rad} still holds a square — this bank writes every root with the largest square already out`);
+    }
+  }
+  return out;
+}
+
+const gcdOf = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a; };
+
+/**
+ * A key that is a plain product of brackets, split into its parts.
+ * `4x\left(x + 3\right)\left(x - 3\right)` -> { lead: '4x', parts: [...] }.
+ * `null` for anything that is not that shape — a sum, a fraction, a pair of
+ * roots, a phrase — which is most of the bank and is not this rule's business.
+ */
+export function bracketFactors(tex) {
+  const src = String(tex ?? '').trim();
+  if (!src || /[=<>,]|\\text|\\frac|\\pm|\\sqrt|\\ldots|\\begin/.test(src)) return null;
+  const close = (at) => {
+    let depth = 0;
+    for (let i = at; i < src.length; i++) {
+      if (src.startsWith('\\left(', i)) { depth++; i += 5; continue; }
+      if (src.startsWith('\\right)', i)) { depth--; if (!depth) return i; i += 6; continue; }
+    }
+    return -1;
+  };
+  const parts = [];
+  let lead = '';
+  let i = 0;
+  while (i < src.length) {
+    if (src.startsWith('\\left(', i)) {
+      const j = close(i);
+      if (j < 0) return null;
+      parts.push(src.slice(i + 6, j));
+      i = j + 7;
+      const rep = /^\s*\^\{(\d+)\}/.exec(src.slice(i));
+      if (rep) { for (let t = 1; t < Number(rep[1]); t++) parts.push(parts[parts.length - 1]); i += rep[0].length; }
+      continue;
+    }
+    if (parts.length) return null;          // a term AFTER a bracket: this is a sum
+    lead += src[i]; i++;
+  }
+  return parts.length ? { lead: lead.trim(), parts } : null;
+}
+
+/** Integer coefficients of one bracket, by power of `v`, or null if unreadable. */
+export function intCoeffs(src, v) {
+  const t = String(src).replace(/\\left|\\right|\\cdot|\s/g, '');
+  if (!new RegExp(`^[-+0-9^{}${v}]*$`).test(t) || !t) return null;
+  const out = {};
+  for (const term of t.replace(/-/g, '+-').split('+').filter(Boolean)) {
+    const m = new RegExp(`^(-?\\d*)${v}(?:\\^\\{(\\d+)\\})?$`).exec(term);
+    if (m) {
+      const c = m[1] === '' ? 1 : m[1] === '-' ? -1 : Number(m[1]);
+      const p = m[2] ? Number(m[2]) : 1;
+      out[p] = (out[p] || 0) + c;
+      continue;
+    }
+    if (/^-?\d+$/.test(term)) { out[0] = (out[0] || 0) + Number(term); continue; }
+    return null;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Is a factorisation carried all the way? */
+export function factorFaults(item) {
+  const v = item.check?.variable || 'x';
+  const f = bracketFactors(item.answer);
+  if (!f) return [];
+  const out = [];
+  for (const part of f.parts) {
+    const co = intCoeffs(part, v);
+    if (!co) continue;
+    const content = Object.values(co).reduce((g, c) => gcdOf(g, c), 0);
+    if (content > 1) {
+      out.push(`the key "${item.answer}" leaves a factor of ${content} inside \\left(${part}\\right); a factorisation is carried all the way or it teaches stopping early`);
+    }
+    // …and a bracket that is still a quadratic which comes apart over Z.
+    const a = co[2] || 0, b = co[1] || 0, c = co[0] || 0;
+    if (a) {
+      const disc = b * b - 4 * a * c;
+      const rt = Math.round(Math.sqrt(Math.max(0, disc)));
+      if (disc >= 0 && rt * rt === disc) {
+        out.push(`the key "${item.answer}" leaves \\left(${part}\\right), which still comes apart over the whole numbers`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * A GATE NOBODY HAS WATCHED REFUSE ANYTHING IS NOT A GATE.
+ *
+ * Both rules above are pointed at the exact defect they exist to catch and at
+ * the nearest honest content in the same bank, on every run, before the bank
+ * is read at all. If a later edit makes either rule silent, or makes it fire
+ * on honest content, this run stops here and says so.
+ */
+function proveFormRules() {
+  const D = (answer, distractors = [], check = {}) => ({ answer, check, distractors: distractors.map((v) => ({ value: v })) });
+  const bad = [];
+  const fires = (got, why) => { if (!got.length) bad.push(`the rule stayed silent on ${why}`); };
+  const quiet = (got, why) => { if (got.length) bad.push(`the rule fired on ${why}: ${got[0]}`); };
+
+  // simplest form — the two real defects, and the honest twin of each.
+  fires(simplestFaults(D('3\\sqrt{5}', ['3\\sqrt{9}'])), 'an option of 3\\sqrt{9}, which is the whole number nine');
+  fires(simplestFaults(D('3\\sqrt{5}', ['3\\sqrt{12}'])), 'an option of 3\\sqrt{12}, which is 6\\sqrt{3}');
+  fires(simplestFaults(D('2\\sqrt{8}')), 'a KEY that still holds a square');
+  quiet(simplestFaults(D('\\sqrt[3]{8}', ['\\sqrt[3]{27}'])), 'cube roots, which this rule steps over');
+  quiet(simplestFaults(D('2\\sqrt{5}', ['\\sqrt[3]{8} + \\sqrt{6}'])), 'an option that mixes a cube root with a square root in simplest form');
+  fires(simplestFaults(D('2\\sqrt{5}', ['\\sqrt[3]{8} + \\sqrt{12}'])), 'the same shape with the SQUARE root left unfinished');
+  quiet(simplestFaults(D('4\\sqrt{6}', ['16\\sqrt{6}', '6\\sqrt{15}', '\\sqrt{10}', '48'])), 'four options that are each as far in as they go');
+  quiet(simplestFaults(D('n = 2 \\pm 2\\sqrt{5}', ['n = 2 \\pm \\sqrt{5}'])), 'a pair of roots written with the square out');
+
+  // complete factorisation — the shipped defect, and the honest twin.
+  fires(factorFaults(D('2\\left(6y + 4\\right)', [], { variable: 'y' })), '12y + 8 keyed as 2(6y + 4)');
+  fires(factorFaults(D('\\left(2x + 4\\right)\\left(2x - 4\\right)', [], { variable: 'x' })), '4x^2 - 16 keyed as (2x + 4)(2x - 4)');
+  fires(factorFaults(D('\\left(x^{2} - 9\\right)\\left(x + 1\\right)', [], { variable: 'x' })), 'a bracket that still comes apart');
+  quiet(factorFaults(D('4\\left(3y + 2\\right)', [], { variable: 'y' })), 'the same 12y + 8, factored all the way');
+  quiet(factorFaults(D('4x\\left(x + 3\\right)\\left(x - 3\\right)', [], { variable: 'x' })), 'a common factor and a difference of squares, both taken');
+  quiet(factorFaults(D('\\left(2x + 5\\right)\\left(x + 9\\right)', [], { variable: 'x' })), 'a trinomial with a lead coefficient, factored');
+  quiet(factorFaults(D('\\left(x + 3\\right)^{2}', [], { variable: 'x' })), 'a perfect square');
+  quiet(factorFaults(D('x = -6, x = -2', [], { variable: 'x' })), 'a pair of roots, which is not a product at all');
+  quiet(factorFaults(D('3z^{2} + z + 12', [], { variable: 'z' })), 'a plain sum');
+
+  if (bad.length) {
+    console.error('the form rules cannot prove themselves:');
+    for (const b of bad) console.error(`  - ${b}`);
+    process.exit(2);
+  }
+  console.log('form rules: proved on the planted defect and quiet on its honest twin (19 cases)');
+}
+proveFormRules();
 
 const units = await allUnits();
 const loaded = [];
@@ -171,6 +372,16 @@ for (const { course, unit, graph } of loaded) {
         }
         checked += 1;
         sum += demandOf(item); count += 1;
+        // …AND THE FORM THE KEY AND THE OPTIONS ARE WRITTEN IN, on every seed
+        // rather than on the first DEEP of them. See the block above
+        // `allUnits`: strict KaTeX proves a string renders, and these two rules
+        // prove it is the string this bank should be printing. They are a regex
+        // and a little integer arithmetic, so they cost what `demandOf` costs
+        // and can afford the whole sample — which matters, because the defects
+        // they catch are rare draws: one `factor-common` seed in about 250 left
+        // a difference of two squares inside the bracket.
+        for (const p of simplestFaults(item)) fail(`${tag}: ${n.id}/${item.form} d${d} seed ${s} — ${p}`);
+        for (const p of factorFaults(item)) fail(`${tag}: ${n.id}/${item.form} d${d} seed ${s} — ${p}`);
         // The ladder is a statistic and needs volume; re-deriving every item in
         // three languages under strict KaTeX is expensive and needs only depth.
         // So the first DEEP seeds of each band get the full treatment and the
@@ -183,12 +394,19 @@ for (const { course, unit, graph } of loaded) {
           }
         }
         if (/\\text\{/.test(item.latex)) fail(`${tag}: ${n.id}/${item.form} leaks prose into the notation`);
-        // strict KaTeX, exactly as the game renders it
-        for (const src of [item.latex, item.answer, ...item.steps.map((st) => st.latex), ...item.distractors.map((x) => x.v)]) {
+        /* strict KaTeX, exactly as the game renders it.
+           `x.v` is what a form WRITES; `x.value` is what `finalize` hands the
+           learner. Reading the raw name off a finished item gave `undefined`
+           for every distractor, and `String(undefined)` is nine letters that
+           KaTeX renders without complaint — so this loop listed the options a
+           learner is shown and checked none of them, on every unit past Level
+           1, which is 42% of the notation strings it claims to cover. */
+        for (const src of [item.latex, item.answer, ...item.steps.map((st) => st.latex), ...item.distractors.map((x) => x.value)]) {
           try { katex.renderToString(String(src), { throwOnError: true, strict: 'error' }); } catch (e) {
             fail(`${tag}: ${n.id}/${item.form} — KaTeX rejects "${src}": ${e.message.split('\n')[0]}`);
           }
         }
+
         // every locale must produce prose with no leftover placeholder
         for (const loc of LOCALES) {
           let li;
@@ -205,15 +423,20 @@ for (const { course, unit, graph } of loaded) {
       }
       meanByBand.push(count ? sum / count : 0);
     }
-    // The ladder is a mean over random draws. Below about a hundred seeds per
-    // cell the sampling noise is bigger than the rung, so a small run measures
-    // and prints but does not fail — the shipped gate runs the full count.
-    for (let i = 1; i < 5 && N >= 120; i++) {
-      if (meanByBand[i] <= meanByBand[i - 1]) {
-        fail(`${tag}: ${n.id} band ${i + 1} does not ask more than band ${i} (${meanByBand[i - 1].toFixed(2)} -> ${meanByBand[i].toFixed(2)})`);
-      }
-    }
-    console.log(`  ${n.id.padEnd(20)}${meanByBand.map((m) => m.toFixed(2).padStart(7)).join('')}`);
+    /* THE LADDER.
+       Four rules, not one — see tools/critic/ladder.mjs for where each number
+       comes from and for the self-test that fires every one of them on the real
+       defect and keeps every one of them quiet on the nearest honest skill.
+       This file used to ask only "does each band ask more than the one under
+       it", which certified `system-substitution` (five bands spanning 0.99) and
+       `exponent-power` (68% of the whole climb at one boundary).
+       The ladder is a mean over random draws; below about a hundred seeds per
+       cell the sampling noise is bigger than a rung, so a small run measures and
+       prints but does not fail. The shipped gate runs the full count. */
+    const faults = ladderFaults(meanByBand, { seeds: N });
+    for (const f of faults) fail(`${tag}: ${n.id} ${f.text}`);
+    const flag = faults.length ? `  <- ${[...new Set(faults.map((f) => f.rule))].join(', ')}` : '';
+    console.log(`  ${n.id.padEnd(20)}${meanByBand.map((m) => m.toFixed(2).padStart(7)).join('')}${flag}`);
   }
 
   // --- pack prose parity ---------------------------------------------------
@@ -243,8 +466,15 @@ for (const { course, unit, graph } of loaded) {
 
 console.log(`\nchecked ${checked} items across ${loaded.length} units in ${new Set(loaded.map((x) => x.course.id)).size} course(s)`);
 if (problems.length) {
-  console.log(`\nFAIL — ${problems.length} problem(s):`);
+  console.log(`\n${problems.length} problem(s):`);
   for (const p of problems.slice(0, 60)) console.log('  - ' + p);
-  process.exit(1);
+} else {
+  console.log('every unit in the manifest generates, verifies and aligns in three languages');
 }
-console.log('PASS — every unit in the manifest generates, verifies and aligns in three languages');
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This is the only gate
+   over the WHOLE course, and it has always been strict about every unit: a
+   generator that will not generate, or a ladder that does not climb, is a
+   defect wherever it is. The ledger is a floor on severity and never a
+   ceiling, so the strictness stands and what the ledger adds is that the
+   route half cannot be printed under a zero exit code. */
+findings('check:courses', { scope: 'sweep' }).route(problems.map(String)).done();

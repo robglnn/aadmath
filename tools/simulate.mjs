@@ -104,9 +104,91 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argOf = (k) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : null; };
 const WANT_UNIT = argOf('--unit');
 const WANT_COURSE = argOf('--course');
+
+/**
+ * THE TWO POSITIONAL ARGUMENTS ARE POSITIONAL AMONG THEMSELVES, NOT IN argv.
+ *
+ * `LEARNERS` was `Number(process.argv[2])`, so `node tools/simulate.mjs --unit
+ * algebra1-l4` read the flag itself as the cohort size, got NaN, ran zero
+ * learners and then died in the quintile table on `slice[0].theta` of an empty
+ * array. The published invocation in this file's own header — `node
+ * tools/simulate.mjs [learners] [budget]` — put them first, so anyone who
+ * reached for `--unit` the obvious way got a stack trace instead of a run, and
+ * the quadratics unit had no mastery evidence at all for that reason.
+ *
+ * So the numbers are picked out of argv by being numbers, wherever they sit,
+ * and the flags and their values are stepped over.
+ */
+const NUMS = (() => {
+  const out = [];
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--')) { if (!/^--(self-test|verbose)$/.test(a)) i++; continue; }
+    if (/^\d+$/.test(a)) out.push(Number(a));
+  }
+  return out;
+})();
+
 let graph;
 let LATTICE = 'Algebra I Level 1';
-if (WANT_COURSE) {
+/**
+ * Skills the lattice under test STANDS ON but does not contain.
+ *
+ * A unit loaded on its own has its cross-unit prerequisites pruned — see
+ * `pruneDangling` in src/content/index.js, which reads a dropped edge as "you
+ * are starting here", i.e. the earlier units are already held. The invariants
+ * below have to read it the same way, or every unit after Level 1 reports
+ * thousands of false violations for using a rule its own manifest entry says
+ * comes before it. `requires` in content/courses.json is that statement.
+ */
+let PRIOR = new Set();
+/**
+ * `--units a,b` composes exactly those units into one lattice.
+ *
+ * It exists because the shipped route composes a SUBSET of a course: a region
+ * opens only once every line of the one before it is held
+ * (src/content/route.js), so what a learner actually plays is never one unit
+ * and rarely the whole course. Neither existing flag can express that, and the
+ * difference is not cosmetic — Level 2 measured with `--unit` has its
+ * cross-unit prerequisites pruned, which models a learner walking into it with
+ * no Level 1 behind them, the one condition the route makes impossible. That
+ * reading is 68.0% true mastery. The same lattice composed with Level 1 under
+ * it reads 88.3%.
+ */
+const WANT_UNITS = argOf('--units');
+if (WANT_UNITS) {
+  const want = WANT_UNITS.split(',').map((x) => x.trim()).filter(Boolean);
+  const units = await allUnits();
+  const gs = [];
+  for (const id of want) {
+    const pick = units.find((u) => u.unit.id === id);
+    if (!pick) throw new Error(`no unit "${id}"`);
+    gs.push(await loadUnit(pick.unit));
+  }
+  const head = gs[0];
+  const nodes = gs.flatMap((g) => g.nodes);
+  const ids = new Set(nodes.map((n) => n.id));
+  const common = new Map();
+  for (const g of gs) for (const m of g.commonMisconceptions || []) common.set(m.id, m);
+  graph = { ...head, id: want.join('+'), nodes: nodes.map((n) => ({ ...n, prereqs: n.prereqs.filter((p) => ids.has(p)) })), commonMisconceptions: [...common.values()] };
+  LATTICE = `units ${want.join(' + ')}`;
+  // …and whatever these units stand on but do not contain, for the same reason
+  // the single-unit branch below builds it: a pruned edge means "already held",
+  // and without it every use of a prior rule reads as a violation.
+  const byId = new Map(units.map((u) => [u.unit.id, u.unit]));
+  const seen = new Set(want);
+  const walk = async (id) => {
+    for (const req of byId.get(id)?.requires || []) {
+      if (seen.has(req)) continue;
+      seen.add(req);
+      const g = await loadUnit(byId.get(req));
+      for (const n of g.nodes) PRIOR.add(n.id);
+      await walk(req);
+    }
+  };
+  for (const id of want) await walk(id);
+} else if (WANT_COURSE) {
   graph = await loadCourse(WANT_COURSE);
   LATTICE = `course ${WANT_COURSE}`;
 } else {
@@ -115,14 +197,40 @@ if (WANT_COURSE) {
   if (!pick) throw new Error(`no unit "${WANT_UNIT}" in content/courses.json`);
   graph = standalone(await loadUnit(pick.unit));
   LATTICE = WANT_UNIT ? `unit ${WANT_UNIT}` : 'Algebra I Level 1';
+  const byId = new Map(units.map((u) => [u.unit.id, u.unit]));
+  const seen = new Set();
+  const walkRequires = async (id) => {
+    for (const req of byId.get(id)?.requires || []) {
+      if (seen.has(req)) continue;
+      seen.add(req);
+      const g = await loadUnit(byId.get(req));
+      for (const n of g.nodes) PRIOR.add(n.id);
+      await walkRequires(req);
+    }
+  };
+  await walkRequires(pick.unit.id);
 }
 
 /** The skills of the lattice under test — read off the graph, never hardcoded. */
 const SKILLS = graph.nodes.map((n) => n.id);
 
-const LEARNERS = Number(process.argv[2] || 2000);
-const BUDGET = Number(process.argv[3] || 800);
-const CHECKPOINTS = [150, 300, 450, 600, 800, 1000].filter((c) => c <= BUDGET);
+const LEARNERS = NUMS[0] || 2000;
+const BUDGET = NUMS[1] || 800;
+/**
+ * Where the growth-of-mastery table takes its readings.
+ *
+ * This was the fixed list below, filtered to the budget — so a 3,600-item run
+ * reported growth at 150 … 1000 and stopped, and the shipped route's whole
+ * growth table read `0.0 0.0 0.0 0.0 0.7 11.7` with the remaining 72% of the
+ * run off the right-hand edge. A table whose last row is 11.7% under a headline
+ * of 97.0% is not a table anybody can read. Level 1's budget is 800, so its
+ * readings are byte-identical to the ones this build was judged on; anything
+ * larger gets six evenly spaced readings across its own budget.
+ */
+const CHECKPOINTS = (BUDGET <= 1000
+  ? [150, 300, 450, 600, 800, 1000]
+  : [1, 2, 3, 4, 5, 6].map((i) => Math.round((i * BUDGET) / 6))
+).filter((c) => c <= BUDGET);
 
 // --- competence thresholds ------------------------------------------------
 const TRUE_MASTERY = 0.85;   // hidden competence that counts as "really knows it"
@@ -168,6 +276,7 @@ const VIOLATIONS = {
   prereqContent: 0, // an item needing a rule that sits above its own skill in the graph
   workload: 0,     // a goal quoted outside the workload the same projection planned
   confidence: 0,   // a reported confidence above the honest lower bound
+  reloadGrant: 0,  // a save/load round trip that HANDED OUT a claim the file did not hold
 };
 const FIRST = {};
 const violate = (kind, detail) => { VIOLATIONS[kind]++; FIRST[kind] ??= detail; };
@@ -253,7 +362,18 @@ function holesOf(st, floor = FORM_FLOOR) {
  */
 const servedHoles = (st) => holesOf(st, SERVED_FLOOR);
 
-/** Every skill at or below `id` in the graph — what an item on `id` may use. */
+/**
+ * Every skill at or below `id` — what an item on `id` may use.
+ *
+ * `PRIOR` is in every cone. A unit loaded on its own drops the prerequisites
+ * that live in the units it `requires`, so on the graph alone `distribute` —
+ * a Level 1 line — sits nowhere at all, and the prerequisite-content invariant
+ * below read that as "above". Measured: Level 4 standalone reported 4,919
+ * violations, every one of them a product of two binomials on a factoring node,
+ * and the composed course reported 96 of a completely different kind. A unit
+ * standing on Level 1 is not using a rule it has not met; it is using a rule
+ * the manifest says it starts after.
+ */
 const CONE = new Map();
 {
   const prereqs = new Map(graph.nodes.map((n) => [n.id, n.prereqs || []]));
@@ -261,7 +381,7 @@ const CONE = new Map();
     for (const p of prereqs.get(id) || []) if (!out.has(p)) { out.add(p); walk(p, out); }
     return out;
   };
-  for (const n of graph.nodes) CONE.set(n.id, walk(n.id, new Set([n.id])));
+  for (const n of graph.nodes) CONE.set(n.id, walk(n.id, new Set([n.id, ...PRIOR])));
 }
 
 /**
@@ -275,6 +395,36 @@ const CONE = new Map();
  *
  * LaTeX control words are stripped first, or `\cdot` reads as four variables.
  */
+/**
+ * The single letters this expression uses as a function name: defined by being
+ * applied to a bracket on the left of an `=`, and applied at least twice.
+ */
+function fnNames(s) {
+  const names = new Set();
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== '(') continue;
+    let j = i - 1;
+    while (j >= 0 && /\s/.test(s[j])) j--;
+    if (j < 0 || !/[a-zA-Z]/.test(s[j])) continue;          // no name in front
+    let k = j - 1;
+    while (k >= 0 && /\s/.test(s[k])) k--;
+    if (k >= 0 && /[0-9a-zA-Z.)]/.test(s[k])) continue;     // a factor, not a name
+    let depth = 0, end = -1;
+    for (let m = i; m < s.length; m++) {
+      if (s[m] === '(') depth++;
+      else if (s[m] === ')') { depth--; if (!depth) { end = m; break; } }
+    }
+    if (end < 0) continue;
+    let a = end + 1;
+    while (a < s.length && /\s/.test(s[a])) a++;
+    if (s[a] !== '=') continue;                             // not a definition
+    const n = s[j];
+    const applied = (s.match(new RegExp(`${n}\\s*\\(`, 'g')) || []).length;
+    if (applied >= 2) names.add(n);                         // …and applied again
+  }
+  return names;
+}
+
 function needsDistribution(latex) {
   const s = String(latex || '')
     .replace(/\\left/g, '(').replace(/\\right/g, ')').replace(/\\[a-zA-Z]+/g, ' ');
@@ -283,6 +433,19 @@ function needsDistribution(latex) {
     let j = i - 1;
     while (j >= 0 && /\s/.test(s[j])) j--;
     if (j < 0 || !/[0-9a-zA-Z)]/.test(s[j])) continue;   // nothing multiplies it
+    // FUNCTION APPLICATION IS NOT AN IMPLIED PRODUCT, and reading it as one is
+    // an assertion that is mathematically false. `f(n-1)` in a recursive rule —
+    // `f(1) = 8; f(n) = f(n-1) + 5` — was reported as needing the distributive
+    // property; "distributing" it would give `f·n − f`, which no function obeys.
+    // Ninety-six of the ninety-six violations the composed Algebra I course
+    // reported were that one expression.
+    //
+    // The test is deliberately narrow, because `x(2x + 5)` really is a product
+    // and must stay caught. A name is read as a function only when the SAME
+    // expression both DEFINES it — `f(…) =` — and APPLIES it more than once,
+    // which is the shape a recursive rule cannot avoid and a coefficient cannot
+    // reach: `x(2x + 5) = 20` defines nothing and applies `x(` exactly once.
+    if (/[a-zA-Z]/.test(s[j]) && fnNames(s).has(s[j])) continue;
     let depth = 0, end = -1;
     for (let k = i; k < s.length; k++) {
       if (s[k] === '(') depth++;
@@ -563,14 +726,33 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   let sticky = rnd() < STICKY_RATE ? SKILLS[Math.floor(rnd() * SKILLS.length)] : null;
   const rateFor = (s) => (s === sticky ? lr * 0.5 : lr);
 
-  const engine = new MasteryEngine(graph);
+  /* THE ENGINE IS REBUILT BETWEEN SITTINGS, THE WAY THE PRODUCT REBUILDS IT.
+     `let`, not `const`, and everything that configures it lives in `configure`
+     below so a reloaded engine gets the identical treatment.
+
+     This file kept ONE engine object across all twenty-five simulated sittings
+     and never called `save()` or `load()`. The product does the opposite: it
+     serialises to localStorage and constructs a new MasteryEngine from that
+     file on EVERY visit. That is not a detail of plumbing — `load()` withdraws
+     any claim standing over a question type never once solved unaided, so a
+     line held at the end of one sitting can be open again at the start of the
+     next. No number this file has ever printed included that effect, which
+     means every retention figure was measured on an engine the learner does
+     not have. See `reload()` at the sitting boundary. */
   // --- this learner's wall clock -------------------------------------------
   // Every learner starts on the same Monday morning and is offset by their own
   // seed, so two learners are never lock-stepped through the schedule. The
   // engine reads this and nothing else for anything to do with retention.
   let vnow = T0 + (seed % 977) * 37_000;
-  engine.setClock(() => vnow);
-  if (opts.legacyRouter) engine.policy = 'lowest-pL';
+  /**
+   * Everything that is done to an engine before it is played, in one place so
+   * that the engine built at the start of sitting two is the same machine as
+   * the one built at the start of sitting one. A dial applied only to the
+   * first engine is an ablation that quietly stops half way through the run.
+   */
+  const configure = (e) => {
+  e.setClock(() => vnow);
+  if (opts.legacyRouter) e.policy = 'lowest-pL';
   // Ablation switches. Every claim this file makes about a mechanism was
   // arrived at by turning that mechanism off and running the identical seeds:
   //   AB_ROUTER=lowest-pL   the router this replaced
@@ -579,13 +761,13 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   //   AB_NOCREDIT=1         a clean solve credits nothing to its prerequisites
   //   AB_NOSEED=1           a new skill opens on BKT's constant pInit
   //   AB_SRBAND=4|5  AB_SREXTRA=0|1   the two dials on the fast route
-  if (process.env.AB_ROUTER) engine.policy = process.env.AB_ROUTER;
-  if (process.env.AB_NOSIGHT) engine.cfg.sightRead = false;
-  if (process.env.AB_NOFAST) { engine.cfg.fastPL = 9; engine.cfg.fastRun = 99; }
-  if (process.env.AB_NOCREDIT) engine.creditParents = () => {};
-  if (process.env.AB_NOSEED) engine.seedPL = (id) => (engine.node(id)?.bkt?.pInit ?? 0.25);
-  if (process.env.AB_SRBAND) engine.cfg.sightReadBand = Number(process.env.AB_SRBAND);
-  if (process.env.AB_SREXTRA) engine.cfg.sightReadExtra = Number(process.env.AB_SREXTRA);
+  if (process.env.AB_ROUTER) e.policy = process.env.AB_ROUTER;
+  if (process.env.AB_NOSIGHT) e.cfg.sightRead = false;
+  if (process.env.AB_NOFAST) { e.cfg.fastPL = 9; e.cfg.fastRun = 99; }
+  if (process.env.AB_NOCREDIT) e.creditParents = () => {};
+  if (process.env.AB_NOSEED) e.seedPL = (id) => (e.node(id)?.bkt?.pInit ?? 0.25);
+  if (process.env.AB_SRBAND) e.cfg.sightReadBand = Number(process.env.AB_SRBAND);
+  if (process.env.AB_SREXTRA) e.cfg.sightReadExtra = Number(process.env.AB_SREXTRA);
   //   AB_NODEBT=1           the gate forgets: every run asks for the same three
   //   AB_NOCAP=1            the sight-read is pinned to the band ordinal again
   //   AB_SLOWCLIMB=1        three clean solves per band step, everywhere
@@ -601,18 +783,18 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   //                       placement band and the taught walk back up
   //   gateMissLimit=1,gateRunCap=99   a run ends on the second miss however
   //                       close to the bar it already was
-  if (process.env.AB_NODEBT) engine.cfg.gateDebtCap = 0;
+  if (process.env.AB_NODEBT) e.cfg.gateDebtCap = 0;
   if (process.env.AB_NOCAP) {
-    engine.sightReadBandFor = () => Math.max(engine.cfg.checkMinDifficulty, engine.cfg.sightReadBand);
+    e.sightReadBandFor = () => Math.max(e.cfg.checkMinDifficulty, e.cfg.sightReadBand);
   }
-  if (process.env.AB_SLOWCLIMB) engine.cfg.fastClimb = false;
+  if (process.env.AB_SLOWCLIMB) e.cfg.fastClimb = false;
   //   CFG=k=v,k=v         drive any numeric dial in DEFAULT_MASTERY from
   //                       outside, so a candidate setting is graded by this
-  //                       file before it is written into the engine.
+  //                       file before it is written into the e.
   if (process.env.CFG) {
     for (const pair of process.env.CFG.split(',')) {
       const [k2, v2] = pair.split('=');
-      engine.cfg[k2.trim()] = Number(v2);
+      e.cfg[k2.trim()] = Number(v2);
     }
   }
   //   AB_ATTEMPTS=1         the schedule this replaced: spacing counted in
@@ -623,13 +805,38 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   //   SIM_MINUTES=a,b,c,..  drive the shipping spacing ladder from outside, so
   //                         a candidate schedule can be graded before it ships.
   if (process.env.SIM_MINUTES) {
-    engine.cfg.reviewMinutes = process.env.SIM_MINUTES.split(',').map(Number);
+    e.cfg.reviewMinutes = process.env.SIM_MINUTES.split(',').map(Number);
   }
   if (process.env.AB_ATTEMPTS) {
-    engine.cfg.reviewMinutes = [0, 0, 0, 0];
-    engine.cfg.reviewFloor = [3, 8, 20, 48];
-    engine.cfg.durableMinutes = 0;
+    e.cfg.reviewMinutes = [0, 0, 0, 0];
+    e.cfg.reviewFloor = [3, 8, 20, 48];
+    e.cfg.durableMinutes = 0;
   }
+  };
+
+  let engine = new MasteryEngine(graph);
+  configure(engine);
+
+  /**
+   * SHUT THE LAPTOP AND OPEN IT AGAIN.
+   *
+   * The product's own round trip: `save()` writes the record, and the next
+   * visit constructs a fresh MasteryEngine from that file. It is not a copy —
+   * `load()` is where a claim granted over a shape never once solved unaided is
+   * WITHDRAWN, and where a held line's next re-probe comes back due. Doing it
+   * here is what makes every number below a statement about the engine a
+   * learner actually reloads, rather than about one long-lived object no
+   * player has ever had.
+   *
+   * `JSON.parse(JSON.stringify(...))` on purpose: the file really does go
+   * through a string, so a field that does not survive serialisation must not
+   * survive here either.
+   */
+  const reload = (e) => {
+    const back = new MasteryEngine(graph, JSON.parse(JSON.stringify(e.save())));
+    configure(back);
+    return back;
+  };
   const k = new Map();              // hidden competence, invisible to the engine
   const repSeen = new Map();        // skill -> rep -> successful exposures
   const stability = new Map();      // grows with each survived spaced review
@@ -739,6 +946,12 @@ function runLearner(seed, policy = 'engine', opts = {}) {
   const heldByKind = new Map();
   const heldWorstKind = new Map();
   let items = 0;
+  /* WHAT THE RELOADS TOOK BACK. Counted because the product does it on every
+     visit and nothing here had ever measured it: a claim granted at the end of
+     one sitting can be withdrawn at the start of the next, over a question type
+     that was never once solved unaided. See `reload()`. */
+  let withdrawnOnLoad = 0;
+  const withdrawnLines = new Set();
   // Which forms this learner has actually practised, and the run being built.
   const practised = new Map(SKILLS.map((s) => [s, new Set()]));
   const worked = new Map(SKILLS.map((s) => [s, new Set()]));
@@ -1080,6 +1293,27 @@ function runLearner(seed, policy = 'engine', opts = {}) {
         }
       }
       vnow += gapHours * HOUR;
+      /* …AND THE RECORD IS RELOADED, because that is what happens next.
+         The clock has moved first, so the engine that comes back reads the new
+         time — which is the moment the withdrawal, if there is one, is made.
+         Anything this takes back is taken back BEFORE the first item of the
+         next sitting, exactly as it is in the product. */
+      const heldBefore = SKILLS.filter((s2) => engine.get(s2).mastered).length;
+      //   AB_NORELOAD=1   one engine object for the whole run and no save/load
+      //                   between sittings — this file as it stood before the
+      //                   round trip existed. It is the arm that says what the
+      //                   reload costs, on identical seeds.
+      if (!process.env.AB_NORELOAD) engine = reload(engine);
+      const took = engine.withdrewOnLoad || [];
+      if (took.length) {
+        withdrawnOnLoad += took.length;
+        for (const w of took) withdrawnLines.add(w.id);
+      }
+      // A reload may only ever take claims away, never hand them out: if the
+      // round trip ever *adds* a held line the serialiser has invented one.
+      if (SKILLS.filter((s2) => engine.get(s2).mastered).length > heldBefore) {
+        violate('reloadGrant', 'a save/load round trip granted a claim that was not in the file');
+      }
     }
   }
   if (sessions && sessionTrace.length < sitting) {
@@ -1092,6 +1326,7 @@ function runLearner(seed, policy = 'engine', opts = {}) {
 
   return {
     theta, lr, items, trace, seconds, claims, cleared, spent, starve, knownSkills,
+    withdrawnOnLoad, withdrawnLines: withdrawnLines.size,
     sessionTrace, reviewItems, deepItems, durable: engine.durableCount(),
     heldItems, heldReview, heldRetrieval, heldDeep, heldOther, heldWorst,
     heldWorstKind: Object.fromEntries(heldWorstKind),
@@ -1226,13 +1461,41 @@ if (process.argv.includes('--self-test')) {
     ok('a shape at 0 of 3 is named as a hole',
       m.weakForms(st).includes(rootForm) && holesOf(st).includes(rootForm));
   }
-  // 1b. …and three ATTEMPTS at ONE question is not three questions.
+  /* 1b. …and ATTEMPTS at one question are not questions.
+     THIS ASSERTION WAS STALE AND RED, and it had been red for as long as the
+     floor it was written against. It read
+         st.formsSeen[rootForm] = { seen: 3, items: 1, correct: 0 };
+         ok('three tries at one question is not a hole', !m.weakForms(st).length)
+     which is a statement about `formFloor` being 3. The floor is **1** now —
+     the stricter one this file's own header describes, the card the critic
+     photographed: one question type, asked once, missed, never re-asked. At a
+     floor of 1 that record IS a hole and the engine is right to say so, so the
+     honest case of this gate's own self-test printed FAIL and
+     `node tools/simulate.mjs --self-test` exited 1. A self-test that fails on
+     correct engine behaviour is the thing this repo switches gates off over.
+     The distinction it exists for — `items` (questions asked) and not `seen`
+     (taps) — is real at every floor, so it is now asserted at the floor the
+     engine actually holds, in both directions, and it still fails if anything
+     goes back to counting taps. */
   {
     const m = fresh();
-    const st = m.get(ROOT_SKILL);
-    st.formsSeen[rootForm] = { seen: 3, items: 1, correct: 0 };
-    ok('three tries at one question is not a hole',
-      !m.weakForms(st).length && !holesOf(st).length);
+    const floor = m.cfg.formFloor;
+    // A record where the two readings DISAGREE at this floor: plenty of taps,
+    // fewer questions than the floor. A `seen`-reader calls it a hole; an
+    // `items`-reader does not, and the engine must not.
+    const stA = m.get(ROOT_SKILL);
+    stA.formsSeen[rootForm] = { seen: floor + 2, items: floor - 1, correct: 0 };
+    const quietOnTaps = !m.weakForms(stA).length && !holesOf(stA).length;
+    // …and the same shape with the questions really asked: that IS a hole, so
+    // the rule above cannot be satisfied by never finding one.
+    const m2 = fresh();
+    const stB = m2.get(ROOT_SKILL);
+    stB.formsSeen[rootForm] = { seen: floor + 2, items: floor, correct: 0 };
+    const firesOnQuestions = m2.weakForms(stB).includes(rootForm) && holesOf(stB).includes(rootForm);
+    ok(`a hole is counted in questions asked, not in taps (formFloor ${floor})`,
+      quietOnTaps && firesOnQuestions,
+      `${floor + 2} taps over ${floor - 1} questions: ${quietOnTaps ? 'not a hole' : 'WRONGLY a hole'}; `
+      + `over ${floor} questions: ${firesOnQuestions ? 'a hole' : 'WRONGLY not a hole'}`);
   }
   // 1c. The gate refuses to close over one, however good everything else is.
   {
@@ -1291,8 +1554,17 @@ if (process.argv.includes('--self-test')) {
       '6\\left(8 + 5 \\cdot 2\\right)',           // order of operations, no letter
       '7\\left(4m\\right)',                        // one term, not a sum
       '\\left(2m + 13\\right) + \\left(6m + 10\\right)', // the fixed perimeter item
+      // A recursive rule. `f(n-1)` is a function applied to n-1, not f times
+      // (n-1), and 96 of these were reported as prerequisite violations.
+      '\\begin{array}{l} f\\left(1\\right) = 8 \\\\ f\\left(n\\right) = f\\left(n-1\\right) + 5 \\end{array}',
     ].every((x) => !needsDistribution(x));
-    ok('the distributive-property check catches it and only it', !!caught && spared,
+    // …and the near miss it must NOT spare: a single letter multiplying a sum,
+    // in an equation, which is a product and does need distributing.
+    const stillCaught = [
+      'x\\left(2x + 5\\right) = 20',
+      'n\\left(n + 4\\right)',
+    ].every((x) => !!needsDistribution(x));
+    ok('the distributive-property check catches it and only it', !!caught && spared && stillCaught,
       caught ? `caught ${caught}` : 'missed the expression it exists for');
   }
   // 4. The workload range is honest about the goal it is quoted beside.
@@ -1695,6 +1967,131 @@ if (process.env.TAIL_WHY) {
   process.exit(0);
 }
 
+// ---------------------------------------------------------------------------
+// SITTINGS PROBE — `SITTINGS_PROBE=1 node tools/simulate.mjs [learners] [budget]`
+//
+// The across-days arm prints ONE number and it was believed for months. This
+// prints the distribution under it, and the two facts the headline cannot
+// carry: HOW MUCH WORK each arm actually got, and WHERE the run stopped.
+//
+// The reason it exists: `coming back across days` says "the same learners, the
+// same N items, delivered in sittings" and then runs `sessions: 40` with no
+// budget of its own. Whether that sentence is true is arithmetic — 40 sittings
+// of 22 minutes buys about 1,000 items, and the single-sitting arm on the
+// shipped route is handed 3,600 — so the two arms are matched on *neither*
+// items nor minutes, and the comparison the file draws between them is a
+// comparison of two different amounts of schooling. Diagnostic only; exits.
+// ---------------------------------------------------------------------------
+if (process.env.SITTINGS_PROBE) {
+  const N = Number(process.env.PROBE_N || 120);
+  const SESSIONS = Number(process.env.PROBE_SESSIONS || 40);
+  const med = (xs) => { if (!xs.length) return NaN; const v = [...xs].sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
+  const q = (xs, p) => { if (!xs.length) return NaN; const v = [...xs].sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.floor(p * v.length))]; };
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+  console.log(`SITTINGS PROBE — ${LATTICE}, ${SKILLS.length} skills, needs ${SKILLS_NEEDED} at true competence >= ${TRUE_MASTERY}`);
+  console.log(`  ${N} learners per arm, item budget ${BUDGET}, sitting cap ${SESSIONS} x ${SESSION_MINUTES} min\n`);
+
+  const arms = [];
+  arms.push({ label: 'one unbroken sitting', opts: { record: false } });
+  for (const gap of [24, 72]) {
+    arms.push({ label: `sittings ${gap}h apart`, opts: { record: false, sessions: SESSIONS, sessionMinutes: SESSION_MINUTES, gapHours: gap } });
+  }
+  const big = Number(process.env.PROBE_SESSIONS_BIG || 0);
+  if (big) for (const gap of [24, 72]) arms.push({ label: `sittings ${gap}h apart, cap ${big}`, opts: { record: false, sessions: big, sessionMinutes: SESSION_MINUTES, gapHours: gap } });
+  if (process.env.PROBE_ARMS) {
+    const want = process.env.PROBE_ARMS.split(',').map((x) => x.trim());
+    for (let i = arms.length - 1; i >= 0; i--) if (!want.some((w) => arms[i].label.includes(w))) arms.splice(i, 1);
+  }
+
+  const rowsOf = (opts) => {
+    const rs = [];
+    for (let i = 0; i < N; i++) rs.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', opts));
+    return rs;
+  };
+
+  console.log('  arm                                items     minutes  sittings  items/sitting   engine-held   TRUE >= bar');
+  const store = {};
+  for (const a of arms) {
+    const rs = rowsOf(a.opts);
+    store[a.label] = rs;
+    const items = rs.map((r) => r.items);
+    const mins = rs.map((r) => r.seconds / 60);
+    const sit = rs.map((r) => r.sessionTrace.length || 1);
+    const held = rs.map((r) => r.engineMastered);
+    const got = rs.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rs.length;
+    console.log(`  ${a.label.padEnd(34)} ${med(items).toFixed(0).padStart(5)} ${med(mins).toFixed(0).padStart(11)} ${med(sit).toFixed(0).padStart(9)} ${(med(items) / med(sit)).toFixed(1).padStart(14)} ${mean(held).toFixed(1).padStart(13)} ${(100 * got).toFixed(1).padStart(12)}%`);
+  }
+
+  console.log('\n  WHY EACH RUN STOPPED (the number the headline cannot carry)');
+  for (const a of arms) {
+    const rs = store[a.label];
+    const budgetOut = rs.filter((r) => r.items >= BUDGET).length;
+    const sitOut = rs.filter((r) => a.opts.sessions && r.sessionTrace.length >= a.opts.sessions).length;
+    console.log(`  ${a.label.padEnd(34)} budget exhausted ${(100 * budgetOut / rs.length).toFixed(0).padStart(3)}%   sitting cap hit ${(100 * sitOut / rs.length).toFixed(0).padStart(3)}%`);
+  }
+
+  console.log('\n  DISTRIBUTION of skills truly mastered (not the >= bar headline)');
+  for (const a of arms) {
+    const rs = store[a.label];
+    const t = rs.map((r) => r.trueMastered);
+    console.log(`  ${a.label.padEnd(34)} min ${Math.min(...t)}  p10 ${q(t, 0.1)}  median ${med(t)}  p90 ${q(t, 0.9)}  max ${Math.max(...t)}   mean ${mean(t).toFixed(1)} of ${SKILLS.length}   (bar is ${SKILLS_NEEDED})`);
+  }
+
+  console.log('\n  THE SAME COHORT SCORED AT EVERY BAR, so "0.0%" can be read as a shortfall rather than a collapse');
+  console.log('    arm                              >=' + [4, 8, 12, 16, 20, SKILLS_NEEDED, SKILLS.length].map((b) => String(b).padStart(7)).join('  >='));
+  for (const a of arms) {
+    const rs = store[a.label];
+    const cells = [4, 8, 12, 16, 20, SKILLS_NEEDED, SKILLS.length]
+      .map((b) => `${(100 * rs.filter((r) => r.trueMastered >= b).length / rs.length).toFixed(0)}%`.padStart(9));
+    console.log(`    ${a.label.padEnd(32)}${cells.join('')}`);
+  }
+
+  console.log('\n  PER-SITTING TRACE (first sitting-based arm, median learner-wise): sitting -> items, engine-held, truly-held');
+  if (arms.some((a) => a.opts.sessions)) {
+    const rs = store[arms.find((a) => a.opts.sessions).label];
+    const maxS = Math.max(...rs.map((r) => r.sessionTrace.length));
+    for (let n = 1; n <= maxS; n++) {
+      const at = rs.map((r) => r.sessionTrace[n - 1]).filter(Boolean);
+      if (!at.length) continue;
+      if (n % 4 && n !== maxS && n !== 1) continue;
+      console.log(`    sitting ${String(n).padStart(2)}  items ${med(at.map((x) => x.items)).toFixed(0).padStart(5)}   engine-held ${mean(at.map((x) => x.engineMastered)).toFixed(1).padStart(5)}   truly-held ${mean(at.map((x) => x.trueMastered)).toFixed(1).padStart(5)}   durable ${mean(at.map((x) => x.durable)).toFixed(1).padStart(5)}`);
+    }
+  }
+
+  console.log('\n  WHAT THE RELOAD COSTS (first sitting-based arm, identical seeds, AB_NORELOAD is the control)');
+  if (arms.some((a) => a.opts.sessions)) {
+    const rs = store[arms.find((a) => a.opts.sessions).label];
+    console.log(`    claims withdrawn by a reload   ${(rs.reduce((a, r) => a + r.withdrawnOnLoad, 0) / rs.length).toFixed(2)} per learner   ${(100 * rs.filter((r) => r.withdrawnOnLoad > 0).length / rs.length).toFixed(1)}% of learners`);
+    console.log(`    distinct lines it touched      ${(rs.reduce((a, r) => a + r.withdrawnLines, 0) / rs.length).toFixed(2)} per learner`);
+  }
+
+  console.log('\n  DURABLE STRENGTH AT THE BUZZER — the thing a longer gap has to be paid for out of');
+  for (const a of arms) {
+    const rs = store[a.label];
+    const all = rs.flatMap((r) => SKILLS.map((s2) => r.strength.get(s2)));
+    const atCap = all.filter((x) => x >= 60).length / all.length;
+    const one = all.filter((x) => x < 2).length / all.length;
+    const keepOf = (S, h) => Math.pow(1 + h / (24 * S), -GAP_POW);
+    const h = a.opts.gapHours || 24;
+    const cost = all.map((S) => 1 - keepOf(S, h));
+    console.log(`  ${a.label.padEnd(34)} median S ${med(all).toFixed(1).padStart(5)}   at the cap(60) ${(100 * atCap).toFixed(0).padStart(3)}%   never re-probed across a gap ${(100 * one).toFixed(0).padStart(3)}%   this gap costs ${(100 * mean(cost)).toFixed(1)}% of the above-floor competence (median ${(100 * med(cost)).toFixed(1)}%)`);
+  }
+
+  console.log('\n  ITEMS-MATCHED CONTROL — the single sitting cut to the work the daily arm actually got');
+  if (store['sittings 24h apart']) {
+    const rs = store['sittings 24h apart'];
+    const budget = Math.round(mean(rs.map((r) => r.items)));
+    const one = [];
+    for (let i = 0; i < N; i++) one.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', { record: false, budget }));
+    const got = one.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / one.length;
+    const daily = rs.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rs.length;
+    console.log(`    one sitting of ${budget} items       ${(100 * got).toFixed(1)}%   mean truly-held ${mean(one.map((r) => r.trueMastered)).toFixed(1)} of ${SKILLS.length}`);
+    console.log(`    ${SESSIONS} sittings, same ${budget} items    ${(100 * daily).toFixed(1)}%   mean truly-held ${mean(rs.map((r) => r.trueMastered)).toFixed(1)} of ${SKILLS.length}`);
+    console.log('    (this is the ONLY like-for-like comparison of the two shapes. The headline pair is not one.)');
+  }
+  process.exit(0);
+}
+
 console.log(`ASCENT — mastery simulation`);
 console.log(`${LEARNERS} synthetic learners, budget ${BUDGET} items each, ${SKILLS.length} skills\n`);
 
@@ -1935,20 +2332,75 @@ console.log('\n  a learner who knows only the first five skills — where does t
 // walk away from the machine" can be either true or false.
 // ---------------------------------------------------------------------------
 const RETURN_N = Math.max(200, Math.min(LEARNERS, 600));
+/**
+ * THE CAP THAT WAS DECIDING THIS ARM, AND WHY IT IS NOW DERIVED.
+ *
+ * This ran `sessions: 40`. Forty 22-minute sittings buy about 1,275 items.
+ * Level 1's 800-item budget spends itself in 33 of them, so on Level 1 the
+ * BUDGET bound, the two arms were matched on work, and the comparison meant
+ * something. The SHIPPED ROUTE is 24 skills at a 3,600-item budget — 4,550
+ * items, about 58 hours — so on the route the CAP bound, for 100% of learners,
+ * and the daily arm was handed 28% of the schooling the single-sitting arm got
+ * and then printed beside it under the sentence "the same items, delivered in
+ * sittings". It read **0.0% true mastery at both gaps, Q1 0.0%, sittings to
+ * mastery NaN**, and that was read for months as the daily shape destroying the
+ * product. It is not a retention finding. It is the arm stopping the course a
+ * third of the way through and scoring the learner at the bar for the whole of
+ * it: `median([])` is NaN because nobody had finished, not because nobody could.
+ *
+ * Matched on work — same seeds, same budget, the cap raised until the budget is
+ * what binds — the same cohort reads 95.0%. The daily shape costs about five
+ * points against the single sitting, not ninety-seven.
+ *
+ * So the cap is no longer a literal. A sitting always consumes at least one
+ * item (the boundary is tested after an item is served), so `BUDGET` sittings
+ * can never be reached before `BUDGET` items are, and this bound provably
+ * cannot bind. What it took is MEASURED and printed — which is also the number
+ * the product needs and did not have: *how many school days is this route at
+ * 22 minutes a day.*
+ *
+ * The calendar-bounded reading is not thrown away, because a school has a fixed
+ * number of days and that is a real question. It is printed below, under its
+ * own heading, at several calendars, with the number of sittings named — which
+ * is what the old headline was, at an undisclosed 40 and called the answer.
+ */
+const RETURN_SESSIONS = BUDGET;
 const returners = {};
 for (const gap of [24, 72]) {
   const rows = [];
   for (let i = 0; i < RETURN_N; i++) {
     rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
-      record: false, sessions: 40, sessionMinutes: SESSION_MINUTES, gapHours: gap,
+      record: false, sessions: RETURN_SESSIONS, sessionMinutes: SESSION_MINUTES, gapHours: gap,
     }));
   }
   returners[gap] = rows;
 }
 
-console.log('\ncoming back across days — the same learners, the same 800 items, delivered in sittings');
+console.log(`\ncoming back across days — the same learners, the same ${BUDGET}-item budget, delivered in sittings`);
 console.log(`  ${SESSION_MINUTES}-minute sittings. Between them a line decays towards ${PERMA} of its own high-water mark,`);
 console.log(`  by (1 + h/${GAP_HOURS}S)^-${GAP_POW}, where S starts at 1 and multiplies by ${GAP_GROWTH} for every re-probe survived across a real gap.`);
+/* EVERY CONSTANT THIS ARM RESTS ON, BY NAME, WITH ITS VALUE AND WHERE IT CAME
+   FROM. An adversarial reviewer found one of them undisclosed and the finding
+   was withdrawn once it was printed — which fixed one line and left the rule
+   unwritten. The rule: a number that moves this arm by a factor of five is
+   evidence only if a reader can see it. So they are all here, and each says
+   whether anything measured it or whether it was chosen. Three of them are
+   choices, and the three-by-three sweep below is what the two biggest ones are
+   worth. `sessions` is on this list because it was NOT on any list, and it was
+   the one deciding the answer. */
+console.log('  the constants this arm rests on — value, and whether anything calibrated it');
+for (const [name, val, prov] of [
+  ['SESSION_MINUTES', SESSION_MINUTES, 'PRODUCT SPEC — BRIEF.md goal 3 names 15-25 minutes; SIM_SESSION overrides'],
+  ['SESSION_GAP_HOURS', SESSION_GAP_HOURS, 'PRODUCT SPEC — a night; both 24 and 72 are run below; SIM_GAP overrides'],
+  ['sessions (the cap)', RETURN_SESSIONS, `DERIVED — = BUDGET, so it provably cannot bind before the item budget does; it was the literal 40, and on any lattice past Level 1 the literal was the answer`],
+  ['GAP_POW', GAP_POW, 'CHOSEN — power-law forgetting is measured in the literature, this exponent is not measured here; swept below'],
+  ['PERMA', PERMA, 'CHOSEN — Bahrick permastore is a real effect, this fraction is not measured here; swept below'],
+  ['GAP_HOURS', GAP_HOURS, 'UNIT — the time scale the exponent is expressed in, not a free parameter'],
+  ['GAP_GROWTH', GAP_GROWTH, 'CHOSEN — matched by argument, not by data, to the engine ladder\'s own expansion; NOT swept'],
+  ['strength cap', 60, 'CHOSEN — the ceiling on durable strength; ~5 survived re-probes reach it; NOT swept'],
+  ['stability step', 0.7, 'CHOSEN — what one spaced retrieval takes off the within-sitting interference cost; NOT swept'],
+  ['DECAY', DECAY, 'CHOSEN — within-sitting interference per item; unchanged from the build these figures are held against'],
+]) console.log(`    ${String(name).padEnd(20)} ${String(val).padEnd(7)} ${prov}`);
 for (const gap of [24, 72]) {
   const rows = returners[gap];
   const got = rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length;
@@ -1970,13 +2422,44 @@ for (const gap of [24, 72]) {
     .filter((n) => n > 0);
   const label = gap === 24 ? 'every day' : 'every third day';
   console.log(`\n  ${label} (${gap} h between sittings, ${RETURN_N} learners)`);
-  console.log(`    true mastery of the level          ${(100 * got / rows.length).toFixed(1)}%   (all ten skills ${(100 * all / rows.length).toFixed(1)}%)`);
+  /* WHAT THIS ARM ACTUALLY GOT. Printed first and above the headline on
+     purpose: a mastery figure read off an arm that was handed a quarter of the
+     work is a statement about the budget, and for months nothing in this block
+     said how much work it had been handed. `sittings` is measured, not asked
+     for — see RETURN_SESSIONS. */
+  const capBound = rows.filter((r) => r.sessionTrace.length >= RETURN_SESSIONS).length;
+  console.log(`    work this arm was given            ${median(rows.map((r) => r.items)).toFixed(0)} items over ${median(sittings).toFixed(0)} sittings (${(median(rows.map((r) => r.seconds)) / 60).toFixed(0)} min), against ${median(results.map((r) => r.items)).toFixed(0)} in one sitting`);
+  /* AND HOW LONG THAT IS ON A CALENDAR. Two arms with the same number of
+     sittings do not cover the same amount of time, and the reader has to be
+     able to see that before comparing them: at a three-day cadence the same
+     course runs three times as long. Neither figure meant anything while the
+     sitting count was a literal. */
+  console.log(`      elapsed calendar                 ${(median(sittings) * gap / 24).toFixed(0)} days from the first item to the last (${((median(sittings) * gap / 24) / 7).toFixed(0)} weeks)`);
+  console.log(`      the budget is what stopped it    ${(100 * (rows.length - capBound) / rows.length).toFixed(0)}% of learners   (a sitting cap that bound would make this number a statement about the cap)`);
+  console.log(`    true mastery of the level          ${(100 * got / rows.length).toFixed(1)}%   (all ${SKILLS.length} skills ${(100 * all / rows.length).toFixed(1)}%)`);
   console.log(`    lowest ability quintile            ${(100 * q1).toFixed(1)}%`);
   console.log(`    hollow claims, judged when made    OLD ${(100 * wrong / Math.max(1, claims.length)).toFixed(2)}%   NEW ${(100 * wrongStrict / Math.max(1, claims.length)).toFixed(2)}%   (${wrong} / ${wrongStrict} of ${claims.length})`);
   console.log(`    learners with any hollow claim     OLD ${(100 * anyH / rows.length).toFixed(1)}%   NEW ${(100 * anyHS / rows.length).toFixed(1)}%`);
-  console.log(`    sittings to true mastery           median ${median(toMastery).toFixed(0)}   p90 ${quantile(toMastery, 0.9)}   (of ${median(sittings).toFixed(0)} played)`);
+  /* NEVER PRINT NaN AS A MEASUREMENT. `median([])` is NaN, and this line printed
+     it — "sittings to true mastery median NaN" — beside a 0.0% headline, which
+     reads as a broken model and is in fact an empty set: nobody had reached the
+     bar, so nothing was averaged. It says which of the two it is now. */
+  console.log(toMastery.length
+    ? `    sittings to true mastery           median ${median(toMastery).toFixed(0)}   p90 ${quantile(toMastery, 0.9)}   (of ${median(sittings).toFixed(0)} played)   ${(100 * toMastery.length / rows.length).toFixed(0)}% of learners got there`
+    : `    sittings to true mastery           NOT REACHED by any of ${rows.length} learners inside ${median(sittings).toFixed(0)} sittings — no median exists, so none is printed`);
   console.log(`    re-probes that crossed a real gap  median ${median(rows.map((r) => r.durable)).toFixed(0)} per learner   (${(rows.reduce((a, r) => a + r.durable, 0) / rows.length).toFixed(1)} mean)`);
   console.log(`    lines caught lapsing and reopened  ${(rows.reduce((a, r) => a + r.lapsed, 0) / rows.length).toFixed(2)} per learner at the end`);
+  /* CLAIMS THE RELOAD TOOK BACK. Between two sittings this cohort now does what
+     the product does — `save()` to a string, and a NEW MasteryEngine built from
+     it — and `load()` withdraws any claim standing over a question type never
+     once solved unaided. Until this file round-tripped, no number it printed
+     had ever included that, because one engine object lived for all 25
+     sittings. Every one of these is a line a learner held when they shut the
+     laptop and did not hold when they opened it, which is why the product says
+     so out loud (src/meta/withdrawn.js). */
+  const wl = rows.reduce((a, r) => a + r.withdrawnOnLoad, 0);
+  const wlLearners = rows.filter((r) => r.withdrawnOnLoad > 0).length;
+  console.log(`    claims withdrawn by a RELOAD       ${(wl / rows.length).toFixed(2)} per learner   ${(100 * wlLearners / rows.length).toFixed(1)}% of learners had one taken back between sittings`);
   console.log(`    items that were spaced re-probes   ${(rows.reduce((a, r) => a + r.reviewItems, 0) / rows.length).toFixed(0)} of ${(rows.reduce((a, r) => a + r.items, 0) / rows.length).toFixed(0)}   soundings ${(rows.reduce((a, r) => a + r.deepItems, 0) / rows.length).toFixed(0)}`);
   // The figure this build exists to hold down, on the cohort that actually
   // plays in sittings: how much of a session went to a line already proved, and
@@ -1986,6 +2469,45 @@ for (const gap of [24, 72]) {
   console.log(`    items on already-mastered skills   ${(rows.reduce((a, r) => a + r.heldItems, 0) / rows.length).toFixed(0)} per learner   worst one skill in a sitting ${Math.max(...rows.map((r) => r.heldWorst))}   unexplained ${rows.reduce((a, r) => a + r.heldOther, 0)}`);
   console.log(`      worst one skill one sitting by mechanism   ${Object.entries(wk).map(([k2, v2]) => `${k2} ${v2}`).join('   ')}`);
 }
+// ---------------------------------------------------------------------------
+// THE SCHOOL CALENDAR — what a fixed number of days actually buys
+//
+// The arm above gives the learner as many nights as the item budget pays for
+// and reports how many that took. A school does not work that way: it has a
+// term, and the question a teacher asks is "what will they hold in six weeks".
+//
+// This is where the old headline belongs. It WAS this number — one row of this
+// table, at an undisclosed calendar of 40 — printed as though it were the
+// answer to "does the daily shape work". Those are different questions and only
+// one of them is about the schedule. Read down the column: the shape is not
+// failing, the term is short.
+// ---------------------------------------------------------------------------
+{
+  const CAL_N = Math.min(150, RETURN_N);
+  const CALENDARS = [20, 40, 60, 90];
+  console.log(`\n  the school calendar — ${SESSION_MINUTES} minutes a day, every day, for a fixed number of days`);
+  console.log(`  (${CAL_N} learners a row. The item budget can still stop a row early; when it does, the row says so.)`);
+  console.log('    days   items   truly held / ' + SKILLS.length + '   >= ' + SKILLS_NEEDED + ' of ' + SKILLS.length + '   engine-held   reached the bar by day');
+  for (const days of CALENDARS) {
+    const rows = [];
+    for (let i = 0; i < CAL_N; i++) {
+      rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+        record: false, sessions: days, sessionMinutes: SESSION_MINUTES, gapHours: 24,
+      }));
+    }
+    const got = rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rows.length;
+    const arrive = rows
+      .map((r) => r.sessionTrace.findIndex((s2) => s2.trueMastered >= SKILLS_NEEDED) + 1)
+      .filter((n) => n > 0);
+    const short = rows.filter((r) => r.sessionTrace.length < days).length;
+    const held = rows.reduce((a, r) => a + r.engineMastered, 0) / rows.length;
+    const truly = rows.reduce((a, r) => a + r.trueMastered, 0) / rows.length;
+    console.log(`    ${String(days).padStart(4)}   ${median(rows.map((r) => r.items)).toFixed(0).padStart(5)}   ${truly.toFixed(1).padStart(13)}   ${(100 * got).toFixed(1).padStart(8)}%   ${held.toFixed(1).padStart(11)}   ${(arrive.length ? `median ${median(arrive).toFixed(0)}, p90 ${quantile(arrive, 0.9)}` : 'nobody, inside this many days').padEnd(28)}${short ? `  (${(100 * short / rows.length).toFixed(0)}% ran out of budget first)` : ''}`);
+  }
+  console.log('    A row that reads 0.0% is a term that is too short for this lattice, not a schedule that does not work.');
+  console.log('    The row above this table — the budget-matched one — is the schedule\'s own number.');
+}
+
 // ---------------------------------------------------------------------------
 // THE RETENTION TEST
 //
@@ -2014,30 +2536,44 @@ console.log('\n  the retention test — the same learners asked again a week lat
   console.log('     and none of its re-probes crossed a night, so nothing it holds is durable strength.)');
 }
 
-console.log('\n  how much of that is the forgetting model? (daily returners, both constants swept)');
+console.log('\n  how much of that is the forgetting model? (both cadences, both constants swept)');
 {
-  const N = Math.min(200, RETURN_N);
+  /* THE SWEEP HAS TO RUN THE SAME ARM AS THE HEADLINE, AND BOTH CADENCES.
+     It ran 200 learners at `sessions: 40` while the rows above it were also at
+     40 and also starved, so it was a sensitivity study of a different, broken
+     experiment. It is budget-matched now — about four times the work per
+     learner on the route, so the cell size drops and is printed.
+     And it sweeps BOTH gaps, because the every-third-day row is the one that
+     decides whether this lattice meets the promise, and a figure that rests on
+     two constants nobody in this repo has calibrated is evidence only when the
+     reader can see how far it moves when they do. The sweep's job is the
+     RANKING and the SPREAD; the rows above are the estimates. */
+  const N = Math.min(60, RETURN_N);
   const head = ['0.25', '0.35', '0.45'];
-  console.log('    permastore floor    forgetting exponent ' + head.map((h) => h.padStart(14)).join(''));
-  for (const perma of [0.5, 0.6, 0.7]) {
-    const cells = [];
-    for (const pow of [0.25, 0.35, 0.45]) {
-      const rows = [];
-      for (let i = 0; i < N; i++) {
-        rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
-          record: false, sessions: 40, sessionMinutes: SESSION_MINUTES, gapHours: 24,
-          gapPow: pow, perma,
-        }));
+  for (const gap of [24, 72]) {
+    console.log(`    ${gap === 24 ? 'every day (24 h)' : 'every third day (72 h)'}`);
+    console.log('      permastore floor  forgetting exponent ' + head.map((h) => h.padStart(14)).join(''));
+    for (const perma of [0.5, 0.6, 0.7]) {
+      const cells = [];
+      for (const pow of [0.25, 0.35, 0.45]) {
+        const rows = [];
+        for (let i = 0; i < N; i++) {
+          rows.push(runLearner((i * 2654435761 + 12345) >>> 0, 'engine', {
+            record: false, sessions: RETURN_SESSIONS, sessionMinutes: SESSION_MINUTES, gapHours: gap,
+            gapPow: pow, perma,
+          }));
+        }
+        const at = rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rows.length;
+        const wk = rows.map((r) => scoreAfter(r, 7)).filter((x) => x.trueMastered >= SKILLS_NEEDED).length / rows.length;
+        cells.push(`${(100 * at).toFixed(0)}% / ${(100 * wk).toFixed(0)}%`.padStart(14));
       }
-      const at = rows.filter((r) => r.trueMastered >= SKILLS_NEEDED).length / rows.length;
-      const wk = rows.map((r) => scoreAfter(r, 7)).filter((x) => x.trueMastered >= SKILLS_NEEDED).length / rows.length;
-      cells.push(`${(100 * at).toFixed(0)}% / ${(100 * wk).toFixed(0)}%`.padStart(14));
+      console.log(`        ${perma.toFixed(2)}          ${' '.repeat(19)}${cells.join('')}`);
     }
-    console.log(`      ${perma.toFixed(2)}            ${' '.repeat(19)}${cells.join('')}`);
   }
   console.log(`    (true mastery at the buzzer / a week later, ${N} learners a cell against ${RETURN_N} above, so the`);
-  console.log(`     middle cell is the daily row to within sampling noise. The engine is identical in all nine;`);
-  console.log(`     only the forgetting model moves. The shipping figures use PERMA ${PERMA}, exponent ${GAP_POW}.)`);
+  console.log(`     middle cell of each table is that cadence's row to within sampling noise. The engine is identical`);
+  console.log(`     in all eighteen; only the forgetting model moves. The shipping figures use PERMA ${PERMA}, exponent ${GAP_POW}.`);
+  console.log('     Read the SPREAD of each table before quoting either row: these two constants are chosen, not measured.)');
 }
 
 {
@@ -2045,10 +2581,14 @@ console.log('\n  how much of that is the forgetting model? (daily returners, bot
   // climb the entire retention ladder without leaving the chair, so the number
   // that matters is not how many re-probes were served but how many of them
   // crossed a night — and in one unbroken sitting that number must be zero.
-  const one = runLearner(12345, 'engine', { record: false, budget: 800 });
+  /* BOTH SIDES THE SAME BUDGET. `one` was pinned at `budget: 800` while `many`
+     was whatever the 40-sitting cap let it play, and the sentence between them
+     said "the same 800 items". On the route that was 800 against 1,275 and the
+     word "same" was carrying the whole comparison. Both take BUDGET now. */
+  const one = runLearner(12345, 'engine', { record: false });
   const many = returners[24][0];
-  console.log(`\n  the exploit, closed: 800 items in one unbroken sitting earn ${one.durable} durable re-probes;`);
-  console.log(`  the same 800 items across sittings earn ${many.durable}. Under the schedule this replaced (AB_ATTEMPTS=1)`);
+  console.log(`\n  the exploit, closed: ${one.items} items in one unbroken sitting earn ${one.durable} durable re-probes;`);
+  console.log(`  the same budget across ${many.sessionTrace.length} sittings (${many.items} items) earns ${many.durable}. Under the schedule this replaced (AB_ATTEMPTS=1)`);
   console.log('  the two were the same number, and the whole endgame ladder was payable before lunch.');
 }
 
@@ -2293,6 +2833,12 @@ console.log('\nthe invariants — asserted on every item and every claim above, 
   line('an item needing a rule above its own skill in the graph', 'prereqContent', `must be 0 (${scanned} items re-derived)`);
   line('a goal quoted outside the workload the plan produced', 'workload', `must be 0 (${plans} plans)`);
   line('a confidence printed above its own lower bound', 'confidence', 'must be 0');
+  /* A reload may take a claim back. It may never grant one. `load()` clips a
+     posterior and reopens a line; nothing in it is allowed to hand a learner a
+     line the file it read did not already hold, and until the simulation
+     round-tripped through save()/load() there was no run in this repo in which
+     that could have been noticed at all. */
+  line('a save/load round trip that granted a claim', 'reloadGrant', 'must be 0');
 }
 
 const meanAvg = results.reduce((a, r) => a + r.avg, 0) / results.length;
@@ -2306,6 +2852,35 @@ console.log('\nRESULT');
 console.log(`  true mastery of ${LATTICE}: ${pct(reached)} of learners`);
 console.log(`  every one of the ${SKILLS.length} skills truly mastered: ${pct(allTen)}`);
 console.log(`\n  >>> ${(100 * reached / LEARNERS).toFixed(1)}% of simulated learners reach true mastery <<<\n`);
+/**
+ * BOTH ARMS, TOGETHER, WHERE THE HEADLINE IS.
+ *
+ * The sentence above belongs to ONE UNBROKEN SITTING. For the shipped route
+ * that is 4,550 items and about 58 hours of work with no night in it, which is
+ * not a shape any student has, and it was the only number a reader saw without
+ * scrolling. The across-days figures printed forty lines earlier under their own
+ * heading, and every consumer of this file — including the build's own mastery
+ * gate — read the headline. So the arms are printed side by side, here, and the
+ * one the product is actually delivered in is named as the one that certifies.
+ *
+ * The bar is NOT re-tested here. `tools/simulate-all.mjs` owns the severity
+ * rule — route hard, preview advisory — and applies the 80% bar to the
+ * delivered arm. A second copy of that threshold in this file is the defect the
+ * form-floor comment above names: a gate and its audit may not keep separate
+ * copies of the same constant. This file's exit code stays what it has always
+ * been: the invariants, the ladder, and its own cohort's bar.
+ */
+{
+  const d24 = returners[24].filter((r) => r.trueMastered >= SKILLS_NEEDED).length / returners[24].length;
+  const d72 = returners[72].filter((r) => r.trueMastered >= SKILLS_NEEDED).length / returners[72].length;
+  const sit24 = median(returners[24].map((r) => r.sessionTrace.length));
+  console.log('  the two delivery shapes, same lattice, same bank, same item budget:');
+  console.log(`    ONE UNBROKEN SITTING (the cram)        ${(100 * reached / LEARNERS).toFixed(1).padStart(5)}%   ${median(results.map((r) => r.items)).toFixed(0)} items in one go — the headline above, and this file's exit code`);
+  console.log(`    ACROSS DAYS, every day (24 h)          ${(100 * d24).toFixed(1).padStart(5)}%   the same budget over ${sit24.toFixed(0)} sittings of ${SESSION_MINUTES} min — the shape BRIEF.md mandates`);
+  console.log(`    ACROSS DAYS, every third day (72 h)    ${(100 * d72).toFixed(1).padStart(5)}%   the same again at a three-day gap`);
+  console.log('    tools/simulate-all.mjs certifies the 80% promise on the ACROSS-DAYS rows, not on the cram.');
+  console.log('');
+}
 
 /**
  * THE INVARIANTS DECIDE THE EXIT CODE.

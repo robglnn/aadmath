@@ -97,14 +97,44 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
   host.addEventListener('keydown', (e) => {
     // The game listens on window and swallows Space as a jump. A record with a
     // student called "AdaLovelace" is not a record.
+    //
+    // Only while this screen is actually up, though. A button in here keeps
+    // the focus after the screen closes, so every key still arrived through
+    // this listener and was stopped dead — which took P and Escape away from
+    // the panel underneath just as surely as the missing listener did.
+    if (!open.value) return;
     e.stopPropagation();
     if (e.key === 'Escape') { e.preventDefault(); close(); }
   });
+  // …AND THE SAME KEY WHEN NOTHING IN HERE HAS FOCUS.
+  //
+  // The listener above only ever runs for a key aimed at something inside this
+  // document, and opening it focuses nothing — so for a reader who had not
+  // clicked into the name field, Escape went to the window and this screen
+  // never saw it. It could then only be closed with the mouse, and because
+  // `src/report/index.js` holds P and Escape back while `teacher.open` is true,
+  // the progress panel underneath it lost BOTH of its keys for the rest of the
+  // session. Two documented bindings, dead, from one missing listener.
+  //
+  // Capture, and the key is consumed: the panel underneath must not close on
+  // the same press that closed this. (learn-ux, lane B: smallest fix that gives
+  // the keys back.)
+  addEventListener('keydown', (e) => {
+    if (!open.value || e.repeat || e.key !== 'Escape') return;
+    if (host.contains(e.target)) return;   // the listener above has it
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+  }, true);
   for (const b of host.querySelectorAll('.rp-tab')) {
     b.addEventListener('click', () => { tab = b.dataset.tab; render(); });
   }
 
+  /** Whose keyboard this screen borrowed, so it can be handed back. */
+  let cameFrom = null;
+
   function show() {
+    cameFrom = document.activeElement;
     open.value = true;
     host.classList.add('show');
     // The print stylesheet hides everything on the page except this document —
@@ -113,12 +143,21 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     document.body.dataset.rpDoc = 'on';
     render();
     onToggle?.(true);
+    // A dialog nobody's keyboard is inside is a dialog a keyboard cannot leave.
+    setTimeout(() => q('.rp-doc-x')?.focus({ preventScroll: true }), 40);
   }
   function close() {
     if (!open.value) return;
     open.value = false;
     host.classList.remove('show');
     delete document.body.dataset.rpDoc;
+    // Hand the keyboard back to whatever opened this. A focus left inside a
+    // hidden dialog is a focus the panel underneath cannot get keys past.
+    if (host.contains(document.activeElement)) {
+      if (cameFrom && cameFrom.isConnected && cameFrom !== document.body) cameFrom.focus({ preventScroll: true });
+      else document.activeElement.blur?.();
+    }
+    cameFrom = null;
     onToggle?.(false);
   }
 
@@ -233,6 +272,10 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     sub.className = 'rp-sheet-sub';
     sub.textContent = [
       rec.learner.group,
+      // A coverage sheet with no unit on it is a coverage sheet about the
+      // product. The unit is named here for the same reason it is named on the
+      // line sheet: this document gets filed, and read a month later.
+      t('report.record.levelLine', { level: rec.level?.name || t('report.record.levelName') }),
       t('report.record.stdSub', { frame: t('report.std.frame.full.' + fw) }),
       t('report.record.generatedLine', { date: dateText(rec.generatedAt, true) }),
     ].filter(Boolean).join(' · ');
@@ -243,20 +286,13 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     box.appendChild(head);
 
     // --- the five figures -------------------------------------------------
-    const dl = document.createElement('dl');
-    dl.className = 'rp-sum';
-    for (const [k, v] of [
+    box.appendChild(sumList([
       [t('report.record.col.framework'), t('report.std.frame.' + fw)],
       [t('report.std.cover.evidenced'), `${num(cov.totals.evidenced)} / ${num(cov.totals.total)}`],
       [t('report.std.cover.group.held'), num(cov.totals.held)],
       [t('report.std.cover.core'), `${num(cov.totals.coreHeld)} / ${num(cov.totals.coreTotal)}`],
       [t('report.std.cover.untouched'), num(cov.totals.none)],
-    ]) {
-      const dt = document.createElement('dt'); dt.textContent = k;
-      const dd = document.createElement('dd'); dd.textContent = v;
-      dl.append(dt, dd);
-    }
-    box.appendChild(dl);
+    ]));
 
     // --- coverage, one row per expectation --------------------------------
     box.appendChild(h3(t('report.std.cover.head')));
@@ -441,9 +477,7 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     host2.appendChild(sheetHead(rec));
 
     // --- headline figures -------------------------------------------------
-    const dl = document.createElement('dl');
-    dl.className = 'rp-sum';
-    const rows = [
+    host2.appendChild(sumList([
       [t('report.record.sum.held'), `${num(rec.totals.held)} / ${num(rec.totals.total)}`],
       [t('report.record.sum.items'), num(rec.totals.items)],
       [t('report.record.sum.unaided'), rec.totals.accuracy == null ? t('report.record.notMeasured') : pct(rec.totals.accuracy)],
@@ -451,13 +485,7 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
       [t('report.record.sum.claimItems'), num(rec.totals.claimItems)],
       [t('report.record.sum.testedOut'), num(rec.totals.testedOut)],
       [t('report.record.sum.withdrawn'), `${num(rec.totals.withdrawn)} / ${num(rec.totals.granted)}`],
-    ];
-    for (const [k, v] of rows) {
-      const dt = document.createElement('dt'); dt.textContent = k;
-      const dd = document.createElement('dd'); dd.textContent = v;
-      dl.append(dt, dd);
-    }
-    host2.appendChild(dl);
+    ]));
 
     // --- the lines --------------------------------------------------------
     host2.appendChild(h3(t('report.record.linesHead')));
@@ -477,6 +505,15 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     for (const s of rec.skills) {
       const tr = document.createElement('tr');
       tr.dataset.state = s.state;
+      // The same claim the STANDARDS cell prints, in the words the graph uses
+      // rather than the words this locale prints. `tools/check-record.mjs`
+      // holds every printed depth against the depth that line's node declares,
+      // and a gate that had to parse "(core)" out of a sentence could only ever
+      // do it in English — which is the locale a defect is least likely to be
+      // found in. Machine-readable, so the check runs in all three.
+      tr.dataset.skill = s.id;
+      tr.dataset.std = (rec.framework === 'teks' ? s.teks : s.ccss)
+        .map((c) => `${c.code}:${c.depth || 'unknown'}`).join(' ');
       const probes = s.probes.hit + s.probes.miss;
       const cells = [
         s.title,
@@ -503,6 +540,13 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     }
     host2.appendChild(tbl);
 
+    // WHAT THE REPRESENTATION LABEL IS, ON THE PAPER. See claimText(): the
+    // engine counts the labels its item forms carry, and two labelled forms of
+    // one line can ask for the same act. The claim column prints that count, so
+    // the sheet has to say what the count is. A limitation a reader discovers
+    // is worth less than the same limitation printed beside the number.
+    if (anyLabelledSpan(rec)) host2.appendChild(sheetNote(t('report.record.repsNote')));
+
     // --- withdrawn claims -------------------------------------------------
     if (rec.withdrawnList.length) {
       host2.appendChild(h3(t('report.record.withdrawnHead')));
@@ -516,7 +560,28 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
       host2.appendChild(ul);
     }
 
+    // WHERE THIS RECORD ACTUALLY LIVES. Last on the sheet, and on the paper.
+    // A district reading a printed evidence sheet has no way to know, from the
+    // sheet, that the evidence behind it is one browser's local storage on one
+    // device — and on the shared Chromebooks this product targets, that means a
+    // record cannot be reliably attached to a student at all. Saying so on the
+    // document is cheaper than a school discovering it in September.
+    // content/STANDARDS.md section 6 carries the same limitation, and section
+    // 6.1 the smallest honest path out of it. Not a defect: a scope statement.
+    host2.appendChild(custodyNote());
+
     host2.appendChild(foot(rec));
+  }
+
+  /** The evidence-custody statement, as it belongs on paper. */
+  function custodyNote() {
+    const box = document.createElement('div');
+    box.className = 'rp-custody';
+    box.appendChild(h3(t('report.record.custody.head')));
+    for (const k of ['device', 'shared', 'name', 'klass']) {
+      box.appendChild(sheetNote(t('report.record.custody.' + k)));
+    }
+    return box;
   }
 
   function sheetHead(rec) {
@@ -526,9 +591,15 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     h.textContent = rec.learner.name || t('report.record.anon');
     const sub = document.createElement('p');
     sub.className = 'rp-sheet-sub';
+    // THE COURSE AND THE UNIT THIS DOCUMENT IS ABOUT, NOT THE ONE THAT SHIPPED
+    // FIRST. This line printed one fixed bundle key on every unit, so a record
+    // of a learner's quadratics work was filed under "Algebra I · Level 1 · The
+    // Cipher Worlds". The name now comes from the manifest keys of the units
+    // that are open (src/report/standards.js `unitTitle`), and falls back to
+    // the old key only if the manifest cannot name them.
     sub.textContent = [
       rec.learner.group,
-      t('report.record.levelLine', { level: t('report.record.levelName') }),
+      t('report.record.levelLine', { level: rec.level?.name || t('report.record.levelName') }),
       t('report.record.generatedLine', { date: dateText(rec.generatedAt, true) }),
     ].filter(Boolean).join(' · ');
     box.append(h, sub);
@@ -549,7 +620,39 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     return p;
   }
 
-  /** One claim, said in a sentence a teacher can check against the table. */
+  /**
+   * One claim, said in a sentence a teacher can check against the table.
+   *
+   * THE CHIP THAT WAS SAYING MORE THAN THE ENGINE KNOWS.
+   *
+   * This read "across {n} representations", which a teacher reads as *the
+   * learner met this idea on two different surfaces*. That is not what was
+   * counted. `pv.reps` is the set of `rep` LABELS the run's items carried, and
+   * a label sits on the item form, not on the act. Two forms of one line can
+   * carry two labels and ask for exactly the same thing:
+   *
+   *   rule-from-table  four forms, labelled table / table / context / verbal.
+   *                    Every one of them is answered with a value out of the
+   *                    same four-row table. The `context` form is the `table`
+   *                    form with a scene sentence in front of it.
+   *   write-linear     `wl-context` (labelled context) prints a sentence with
+   *                    no numbers in it beside the same two coordinate pairs
+   *                    `wl-points` (labelled symbolic) prints. The sentence
+   *                    carries no quantity the learner uses.
+   *
+   * So a run can satisfy "spanned two representations" and "included a
+   * modelling item" by doing one act three times. The engine-side fix is a
+   * measure of whether two forms are the same ACT — the same answer type over
+   * the same drawn quantity — rather than whether they carry two labels, and it
+   * belongs in `src/learn/mastery.js` (`s.check.reps`, `s.check.modelled`,
+   * `spans`) and in `tools/simulate.mjs` (`XFER.twoReps`, `XFER.modelled`).
+   * Neither is this lane's file and neither is changed here.
+   *
+   * What IS changed here is the sentence on the paper. The record now reports
+   * the label count as a label count, and `repsNote()` says on the sheet what
+   * the label does and does not prove. A record that overstates one leg of its
+   * own evidence is worth less than a record that states it exactly.
+   */
   function claimText(c) {
     const road = t('report.road.' + c.road);
     const parts = [road, t('report.record.claimItemsShort', { n: c.items, band: c.band })];
@@ -560,6 +663,11 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     if (c.reps.length > 1) parts.push(t('report.record.claimReps', { n: c.reps.length }));
     if (c.regrant) parts.push(t('report.record.claimRegrant'));
     return parts.join(' · ');
+  }
+
+  /** Does any claim on this record lean on the representation label? */
+  function anyLabelledSpan(rec) {
+    return rec.skills.some((s) => s.claim && (s.claim.reps || []).length > 1);
   }
 
   /**
@@ -650,6 +758,8 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     }
     box.appendChild(t2);
 
+    box.appendChild(custodyNote());
+
     const p = document.createElement('p');
     p.className = 'rp-sheet-foot';
     p.textContent = t('report.record.classFoot');
@@ -671,6 +781,44 @@ export function createTeacher({ build, coverage, process: processOf, onToggle })
     el.className = 'rp-sheet-h';
     el.textContent = text;
     return el;
+  }
+
+  /**
+   * The strip of headline figures, as a definition list that CAN WRAP.
+   *
+   * THE STATISTIC THAT DID NOT COME OUT OF THE PRINTER. `.rp-sum` used to be a
+   * flat `dl` of alternating `dt`/`dd` laid out with `grid-auto-flow:column`
+   * over two rows, with `overflow-x:auto` to catch the spill. On glass that is
+   * a strip a reader can push. ON PAPER THERE IS NOTHING TO PUSH: whatever sits
+   * past `clientWidth` is simply never inked, and what sat last was
+   * `sum.withdrawn` — claims withdrawn, the one figure on the sheet that says
+   * how often this record took a claim back.
+   *
+   * Measured on the shipped build, @media print, `?unit=algebra1-l2`: the seven
+   * columns need 978 px in English, 1141 px in Polish and 1180 px in Spanish.
+   * A4 landscape gives the print engine 1032 px and US Letter landscape 965 px,
+   * so English came out whole and Spanish lost its last column by 148 px and
+   * Polish by 109 px — on every paper a teacher would pick for a wide table. It
+   * was cut on a 1600 px SCREEN in those two languages as well; the strip
+   * scrolled, inside a modal, with no thumb a reader would look for.
+   *
+   * A statistic that is present in one language and absent in two is not a
+   * layout preference, it is a different document. So each label and its figure
+   * are now one block, the list wraps to as many columns as the paper has room
+   * for, and nothing anywhere reaches for `overflow-x`.
+   */
+  function sumList(rows) {
+    const dl = document.createElement('dl');
+    dl.className = 'rp-sum';
+    for (const [k, v] of rows) {
+      const cell = document.createElement('div');
+      cell.className = 'rp-sum-cell';
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = v;
+      cell.append(dt, dd);
+      dl.appendChild(cell);
+    }
+    return dl;
   }
 
   /**

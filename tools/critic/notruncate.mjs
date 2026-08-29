@@ -70,6 +70,7 @@ import path from 'node:path';
 import EN from '../../src/i18n/en.js';
 import ES from '../../src/i18n/es.js';
 import PL from '../../src/i18n/pl.js';
+import { findings as ledger } from '../_findings.mjs';
 
 /**
  * The longest sentences each locale can put on the glass.
@@ -547,7 +548,7 @@ if (cutFindings.length) {
 }
 if (!findings.length) {
   console.log('\nno player-facing text is clipped anywhere, and no line is taken away mid-word.\n');
-  process.exit(0);
+  ledger('check:truncate', { scope: 'route' }).done();
 }
 console.log(`\nFAIL — ${findings.length} clipped text node(s) in ${byBox.size} box(es):\n`);
 for (const [k, list] of [...byBox.entries()].sort((a, b) => b[1].length - a[1].length)) {
@@ -558,4 +559,11 @@ for (const [k, list] of [...byBox.entries()].sort((a, b) => b[1].length - a[1].l
   console.log(`    in ${rooms.join(', ')}`);
   console.log(`    e.g. "${worst.text}"`);
 }
-process.exit(1);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This gate is recorded
+   per wave and its recorded RED fails `npm run check`, so what it holds has to
+   be legible to the runner and not only to a reader. A companion line cut off mid-word is
+   cut off in front of a learner, in whichever of the three locales they read. */
+ledger('check:truncate', { scope: 'route' })
+  .route(findings.map((c) => `${c.room || 'a surface'}: a line is cut ${c.axis}ly by ${c.by}px — `
+    + `the box shows ${c.shows}px of ${c.needs}px ("${String(c.text || '').slice(0, 60)}")`))
+  .done();

@@ -778,25 +778,58 @@
   color:var(--ink-mute); font-weight:700;
 }
 /* Label above figure, flowing across: a definition list read as a row of
-   headline numbers. `grid-auto-flow:column` with two rows is what puts each
-   <dd> under its own <dt> instead of beside it. */
+   headline numbers.
+
+   IT USED TO SCROLL, AND A PRINTER CANNOT SCROLL. This was
+   `grid-auto-flow:column` over two rows of alternating <dt>/<dd>, with
+   `overflow-x:auto` catching whatever did not fit. That reads as a strip on
+   glass. On paper it is a guillotine: everything past `clientWidth` is never
+   inked, and what sat last was CLAIMS WITHDRAWN — the one figure on the sheet
+   that says how often this record took a claim back.
+
+   Measured on the shipped build under @media print, `?unit=algebra1-l2`: the
+   seven columns need 978px in English, 1141px in Polish, 1180px in Spanish.
+   A4 landscape hands the print engine 1032px and US Letter landscape 965px, so
+   English printed whole while Spanish lost its last column by 148px and Polish
+   by 109px. Both were cut on a 1600px SCREEN too — scrolling, inside a modal,
+   with no thumb anybody would go looking for.
+
+   So each figure is now one `.rp-sum-cell` block and the list WRAPS. `auto-fit`
+   with a `max-content` ceiling gives as many columns as the paper has room for
+   and no more, the columns stay aligned down the page, and no rule here reaches
+   for `overflow-x` on any surface. src/report/teacher.js `sumList()` builds it;
+   tools/check-record.mjs measures the ink on paper in all three locales. */
 .rp-sum{
-  display:grid; gap:.15rem 1.8rem; margin:1rem 0 .2rem;
-  grid-auto-flow:column; grid-template-rows:auto auto;
-  justify-content:start; overflow-x:auto;
+  display:grid; gap:.55rem 1.8rem; margin:1rem 0 .2rem;
+  grid-template-columns:repeat(auto-fit, minmax(9rem, max-content));
+  grid-auto-rows:auto; justify-content:start;
+}
+/* `subgrid` keeps every label on one baseline and every figure on the next,
+   across a wrapped row, the way the old two-row column flow did. Where it is
+   not supported the declaration is dropped and each cell falls back to its own
+   two rows — the figures sit a little unevenly and nothing is lost. */
+.rp-sum-cell{
+  display:grid; grid-row:span 2; grid-template-rows:subgrid;
+  gap:.15rem; align-content:start; min-width:0;
 }
 .rp-sum dt{
   font-size:.53rem; letter-spacing:.16em; text-transform:uppercase;
-  color:var(--ink-mute); font-weight:700; white-space:nowrap;
+  color:var(--ink-mute); font-weight:700;
 }
 .rp-sum dd{
   margin:0; font-size:1.15rem; color:var(--ink);
-  font-variant-numeric:tabular-nums; white-space:nowrap;
+  font-variant-numeric:tabular-nums;
 }
 @media (max-width:820px){
-  .rp-sum{grid-auto-flow:row; grid-template-rows:none; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1rem}
-  .rp-sum dd{margin-bottom:.55rem}
+  .rp-sum{grid-template-columns:repeat(auto-fit, minmax(7.5rem, 1fr)); gap:.5rem 1rem}
 }
+
+/* The evidence-custody statement. Four short paragraphs a district has to be
+   able to read off the paper, so it keeps the print-visible note class and it
+   is not allowed to break across a page. */
+.rp-custody{margin:1.2rem 0 .2rem}
+.rp-custody .rp-sheet-note{margin:.3rem 0}
+@media print{ .rp-custody{break-inside:avoid} }
 
 .rp-table{
   width:100%; border-collapse:collapse; margin:.5rem 0 0;
@@ -906,9 +939,20 @@
     background:#f4f4f4 !important; border-left:3px solid #666 !important; color:#222 !important;
   }
   .rp-sheet-h{color:#000 !important; border-bottom:1px solid #000; padding-bottom:.2rem}
+  /* The strip is a wrapping grid, not a scrolling one — see the block that
+     builds it. These two lines are colour only; the layout must not need a
+     print override, because a layout that only survives on paper by an
+     override is a layout that is wrong on glass as well. */
   .rp-sum dt{color:#444 !important}
   .rp-sum dd{color:#000 !important}
-  .rp-table{font-size:8.5pt; white-space:normal !important; display:table !important}
+  .rp-sum{overflow:visible !important; column-gap:8mm !important; row-gap:3mm !important}
+  .rp-sum-cell{break-inside:avoid}
+  /* The narrow-screen rule above turns this into a block that scrolls sideways.
+     Paper does not scroll, so the print sheet takes the whole declaration back —
+     display, wrapping AND the overflow. Leaving `overflow-x:auto` on a printed
+     box is the same bet that cost the summary strip its last column. */
+  .rp-table{font-size:8.5pt; white-space:normal !important; display:table !important;
+            overflow:visible !important}
   .rp-table th{color:#000 !important; border-bottom:1.5px solid #000 !important}
   .rp-table td{color:#111 !important; border-bottom:.5px solid #bbb !important}
   .rp-table tr{break-inside:avoid}

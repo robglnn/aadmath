@@ -1,35 +1,56 @@
 {
   "title": "ASCENT — The Cipher Worlds",
   "subtitle": "Adaptive Algebra I mastery, built to a Fortnite / Breath of the Wild bar",
-  "updated": "wave 15",
-  "wave": 15,
-  "summary": "Live at robglnn.github.io/aadmath. The cold-player gate is 18 steps and passes against production, including play with pointer lock denied. A blind cold critic scored 7.5/10 and passed; a department head passed the teacher record for adoption at 8/10 in both TEKS and Common Core framings. Algebra I Level 1 and Level 2 ship; content is data, so Algebra II, Geometry and Trigonometry are a decision rather than a build.",
+  "updated": "wave 22 — in flight",
+  "wave": 22,
+  "summary": "The mastery question is answered, and the answer is the product's own thesis. The 0% that looked catastrophic was a starved measurement — the across-days arm was handed 1,275 items where the cram arm got 4,544, then printed beside it as though they were the same schooling. Measured properly, on the shipped route: cram 97.0%, which decays to 0.0% a week later. Daily 22-minute sittings 90.7%, still 89.0% a MONTH later. Every third day is 6.7%, and that one is real. Nobody bought those numbers by moving a dial — the frozen-competence table came out byte-identical.",
   "metrics": {
     "coldPlayGate": "18/18",
-    "coldCritic": 7.5,
-    "teacherAdoption": 8,
+    "coldCritic": 5.5,
+    "teacherAdoption": 4,
     "trueMasteryPct": 99.8,
     "lowestQuintilePct": 89.3,
     "testOutMedianMin": 2.7,
     "layoutFrames": "288/288",
     "riftPositionsVerified": 1021,
     "consoleErrors": 0,
-    "fps": 40
+    "fps": 40,
+    "algebraSkillsShipped": 35,
+    "unitsShipped": 5,
+    "teksStatementsClaimed": "38 of 49 SEs",
+    "itemsValidated": 78594,
+    "algebraSkillsBuilt": 62,
+    "algebraSkillsReachable": 10,
+    "teksAtCore": "28 of 49 SEs",
+    "gatesGreen": "3 of 6 new",
+    "echoCoverage": "100%",
+    "mathCritic": 6,
+    "algebraSkillsOnRoute": 24,
+    "priorGapsFixed": "19 of 23",
+    "composeNotFree": 101,
+    "arrivalStringsEN": "8-11 (was 76)",
+    "arrivalStringsPL": "9-10 (was 119)",
+    "phoneCritic": 6,
+    "touchProfilesPassing": "12 of 12 jump",
+    "trueMasteryDaily": "90.7%",
+    "trueMasteryCram": "97.0% → 0.0% a week later",
+    "retentionMonthLater": "89.0%",
+    "trueMasteryEveryThirdDay": "6.7%"
   },
   "pieces": [
     {
       "id": "world",
       "name": "World & art direction",
-      "status": "passed",
-      "score": 7,
-      "note": "Groves, canyon, ruins, waterfalls and a lit gate. Minute 8 no longer looks like wallpaper."
+      "status": "failed",
+      "score": 5,
+      "note": "Solid geometry has no down-facing light, so shadow renders pure black across up to 78% of a frame. A quarter of the places the game sends you are frames it refuses to compose."
     },
     {
       "id": "player",
       "name": "Movement, camera & game feel",
       "status": "passed",
       "score": 7,
-      "note": "Recovery in ~1.5s. Pointer-lock-denied play verified end to end."
+      "note": "The on-screen jump, dash, glide and interact buttons never worked: a tap on the pad was eaten by the deafness that same tap created. Fixed and gated on nine phone profiles."
     },
     {
       "id": "build",
@@ -42,15 +63,15 @@
       "id": "learn-ux",
       "name": "Rift learning surface",
       "status": "passed",
-      "score": 8,
-      "note": "Five modalities. The echo shows a worked parallel problem without leaking the answer."
+      "score": 7,
+      "note": "The grader now demands the form the question asks for, and the keypad can finally type a bracket, a radical and an equals sign. check:answerable is green."
     },
     {
       "id": "pedagogy",
       "name": "Content, item bank & mastery model",
       "status": "passed",
       "score": 8,
-      "note": "99.8% true mastery, test-out in ~2.7 min median. p90 tail still open."
+      "note": "Level 2 went 78.5% to 91.5% true mastery, hollow claims 11.5% to 2.0%. Every dressed form had declared no scene keys, so the proving run could never be a transfer test."
     },
     {
       "id": "i18n",
@@ -61,10 +82,10 @@
     },
     {
       "id": "narrative",
-      "name": "Narrative, voice & progression",
+      "name": "Story, progression & session shape",
       "status": "building",
       "score": 6,
-      "note": "Arc reaches an endgame; rank and story still not day-gated."
+      "note": "Opening a new unit should be the biggest moment in the game. Right now it does not happen at all."
     },
     {
       "id": "fx",
@@ -86,6 +107,62 @@
       "status": "passed",
       "score": 7,
       "note": "Fresh 120fps. Sustained-play measurement added after finding 44.9fps at minute 18."
+    },
+    {
+      "id": "solver",
+      "name": "Exact verification core",
+      "status": "passed",
+      "score": 8,
+      "note": "solveQuadratic with exact surd arithmetic, self-tested by planting wrong roots and unsimplified radicals and proving it rejects them."
+    },
+    {
+      "id": "route",
+      "name": "Course progression",
+      "status": "passed",
+      "score": 7,
+      "note": "A cleared save returns the byte-identical shipped graph. Hold every line of Level 1 and a whole new region of the lattice opens, announced as a chapter plate rather than a level number."
+    },
+    {
+      "id": "report",
+      "name": "Teacher record & standards",
+      "status": "passed",
+      "score": 7,
+      "note": "Both framework maps are derived from the running graph. Five units, both frameworks, every line carries its own standards and no unit prints another unit’s."
+    },
+    {
+      "id": "echo",
+      "name": "Invisible explicit teaching",
+      "status": "passed",
+      "score": 8,
+      "note": "Fifteen new counterexample handlers, enumerated from the packs rather than guessed. Every tagged slip in every unit is now answered with computed mathematics — it was 18% at Level 5."
+    },
+    {
+      "id": "archipelago",
+      "name": "The archipelago",
+      "status": "building",
+      "score": null,
+      "note": "Eight sites designed, five cut by the adversary. THE MEET is being built: the balance substitutes the cell under your boots live, so walking the rail is walking the solution set."
+    },
+    {
+      "id": "hud",
+      "name": "HUD, settings & phone frame",
+      "status": "building",
+      "score": 6,
+      "note": "Build menu, sound and languages are off the glass. Strings on arrival went 76 to 8-11, and 119 to 9-10 in Polish. Two taps still land on the wrong control in landscape."
+    },
+    {
+      "id": "mastery",
+      "name": "The 80% promise",
+      "status": "building",
+      "score": 6,
+      "note": "Daily sittings hold at 90.7% and still 89.0% a month later. Cramming reaches 97% and keeps none of it. Every third day is 6.7% — real, and resting on two constants nobody has calibrated."
+    },
+    {
+      "id": "economy",
+      "name": "The reward loop",
+      "status": "failed",
+      "score": 3,
+      "note": "Seven minutes of sprinting with no questions answered pays 218 motes. A 22-minute session with 86 answers pays 74. The currency pays running ten times what it pays learning."
     }
   ],
   "log": [
@@ -512,6 +589,170 @@
     {
       "t": "P0 mastery honesty",
       "m": "form floor 3->1; hollow claims (strict) 48.76%->6.83%, served-never-solved 46.06%->0.00%; empty-box displays removed; echo analogue now carries the slip"
+    },
+    {
+      "t": "wave 16",
+      "m": "Standards audit: TEKS A.1, A.2, A.3, A.5, A.9, A.10, A.11, A.12 claimed. A.4, A.6, A.7, A.8 claimed nowhere — the whole quadratics strand was missing."
+    },
+    {
+      "t": "wave 16",
+      "m": "Two gates found red at the start of the wave: check:lang (250 findings, 197 of them item stems over 25 words) and check:templates (the walker reached 19 rifts but got 3 items out of them)."
+    },
+    {
+      "t": "wave 16",
+      "m": "Level 3 already declared its own gaps in writing — trinomial factoring and \"is this relation a function\" were dropped rather than shipped unverifiable. Wave 16 builds the checkers instead of relaxing the rule."
+    },
+    {
+      "t": "wave 16",
+      "m": "Level 4 (quadratics) and Level 5 (data, radicals, sequences) built. Course goes from 35 skills to 62."
+    },
+    {
+      "t": "wave 16",
+      "m": "The parser could only ever solve degree one. It now solves quadratics exactly, in real surd form, and the checker was proved by planting wrong roots and watching it refuse them."
+    },
+    {
+      "t": "wave 16",
+      "m": "TEKS Algebra I coverage: 38 of 49 student expectations at some depth, 28 at core. Six expectations are declared unclaimable in writing rather than shipped on the generator’s word."
+    },
+    {
+      "t": "wave 16",
+      "m": "Three blind critics, all DO NOT SHIP: 4/10, 4/10, 5/10. The finding that mattered: a real student reaches 10 of the 62 skills. Levels 2-5 need a hand-edited URL."
+    },
+    {
+      "t": "wave 16",
+      "m": "The only gate covering the whole course — 78,594 items across five units — was failing and was never wired into the build. Green build, red course."
+    },
+    {
+      "t": "wave 17",
+      "m": "Repair wave: make every skill reachable in normal play, make the grader test the FORM an answer must take and not just its value, repair 2,348 undetermined items, and build the gates that would have caught all of it."
+    },
+    {
+      "t": "lane E",
+      "m": "echo: layer 1 now answers 100% of tagged slips with computed mathematics in all 5 units (was L4 53.4%, L5 17.9%); new gate npm run check:echo"
+    },
+    {
+      "t": "wave 17",
+      "m": "Eight new gates registered, each one required to FAIL before its fix lands and pass after: reachable, answerable, determinate, courses, echo, record, standards, mastery."
+    },
+    {
+      "t": "wave 17",
+      "m": "check:echo, check:answerable and check:record are green. check:reachable still reports 1 of 3 shipped units reachable with no query string — that lane was killed mid-flight and is running again."
+    },
+    {
+      "t": "wave 17",
+      "m": "Three blind critics: 6/10, 7/10, 8/10 — all SHIP WITH FIXES, from 4/10, 4/10, 5/10 DO NOT SHIP. 19 of 23 named gaps fixed."
+    },
+    {
+      "t": "wave 17",
+      "m": "The route ships Levels 1 and 2. Level 3 is held back with the evidence in the manifest: composing it drops true mastery 98% to 64%, and a knower proves the whole lattice 2.3% of the time."
+    },
+    {
+      "t": "wave 18",
+      "m": "A judge found the retention study was the output of an undisclosed constant. Set it to 1 and the curve stops rising and falls through night five. The finding was withdrawn before it reached a teacher."
+    },
+    {
+      "t": "wave 18",
+      "m": "Eight archipelago sites designed against the rules the hanging caches were reverse-engineered into. The adversary cut five, including one whose factoring plot two different answers tile exactly."
+    },
+    {
+      "t": "wave 19",
+      "m": "A critic measured the opposite of last round’s complaint: the loop no longer needs the world. The fix removed traversal instead of composing it."
+    },
+    {
+      "t": "lane D",
+      "m": "camera horizon hold + rift composability landed; compose/motion gates written"
+    },
+    {
+      "t": "lane D",
+      "m": "camera: overrun climb, pauldron floor, horizon hold; rifts: pad must be seeable-out-of and flat under the plinth; caches: three ARCHIPELAGO defects closed"
+    },
+    {
+      "t": "lane D",
+      "m": "camera directed (lens-in-shoulder clause eliminated); rift re-seating measured then reverted for check:traverse; compose+motion gates added"
+    },
+    {
+      "t": "lane D",
+      "m": "sustain PASSES with a machine control that prints the disproof; motion gate lands the 789s park"
+    },
+    {
+      "t": "lane D",
+      "m": "done: camera + two gates + cache fixes; rift re-seating measured and reverted; sustain green with a control"
+    },
+    {
+      "t": "lane C",
+      "m": "P0 direction word un-inverted; 12-point earned compass arc; wrong-way rule at 8/16/24s with silence after; new check:wayfind"
+    },
+    {
+      "t": "lane C",
+      "m": "wayfinding: direction word un-inverted (guide.js) + compass needle un-inverted (afford.js); 12-point earned compass arc; wrong-way rule answered by the world at 8/16/24 s and silent after; new check:wayfind gate"
+    },
+    {
+      "t": "wave meet",
+      "m": "THE MEET: src/world/meet.js — a coordinate plane you walk, a balance that substitutes the cell under your boots live; check:meet in the build with 11 rules and a passing self-test"
+    },
+    {
+      "t": "wave 20",
+      "m": "Client feedback from live play: collapse the build menu, move sound and languages to settings, three progress bars into one, and the jump button does nothing."
+    },
+    {
+      "t": "wave 20",
+      "m": "The jump button was never a regression — it had never worked. A touch fires pointerdown before touchstart, the handler read its own button as UI, and bought the world 0.16s of deafness that then swallowed the pad’s own press. It killed jump, dash, glide and interact."
+    },
+    {
+      "t": "wave 20",
+      "m": "A second bug found while hunting the first: the ORDERS card was capped without a scroller, so BEGIN THE RUN sat below the fold on a phone held sideways. That card holds uiOpen, which hides the touch pad — so every control in the game was dead on that device. 18 of 18 sizes and locales now reachable."
+    },
+    {
+      "t": "wave 21",
+      "m": "The across-days collapse was the instrument: sessions was hardcoded to 40, so the daily arm got 28% of the schooling and printed beside the cram arm under the words “the same 800 items”."
+    },
+    {
+      "t": "wave 21",
+      "m": "Measured properly: cramming reaches 97% and retains 0% a week later. Daily 22-minute sittings reach 90.7% and retain 89.0% a month later. That is the whole thesis of the product, in one table."
+    },
+    {
+      "t": "wave 21",
+      "m": "The gate built to catch the answer-shape leak was averaging 26,436 real choice cards with 63,558 cards whose options a learner never sees, and printing PASS."
+    },
+    {
+      "t": "wave 22",
+      "m": "A critic suspects three rounds of “the sitting is a worksheet” may be partly an artefact: the RUN CLOSED card takes the whole frame and Escape does not dismiss it, and the motion gate’s own sitting was spent behind one."
+    },
+    {
+      "t": "lane A",
+      "m": "modal gate: .ses-close held the frame 967 s of an 18-min motion sitting, Escape refused; free-seconds motion is 34.2% vs 3.6% whole-sitting"
+    },
+    {
+      "t": "lane C",
+      "m": "choice-shape gate rewritten per surface; special-answer card 50%->25%, tray 42%->25.8%, narrowed field 41.6%->34.9%"
+    },
+    {
+      "t": "lane F",
+      "m": "lighting: the dead region is the CAST SHADOW, not a missing bounce term — castShadow off takes the worst frame 57.9% RGB 0,0,0 to 0.00%. Deck is a light now; shadow floor 0.70; fill up, key down. 126-frame census worst black 38.78% -> 0.49%, mean 2.47% -> 0.01%. cadetshadow.mjs still PASSES."
+    },
+    {
+      "t": "lane F",
+      "m": "compose: 164/312 not free (52.6%) -> 47/318 (14.8%) from camera.js alone (horizon solved on the MEDIAN bearing + a tilt when the climb cannot pay). Residue is the SEATING: three rift seats read slopeAt 1.00/0.81 and skylineAt(30,6) 0.00 on the seating's own instruments."
+    },
+    {
+      "t": "lane F",
+      "m": "perf: nothing accumulates. bench cold 70.8 fps -> minute 15 100.3 fps at 2.0x the pixels; check:sustain 109.9 -> 108.7 with every counter flat; a page with NOTHING accumulated runs at 81.3 fps at the same instant."
+    },
+    {
+      "t": "lane E",
+      "m": "phone surface: 44px touch targets everywhere on a coarse pointer, the coordinate chart is never narrower than the keypad, the landscape keypad keeps 7 8 9 / 4 5 6 / 1 2 3; new gate check:reach (tools/critic/thumb.mjs) with three planted faults"
+    },
+    {
+      "t": "lane D",
+      "m": "STANDARDS.md now publishes all three cadences; check:mastery and the document read one function"
+    },
+    {
+      "t": "lane A",
+      "m": "answer surfaces: sorter chip order drawn (100%->13.4% positional), special card 4-way classification (56.25%->25.00%), area tray balanced (68.22%->12.45%), beam tray single-kind, dispute stems quote drawn readings"
+    },
+    {
+      "t": "lane A",
+      "m": "gates: items/determinate/answerable/choices/lang/echo/courses/i18n/prose/coverage/solver GREEN; check:shape self-test GREEN, sweep RED with 71 route findings the widened instrument makes (none on the five surfaces this lane fixed)"
     }
   ]
 }

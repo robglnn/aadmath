@@ -8,7 +8,13 @@ import { dayNumber } from '../meta/days.js';
    Declaring it as a PRICE is what tells the gate it is the cost of a thing on a
    shelf rather than a second reading of the learner's progress. Nothing about
    the kit changes. */
-import { FIG, tagFigure } from '../meta/progress.js';
+import { FIG, tagFigure, createRepairWatch } from '../meta/progress.js';
+/* lane C (the objective may ask for a traversal verb): the objective card
+   could name nothing but a tear, so nothing in a session ever sent anybody
+   to a hanging cache or a span. `registerField` is a live view, registered
+   once here because this module is handed both lists at construction — see
+   `fieldRows` below and the block at the top of src/meta/objective.js. */
+import { registerField } from '../meta/objective.js';
 import {
   GRANT_LADDER, CHARTER_EVERY, CHARTER_FROM, STATION_PRICE, chartersAt, charterAt,
 } from './ladder.js';
@@ -325,6 +331,55 @@ export function createKit(opts = {}) {
   SHARD_COST.vault = PRICE.plate;
 
   const ctx = { builder, player, drift, caches, spans };
+
+  /* ------------------------------------------------------------------------
+     WHAT THE OBJECTIVE MAY POINT AT THAT IS NOT A TEAR.
+
+     Two kinds of place, and their access ladders are not invented here: they
+     are the ones src/world/caches.js and src/world/span.js already write down
+     in their own headers, read back as a rung.
+
+       CACHES   `LIFT = [-16, -9, 3, 17, 34]`, relative to the highest ground
+                on each one's own bearing. The first two are a glide off the
+                ridge and need nothing bought (rung 1); the third stands above
+                every hill on its line and wants a plate or a column (rung 2);
+                the last two want the wing trimmed or an updraft a cache paid
+                for (rung 3). A DEEP cache is one a warden dropped, wherever it
+                fell, so it is rung 3 as well.
+       SPANS    `LIFT = [-26, -2, 22]`. The first is a glide that needs nothing
+                bought (rung 1). Every one after it is WALKED, on the road the
+                one before it laid — so it is rung 1 once that road stands, and
+                out of reach until it does.
+
+     `open` is the half that matters: a signpost pointing at a puzzle somebody
+     has already solved is worse than no signpost. */
+  const CACHE_RUNG = [1, 1, 2, 3, 3];
+  function fieldRows() {
+    const rows = [];
+    for (const c of (caches?.list || [])) {
+      if (c.opened) continue;
+      const deep = c.tier === 2;
+      rows.push({
+        id: 'cache-' + c.key, kind: deep ? 'deepcache' : 'cache',
+        x: c.x, y: c.y, z: c.z, open: true, air: true,
+        rung: deep ? 3 : (CACHE_RUNG[c.i] ?? 3),
+        nameKey: deep ? 'guide.site.deepcache' : 'guide.site.cache',
+      });
+    }
+    const sp = spans?.list || [];
+    for (let i = 0; i < sp.length; i++) {
+      const c = sp[i];
+      if (c.opened) continue;
+      rows.push({
+        id: 'span-' + (c.key ?? i), kind: 'span',
+        x: c.x, y: c.y, z: c.z, open: true, air: true,
+        rung: i === 0 || sp[i - 1]?.opened ? 1 : 3,
+        nameKey: 'guide.site.span',
+      });
+    }
+    return rows;
+  }
+  registerField(fieldRows);
   const held = new Set();
   let depth = -1;
   let lines = 0;
@@ -912,6 +967,40 @@ export function createKit(opts = {}) {
 
   function raise(x, z) { drift?.addColumn?.(x, z, 82, 8.2, true); }
 
+  /**
+   * THE VENT — the free one, and the reason the rest of this ladder is worth
+   * buying.
+   *
+   * A critic measured eighteen minutes of this game and counted the verbs it
+   * used: **dash 0, glide 0, updraft 0, build 0.** The mathematics hands a
+   * learner UPDRAFT FLARE and KITE TRIM on camera and then never asks for
+   * either again, which makes advancement a card rather than a capability —
+   * the exact failure the product brief's first goal names.
+   *
+   * A verb nobody is ever asked for is not a reward, so the loop asks. When an
+   * arrival at a tear fills, the tear breathes out a column of rising air a few
+   * metres along the road (`src/meta/relay.js` decides where), and the whole
+   * ladder is denominated in what a cadet can do with the height:
+   *
+   *   nothing held   thirty metres, and a walk down from it
+   *   KITE TRIM      1:7 becomes 1:18 — the same thirty metres is now most of
+   *                  the island, which is the single most-felt number here
+   *   STORM LEGS     the landing rolls straight into 14.6 m/s
+   *   WINDSTEP       the dash comes back in the air, so the glide is steerable
+   *   LONG SPAN      1:26, and faster
+   *   UPDRAFT FLARE  this column, on F, planted wherever you want it — the
+   *                  cadet has already felt exactly what they are buying
+   *
+   * It is deliberately temporary and deliberately not free height on demand:
+   * the permanent ones are bought with shards (the beacon) or earned by going
+   * somewhere hard (`src/world/errand.js`). This one is what an arrival pays.
+   */
+  function vent(x, z, opt = null) {
+    return drift?.flare?.(x, z, {
+      height: opt?.height ?? 30, radius: opt?.radius ?? 6.4, life: opt?.life ?? 7.5,
+    }) || null;
+  }
+
   function saveBeacons() {
     try { localStorage.setItem(BEACON_KEY, JSON.stringify(beacons)); } catch { /* private mode */ }
   }
@@ -1181,6 +1270,30 @@ export function createKit(opts = {}) {
     hud?.say?.(t('foundry.callout'), 8000);
   }
 
+  /* ------------------------------------------------------------------------
+     THE ONE NUMBER, WHEN IT GOES DOWN.
+
+     `repaired()` is a posterior and not a ratchet, on purpose and for good
+     reasons written down in src/meta/progress.js. What was wrong was that the
+     largest figure on the screen could fall mid-session in silence — and a
+     progress bar that takes ground away without a word is the fastest way to
+     make a player stop believing the rest of the glass.
+
+     The rule and the words are in src/meta/progress.js, beside the figure they
+     are about. This file is the CARRIER, and it is the carrier for one boring
+     reason: it is the only module in this lane holding both the learner model
+     and the HUD, and it already re-reads that same model on this same poll for
+     the ladder. It decides nothing about the number; it asks, and it speaks
+     when the frame is free. */
+  const slip = createRepairWatch();
+  function slipWatch() {
+    if (busy()) return;              // never over a learning surface or a rite
+    let said = null;
+    try { said = slip.read(mastery); } catch { said = null; }
+    if (!said) return;
+    hud?.flash?.(t(said.key, { skill: t('skills.' + said.skill) }), '');
+  }
+
   // ------------------------------------------------------- the standing mark
   /**
    * THE MARK — a standing order, made visible from a long way off.
@@ -1244,7 +1357,7 @@ export function createKit(opts = {}) {
     pumpToast(dt);
     foundry.update(dt, time);
     watch -= dt;
-    if (watch <= 0) { watch = 0.5; watchAffordable(); foundry.refresh(); }
+    if (watch <= 0) { watch = 0.5; watchAffordable(); foundry.refresh(); slipWatch(); }
     nudge(dt);
     if (!busy()) {
       vaultCheck(dt);
@@ -1354,6 +1467,12 @@ export function createKit(opts = {}) {
     },
     /** The place itself, so a critic can walk to it and open it for real. */
     foundry,
+    /**
+     * The tear's own breath. Called by `src/meta/relay.js` when an arrival
+     * fills — not a purchase, not a grant, and never gated on one: it is the
+     * thing that makes a cadet want the ladder before they can read it.
+     */
+    vent,
     /** For the harness: light the bought verbs without a keyboard. */
     flare: lightFlare,
     vault: selectVault,

@@ -4,6 +4,8 @@ import { tex } from '../ui/tex.js';
 import { t } from '../i18n/index.js';
 import { CELL } from '../build/pieces.js';
 import { merge } from './geom.js';
+// A span is a place the game sends a cadet to. (src/world/clearings.js)
+import { reserve } from './clearings.js';
 import './field.css';
 
 /**
@@ -472,6 +474,7 @@ export function createSpans(opts = {}) {
     }
 
     if (c.opened) openNow(c, true);
+    reserve(c.x, c.z, 11, 'span');
     list.push(c);
   }
 

@@ -2,11 +2,16 @@ import './rift.css';
 import '../learn/echo.css';   // the echo's own rows, owned with the echo's content
 import { tex, texOk, texFirst, texProse } from './tex.js';
 import { t, getLocale, mathOp, pct as pctOf } from '../i18n/index.js';
-import { equivalent } from '../learn/parser.js';
+import {
+  equivalent, parse, expandPm, evalSurd, splitTop,
+  radicalInDenominator, radicandsOf, polynomialise,
+} from '../learn/parser.js';
+import { sCmp, isSquarefree } from '../learn/surd.js';
 import { diagnose } from '../learn/diagnose.js';
 import { analogueFor } from '../learn/scaffold.js';
 import { echoScript, MAX_TIER } from '../learn/echo.js';
-import { mountPlot } from '../learn/plot.js';   // the coordinate surface, owned with its mathematics
+import { mountPlot, chartLattice, chartMarkup } from '../learn/plot.js';   // the coordinate surface, owned with its mathematics — and the one lattice both charts are drawn on
+import { balancedPick } from '../learn/shape.js';   // the beam's move tray is an answer surface too — see the note on `candidates`
 
 /**
  * The rift stabiliser — where the learning actually happens.
@@ -169,6 +174,19 @@ function linStr(a, v, b) {
   return `${coefStr(a, v)} ${b < 0 ? `- ${Math.abs(b)}` : `+ ${b}`}`;
 }
 
+/**
+ * A written number as an exact fraction, whichever way it is spelled.
+ * `-3/4`, `-\frac{3}{4}` and `12` all read; anything else comes back null.
+ */
+function ratioOf(src) {
+  const s = String(src ?? '').replace(/\s+/g, '').replace(/\\left|\\right/g, '');
+  let m = /^([+-]?)(\d+)(?:\/(\d+))?$/.exec(s);
+  if (m) return { n: (m[1] === '-' ? -1 : 1) * Number(m[2]), d: Number(m[3] || 1) };
+  m = /^([+-]?)\\frac\{(\d+)\}\{(\d+)\}$/.exec(s);
+  if (m) return { n: (m[1] === '-' ? -1 : 1) * Number(m[2]), d: Number(m[3]) };
+  return null;
+}
+
 /** Wrap a plain answer string as safe, strict KaTeX. */
 function texify(value) {
   const s = String(value).trim();
@@ -178,6 +196,731 @@ function texify(value) {
 }
 
 const norm = (s) => String(s).replace(/\s+/g, '').replace(/\\left|\\right/g, '');
+
+/**
+ * How many glyphs the socket will take.
+ *
+ * It was fourteen, which is shorter than several keys the bank ships:
+ * `5\left(17n^{2} + 13n + 21\right)` is fifteen glyphs in the pad's alphabet
+ * and `\left(6n + 19\right)\left(3n + 17\right)` is fourteen exactly. A cap
+ * below the longest answer is the same defect as a missing key — the entry
+ * simply stops accepting glyphs part-way through a correct answer, with no
+ * message. Measured over every unit by tools/critic/answerable.mjs.
+ */
+const MAX_ENTRY = 40;
+
+// ===========================================================================
+// THE PAD ALPHABET — one spelling of an answer that a hand can actually produce
+//
+// The keys the banks ship contain brackets, radicals, equals signs, commas,
+// plus-or-minus and fraction bars. The pad could emit none of them, so every
+// factoring, complete-the-square, vertex-form and surd-root item routed to it
+// was an item whose answer could not be entered at all: the learner's only
+// path to the seal was to miss twice and take the narrowed scaffold. That is a
+// rift with no way through it that does not go through being wrong.
+//
+// The fix is not a LaTeX editor on a keypad. It is one small plain alphabet —
+// what a person writes on paper, and what a calculator takes — with a total
+// translation to and from the notation the rest of the game speaks:
+//
+//   brackets, a radical sign, a power mark, a fraction bar, an equals sign,
+//   a comma for "and also", a plus-or-minus, and the two order marks.
+//
+// `toTex` is the only thing that turns that into notation, and `toPad` is its
+// inverse. Both are total: anything they cannot read comes back unchanged
+// rather than half-converted, so a caller never gets a mangled string.
+// ===========================================================================
+
+/** The glyphs that only ever appear in the pad's own spelling. */
+const PAD_ROOT = '√';   // the radical sign
+const PAD_PM = '±';     // plus or minus
+const PAD_LE = '≤';
+const PAD_GE = '≥';
+
+/**
+ * One atom: a bracketed group, a root, a number, or a letter with its power.
+ * `i` is where to start reading; the caller gets the raw text and where it ends.
+ */
+function atomAt(s, i) {
+  if (i >= s.length) return null;
+  if (s[i] === PAD_ROOT) {
+    const inner = atomAt(s, i + 1);
+    if (!inner) return null;
+    return { body: s.slice(i, inner.end), end: inner.end };
+  }
+  if (s[i] === '(') {
+    let depth = 0;
+    for (let j = i; j < s.length; j++) {
+      if (s[j] === '(') depth++;
+      else if (s[j] === ')') { depth--; if (!depth) return { body: s.slice(i + 1, j), end: j + 1 }; }
+    }
+    return { body: s.slice(i + 1), end: s.length };
+  }
+  const m = /^(?:\d+|[a-zA-Z](?:\^\d+)?)/.exec(s.slice(i));
+  return m ? { body: m[0], end: i + m[0].length } : null;
+}
+
+/** The atom that ENDS at `i` — what sits above a fraction bar. */
+function atomBefore(s, i) {
+  if (i <= 0) return null;
+  let start = -1;
+  if (s[i - 1] === ')') {
+    let depth = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      if (s[j] === ')') depth++;
+      else if (s[j] === '(') { depth--; if (!depth) { start = j; break; } }
+    }
+    if (start < 0) return null;
+    const inner = s.slice(start + 1, i - 1);
+    if (start > 0 && s[start - 1] === PAD_ROOT) return { body: s.slice(start - 1, i), start: start - 1 };
+    return { body: inner, start };
+  }
+  const m = /(?:\d+|[a-zA-Z](?:\^\d+)?)$/.exec(s.slice(0, i));
+  if (!m) return null;
+  start = i - m[0].length;
+  if (start > 0 && s[start - 1] === PAD_ROOT) return { body: s.slice(start - 1, i), start: start - 1 };
+  return { body: m[0], start };
+}
+
+/**
+ * The pad's spelling, as strict KaTeX. Also the string the checker reads, so
+ * there is exactly one translation and never two that could disagree.
+ */
+function toTex(src) {
+  let s = String(src ?? '');
+  if (!s) return '';
+  // Already notation: leave it alone. A backslash cannot be typed on the pad,
+  // so its presence says this string came out of the bank, not off a hand.
+  if (s.includes('\\')) return s;
+  s = s.replace(/\s+/g, '');
+  if (!s) return '';
+  // fraction bars first, so a root above one keeps its own group
+  for (let guard = 0; guard < 16 && s.includes('/'); guard++) {
+    const i = s.indexOf('/');
+    const num = atomBefore(s, i);
+    const den = atomAt(s, i + 1);
+    if (!num || !den) { s = s.slice(0, i) + s.slice(i + 1); continue; }
+    s = `${s.slice(0, num.start)}\\frac{${num.body}}{${den.body}}${s.slice(den.end)}`;
+  }
+  for (let guard = 0; guard < 16 && s.includes(PAD_ROOT); guard++) {
+    const i = s.indexOf(PAD_ROOT);
+    const a = atomAt(s, i + 1);
+    if (!a) { s = s.slice(0, i) + s.slice(i + 1); continue; }
+    s = `${s.slice(0, i)}\\sqrt{${a.body}}${s.slice(a.end)}`;
+  }
+  s = s.replace(/\(/g, '\\left(').replace(/\)/g, '\\right)');
+  // Powers last. `t^2` has to still read as one atom while the bar above it is
+  // being found; braced, it reads as `t` and the fraction loses its exponent.
+  s = s.replace(/\^(\d+)/g, '^{$1}');
+  s = s.split(PAD_PM).join(' \\pm ');
+  s = s.split(PAD_LE).join(' \\le ');
+  s = s.split(PAD_GE).join(' \\ge ');
+  s = s.replace(/\*/g, ' \\cdot ');
+  return s;
+}
+
+/**
+ * …and back. Given a key out of the bank, what would a hand have to press?
+ *
+ * This is what makes "every key the bank ships is typeable" a testable claim
+ * rather than a hope: the key goes through here, and what comes out is a list
+ * of glyphs that either are all on the pad or are not.
+ */
+function toPad(src) {
+  let s = String(src ?? '');
+  if (!s) return '';
+  s = s.replace(/\\left|\\right|\\!|\\,|\;|\\ /g, '')
+    .replace(/\\cdot|\\times/g, '*')
+    .replace(/\\div/g, '/')
+    .replace(/\\pm/g, PAD_PM)
+    .replace(/\\le(?![a-zA-Z])/g, PAD_LE)
+    .replace(/\\ge(?![a-zA-Z])/g, PAD_GE);
+  for (let guard = 0; guard < 16; guard++) {
+    const before = s;
+    // Powers first, innermost outward: a brace group inside a fraction stops
+    // the fraction from being read at all, so `\\frac{1}{t^{2}}` has to lose its
+    // `{2}` before the bar above it can be seen.
+    s = s.replace(/\^\s*\{([^{}]*)\}/g, '^$1');
+    s = s.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, (m, a, b) => `${wrapPad(a)}/${wrapPad(b)}`);
+    s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, (m, a) => PAD_ROOT + wrapPad(a));
+    if (s === before) break;
+  }
+  return s.replace(/\s+/g, '');
+}
+/** A fraction part or a radicand needs brackets unless it is a single atom. */
+function wrapPad(body) {
+  const b = String(body).trim();
+  return /^(?:\d+|[a-zA-Z](?:\^\d+)?)$/.test(b) ? b : `(${b})`;
+}
+
+/** Every distinct glyph a pad entry is built from — the keys it would need. */
+function padGlyphs(padStr) {
+  const out = new Set();
+  for (const ch of String(padStr)) {
+    if (/\s/.test(ch)) continue;
+    out.add(/[0-9]/.test(ch) ? '0' : ch);
+  }
+  return out;
+}
+
+
+// ===========================================================================
+// THE ANSWER-SURFACE CONTRACT
+//
+// A grader that only asks "is this the same number?" is not grading the task.
+// Sixteen thousand sampled Level 4 items were measured against the old one:
+// 1,763 of them were sealed by typing THE QUESTION ITSELF back into the pad.
+// "Write this as a product of brackets" was satisfied by the unfactored
+// original, on 100% of eight item forms — no misconception flagged, no assist
+// recorded, and full unassisted mastery credit for factoring nothing. A
+// mastery claim manufactured that way is worse than no claim.
+//
+// So an answer now has to be right in TWO ways, and both are checked here:
+//
+//   VALUE   it denotes the same mathematics as the key. `sameAnswer` decides
+//           that, and it handles the shapes the old checker could not read at
+//           all — an equals sign, a comma-separated pair of roots, a ±, a
+//           radical — instead of throwing and quietly answering "no".
+//   FORM    it is written in the form the task demands. `inForm` decides that.
+//
+// An item names its own demand with `check.form`:
+//
+//   'factored'  a product of brackets — the top-level operation multiplies
+//   'simplest'  a radical with a squarefree radicand, a fraction in lowest terms
+//   'vertex'    the a(x-h)^2+k shape
+//   'standard'  integer coefficients, leading coefficient positive
+//   'expanded'  a sum of terms, no bracket left
+//   (absent)    the demand is DERIVED — see `demandsOf`
+//
+// The derivation matters as much as the declaration, because a bank that has
+// not declared a form yet must not be gradeable by retyping its own prompt.
+// It is drawn from the item's own two strings and nothing else, so it cannot
+// smuggle in an opinion about pedagogy: if the key is a product and the prompt
+// is not, then producing a product is the task. See `demandsOf`.
+//
+// WHAT THIS MUST NEVER DO. A learner who is right and is told they are wrong
+// stops believing the thing that told them, and there is no way back from
+// that. So every predicate here is STRUCTURAL and coarse: it asks what shape a
+// line is, never whether it is spelled the way the generator happened to spell
+// it. `(x+3)(x+2)` and `(x+2)(x+3)` are one answer. So are `x = 3, x = -8` and
+// `x = -8, x = 3`, and `2(x+1)(x+4)` and `(2x+2)(x+4)`. An unreduced fraction
+// stays correct unless an item explicitly demands lowest terms.
+// ===========================================================================
+
+/** The five forms an item may demand of its answer, plus the derived pair. */
+const FORMS = ['factored', 'simplest', 'vertex', 'standard', 'expanded'];
+
+/**
+ * Reading a written answer back as an abstract syntax tree.
+ *
+ * Never throws. `null` means "this notation is outside the checker", which is
+ * a real and common answer — an inequality, a coordinate pair, a phrase — and
+ * every caller here treats it as "cannot tell" rather than as "wrong".
+ */
+function astOf(src) {
+  try { return parse(toTex(src)); } catch { return null; }
+}
+
+/**
+ * Does anything in here MULTIPLY two things that are not both plain numbers,
+ * or divide by something with a letter in it, or raise a bracket to a power?
+ *
+ * This one predicate is the whole difference between `x^{2} + 5x + 6` and
+ * `(x + 2)(x + 3)`, between `x^{7}` and `x^{3} \cdot x^{4}`, between `6x + 15`
+ * and `3(2x + 5)`, and between `x^{-2}` and `\frac{1}{x^{2}}`. In every one of
+ * those pairs one side has an unresolved product in it and the other does not,
+ * and in every one of them the task is to get from the first to the second.
+ */
+function hasOpenProduct(node) {
+  let found = false;
+  const rec = (n) => {
+    if (!n || found) return;
+    switch (n.k) {
+      case 'mul':
+        // A number times a BRACKET is unresolved too: `3(2x + 5)` has not been
+        // multiplied out, and reading only "are both sides letters?" said it
+        // had been.
+        if (isSum(stripNeg(n.a)) || isSum(stripNeg(n.b))) { found = true; return; }
+        if (!isConstant(n.a) && !isConstant(n.b)) { found = true; return; }
+        break;
+      case 'div':
+        if (!isConstant(n.b)) { found = true; return; }
+        break;
+      case 'pow':
+        if (!isAtom(n.a)) { found = true; return; }
+        break;
+      default: break;
+    }
+    for (const k of ['a', 'b']) if (n[k] && typeof n[k] === 'object') rec(n[k]);
+  };
+  rec(node);
+  return found;
+}
+
+/** A number, or an arithmetic of numbers. No letter anywhere in it. */
+function isConstant(n) {
+  if (!n) return true;
+  if (n.k === 'var') return false;
+  if (n.k === 'num') return true;
+  return isConstant(n.a) && (n.b === undefined || isConstant(n.b));
+}
+/** A single symbol: a number or a letter. Not a sum, not a product. */
+function isAtom(n) { return !!n && (n.k === 'num' || n.k === 'var'); }
+
+/** Every multiplicative factor at the top of an expression, flattened. */
+function factorsOf(node) {
+  const out = [];
+  const rec = (n) => {
+    if (!n) return;
+    if (n.k === 'mul') { rec(n.a); rec(n.b); return; }
+    if (n.k === 'neg') { rec(n.a); return; }
+    if (n.k === 'div' && isConstant(n.b)) { rec(n.a); return; }
+    out.push(n);
+  };
+  rec(node);
+  return out;
+}
+
+/** A sum: something the eye reads as several terms added or taken away. */
+const isSum = (n) => !!n && (n.k === 'add' || n.k === 'sub');
+
+/**
+ * FACTORED — the top-level operation is multiplication, and at least one of
+ * the things being multiplied is itself a sum (a bracket) or a bracket raised
+ * to a power.
+ *
+ * `(x+2)(x+3)`, `2(x+1)(x+4)`, `(x+3)^{2}`, `4x(x+3)(x-3)`, `5x(8x^{4}+7)` are
+ * all in this form. `x^{2}+5x+6` and `6x^{2}` are not, and neither is a
+ * product of two plain numbers, which multiplies nothing worth calling a
+ * factorisation.
+ */
+function isFactored(node) {
+  if (!node) return false;
+  let n = node;
+  while (n.k === 'neg') n = n.a;
+  if (isSum(n)) return false;
+  if (n.k === 'pow') return isSum(stripNeg(n.a)) && !isSum(node);
+  const fs = factorsOf(n);
+  if (fs.length < 2 && !(fs.length === 1 && fs[0].k === 'pow' && isSum(stripNeg(fs[0].a)))) return false;
+  return fs.some((f) => isSum(stripNeg(f)) || (f.k === 'pow' && isSum(stripNeg(f.a))));
+}
+function stripNeg(n) { let x = n; while (x && x.k === 'neg') x = x.a; return x; }
+
+/** EXPANDED — a sum of terms with nothing left to multiply out. */
+const isExpanded = (node) => !!node && !hasOpenProduct(node);
+
+/**
+ * VERTEX — `a(x - h)^{2} + k`: a square of a linear expression, optionally
+ * scaled, optionally with a number added.
+ *
+ * `(n+2)(n+2) + 1` counts. A cadet who wrote the bracket twice instead of
+ * squaring it has completed the square; refusing them would be refusing the
+ * work, and the whole point of this file is that we do not do that.
+ */
+function isVertex(node, v) {
+  if (!node) return false;
+  let body = node;
+  if (isSum(body)) {
+    if (!isConstant(body.b)) return false;
+    body = body.a;
+  }
+  const fs = factorsOf(stripNeg(body)).filter((f) => !isConstant(f));
+  if (fs.length === 1) {
+    const f = fs[0];
+    if (f.k !== 'pow') return false;
+    if (!isSum(stripNeg(f.a)) && stripNeg(f.a).k !== 'var') return false;
+    return isLinear(stripNeg(f.a), v) && f.b?.k === 'num' && f.b.v === 2;
+  }
+  if (fs.length === 2) {
+    return isLinear(stripNeg(fs[0]), v) && isLinear(stripNeg(fs[1]), v)
+      && texOfNode(fs[0]) === texOfNode(fs[1]);
+  }
+  return false;
+}
+/** Degree one in the letter, and no letter anywhere else. */
+function isLinear(n, v) {
+  try {
+    const cs = polynomialise(n, v || 'x', 2);
+    return cs.length === 2;
+  } catch { return false; }
+}
+/** A stable spelling of a subtree, so two of them can be compared. */
+function texOfNode(n) {
+  if (!n) return '';
+  if (n.k === 'num') return String(n.v);
+  if (n.k === 'var') return n.v;
+  return `${n.k}(${texOfNode(n.a)},${texOfNode(n.b)})`;
+}
+
+/**
+ * STANDARD — integer coefficients, and the leading one is positive.
+ */
+function isStandard(node, v) {
+  try {
+    const cs = polynomialise(node, v || 'x');
+    if (!cs.length) return false;
+    for (const c of cs) if (c.d !== 1) return false;
+    return cs[cs.length - 1].n > 0;
+  } catch { return false; }
+}
+
+/**
+ * SIMPLEST — for a radical: every whole square is out of the root, and no root
+ * is left underneath a fraction bar.
+ *
+ * A fraction in lowest terms is the other half of this form, and it is checked
+ * ONLY when an item declares it. An unreduced fraction is a correct answer
+ * everywhere else in this game — `tools/critic/choiceaudit.mjs` hands the rig
+ * `6/8` for a key of `3/4` and requires it to be accepted — so deriving a
+ * lowest-terms demand would turn a passing gate into a lie about the learner.
+ */
+function isSimplestRadical(node) {
+  if (!node) return false;
+  try {
+    if (radicalInDenominator(node)) return false;
+    for (const r of radicandsOf(node)) {
+      // `radicandsOf` hands back a plain whole number, or null for a radicand
+      // it could not reduce to one — a letter under the root, a fraction. That
+      // is not a form this predicate can rule on, so it does not rule on it.
+      if (r == null) continue;
+      if (r < 0) return false;
+      if (!isSquarefree(r)) return false;
+    }
+    return true;
+  } catch { return false; }
+}
+/** Every fraction written in it is already in lowest terms. */
+function isLowestTerms(node) {
+  let ok = true;
+  const rec = (n) => {
+    if (!n || !ok) return;
+    if (n.k === 'div' && n.a?.k === 'num' && n.b?.k === 'num') {
+      if (gcd(n.a.v, n.b.v) !== 1) ok = false;
+    }
+    for (const k of ['a', 'b']) if (n[k] && typeof n[k] === 'object') rec(n[k]);
+  };
+  rec(node);
+  return ok;
+}
+
+// ------------------------------------------------- what the CARD is asking
+// A form tells the grader what to accept. It does not tell the cadet what to
+// do, and the two are not the same question: `n^{8} \cdot n^{2}` and
+// `\left(t - 1\right)\left(t + 6\right)` both want an entry with no unresolved
+// product left in it, and only one of them is about brackets.
+//
+// Reading the task off the demanded form alone left thirty-three of the 341
+// forms standing under a line about something that is not on the card:
+//
+//   · 20 under "Multiply it out. Leave no bracket", with "every part of the
+//     first bracket meets every part of the second one" whispered beneath it —
+//     over `\frac{n^{8}}{n^{1}}`, `\left(n^{3}\right)^{3}` and
+//     `\frac{6x^{2} + 24x}{3x}`, none of which has a pair of brackets to
+//     multiply together;
+//   · 5 under "Take every whole square out of the root" — over
+//     `5\sqrt{3} + 4\sqrt{3}`, whose radicand is already square-free, and over
+//     `\frac{15}{\sqrt{3}}`, where the job is to get the root off the bottom;
+//   · 6 under the trinomial pair, over `6n + 12`, where one shared factor comes
+//     out and no such pair exists;
+//   · 2 under the level-1 like-terms line, over `-8n^{0}`.
+//
+// So the shapes below are read off the item's own two strings first, and each
+// one names a task rather than a form. Every predicate is structural and
+// narrow: it fires only where the notation itself settles what is being asked.
+// tools/critic/answerable.mjs holds each of them to its own rule, and
+// `--footers` prints the line every form actually lands under.
+
+/** Nothing anywhere in here is added or taken away. */
+function hasNoSum(node) {
+  let clean = true;
+  const rec = (n) => {
+    if (!n || !clean) return;
+    if (n.k === 'add' || n.k === 'sub' || n.k === 'pm') { clean = false; return; }
+    for (const k of ['a', 'b']) if (n[k] && typeof n[k] === 'object') rec(n[k]);
+  };
+  rec(node);
+  return clean;
+}
+
+/** A power whose base is not a plain number: `n^{8}`, `\left(8t^{3}\right)^{2}`. */
+function hasLetterPower(node) {
+  let found = false;
+  const rec = (n) => {
+    if (!n || found) return;
+    if (n.k === 'pow' && !isConstant(n.a)) { found = true; return; }
+    for (const k of ['a', 'b']) if (n[k] && typeof n[k] === 'object') rec(n[k]);
+  };
+  rec(node);
+  return found;
+}
+
+/**
+ * THE POWER RULES. Powers of a letter are multiplied, divided or raised again,
+ * and there is nothing to add or take away on either side — so the card is
+ * about what happens to the two little numbers, and no line about brackets or
+ * about collecting terms belongs under it.
+ */
+function isPowerTask(pNode, kNode) {
+  if (!pNode || !kNode) return false;
+  if (!hasLetterPower(pNode)) return false;
+  return hasNoSum(pNode) && hasNoSum(kNode);
+}
+
+/** A root under a fraction bar: the job is to get it off the bottom. */
+function isRootOnBottom(pNode) {
+  try { return !!pNode && radicalInDenominator(pNode); } catch { return false; }
+}
+
+/** Roots added or taken away: the job is to collect the ones that match. */
+function isRootSum(pNode, promptSrc) {
+  if (!pNode) return false;
+  if (pNode.k !== 'add' && pNode.k !== 'sub') return false;
+  return /\\sqrt/.test(String(promptSrc));
+}
+
+/**
+ * A quotient the cadet has to carry out. The bottom has a letter in it, so
+ * nothing here is a fraction that merely needs reducing.
+ */
+function isDivideTask(pNode, kNode) {
+  if (!pNode || pNode.k !== 'div') return false;
+  if (isConstant(pNode.b)) return false;
+  return !!kNode && !hasOpenProduct(kNode);
+}
+
+/**
+ * ONE bracket, with a shared factor pulled out in front of it — `3(2n + 4)`,
+ * `x^{2}(-4x + 7)` — as opposed to a trinomial taken apart into two brackets.
+ * Both are "write it as brackets multiplied together", and they are not the
+ * same job: the pair of numbers that multiply to the last term and add to the
+ * middle one does not exist for a common factor, and saying so under one is
+ * telling a cadet to look for something that is not there.
+ */
+function isCommonFactorKey(kNode) {
+  if (!kNode) return false;
+  const fs = factorsOf(stripNeg(kNode));
+  const brackets = fs.filter((f) => isSum(stripNeg(f)));
+  const squares = fs.filter((f) => f.k === 'pow' && isSum(stripNeg(f.a)));
+  return brackets.length === 1 && squares.length === 0 && fs.length > 1;
+}
+
+/** Is this written answer in the demanded form? `null` = cannot tell. */
+function inForm(src, form, v) {
+  const node = astOf(src);
+  if (!node) return null;
+  switch (form) {
+    case 'factored': return isFactored(node);
+    case 'expanded': return isExpanded(node);
+    // The derived pair. `openProduct` is deliberately WEAKER than 'factored':
+    // it asks only that the entry has not been flattened, because the derived
+    // rule can prove the prompt was flattened and the key was not, and cannot
+    // prove that what the key holds is a factorisation. Demanding the strict
+    // form off that evidence would refuse `\frac{1}{x^{2}}` — a correct answer,
+    // written correctly — for not being a product of brackets.
+    case 'openProduct': return hasOpenProduct(node);
+    case 'vertex': return isVertex(node, v);
+    case 'standard': return isStandard(node, v);
+    case 'simplest': return isSimplestRadical(node) && isLowestTerms(node);
+    // The derived radical demand: the roots are simplified, and nothing is
+    // said about fractions. See `isSimplestRadical`.
+    case 'rootsSimplified': return isSimplestRadical(node);
+    default: return true;
+  }
+}
+
+// ------------------------------------------------------- what an answer says
+/**
+ * One written answer, taken apart into the statements it makes.
+ *
+ * `x = -8, x = 7` is two statements about x. `n = 2 \pm 2\sqrt{3}` is one
+ * statement carrying two values. `2\sqrt{3}` is a bare value and names no
+ * unknown at all. All three are read the same way here, and the reading never
+ * throws — which is the point. The old checker called `equivalent()`, which
+ * throws on any string with an "=" in it, and every caller answered the throw
+ * with `false`. That is not a check; it is a hole with a catch block over it.
+ *
+ * The cost was measurable: `_readings` drops any distractor the checker would
+ * accept, so a distractor equal to the key is supposed to be impossible. On
+ * 586 sampled surd-root items it was not, because the checker could not read
+ * either string — `n = 2 \pm \sqrt{20}` sat beside the key `n = 2 \pm 2\sqrt{5}`
+ * and was scored as an error with a misconception tag on it.
+ *
+ * @returns {null|Array<{lhs:string|null, values:Array}>} null when the notation
+ *          is outside the checker (an inequality, a coordinate pair, a phrase).
+ */
+function statementsOf(src) {
+  const text = toTex(src);
+  if (!text.trim()) return null;
+  try {
+    const out = [];
+    for (const part of splitTop(text, ',')) {
+      const body = part.trim();
+      if (!body) return null;
+      const at = body.indexOf('=');
+      const lhs = at >= 0 ? norm(body.slice(0, at)) : null;
+      const rhs = at >= 0 ? body.slice(at + 1) : body;
+      const values = expandPm(parse(rhs)).map((tree) => evalSurd(tree, {}));
+      values.sort(sCmp);
+      out.push({ lhs, values });
+    }
+    return out;
+  } catch { return null; }
+}
+
+/** A stable spelling of one statement, so two lists can be compared as sets. */
+function stmtKey(s) {
+  return `${s.lhs ?? ''}|${s.values.map((x) => `${x.p.n}/${x.p.d}+${x.q.n}/${x.q.d}r${x.k}`).join(';')}`;
+}
+
+/** The one letter two expressions are both written in, if there is one. */
+function soleLetter(...srcs) {
+  const set = new Set();
+  for (const src of srcs) {
+    for (const m of String(src).replace(/\\[a-zA-Z]+/g, ' ').matchAll(/[a-zA-Z]/g)) set.add(m[0]);
+  }
+  return set.size === 1 ? [...set][0] : null;
+}
+
+/**
+ * Do two sides of a statement carry the same mathematics?
+ * `null` when this checker cannot read one of them.
+ */
+function sameSide(a, b, v) {
+  const A = String(a).trim(), B = String(b).trim();
+  if (norm(A) === norm(B)) return true;
+  let na, nb;
+  try { na = parse(A); nb = parse(B); } catch { return null; }
+  // Two exact values — surds and plus-or-minus included.
+  try {
+    const va = expandPm(na).map((x) => evalSurd(x, {})).sort(sCmp);
+    const vb = expandPm(nb).map((x) => evalSurd(x, {})).sort(sCmp);
+    if (va.length !== vb.length) return false;
+    return va.every((x, i) => sCmp(x, vb[i]) === 0);
+  } catch { /* it has a letter in it — compare it as an expression instead */ }
+  const letter = soleLetter(A, B) || v;
+  if (!letter) return null;
+  try { return equivalent(A, B, letter) === true; } catch { return null; }
+}
+
+/** One `lhs = rhs`, or a bare expression, compared with its opposite number. */
+function samePart(a, b, v) {
+  const A = String(a).trim(), B = String(b).trim();
+  const ia = A.indexOf('='), ib = B.indexOf('=');
+  if ((ia >= 0) !== (ib >= 0)) return false;
+  if (ia < 0) return sameSide(A, B, v);
+  // A statement that names an unknown is a statement ABOUT that unknown:
+  // `y = 2` and `z = 2` are not the same answer, and comparing the two
+  // right-hand sides alone would say that they were.
+  const ls = sameSide(A.slice(0, ia), B.slice(0, ib), v);
+  if (ls !== true) return ls === null ? null : false;
+  return sameSide(A.slice(ia + 1), B.slice(ib + 1), v);
+}
+
+/**
+ * Do two written answers SAY THE SAME THING?
+ *
+ * `true`, `false`, or `null` for "this checker cannot read them" — and a
+ * caller that treats `null` as either verdict is making a claim it has not
+ * earned, so every caller here keeps the three cases apart.
+ *
+ * Order carries no meaning across a comma: `x = 3, x = -8` and `x = -8, x = 3`
+ * are one answer, and a learner who wrote the roots the other way round has
+ * not made a mistake.
+ */
+function sameAnswer(a, b, v) {
+  const A = String(a ?? '').trim(), B = String(b ?? '').trim();
+  if (!A || !B) return false;
+  const ta = toTex(A), tb = toTex(B);
+  if (norm(ta) === norm(tb)) return true;
+
+  const sa = statementsOf(ta), sb = statementsOf(tb);
+  if (sa && sb) {
+    if (sa.length !== sb.length) return false;
+    const ka = sa.map(stmtKey).sort();
+    const kb = sb.map(stmtKey).sort();
+    return ka.every((k, i) => k === kb[i]);
+  }
+
+  const pa = splitTop(ta, ','), pb = splitTop(tb, ',');
+  if (pa.length !== pb.length) return false;
+  const spare = pb.slice();
+  let unreadable = false;
+  for (const part of pa) {
+    let hit = -1;
+    for (let i = 0; i < spare.length && hit < 0; i++) {
+      const r = samePart(part, spare[i], v);
+      if (r === true) hit = i;
+      else if (r === null) unreadable = true;
+    }
+    if (hit < 0) return unreadable ? null : false;
+    spare.splice(hit, 1);
+  }
+  return true;
+}
+
+/**
+ * WHAT FORM THIS ITEM DEMANDS OF ITS ANSWER.
+ *
+ * `check.form` first, always: an item that states its own demand is believed.
+ * Everything below is the derivation for a bank that has not declared one yet,
+ * and every step of it reads the item's own two strings — the prompt it shows
+ * and the key it holds — and nothing else.
+ *
+ *   1. `check.kind` already names the task on two kinds. A form built as
+ *      `kind: 'factored'` asks for a factorisation and a `vertexForm` asks for
+ *      a completed square; those are the bank's own words, not an inference.
+ *   2. Otherwise: if the KEY has an unresolved product in it and the PROMPT
+ *      does not, then producing that product is the work, and an entry without
+ *      one has not done it. And symmetrically — if the PROMPT has one and the
+ *      key does not, then resolving it is the work. That is the whole of
+ *      "factor this" and "multiply this out", read off the item rather than
+ *      guessed at. When both sides agree there is nothing to demand.
+ *   3. And a radical key is always demanded in simplified roots, because
+ *      \sqrt{20} and 2\sqrt{5} are the same number and only one of them is an
+ *      answer to "simplify". Fractions are deliberately not included here —
+ *      see `isSimplestRadical`.
+ *
+ * @returns {string[]} zero or more form names the entry must satisfy.
+ */
+function demandsOf(item, v) {
+  const key = String(item.answer ?? '');
+  const declared = item.check?.form;
+  let out = [];
+  if (FORMS.includes(declared)) out.push(declared);
+  else {
+    // `check.form` is not ours alone: several check kinds already use it as
+    // their own discriminator — `form: 'term'` on a sequence, `form: 'simplify'`
+    // on a radical, `form: 'slopeIntercept'` on a related line. A word this
+    // contract does not speak must not switch the derivation off, or an item
+    // would be graded on value alone for having said something about itself in
+    // a different vocabulary.
+    const kind = item.check?.kind;
+    if (kind === 'factored') out.push('factored');
+    else if (kind === 'vertexForm') out.push('vertex');
+
+    const prompt = String(item.check?.math || item.latex || '');
+    if (!out.length && key && prompt) {
+      const kNode = astOf(key), pNode = astOf(prompt);
+      if (kNode && pNode) {
+        const kOpen = hasOpenProduct(kNode), pOpen = hasOpenProduct(pNode);
+        if (kOpen && !pOpen) out.push('openProduct');
+        else if (!kOpen && pOpen) out.push('expanded');
+      }
+    }
+    if (/\\sqrt/.test(key)) out.push('rootsSimplified');
+  }
+  // THE LAST GUARD, AND THE ONE THAT MAKES THE REST OF THIS SAFE.
+  //
+  // A demand the KEY ITSELF does not satisfy is a demand this grader has
+  // misread — a form name borrowed by another kind, a derivation drawn off
+  // notation the checker cannot read, a predicate that does not fit the
+  // mathematics. Every one of those would end with a cadet who wrote the
+  // bank's own answer being told it is wrong, which is the single worst thing
+  // this surface can do. So a demand has to survive being pointed at the key
+  // before it is ever pointed at a learner.
+  return out.filter((f) => inForm(key, f, v || 'x') === true);
+}
+
 
 // ---------------------------------------------------------------------------
 // The sealing statement: the prompt rebuilt around the cadet's value, true.
@@ -304,21 +1047,145 @@ function mixed(seed, salt) {
  * measured on every build (`tools/critic/choiceaudit.mjs`, code
  * `answer-position-biased`).
  *
+ * WHAT THE SALT HAS TO CARRY, AND WHY IT USED TO CARRY TOO LITTLE.
+ *
+ * It was the answer and the seed, and nothing else. So two DIFFERENT cards
+ * that happened to end on the same answer under the same seed put the key in
+ * the same slot — always, in every language. Over the bank the choice audit
+ * sweeps that is not a rare coincidence: 6,756 drawn cards sit on 3,005
+ * distinct (seed, answer) pairs, so 4,804 of them share their placement with
+ * another card. The positions then arrive in clumps rather than one per card,
+ * and the run of them tilts: 26.5 / 24.0 / 24.1 / 25.5 over the whole bank,
+ * and 30.4% in the first slot over the 981 four-option sets the audit read —
+ * enough for `answer-position-biased` to fire, which is the gate saying a
+ * learner could start reading the layout instead of the mathematics.
+ *
+ * The placement is therefore a property of THE CARD: its answer, and the
+ * skill, form and band that card came from. The option count goes in as well
+ * as into the modulus, so the same card drawn with three readings and with
+ * four does not agree about where the key goes — the count is a tell too. The
+ * same measurement over the same bank afterwards: chi-square 11.21 -> 0.75 on
+ * four options and 1.68 -> 0.14 on three.
+ *
  * @param {Array} pool the readings, KEY FIRST.
  * @param {number} seed this rift's seed.
- * @param {string} salt whatever else separates this set from the next one —
- *                      the answer, and which drawing of the field this is.
+ * @param {string} salt what makes this set THIS set — see `_cardSalt`, plus
+ *                      which drawing of the narrowed field this is.
  */
 function arranged(pool, seed, salt) {
   const n = pool.length;
   if (n < 2) return pool.slice();
-  const h = mixed(seed, salt);
+  const h = mixed(seed, `${salt}|${n}`);
   const slot = h % n;
   const rest = shuffled(pool.slice(1), (h ^ 0x5bd1e995) >>> 0);
   const out = new Array(n);
   out[slot] = pool[0];
   for (let i = 0, j = 0; i < n; i++) if (i !== slot) out[i] = rest[j++];
   return out;
+}
+
+/**
+ * THE AREA FIELD'S TRAY — six shards, and why neither right one may be the
+ * biggest of its kind.
+ *
+ * The field has two cells: the part of the rectangle under the unknown's
+ * width, and the part under the constant's. The tray used to be written out in
+ * one line —
+ *
+ *     [wantA, wantB, a·v, b, -k·b, (a+k)·v, b+k]
+ *
+ * — and every wrong shard in it was BUILT OUT OF a and b, while the two right
+ * ones were built out of k·a and k·b. Multiplying by k makes a number bigger,
+ * so the two right shards came out the biggest of their kind: "take the
+ * biggest chip that carries the letter, and the biggest that does not" covered
+ * both cells with no miss on 58.4% of route cards against an 11.1% baseline —
+ * a cadet who has never opened a bracket, sealing three cards out of five.
+ *
+ * The repair is not to make the right shard small. That is the mistake this
+ * repository has already made once, on the option card: forcing the key never
+ * to be the extreme turned a weak cue into a PERFECT elimination rule. The
+ * repair is that the key's place in the order MUST BE DRAWN — first, middle or
+ * last of its kind, from this card's own hash — and that the two companions
+ * beside it are then chosen by `balancedPick`, the same instrument the beam's
+ * move tray and the generator's readings use, so that length, digits and the
+ * written features say nothing either.
+ *
+ * The catalogue is deep for that reason. Three shards of each kind is a
+ * 1-in-9 board; the freedom to put the key anywhere in the size order needs
+ * more wrong shards than the three that used to exist, and every one of these
+ * is a slip a learner really makes and this surface can name.
+ *
+ * @param {object} f the field: the factor `k`, the two inside terms `a` and
+ *        `b`, the unknown `v`, the two right shards, and the card's seed.
+ * @returns {Array<{v:string, m:string}>} the tray, in the order it is laid out.
+ */
+function areaTray({ k, a, b, v, wantA, wantB, seed }) {
+  const salt = `area|${k}|${a}|${b}|${v}`;
+  const h = mixed(seed, salt);
+
+  /* Every shard, as a coefficient and the slip it is. A zero coefficient is
+     not a shard — `0x` is not something anybody writes. */
+  const lettered = [
+    [a, 'partial-distribute'],          // the bracket left unopened
+    [a + k, 'combine-unlike'],          // the factor added instead of multiplied
+    [-k * a, 'neg-distribute'],         // the sign taken onto one term only
+    [k * a + k * b, 'combine-unlike'],  // both products gathered onto the unknown
+    [k * a + b, 'combine-unlike'],      // the constant added to the product
+    [a * b, 'partial-rule'],            // the two inside terms multiplied together
+    [k * a + 1, 'arith-slip'],
+    [k * a - 1, 'arith-slip'],
+  ];
+  const plain = [
+    [b, 'partial-distribute'],
+    [b + k, 'combine-unlike'],
+    [-k * b, 'neg-distribute'],
+    [k * a, 'partial-rule'],            // the other product, put in the wrong cell
+    [k * b + k * a, 'combine-unlike'],
+    [a * b, 'partial-rule'],
+    [k * b + 1, 'arith-slip'],
+    [k * b - 1, 'arith-slip'],
+  ];
+
+  /**
+   * Two companions for one key, with the key's place in the SIZE order drawn.
+   *
+   * The size order is the cue `balancedPick` cannot see — it reads printed
+   * length, digit count and six written features, and `-8` is shorter than
+   * `12` while being the smaller number. So the place is drawn here, the
+   * candidate pairs that cannot give it are dropped, and `balancedPick` spends
+   * what is left on everything it can see.
+   */
+  const two = (key, keyVal, cat, tag) => {
+    const seen = new Set([String(key)]);
+    const pool = [];
+    for (const [c, m] of cat) {
+      if (!Number.isFinite(c) || c === 0) continue;
+      const shown = tag === 'var' ? coefStr(c, v) : String(c);
+      if (seen.has(shown)) continue;
+      seen.add(shown);
+      pool.push({ shown, m, size: c });
+    }
+    if (pool.length < 2) return pool.slice(0, 2);
+    const pairs = [];
+    for (let i = 0; i < pool.length - 1; i++) {
+      for (let j = i + 1; j < pool.length; j++) pairs.push([pool[i], pool[j]]);
+    }
+    const placeOf = (p) => (keyVal > p[0].size ? 1 : 0) + (keyVal > p[1].size ? 1 : 0);
+    const want = Math.floor((mixed(h, `${tag}|place`) / 4294967296) * 3);
+    const live = pairs.filter((p) => placeOf(p) === want);
+    const use = live.length ? live : pairs;
+    const at = balancedPick(String(key),
+      use.map((p, i) => ({ show: [p[0].shown, p[1].shown], rank: i })), `${salt}|${tag}`);
+    return use[at];
+  };
+
+  const out = [
+    { v: wantA, m: null },
+    ...two(wantA, k * a, lettered, 'var').map((p) => ({ v: p.shown, m: p.m })),
+    { v: wantB, m: null },
+    ...two(wantB, k * b, plain, 'num').map((p) => ({ v: p.shown, m: p.m })),
+  ];
+  return shuffled(out, mixed(h, 'lay'));
 }
 
 /**
@@ -461,30 +1328,27 @@ function rectSvg(fig) {
     </svg></div>`;
 }
 
+/**
+ * The chart a cadet only READS — the same lattice the coordinate surface is
+ * drawn on, from the same one computation.
+ *
+ * The lines and the numerals used to be stepped on two different expressions
+ * here, `round(R/5)` and `round(R/3)`, so the numbers were not on the lines and
+ * counting squares from a numbered tick gave the wrong reading. The whole of
+ * that geometry now comes out of `chartLattice` in src/learn/plot.js, which the
+ * coordinate surface also draws from, so the two charts in this product cannot
+ * drift apart again. `tools/check-figures.mjs --charts` measures the result off
+ * the rendered DOM.
+ */
 function gridSvg(fig) {
-  const R = fig.range || 10;
-  const S = 300, pad = 16, k = (S - pad * 2) / (2 * R);
-  const X = (x) => pad + (x + R) * k;
-  const Y = (y) => pad + (R - y) * k;
+  const P = chartLattice(fig.range);
+  const { R, S, pad, X, Y } = P;   // R normalised by the lattice, not beside it
   const clip = (m, b) => {
     const pts = [];
     for (const [x, y] of [[-R, m * -R + b], [R, m * R + b]]) pts.push([x, y]);
     return pts;
   };
-  let g = '';
-  for (let i = -R; i <= R; i += Math.max(1, Math.round(R / 5))) {
-    g += `<path d="M${X(i)} ${pad} V${S - pad}" class="gl"/><path d="M${pad} ${Y(i)} H${S - pad}" class="gl"/>`;
-  }
-  g += `<path d="M${X(0)} ${pad} V${S - pad}" class="ax"/><path d="M${pad} ${Y(0)} H${S - pad}" class="ax"/>`;
-  // Scale numerals: a trace you cannot read a value off is a decoration.
-  const lab = Math.max(2, Math.round(R / 3));
-  for (let i = -R + (R % lab); i <= R; i += lab) {
-    if (i === 0 || Math.abs(i) > R - 1) continue;
-    g += `<text x="${X(i)}" y="${Y(0) + 12}" text-anchor="middle" fill="rgba(159,179,208,.8)" font-size="9">${i}</text>`;
-    g += `<text x="${X(0) - 6}" y="${Y(i) + 3.2}" text-anchor="end" fill="rgba(159,179,208,.8)" font-size="9">${i}</text>`;
-  }
-  g += `<text x="${S - pad - 2}" y="${Y(0) - 7}" text-anchor="end" fill="rgba(95,230,255,.85)" font-size="11" font-style="italic">x</text>`;
-  g += `<text x="${X(0) + 7}" y="${pad + 10}" fill="rgba(95,230,255,.85)" font-size="11" font-style="italic">y</text>`;
+  let g = chartMarkup(P, { only: 'lines' });
   if (fig.at != null) g += `<path d="M${X(fig.at)} ${pad} V${S - pad}" class="tg"/>`;
 
   const lines = fig.kind === 'lines' ? fig.lines : [{ m: fig.m, b: fig.b }];
@@ -493,11 +1357,15 @@ function gridSvg(fig) {
     const p = clip(ln.m, ln.b);
     g += `<path d="M${X(p[0][0])} ${Y(p[0][1])} L${X(p[1][0])} ${Y(p[1][1])}" class="ln" stroke="${hues[i % 2]}"/>`;
   });
-  for (const [x, y] of fig.points || []) g += `<circle cx="${X(x)}" cy="${Y(y)}" r="3.4" class="pt"/>`;
+  for (const [x, y] of fig.points || []) g += `<circle cx="${X(x)}" cy="${Y(y)}" r="4.2" class="pt"/>`;
   if (fig.target != null) {
     g += `<path d="M${pad} ${Y(fig.target)} H${S - pad}" class="tg"/>`;
   }
   if (fig.showMark && fig.mark) g += `<circle cx="${X(fig.mark[0])}" cy="${Y(fig.mark[1])}" r="5" class="mk"/>`;
+  // Last, over the traces: a numeral under a 2.4px glowing line is a numeral
+  // nobody reads, and these cluster on the axes, which is exactly where a trace
+  // through the origin crosses.
+  g += chartMarkup(P, { only: 'labels' });
   return `<div class="rf-fig grid"><svg viewBox="0 0 ${S} ${S}" role="img">${g}</svg></div>`;
 }
 
@@ -1700,9 +2568,79 @@ export class RiftPanel {
    * Anything a locale has not written a task-specific line for falls back to
    * the modality's own, so adding a modality cannot leave a card silent.
    */
-  _helpKey() {
-    if (this.mode === 'keypad' && this.item?.type === 'expression') return 'keypadExpression';
-    return this.mode;
+  _helpKey() { return this._taskKey(); }
+
+  /**
+   * WHAT THIS CARD IS ACTUALLY ASKING FOR.
+   *
+   * The modality does not know, and neither does the item's `type`. Both the
+   * footer instruction and the first whisper of the echo were chosen by
+   * `type === 'expression'` alone, so 179 of 341 item forms — 73 of the 87 in
+   * Level 4 — carried the same line: "You do not solve anything here. Write
+   * the same amount in fewer terms, and the shorter line must still hold for
+   * every value of the letter." It appeared under a card asking for the square
+   * root of 244, which has no letter in it and no terms to shorten. Translated
+   * verbatim into Spanish and Polish.
+   *
+   * An instruction that describes a different task than the one on screen is
+   * worse than no instruction, so the task is read off the item: the form its
+   * answer must take (`demandsOf`), and the shape the answer is written in.
+   * Anything a locale has no line for falls back to the modality's own, so a
+   * new task can never leave a card silent.
+   */
+  _taskKey() {
+    if (this.mode !== 'keypad') return this.mode;
+    const item = this.item || {};
+    /* AND THE HALF OF THIS RULE THAT WAS NEVER WRITTEN: a numeric item is not
+       automatically an equation. `keypad` says "type the value that makes the
+       statement TRUE", which is the right line for `one-step-add` and is the
+       wrong line for every card that hands over an expression and a value for
+       its letter — there is no statement on the card and nothing is being made
+       true. Measured on the shipped route (algebra1-l1 + algebra1-l2): 17 of
+       128 forms declare `check.kind === 'evaluate'`, including all of
+       `eval-expr` and five forms of `var-meaning`, which is the first skill a
+       new cadet is ever handed. The item already says which task it is — the
+       checker's own `kind` — so it is read rather than guessed at, exactly as
+       the note above says for `type === 'expression'`. */
+    if (item.type !== 'expression') {
+      return item.check?.kind === 'evaluate' ? 'keypadValue' : 'keypad';
+    }
+    const ans = String(item.answer ?? '');
+    if (/\\le(?![a-zA-Z])|\\ge(?![a-zA-Z])|[<>]/.test(ans)) return 'bound';
+    if (/^\s*\\left\(/.test(ans) && ans.includes(',') && !ans.includes('=')) return 'point';
+    if (ans.includes('=')) {
+      // `n = 1, n = 3` is two statements about one unknown, so only the first
+      // one is read: joining them would find the second `n` on the right of the
+      // first equals sign and call a pair of roots a rule.
+      const first = splitTop(ans, ',')[0];
+      const rhs = first.slice(first.indexOf('=') + 1).replace(/\\[a-zA-Z]+/g, ' ');
+      return /[a-zA-Z]/.test(rhs) ? 'rule' : 'roots';
+    }
+    const forms = this._demands();
+    const promptSrc = String(item.check?.math || item.latex || '');
+    const pNode = astOf(promptSrc);
+    const kNode = astOf(ans);
+    // A derived open-product demand only names the task when what the key
+    // holds really is a factorisation; otherwise the rig knows the entry must
+    // stay unresolved without knowing what it is being resolved INTO, and
+    // guessing at that in three languages is how the wrong nudge got printed
+    // 179 times in the first place.
+    if (forms.includes('factored')
+      || (forms.includes('openProduct') && inForm(ans, 'factored', this._variable()) === true)) {
+      return isCommonFactorKey(kNode) ? 'common' : 'factor';
+    }
+    if (forms.includes('vertex')) return 'vertex';
+    // THE FOUR TASKS THE FORM CANNOT NAME, read off the notation itself.
+    // Every one of them used to fall into `expand` or `simplify` and be given
+    // a line about a bracket that was not on the card, or about a whole square
+    // that was not inside the root. See the note above `isPowerTask`.
+    if (isPowerTask(pNode, kNode)) return 'power';
+    if (isRootOnBottom(pNode)) return 'rationalise';
+    if (isRootSum(pNode, promptSrc)) return 'radsum';
+    if (isDivideTask(pNode, kNode)) return 'divide';
+    if (forms.includes('expanded')) return 'expand';
+    if (forms.includes('simplest') || forms.includes('rootsSimplified')) return 'simplify';
+    return 'keypadExpression';
   }
 
   /**
@@ -1716,25 +2654,108 @@ export class RiftPanel {
     return diagnose(this.item, value);
   }
 
-  /** Does this entry make the statement true? */
-  _accepts(value) {
-    const item = this.item;
-    const v = String(value).trim();
-    if (!v) return false;
-    if (norm(v) === norm(item.answer)) return true;
-    for (const alt of item.accept || []) if (norm(v) === norm(alt)) return true;
-    if (item.type === 'numeric') {
-      const a = v.match(/^(-?\d+)(?:\/(\d+))?$/);
-      const b = String(item.answer).match(/^(-?\d+)(?:\/(\d+))?$/);
-      if (a && b) return Number(a[1]) * Number(b[2] || 1) === Number(b[1]) * Number(a[2] || 1);
-      return false;
+  /** The letter this item's mathematics is written in. */
+  _variable() {
+    const item = this.item || {};
+    return item.check?.variable
+      || (String(item.answer ?? '').replace(/\\[a-zA-Z]+/g, ' ').match(/[a-zA-Z]/) || [])[0]
+      // Control sequences are not unknowns. `\\sqrt{63}` has no letter in it, and
+      // reading one out of the word "sqrt" gave the pad an `s` key and the
+      // grader an `s` to test against.
+      || (CLEAN(item.latex || '').replace(/\\[a-zA-Z]+/g, ' ').match(/[a-zA-Z]/) || [])[0]
+      || '';
+  }
+
+  /**
+   * WHAT MAKES THIS OPTION SET THIS OPTION SET.
+   *
+   * The answer alone is not enough, and that is not a detail: several cards in
+   * a band end on the same answer, and a placement drawn off the answer put
+   * the key in the same slot on every one of them. See `arranged`.
+   */
+  _cardSalt() {
+    const it = this.item || {};
+    return `${it.answer}|${it.skill ?? ''}|${it.form ?? ''}|${it.difficulty ?? ''}`;
+  }
+
+  /** The forms this item demands of an answer. See `demandsOf`. */
+  _demands() {
+    if (this._demandCache?.item !== this.item) {
+      this._demandCache = { item: this.item, forms: demandsOf(this.item || {}, this._variable()) };
     }
-    if (item.type === 'expression') {
-      const variable = item.check?.variable || (String(item.answer).match(/[a-zA-Z]/) || [])[0];
-      if (!variable) return false;
-      try { return equivalent(v, item.answer, variable) === true; } catch { return false; }
+    return this._demandCache.forms;
+  }
+
+  /**
+   * Is this entry the QUESTION, handed straight back?
+   *
+   * The last lock, and the one that needs no opinion about the mathematics at
+   * all. Whatever the task is, the line already printed at the top of the card
+   * is not the answer to it — unless the bank says it is, which is why the key
+   * itself is checked first and wins.
+   */
+  _isPromptRestated(src) {
+    const item = this.item || {};
+    const key = norm(String(item.answer ?? ''));
+    for (const p of [item.check?.math, item.latex]) {
+      if (!p) continue;
+      const prompt = norm(String(p));
+      if (!prompt || prompt === key) continue;
+      if (norm(src) === prompt) return true;
     }
     return false;
+  }
+
+  /**
+   * DOES THIS ENTRY SEAL THE RIFT?
+   *
+   * Two questions, and both of them have to answer yes.
+   *
+   *   1. does it say the same thing as the key (`sameAnswer`), and
+   *   2. is it written in the form the task demands (`inForm`, `demandsOf`).
+   *
+   * Only the first of those used to be asked, and the consequence was measured
+   * over 16,720 sampled Level 4 items: 1,763 of them sealed for a cadet who
+   * typed the QUESTION back into the pad. `x^{2} + 5x + 6` is the same amount
+   * as `(x + 2)(x + 3)`, so "write this as a product of brackets" was satisfied
+   * by the unfactored original — no misconception flagged, no assist recorded,
+   * and full unassisted mastery credit for factoring nothing.
+   *
+   * The key and anything the bank listed under `accept` still pass on sight,
+   * before any of this runs: an item is always allowed to say what it will take.
+   */
+  _accepts(value) {
+    const item = this.item;
+    const raw = String(value ?? '').trim();
+    if (!raw) return false;
+    const src = toTex(raw);
+    const key = String(item.answer);
+    if (norm(raw) === norm(key) || norm(src) === norm(key)) return true;
+    for (const alt of item.accept || []) {
+      const a = String(alt);
+      if (norm(raw) === norm(a) || norm(src) === norm(toTex(a))) return true;
+    }
+
+    const v = this._variable();
+    // A plain value keeps the checker it has always had. `12/4` is `3` and an
+    // unreduced fraction is still a correct number, which several gates
+    // measure and this pass is not entitled to change. Both spellings of a
+    // fraction count: the pad stacks `3/2` into `\frac{3}{2}` on the way in,
+    // and reading only one of the two told a cadet who typed the key that the
+    // key was wrong.
+    if (item.type === 'numeric') {
+      const a = ratioOf(raw) || ratioOf(src);
+      const b = ratioOf(key);
+      if (a && b) return a.n * b.d === b.n * a.d;
+      return false;
+    }
+
+    if (sameAnswer(src, String(item.answer), v) !== true) return false;
+    if (this._isPromptRestated(src)) return false;
+    for (const form of this._demands()) {
+      if (inForm(src, form, v) === false) return false;
+    }
+    return true;
   }
 
   // -------------------------------------------------------- modality: plot
@@ -1753,16 +2774,83 @@ export class RiftPanel {
   }
 
   // ------------------------------------------------------- modality: keypad
+  /**
+   * THE PAD, AND WHAT IT CAN SAY.
+   *
+   * A pad that cannot spell the answer is a rift with no way through it. This
+   * one used to carry ten digits, a plus, a squared box, a fraction bar and a
+   * sign flip, and that was the whole of it — no bracket, no radical, no equals
+   * sign, no comma, no plus-or-minus. Every factoring, complete-the-square,
+   * vertex-form and surd-root item in the bank routes here, and the key of
+   * every one of them was literally impossible to enter. The only path to a
+   * seal was to be wrong twice and take the narrowed scaffold.
+   *
+   * So the pad now carries the notation THIS item's answer space is written in,
+   * and nothing else. The set is the union over the key, the alternatives the
+   * bank accepts and every distractor — never the key alone, because a lone
+   * plus-or-minus key on a card whose distractors have no plus-or-minus in them
+   * would be the answer's shape, printed on the instrument. Brackets come as a
+   * pair and the two order marks come as a pair, for the same reason.
+   *
+   * The keys write a plain alphabet — the thing a person writes on paper — and
+   * `toTex` is the single translation from that into notation. See THE PAD
+   * ALPHABET at the top of this file.
+   */
   _keypad(work) {
     const self = this;
     const item = this.item;
     const expr = item.type === 'expression';
-    const variable = item.check?.variable
-      || (String(item.answer).match(/[a-zA-Z]/) || [])[0]
-      || (CLEAN(item.latex).match(/[a-zA-Z]/) || [])[0]
-      || 'x';
+    const variable = this._variable();
     let entry = '';
     let narrowed = false;
+
+    // ---- what this card is written in ------------------------------------
+    //
+    // TWO SOURCES, AND THEY ARE NOT THE SAME KIND OF THING.
+    //
+    // The ANSWER SPACE — the key, everything the bank also accepts, and every
+    // distractor — decides which glyphs the pad must be able to write, letters
+    // and relations included. Drawing it from the key alone would print the
+    // answer's shape on the instrument: a lone plus-or-minus cap on a card
+    // whose distractors carry none is a hint. The distractors are answer-shaped
+    // by construction, so the union of all of them gives nothing away.
+    //
+    // The QUESTION contributes NOTATION ONLY — brackets, a power mark, a bar, a
+    // root, plus-or-minus, the order marks — and never a letter and never an
+    // equals sign. Its notation has to be in, or the pad would grow a power key
+    // for `x^{2} + 6x + 9` and lose it for `x^{2} + 5x + 6`, and a cadet who
+    // noticed that would know which of two cards of the SAME skill holds a
+    // squared bracket without reading either. Its letters must stay out: a
+    // prompt written `f\left(n\right) = ...` would otherwise put an `f` and an
+    // equals sign on a pad whose answer is `(n + 3)^{2} + 2`.
+    const readable = (x) => x != null && x !== ''
+      && !/\\text|\\begin|\\square/.test(String(x));
+    const spell = (x) => toPad(String(x));
+    // Notation the pad's alphabet does not cover comes back with its control
+    // sequences still in it. Letting that through would put the letters of
+    // `\\ne` on the glass as if they were unknowns.
+    const clean = (arr) => arr.filter(readable).map(spell).filter((x) => !x.includes('\\'));
+
+    const answerSpellings = clean([item.answer, ...(item.accept || []),
+      ...(item.distractors || []).map((d) => d.value)]);
+    const promptSpellings = clean([item.check?.math, item.latex]);
+    const NOTATION_ONLY = new Set(['(', ')', '^', '/', PAD_ROOT, PAD_PM, PAD_LE, PAD_GE]);
+
+    const need = new Set();
+    for (const sp of answerSpellings) for (const g of padGlyphs(sp)) need.add(g);
+    for (const sp of promptSpellings) for (const g of padGlyphs(sp)) if (NOTATION_ONLY.has(g)) need.add(g);
+    // Brackets are a pair, and so are the two order marks: half of either is a
+    // hint about the answer rather than an instrument.
+    if (need.has('(') || need.has(')')) { need.add('('); need.add(')'); }
+    if (need.has(PAD_LE) || need.has(PAD_GE)) { need.add(PAD_LE); need.add(PAD_GE); }
+
+    // Every letter the ANSWERS are written in, the item's own first.
+    const letters = [];
+    const answerLetters = new Set();
+    for (const sp of answerSpellings) for (const g of padGlyphs(sp)) if (/^[a-zA-Z]$/.test(g)) answerLetters.add(g);
+    for (const l of [variable, ...answerLetters]) {
+      if (/^[a-zA-Z]$/.test(l) && !letters.includes(l) && letters.length < 3) letters.push(l);
+    }
 
     const pad = document.createElement('div');
     pad.className = 'rf-pad';
@@ -1780,24 +2868,55 @@ export class RiftPanel {
     const extra = document.createElement('div');
     extra.className = 'rf-extra';
 
+    /** How many brackets are still open, so a preview can close them. */
+    const openCount = (s) => {
+      let n = 0;
+      for (const c of s) { if (c === '(') n++; else if (c === ')') n--; }
+      return Math.max(0, n);
+    };
+    /** Is this entry a finished thing the rig could be asked to read? */
+    const ready = (s) => {
+      if (!s) return false;
+      if (openCount(s)) return false;
+      if (new RegExp(`[-+^/=,(${PAD_ROOT}${PAD_PM}${PAD_LE}${PAD_GE}]$`).test(s)) return false;
+      return texOk(toTex(s));
+    };
+
     const paint = () => {
       const empty = entry === '';
       val.classList.toggle('empty', empty);
-      val.innerHTML = empty ? tex('\\square') : (texFirst([texify(entry), entry, '\\square']) || tex('\\square'));
-      commit.disabled = empty || /[-+^/]$/.test(entry);
+      // The value is drawn as the cadet builds it, brackets closed for the
+      // preview only — an unfinished line still has to be legible.
+      const preview = entry + ')'.repeat(openCount(entry));
+      val.innerHTML = empty
+        ? tex('\\square')
+        : (texFirst([toTex(entry), toTex(preview), texify(entry), entry, '\\square']) || tex('\\square'));
+      // Long answers exist — `5(17n^2 + 13n + 21)` is fifteen glyphs — so the
+      // socket steps its type down rather than cropping what was typed into it.
+      val.classList.toggle('long', entry.length > 11);
+      val.classList.toggle('longer', entry.length > 18);
+      val.classList.toggle('longest', entry.length > 26);
+      commit.disabled = !ready(entry);
+      clear.disabled = empty;
       charge.classList.toggle('live', !empty);
     };
 
+    /** Two operators in a row is not a thing a hand meant to type. */
+    const OPEN_OK = new RegExp(`[-+^/=,(${PAD_PM}${PAD_LE}${PAD_GE}]$`);
     const push = (ch) => {
-      if (self._settled || ch == null || entry.length > 14) return;
-      if (/^[-+^/]/.test(ch) && (entry === '' ? ch !== '-' : /[-+^/]$/.test(entry))) return;
-      if (ch === '/' && entry.includes('/')) return;
+      if (self._settled || ch == null || entry.length + String(ch).length > MAX_ENTRY) return;
+      if (/^[+^/=,]$/.test(ch) && (entry === '' || OPEN_OK.test(entry))) return;
+      if (ch === '-' && /-$/.test(entry)) return;
+      if (ch === ')' && !openCount(entry)) return;
       entry += ch;
       charge.classList.remove('bad');
       paint();
     };
     // A dedicated sign key, not a minus glyph: it flips the value it is looking
     // at. "5/2" becomes "-5/2", never the dangling "5/2-" a bare operator gives.
+    // It stays on the pad that charges a VALUE. An expression pad gets a real
+    // minus instead, because `x^2 - 6x + 11` needs one in the middle of a line
+    // and no amount of flipping the whole entry will put it there.
     const negate = () => {
       if (self._settled) return;
       entry = entry.startsWith('-') ? entry.slice(1) : '-' + entry;
@@ -1805,6 +2924,8 @@ export class RiftPanel {
       paint();
     };
     const back = () => { entry = entry.slice(0, -1); charge.classList.remove('bad'); paint(); };
+    /** Empty the socket. See `submit` for why this is not only a convenience. */
+    const wipe = () => { entry = ''; charge.classList.remove('bad'); paint(); };
 
     // Which drawing of the narrowed field this is. A field that has been spent
     // comes back arranged differently, so nothing a cadet learned by guessing
@@ -1853,49 +2974,121 @@ export class RiftPanel {
       charge.classList.remove('bad');
       void charge.offsetWidth;
       charge.classList.add('bad');
-      self._miss(self._mis(entry), null, entry);
+      const spent = entry;
+      // THE SOCKET IS EMPTIED, AND THAT IS NOT A CONVENIENCE.
+      //
+      // It used to keep the refused entry, and the next glyph a cadet pressed
+      // landed on the END of it. Their corrected answer was therefore submitted
+      // as the wrong one with the right one stuck to it — a second miss, off one
+      // real mistake, which burns the proving run and drives the scaffold down
+      // a rung the cadet never earned. The refused line is not lost: it is
+      // printed back to them in the first layer of the echo, which is where a
+      // wrong answer belongs.
+      entry = '';
+      paint();
+      self._miss(self._mis(spent), null, spent);
       // Two honest attempts in and the rig stops asking for a value it cannot
       // help with: the noise clears, a few readings remain, and the keypad
       // stands down rather than competing with them.
       tryNarrow();
     };
 
-    const KEY = (label, fn, cls = '', aria = '') => {
+    /**
+     * @param {string} glyph what this key writes into the socket, if anything.
+     *        Published as `data-g` so a gate can ask the surface which glyphs it
+     *        can emit rather than being told. It is the character already
+     *        printed on the cap, so it gives a learner nothing they cannot see.
+     */
+    const KEY = (label, fn, cls = '', aria = '', glyph = '') => {
       const b = document.createElement('button');
       b.className = `rf-key ${cls}`;
       b.type = 'button';
       b.innerHTML = label;
       if (aria) b.setAttribute('aria-label', aria);
       b.dataset.k = aria || b.textContent.trim();
+      if (glyph) b.dataset.g = glyph;
       self._click(b, fn);
       return b;
     };
     const BACK = '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9L2 12z"/><path d="M17 9l-5 6M12 9l5 6"/></svg>';
+    // A WAY TO START AGAIN, ON THE GLASS.
+    //
+    // The socket is emptied on a refusal (see `submit`), and a cadet who has
+    // simply mistyped needs the same thing on purpose. Backspace alone is not
+    // that: fourteen glyphs of a wrong bracket is fourteen presses, and a
+    // learner who cannot see a way to clear a field starts submitting rubbish
+    // to get rid of it.
+    const clear = KEY(t('rift.keypad.clear'), wipe, 'util wipe', t('rift.keypad.clear'), 'clear');
     const SIGN = { s: 'sign' };
     const OVER = { s: '/', t: '/', label: tex('\\square/\\square'), aria: t('rift.keypad.over') };
+    const MINUS = { s: '-', t: '-', label: tex('-'), aria: t('rift.keypad.take') };
 
-    const rows = expr
-      ? [['7', '8', '9', { s: variable, t: variable }],
-        ['4', '5', '6', { s: '+', t: '+', label: tex('+') }],
-        ['1', '2', '3', { s: '^2', t: '^2', label: tex('\\square^{2}') }],
-        ['0', SIGN, OVER, { s: 'back' }]]
-      : [['7', '8', '9', { s: 'back' }],
+    /**
+     * The notation this item needs, in the order a hand meets it. Each entry is
+     * a key the pad draws only when one of this card's own answers is spelled
+     * with it — see the note above `_keypad`.
+     */
+    const NOTATION = [
+      { g: '(', t: '(', label: tex('\\left(\\square\\right.'), aria: t('rift.keypad.open') },
+      { g: ')', t: ')', label: tex('\\left.\\square\\right)'), aria: t('rift.keypad.close') },
+      { g: PAD_ROOT, t: PAD_ROOT, label: tex('\\sqrt{\\square}'), aria: t('rift.keypad.root') },
+      { g: '^', t: '^', label: tex('\\square^{\\square}'), aria: t('rift.keypad.power') },
+      { g: '=', t: '=', label: tex('='), aria: t('rift.keypad.equals') },
+      { g: ',', t: ',', label: tex(','), aria: t('rift.keypad.also') },
+      { g: PAD_PM, t: PAD_PM, label: tex('\\pm'), aria: t('rift.keypad.plusMinus') },
+      { g: PAD_LE, t: PAD_LE, label: tex('\\le'), aria: t('rift.keypad.atMost') },
+      { g: PAD_GE, t: PAD_GE, label: tex('\\ge'), aria: t('rift.keypad.atLeast') },
+    ];
+
+    // The four columns nearest the thumb carry what every answer of this kind
+    // uses. Anything rarer is on the notation rows underneath.
+    const PLUS = { s: '+', t: '+', label: tex('+') };
+    // Three layouts, and the difference between them is what the card is FOR.
+    //
+    //  · charging a value      — the sign cap flips the whole entry, so a
+    //                            negative number is never a dangling operator
+    //  · writing an expression — a real minus, because `x^{2} - 6x + 11` needs
+    //                            one in the middle of a line and no amount of
+    //                            flipping the entry will put it there
+    //  · an expression with no letter in it (a radical, a plain arithmetic) —
+    //                            the same, with the letter cap's slot given
+    //                            back to the operators
+    const inBase = new Set(expr ? ['+', '-', '/'] : ['/']);
+    if (expr && letters.length) inBase.add(letters[0]);
+    const rows = !expr
+      ? [['7', '8', '9', { s: 'back' }],
         ['4', '5', '6', SIGN],
         ['1', '2', '3', OVER],
-        [{ s: '0', t: '0', wide: 4 }]];
+        [{ s: '0', t: '0', wide: 3 }, { s: 'clear' }]]
+      : letters.length
+        ? [['7', '8', '9', { s: letters[0], t: letters[0] }],
+          ['4', '5', '6', PLUS],
+          ['1', '2', '3', MINUS],
+          ['0', OVER, { s: 'back' }, { s: 'clear' }]]
+        : [['7', '8', '9', PLUS],
+          ['4', '5', '6', MINUS],
+          ['1', '2', '3', OVER],
+          [{ s: '0', t: '0', wide: 2 }, { s: 'back' }, { s: 'clear' }]];
+
+    const wanted = NOTATION.filter((k) => need.has(k.g) && !inBase.has(k.g));
+    // The letters the answers use, past the first — a second unknown is a real
+    // part of some of these answers and there was no way to write one.
+    for (const l of letters.slice(1)) wanted.push({ g: l, t: l, label: tex(l), aria: l });
+    for (let i = 0; i < wanted.length; i += 4) rows.splice(rows.length, 0, wanted.slice(i, i + 4));
 
     for (const row of rows) {
       for (const cell of row) {
-        if (typeof cell === 'string') { keys.appendChild(KEY(cell, () => push(cell))); continue; }
-        if (cell.s === 'back') { keys.appendChild(KEY(BACK, back, 'util', t('rift.keypad.back'))); continue; }
-        if (cell.s === 'sign') { keys.appendChild(KEY(tex('\\pm'), negate, 'util', t('rift.keypad.minus'))); continue; }
+        if (typeof cell === 'string') { keys.appendChild(KEY(cell, () => push(cell), '', '', cell)); continue; }
+        if (cell.s === 'back') { keys.appendChild(KEY(BACK, back, 'util', t('rift.keypad.back'), 'back')); continue; }
+        if (cell.s === 'clear') { keys.appendChild(clear); continue; }
+        if (cell.s === 'sign') { keys.appendChild(KEY(tex('-'), negate, 'util', t('rift.keypad.minus'), 'sign')); continue; }
         const ch = cell.t ?? cell.s;
         const label = cell.label || cell.s;
-        const cls = cell.wide ? 'widest' : (/^[0-9a-zA-Z]+$/.test(ch) ? '' : 'util');
-        keys.appendChild(KEY(label, () => push(ch), cls, cell.aria || ch));
+        const cls = (cell.wide ? `wide${cell.wide}` : '') + (/^[0-9a-zA-Z]+$/.test(ch) ? '' : ' util');
+        keys.appendChild(KEY(label, () => push(ch), cls, cell.aria || ch, ch));
       }
     }
-    const commit = KEY(t('rift.keypad.set'), submit, 'commit');
+    const commit = KEY(t('rift.keypad.set'), submit, 'commit', '', 'seal');
     keys.appendChild(commit);
 
     pad.appendChild(charge);
@@ -1908,17 +3101,35 @@ export class RiftPanel {
       name: 'keypad',
       key(e) {
         if (e.metaKey || e.ctrlKey || e.altKey) return;
+        // A CAP THAT HAS THE FOCUS ANSWERS ITS OWN KEY.
+        //
+        // Every cap is a real button, so a hand with no mouse reaches the
+        // radical and the plus-or-minus by tabbing to them. Enter on a focused
+        // cap already presses it; reading that same Enter here as "commit"
+        // would type a glyph and submit the entry in one keystroke.
+        if (e.target instanceof Element && e.target.closest('.rf-key')) return;
         if (/^[0-9]$/.test(e.key)) push(e.key);
-        else if (e.key === '-') negate();
+        else if (e.key === '-') (expr ? push('-') : negate());
         else if (e.key === '/') push('/');
-        else if (expr && (e.key === '+' || e.key === variable)) push(e.key);
-        else if (expr && e.key === '^') push('^2');
+        else if (letters.includes(e.key)) push(e.key);
+        else if (e.key === '+' || e.key === '^' || e.key === '(' || e.key === ')'
+          || e.key === '=' || e.key === ',') push(e.key);
         else if (e.key === 'Backspace') back();
+        else if (e.key === 'Delete') wipe();
         else if (e.key === 'Enter') submit();
         else return;
         e.preventDefault();
       },
-      set(v) { entry = String(v); paint(); },
+      /**
+       * Put a written answer in the socket. Takes the bank's notation as
+       * readily as the pad's own alphabet, so a harness and a hand reach the
+       * same place: `\left(x + 2\right)\left(x + 3\right)` becomes `(x+2)(x+3)`.
+       */
+      set(v) { entry = toPad(String(v)); paint(); },
+      /** Which glyphs this pad can emit. The gate reads it; nothing else does. */
+      glyphs: () => [...new Set([...'0123456789', ...letters,
+        ...(expr ? ['+', '-', '/'] : ['/', '-']),
+        ...wanted.map((k) => k.g)])],
       submit,
     };
   }
@@ -1943,13 +3154,33 @@ export class RiftPanel {
    * The rendered HTML is built here too, so what is compared is exactly what
    * is mounted — not a second guess at it.
    */
+  /**
+   * Is this option the KEY'S OWN VALUE, whatever it is written to look like?
+   *
+   * `_accepts` cannot answer that on its own any more, and must not: it now
+   * refuses a right value in the wrong form, which is the whole point of it.
+   * An option set has a stricter rule than the grader — the key may not appear
+   * in it twice under MATHEMATICAL equality, not merely under textual equality
+   * — because two buttons carrying the same number with one of them marked
+   * wrong is the surface calling a correct cadet wrong.
+   *
+   * This is where the old net had its hole. It ran `_accepts`, `_accepts` ran
+   * `equivalent()`, and `equivalent()` throws on any string containing an "=".
+   * Every surd-root item therefore listed its own answer twice: over a sample
+   * of 586 of them, `n = 2 \pm \sqrt{20}` sat beside the key `n = 2 \pm 2\sqrt{5}`
+   * and was scored as an error with a misconception tag on it.
+   */
+  _sameValue(v) {
+    return sameAnswer(String(v), String(this.item?.answer ?? ''), this._variable()) === true;
+  }
+
   _readings(ds) {
     const key = String(this.item.answer);
     const draw = (v) => texFirst([texify(v), v]) || v;
     const pool = [{ v: key, ok: true, html: draw(key) }];
     for (const d of ds) {
       const v = String(d.value ?? '');
-      if (!v.trim() || this._accepts(v)) continue;
+      if (!v.trim() || this._accepts(v) || this._sameValue(v)) continue;
       const html = draw(v);
       if (pool.some((p) => p.html === html)) continue;
       pool.push({ v, m: d.misconception, html });
@@ -1995,7 +3226,7 @@ export class RiftPanel {
     host.appendChild(lab);
     const box = document.createElement('div');
     box.className = 'rf-narrow';
-    for (const p of arranged(pool, this.seed + 17, `${this.item.answer}|${round}`)) {
+    for (const p of arranged(pool, this.seed + 17, `${this._cardSalt()}|${round}`)) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ans rf-reading';
@@ -2044,7 +3275,7 @@ export class RiftPanel {
     // Arranged, not shuffled: where the true reading lands is a stated,
     // measured property of this rig, not an accident of one seed. See
     // `arranged`.
-    for (const p of arranged(pool, this.seed + 5, String(item.answer))) {
+    for (const p of arranged(pool, this.seed + 5, this._cardSalt())) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ans rf-reading';
@@ -2164,6 +3395,66 @@ export class RiftPanel {
       if (got.n * Number(want[2] || 1) !== Number(want[1]) * got.d) return null;
     }
 
+    /**
+     * THE MOVES ON OFFER, AND WHY NEITHER THEIR ORDER NOR THEIR SHAPE MAY SAY
+     * WHICH ONE IS THE IDEAL.
+     *
+     * This tray is an answer surface exactly like a set of readings, and until
+     * `tools/critic/choiceshape.mjs` learned to read it, nothing had ever
+     * measured it. Two things were wrong at once, and both were one line.
+     *
+     *  · POSITION. The list was shuffled, cut to five, and then — when the
+     *    shuffle had dropped the ideal move — the ideal was written into the
+     *    LAST slot. So over 6,525 five-button trays the ideal sat last 30.0% of
+     *    the time against 20%, and 47.1% of the time on `both-sides`, which is
+     *    on the shipped route. It is now placed at a DRAWN slot, from the same
+     *    kind of avalanched hash `arranged()` uses for the key of a reading.
+     *
+     *  · SHAPE. Nothing chose WHICH four wrong moves stood beside the ideal, so
+     *    the ideal was the one an eye could pick out: "take the option with the
+     *    fewest digits" named it 42.0% of the time against 24.6%, "take the one
+     *    with a letter in it" 33.2%, and on a three-button tray the ideal was
+     *    the longest move 95.9% of the time — `\div\; 2` beside `+\; 10` and
+     *    `-\; 10`. The four companions are now chosen by `balancedPick`, the
+     *    same instrument `src/learn/generators.js` uses on a card's readings.
+     *
+     * A thin tray cannot be balanced, so the catalogue of legal-but-wrong moves
+     * is deeper than it was: dividing by a constant that is on screen, undoing
+     * the coefficient with the wrong sign, and adding the two constants
+     * together are all moves a learner really makes, they are all legal
+     * algebra, and they give the choice above something to choose between.
+     *
+     *  · AND THE THIRD ONE, WHICH NEITHER OF THOSE COULD SEE: THE OPERATOR.
+     *    `balancedPick` reads printed length, digit count and six written
+     *    features, and a move's KIND is in none of them — `\div\; 4` and
+     *    `+\; 8` are the same length, carry the same digit count and share
+     *    every feature. But the closing move of every beam is the DIVISION,
+     *    and a mixed tray usually carried exactly one, so "if there is a
+     *    divide button, press it" was a rule with no algebra in it.
+     *
+     *    The repair is not another cue. Adding the division glyph to
+     *    `src/learn/shape.js` was tried and measured WORSE — 24.31% -> 35.59%
+     *    — because a one-sided cue asked for a silence the catalogue could not
+     *    reach, and then spent the freedom failing to reach it.
+     *
+     *    THE TRAY IS ONE KIND OF MOVE. Every button on it collects, or every
+     *    one unwraps a constant, or every one divides. A cue over the operator
+     *    then never fires at all, on any tray, which is the one arrangement
+     *    that is worth exactly chance rather than close to it — and the cadet
+     *    is left with the question the beam is actually for: not WHICH
+     *    OPERATION (the beam's own state says that, and it was never the tray
+     *    that tested it) but WHICH NUMBER. Being handed five divisions and
+     *    having to pick the coefficient out of them is strictly more of this
+     *    skill than being handed one division among four additions.
+     *
+     *    So the catalogue is deeper again, and deeper in one direction: every
+     *    number ON THE BOARD, its negative, the sums and differences of the
+     *    pairs, and — for a division — the whole factors of those, because
+     *    "divide by the number that goes into the one I can see" is a slip
+     *    people really make. `deepen` only ever adds moves of the ideal's own
+     *    kind, and `apply` still refuses anything illegal.
+     */
+    const TRAY = 5;
     function candidates(st) {
       const list = [];
       const push = (op) => { if (op && apply(st, op) && !list.some((o) => o.tex === op.tex)) list.push(op); };
@@ -2175,15 +3466,110 @@ export class RiftPanel {
       if (!fZero(st.L.a) && !fZero(st.R.a)) push(opVar(fNeg(st.L.a)));
       if (!fZero(st.L.a) && !fOne(st.L.a)) push(opDiv(st.L.a));
       if (!fZero(st.R.a) && !fOne(st.R.a)) push(opDiv(st.R.a));
-      const mixed = shuffled(list, self.seed + list.length * 31 + history.length);
-      const keep = mixed.slice(0, 5);
-      if (best && !keep.some((o) => o.tex === best.tex)) keep[keep.length - 1] = best;
+      // The deeper catalogue. Every one of these is legal and every one of them
+      // is a move somebody makes: unwrap by a number you can see rather than
+      // the one attached to the unknown, take the coefficient off the wrong
+      // way round, gather the two constants together.
+      if (!fZero(st.L.a)) push(opVar(st.L.a));
+      if (st.L.b.n > 0 && !fOne(st.L.b)) push(opDiv(st.L.b));
+      if (st.R.b.n > 0 && !fOne(st.R.b)) push(opDiv(st.R.b));
+      const bothB = fAdd(st.L.b, st.R.b);
+      if (bothB && !fZero(bothB)) { push(opConst(fNeg(bothB))); push(opConst(bothB)); }
+      const bothA = fAdd(st.L.a, st.R.a);
+      if (bothA && !fZero(bothA)) push(opVar(fNeg(bothA)));
+      const gapB = fAdd(st.L.b, fNeg(st.R.b));
+      if (gapB && !fZero(gapB)) { push(opConst(fNeg(gapB))); push(opConst(gapB)); }
+      const gapA = fAdd(st.L.a, fNeg(st.R.a));
+      if (gapA && !fZero(gapA)) push(opVar(fNeg(gapA)));
+      // Unwrapping by the negative of a coefficient is legal and is the move a
+      // learner makes when the sign has already gone wrong. It also gives the
+      // choice above a move whose digit count matches the ideal's, which is
+      // what a five-move tray needs if the ideal is not to be the thinnest
+      // thing on it.
+      if (!fZero(st.L.a) && !fOne(fAbs(st.L.a))) push(opDiv(fNeg(st.L.a)));
+      if (!fZero(st.R.a) && !fOne(fAbs(st.R.a))) push(opDiv(fNeg(st.R.a)));
+      // Taking the coefficient off as though it were a constant, and moving a
+      // single unknown across. Both are moves this rig already names as
+      // misconceptions when a learner makes them, and `-\; x` is the only move
+      // on the beam that carries no digit at all — without it a five-move tray
+      // has nothing for the ideal move to stand ABOVE, and the ideal is the
+      // thinnest thing on screen whatever else is offered.
+      if (!fZero(st.L.a)) { push(opConst(fNeg(st.L.a))); push(opConst(st.L.a)); }
+      if (!fZero(st.R.a)) { push(opConst(fNeg(st.R.a))); push(opConst(st.R.a)); }
+      push(opVar(fr(-1)));
+      push(opVar(fr(1)));
+
+      const salt = `${self.seed}|${history.length}|${sideTex(st.L, v)}=${sideTex(st.R, v)}`;
+      if (!best) return shuffled(list, mixed(self.seed, salt)).slice(0, TRAY);
+
+      /* EVERY OTHER MOVE OF THE IDEAL'S OWN KIND THAT THE BOARD CAN JUSTIFY.
+         The tray is one kind of move (see the note above), and four companions
+         of one kind need a deeper catalogue than the mixed list above can
+         always give. Everything here is drawn off the numbers a learner can
+         see: the four parts of the two sides, their negatives, and the sums
+         and differences of the pairs — plus, for a division, the whole factors
+         of those, which is the move somebody makes when they divide by a
+         number that "goes into" one on the board rather than by the one
+         attached to the unknown. `push` still refuses an illegal move and a
+         duplicate. */
+      const mk = best.kind === 'div' ? opDiv : best.kind === 'var' ? opVar : opConst;
+      const board = [];
+      const feed = (f) => { if (f && !fZero(f) && !fBig(f)) { board.push(f); board.push(fNeg(f)); } };
+      for (const f of [st.L.a, st.L.b, st.R.a, st.R.b]) feed(f);
+      feed(fAdd(st.L.a, st.R.a)); feed(fAdd(st.L.b, st.R.b));
+      feed(fAdd(st.L.a, fNeg(st.R.a))); feed(fAdd(st.L.b, fNeg(st.R.b)));
+      feed(fAdd(st.L.a, st.L.b)); feed(fAdd(st.R.a, st.R.b));
+      if (best.kind === 'div') {
+        for (const f of board.slice()) {
+          const n = fNum(f);
+          if (!Number.isInteger(n)) continue;
+          for (let q = 2; q <= Math.min(12, Math.abs(n)); q++) if (n % q === 0) feed(fr(q));
+        }
+      } else {
+        feed(fr(1)); feed(fr(2));
+      }
+      for (const f of board) push(mk(f));
+      // A deeper catalogue means more subsets, and the count of them is a
+      // binomial: twenty legal moves would be 4,845 sets to cost, and this runs
+      // on every move of every beam. Twelve is 495, which is plenty of choice,
+      // and the twelve are DRAWN rather than truncated, so no move is
+      // systematically the one that never appears.
+      /* ONE KIND ONLY. Where the board cannot supply four companions of the
+         ideal's kind the tray falls back on the mixed list rather than showing
+         three buttons — a thin tray is a worse leak than a mixed one — and
+         `tools/critic/choiceshape.mjs` reads how often that happens off the
+         real `candidates()` and prints it. */
+      const kin = list.filter((o) => o.kind === best.kind && o.tex !== best.tex);
+      const rest = kin.length >= TRAY - 1 ? kin : list.filter((o) => o.tex !== best.tex);
+      const alts = shuffled(rest, mixed(self.seed, `${salt}|pool`)).slice(0, 12);
+      const room = Math.min(TRAY - 1, alts.length);
+      // Every set of `room` companions the beam can legally offer, in a stable
+      // order, so `balancedPick` chooses the one whose shape says least.
+      const sets = [];
+      (function choose(from, taken) {
+        if (taken.length === room) { sets.push(taken.slice()); return; }
+        for (let i = from; i < alts.length; i++) { taken.push(i); choose(i + 1, taken); taken.pop(); }
+      })(0, []);
+      const at = balancedPick(best.tex,
+        sets.map((ix, i) => ({ show: ix.map((j) => alts[j].tex), rank: i })), salt);
+      const keep = sets[at].map((j) => alts[j]);
+      // WHERE the ideal sits is drawn, never appended. See the note above.
+      // Taken off the TOP bits of the avalanche, not `% n`: over 1,632 real
+      // trays the low bits of this mixer put the ideal in the last slot 25.2%
+      // of the time against 20%.
+      const draw = mixed(self.seed ^ 0x5bd1e995, salt) / 4294967296;
+      keep.splice(Math.floor(draw * (keep.length + 1)), 0, best);
       return keep;
     }
 
     function misFor(op, st) {
       const V = fZero(st.L.a) ? st.R : st.L;
       if (op.kind === 'div' && !fZero(V.b)) return 'wrong-unwrap-order';
+      /* A tray of five divisions needs every one of its wrong moves named, or
+         the echo has nothing to answer a miss with — and before the tray was
+         one kind, a wrong division at the closing step was the one move on the
+         beam that carried no diagnosis at all. */
+      if (op.kind === 'div') return fZero(fAdd(op.f, V.a)) ? 'sign-slip' : 'arith-slip';
       if (op.kind === 'const') return item.skill === 'two-step' ? 'sign-on-constant' : 'same-op-both';
       if (op.kind === 'var') return 'collect-wrong-side';
       return null;
@@ -2459,6 +3845,37 @@ export class RiftPanel {
     const sumK = terms.filter((x) => x.kind === 'num').reduce((a, x) => a + x.c, 0);
     if (norm(linStr(sumV, v, sumK)) !== norm(item.answer)) return null;
 
+    /**
+     * THE ORDER THE CHIPS LIE IN, AND WHY IT IS DRAWN RATHER THAN COPIED.
+     *
+     * The tray used to be built straight out of `parseTerms`, which reads the
+     * printed statement left to right. So the chips arrived in the statement's
+     * own term order — and a statement like `14a + 30 - 7a + 18` alternates
+     * variable, number, variable, number, because that is how a collect-like-
+     * terms prompt is written. Measured over the shipped route: 95.5% of 3,279
+     * boards alternated strictly, and the FIRST chip carried the unknown on
+     * 3,279 of 3,279. The unknown's bay is always the left one. So "tap the
+     * first loose chip into the left bay, the next into the right, and keep
+     * alternating" filed every chip of every board with no miss — an
+     * UNASSISTED seal, which is the only kind that advances a proving run — on
+     * a node of the FIRST shipped unit, with no idea what a like term is.
+     *
+     * It is the colour defect one layer along. Nothing on a loose chip may say
+     * which bay it belongs in, and WHERE IT LIES is something a chip says.
+     *
+     * So the tray is drawn from the card's own hash. Not equalised: a rule
+     * that guaranteed the chips never alternate would be a cue of its own, and
+     * this repository has already turned one weak cue into a perfect
+     * elimination rule exactly that way. Drawn means the order carries nothing
+     * about the kinds, and the best fixed positional rule is then worth
+     * 1 / C(n, p) — what a cadet who knows only how many chips of each kind a
+     * board holds gets by guessing, and no more.
+     *
+     * `tools/critic/choiceshape.mjs` plays every positional rule over every
+     * route board and reports the best of them against that number.
+     */
+    const chipOrder = shuffled(terms, mixed(self.seed, `sort|${src}`));
+
     const bays = document.createElement('div');
     bays.className = 'rf-bays';
     const mkBay = (kind, nameHtml) => {
@@ -2558,7 +3975,7 @@ export class RiftPanel {
     // what to do next.
     const loose = [];
 
-    for (const term of terms) {
+    for (const term of chipOrder) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'rf-chip';
@@ -2636,6 +4053,18 @@ export class RiftPanel {
     const wantA = coefStr(k * a, v);
     const wantB = String(k * b);
 
+    // Every shard that is not the answer is a real slip: the term left
+    // undistributed, the sign carried onto only one term, the factor added
+    // instead of multiplied.
+    //
+    // THE TRAY IS BUILT HERE, ABOVE THE FIRST LINE OF DOM, so that
+    // `tools/critic/riftsurfaces.mjs` can cut it out of this file and execute
+    // it. A surface whose option set is assembled halfway down a DOM builder is
+    // a surface no gate can read, and this one went unmeasured for that reason
+    // alone while it was the second-worst leak in the game.
+    const chips = areaTray({ k, a, b, v, wantA, wantB, seed: self.seed });
+    const misOf = new Map(chips.filter((c) => c.m).map((c) => [c.v, c.m]));
+
     // Drawn to scale, because scale is the entire argument the model makes: the
     // strip carrying `a` lengths of the unknown has to be visibly longer than
     // the strip carrying `b` ones, or it is a two-box diagram, not an area.
@@ -2707,12 +4136,6 @@ export class RiftPanel {
     work.appendChild(trayLabel);
     work.appendChild(tray);
 
-    // Every shard that is not the answer is a real slip: the term left
-    // undistributed, the sign carried onto only one term, the factor added
-    // instead of multiplied.
-    const bag = [wantA, wantB, coefStr(a, v), String(b), String(-k * b), coefStr(a + k, v), String(b + k)];
-    const chips = shuffled([...new Set(bag)].filter(Boolean).slice(0, 6), this.seed + 3);
-
     let filled = 0;
     const targets = () => [cellA, cellB].filter((c) => !c.classList.contains('filled'));
 
@@ -2729,10 +4152,10 @@ export class RiftPanel {
       if (value !== wantOf.get(cell)) {
         for (const e of [cell, chip]) { e.classList.remove('reject'); void e.offsetWidth; e.classList.add('reject'); }
         setTimeout(() => { cell.classList.remove('reject'); chip.classList.remove('reject'); }, 460);
-        const mis = value === coefStr(a, v) || value === String(b) ? 'partial-distribute'
-          : value === String(-k * b) ? 'neg-distribute'
-          : value === coefStr(a + k, v) || value === String(b + k) ? 'combine-unlike' : null;
-        self._miss(mis, t('rift.area.rejected'));
+        // Every shard the tray carries is tagged where it is BUILT, so a
+        // deeper catalogue cannot quietly add an untagged one and leave the
+        // echo with nothing to say. (see `areaTray`)
+        self._miss(misOf.get(value) || null, t('rift.area.rejected'));
         return;
       }
       cell.classList.add('filled');
@@ -2756,7 +4179,7 @@ export class RiftPanel {
       });
     }
 
-    for (const value of chips) {
+    for (const { v: value } of chips) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'rf-chip';

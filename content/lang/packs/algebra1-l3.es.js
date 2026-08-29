@@ -28,7 +28,6 @@ export default {
   'l3.ask.shareOnePower': "Escribe una parte como una sola potencia.",
   'l3.ask.oneExpression': 'Escribe esto como una sola expresión.',
   'l3.ask.exactValue': '¿Cuál es el valor exacto?',
-  'l3.ask.whichIsRight': '¿Qué cadete tiene razón?',
   'l3.ask.valueOfF': '¿Cuánto vale $f({k})$?',
   'l3.ask.whichInputGives': '¿Qué entrada da la salida ${out}$?',
   'l3.ask.largestOutput': '¿Cuál es la salida más grande?',
@@ -42,7 +41,7 @@ export default {
   'l3.ask.stepAdd': 'La salida suma el mismo número en cada paso. ¿Cuál es?',
   'l3.ask.gapAt': '¿Cuánto vale en ${v} = {k}$?',
   'l3.ask.startValue': '¿Cuál es la salida al empezar?',
-  'l3.ask.nextReading': '¿Cuál es la salida un paso después?',
+  'l3.ask.nextReading': '¿Cuál es la salida un paso después de $f({k})$?',
 
   // ---------------------------------------------------------- las entradas
   'l3.ctx.inputsRun': 'Las entradas son los números enteros de {lo} a {hi}.',

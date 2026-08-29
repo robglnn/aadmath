@@ -14,6 +14,7 @@
  * player who ever pauses the game.
  */
 import { chromium } from 'playwright';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -168,4 +169,6 @@ note(errors.length === 0, 'no console errors', errors.slice(0, 3).join(' | '));
 const failed = out.filter((x) => !x.ok);
 console.log(`\n${out.length - failed.length}/${out.length} passed`);
 await browser.close();
-process.exit(failed.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. */
+findings('check:lock', { scope: 'route' })
+  .route(failed.map((x) => `${x.label || x.what || 'lock state'}${x.detail ? ` (${x.detail})` : ''}`)).done();

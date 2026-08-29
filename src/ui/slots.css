@@ -89,6 +89,17 @@
      band is 69 px in English at 1600x900 and taller in Polish, and a notice
      that clears the English one by luck is the defect, not the fix. */
   --slot-band: 72px;
+  /* THE COMPASS STANDS BETWEEN THEM (src/world/afford.js). It is the only
+     PERMANENT surface in a column of transient ones, and it is the one surface
+     here that a phone composition DELETES (src/ui/portrait.css,
+     src/ui/landscape.css) — so its height cannot be a literal in this file:
+     the notice would step down 54 px on a screen with no compass on it. Rule 2
+     above, and the same answer the run band gets: src/world/afford.js measures
+     its own box and publishes THE WHOLE SLOT — the arc plus the gap under it,
+     or `0px` where the composition has taken it away. The literal below is only
+     the first frame's fallback, before there has been a box to measure. */
+  --slot-compass: calc(38px + var(--slot-gap));
+  --slot-compass-top: calc(var(--pad-t) + var(--slot-band) + var(--slot-gap));
   --slot-notice: calc(var(--pad-t) + var(--slot-band) + var(--slot-gap));
 
   /* ---- CENTRE STAGE ----
@@ -153,22 +164,82 @@
   transition: none !important;
 }
 
-/* THE BAND OWNS THE TOP LINE OF ITS COLUMN — including from the compass.
-   `.afd-head` ("NEXT RIFT · 34 m", src/world/afford.css) is pinned to
-   `--pad-t + 2px` at the centre of the top edge. So is the run band, and the
-   band is opaque and four levels above it (src/ui/layers.css), so from the
-   moment a run starts the compass is painted and unreadable — every frame, for
-   the whole session.
+/* THE BAND OWNS THE TOP LINE OF ITS COLUMN — so the compass moves down a row.
+   `.afd-head` (src/world/afford.css) is pinned to `--pad-t + 2px` at the centre
+   of the top edge. So is the run band, and the band is opaque and four levels
+   above it (src/ui/layers.css), so from the moment a run starts the compass was
+   painted over and unreadable — every frame, for the whole session. Found by
+   tools/critic/transient.mjs; unreachable from the resting matrix, which drives
+   every viewport with `hasTouch`, and a touch device moves this element to the
+   foot of the screen.
 
-   src/ui/portrait.css and src/ui/landscape.css both already delete it on a
-   phone, and both give the same reason: "One compass, not two — `.afd-head`
-   prints the same verb, the same place and the same distance as the objective
-   card at the top of the same screen." That is just as true on a laptop; the
-   phone rules were written because a phone ran out of room first, not because
-   a laptop had a second compass worth reading.
+   THIS RULE USED TO READ `opacity: 0`, and that was right when `.afd-head` was
+   a pill saying "NEXT RIFT · 34 m" — a second printing of what the objective
+   card three inches to the left already said. It is not a pill any more. It is
+   the twelve-point compass arc (src/world/afford.js), it is language-free, it
+   gains a tick for every survey mark the cadet has claimed, and it prints no
+   distance at all while the objective card is up — so there is no longer a
+   second reading of anything to delete. Deleting it now deletes the one
+   instrument two blind critics in a row said this game did not have:
+   *"no compass, no path, no minimap"*, the second of them naming it the single
+   gap the wave had not closed.
 
-   Found by tools/critic/transient.mjs. It could not be found by the resting
-   matrix, which drives every viewport with `hasTouch` — and a touch device
-   moves this element to the foot of the screen (afford.css), so the collision
-   is only reachable on a pointer frame with a run in progress. */
-#ui:has(.ses-band.show) .afd-head { opacity: 0; }
+   The collision is real and is still answered — by giving the arc a place in
+   the TOP CENTRE stack rather than by removing it. The column is now
+
+       the run band  ->  the compass  ->  the notice toast
+
+   and every offset is taken off `--slot-band`, which src/ui/slots.js measures
+   off the live element in whatever language is loaded (rule 2 above). A first
+   cut parked the arc at a literal 62 px and tools/critic/transient.mjs caught
+   it immediately, on eight frames: the notice toast stood at y=107 and the arc
+   ran 80 to 118, so "The tear is gathering — get off the ground" was printed
+   through the compass. That is the whole reason this file exists. */
+#ui:has(.ses-band.show) .afd-head { top: var(--slot-compass-top); }
+#ui:has(.ses-band.show) { --slot-notice: calc(var(--slot-compass-top) + var(--slot-compass)); }
+
+/* ===========================================================================
+   THE TOP-CENTRE STACK GOES ALL THE WAY ACROSS.
+
+   `.afd-head` — the compass — is the middle rung of the TOP CENTRE column, and
+   the column's offsets are all measured (rule 2 above). What was never checked
+   is who else is on that LINE. On a touch device the first-contact card is
+   pinned to `--pad-t + 46px` (src/player/controls.css) and is 310 px wide, and
+   on a tablet-shaped frame — 1024x768, the iPad and a Chromebook in a split
+   window — 310 px from the right edge reaches back into the compass's arc.
+
+   tools/critic/landscape.mjs has been photographing it: MOVE and LOOK printed
+   through the right-hand end of the compass at (645, 103) and (645, 124), in
+   all three notch rotations. It is not a new collision — the same frame with
+   this whole wave's composition switched off carries BOTH rows — it is one
+   nobody had a rule for.
+
+   The rule is the one this file already applies to everything else in that
+   column: a surface that meets the compass takes the row below it. The offset
+   is `--slot-compass-top + --slot-compass`, which is exactly where the notice
+   toast stands, so the card cannot drift out of step with the arc when the run
+   band changes height in another language.
+
+   Scoped to `[data-touch]` because that is the only composition that puts this
+   card on the top line at all; on a pointer device it is bottom-anchored and
+   has never been near the arc.
+
+   AND SCOPED OUT OF BOTH PHONE COMPOSITIONS BY MEDIA QUERY, which is the half
+   this rule was missing. `src/ui/portrait.css` and `src/ui/landscape.css` both
+   DELETE the compass and both lay this card out themselves — but `:has()`
+   cannot tell that the arc has been taken away, because the element is still
+   in the DOM wearing its `.show` class, and this selector out-specifies
+   theirs however late they load. Measured, unscoped, by
+   tools/critic/transient.mjs: on a 390 px frame it pushed the first-contact
+   card down onto the run band in every locale and every notch rotation. The
+   bounds here are exactly those two sheets' own (`max-width: 560px` portrait,
+   `max-height: 520px` landscape), inverted, so the tablet and the split window
+   — which is where the defect is — are all that is left.
+   =========================================================================== */
+@media (min-width: 561px) and (min-height: 521px) {
+  :root[data-touch] #ui:has(.afd-head.show) .fc,
+  :root[data-touch] #ui:has(.afd-head.show) .fc-pill {
+    top: calc(var(--slot-compass-top) + var(--slot-compass));
+    bottom: auto;
+  }
+}

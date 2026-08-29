@@ -65,6 +65,9 @@ import { createNight } from './night.js';
 import { Comms } from './comms.js';
 import { QuestCard } from './quest.js';
 import { ColdOpen } from './opening.js';
+// A claim the record's own load took back, and the word that goes with it.
+// (src/meta/withdrawn.js — it says it; the engine does the withdrawing.)
+import { sayWithdrawals } from './withdrawn.js';
 import { Rite } from './rite.js';
 import { Turn } from './turn.js';
 import { Dossier } from './dossier.js';
@@ -75,6 +78,14 @@ import {
   nightMarkReached, nightMarkKey, nightMark,
 } from './voice.js';
 import { createGuide } from './guide.js';
+/* THE ROUTE PAST THE FIRST REGION (src/meta/region.js, src/content/route.js).
+   Sixty-two lines shipped and a learner reached ten, because nothing in src/
+   ever advanced the unit. The lattice now opens region by region, and this is
+   the file that says so out loud. */
+import {
+  REGION_KICK, REGION_LINES, REGION_ARRIVE, regionName, regionWhat,
+  earnedRegion, currentRegion, nextRegion, crossing,
+} from './region.js';
 import { t, onLocaleChange } from '../i18n/index.js';
 
 const SAVE_KEY = 'ascent.story';
@@ -113,6 +124,11 @@ export function createStory({
   const returning = seen.has('story.open.l1');
   const ledger = { ...blankLedger(), ...(saved.ledger || {}) };
   const told = new Set(saved.told || []);   // per-skill "you are close" said once
+  /* Regions whose opening has already been announced, and regions the cadet has
+     already made planetfall in. Both are marks rather than counters, because a
+     ceremony that plays twice is worse than one that never played. */
+  const regionsOpened = new Set(saved.regionsOpened || []);
+  const regionsLanded = new Set(saved.regionsLanded || []);
 
   /* ------------------------------------------------------------------------
      THE THIRD CLOCK (`days.js`). Nights held gate the top of the rank ladder
@@ -254,6 +270,16 @@ export function createStory({
   // Opening
   // -------------------------------------------------------------------------
   function begin() {
+    // Planetfall first: if the last run opened a region, this is the load that
+    // is standing in it, and that is the first thing worth saying.
+    landRegion();
+    /* …and then the one piece of news that is not good. Loading this record may
+       have WITHDRAWN a claim: a line held over a question type never once
+       solved unaided is reopened by MasteryEngine.load(), on every boot, and
+       until now it happened without a word. A badge that changes in silence is
+       a mastery claim moving in the dark, and this game's rule about honest
+       claims does not have a direction. See src/meta/withdrawn.js. */
+    sayWithdrawals(mastery, comms, { ready: () => cold.done });
     if (returning) {
       /* ONE GREETING, NOT TWO.
          A real gap gets the night beat, because that one knows what day it is
@@ -523,6 +549,59 @@ export function createStory({
   }
 
   /**
+   * THE LATTICE OPENS — a whole region of the knowledge graph lights up.
+   *
+   * The biggest single event in the game, and it happens perhaps four times in
+   * a course, so it is written like the chapter plate and paced like the rite:
+   * it queues behind a live tear and a live ceremony, it takes the frame whole
+   * when the frame is free, and it never states a figure or a level number.
+   *
+   * The ground itself arrives at the next planetfall (`region.js` says why), so
+   * the third line is the one that matters: this is where the next run lands.
+   */
+  function openRegion(unit) {
+    if (!unit || regionsOpened.has(unit)) return;
+    regionsOpened.add(unit);
+    refreshCard(true);
+    endOpening();
+    pendingTurns.push({
+      n: 0, at: 0,
+      act: { id: 'region', lines: REGION_LINES, at: 0 },
+      region: unit,
+      kickKey: REGION_KICK,
+      titleKey: regionName(unit),
+      params: () => ({ region: t(regionName(unit)), ground: t(regionWhat(unit)) }),
+    });
+    fx?.impact?.('good');
+    save();
+  }
+
+  /** Has the answer just played bought a region? Asked on every answer. */
+  function watchRegion() {
+    const unit = earnedRegion(mastery);
+    if (unit) openRegion(unit);
+  }
+
+  /**
+   * PLANETFALL. The region the last run opened is under the cadet's boots now.
+   * Said once, on the load that first stands on it.
+   */
+  function landRegion() {
+    const here = currentRegion(mastery);
+    if (!here || regionsLanded.has(here)) return;
+    regionsLanded.add(here);
+    // The first region is where everybody starts; there is no crossing to
+    // report and the cold open already owns that minute.
+    if (regionsOpened.has(here)) {
+      setTimeout(() => comms.push(
+        pick(REGION_ARRIVE, () => ({ region: t(regionName(here)), ground: t(regionWhat(here)) })),
+        { tag: 'region.arrive', force: true },
+      ), 3000);
+    }
+    save();
+  }
+
+  /**
    * Take a plate off the screen mid-draw and put it back at the head of the
    * queue, so it plays whole rather than being talked over. Its lines are
    * re-sent with it; a chapter that arrives without them is a title card.
@@ -531,6 +610,16 @@ export function createStory({
     const l = turn.live;
     turn.hide();
     if (!l) return;
+    // A region plate carries its own words, so it goes back exactly as it came.
+    if (l.region) {
+      pendingTurns.unshift({
+        n: 0, at: 0, act: { id: 'region', lines: REGION_LINES, at: 0 },
+        // `_live.params` is the RESOLVED object the plate is drawing; the queue
+        // carries a resolver, so it is wrapped back into one.
+        region: l.region, kickKey: l.kickKey, titleKey: l.titleKey, params: () => l.params,
+      });
+      return;
+    }
     const act = l.id === 'coda'
       ? { id: 'coda', lines: CODA, at: l.tears }
       : ACTS[Math.max(0, Math.min(ACTS.length, l.n) - 1)];
@@ -539,11 +628,23 @@ export function createStory({
 
   /** The plate, and then the transmission that belongs to it. */
   function playTurn(p) {
-    turn.play(p.n, p.act.id, p.act.at);
+    turn.play(p.n, p.act.id, p.act.at, p.region
+      ? { kickKey: p.kickKey, titleKey: p.titleKey, params: p.params?.(), region: p.region }
+      : undefined);
     clearTimeout(p._t);
     p._t = setTimeout(() => {
       comms.clear();
-      comms.sayKeys(p.act.lines);
+      if (p.region) {
+        // Through `pick`, with the region's own name in the parameters, so the
+        // three lines name the place rather than describing a place in general.
+        for (let i = 0; i < p.act.lines.length; i++) {
+          setTimeout(() => comms.push(pick(p.act.lines[i], p.params), {
+            tag: p.act.lines[i], force: true,
+          }), i * 3200);
+        }
+      } else {
+        comms.sayKeys(p.act.lines);
+      }
       p.act.lines.forEach(mark);
       save();
     }, 1640);
@@ -647,6 +748,11 @@ export function createStory({
     }
 
     const gained = recompute();
+    /* …and then the road. A line held may have finished a whole region of the
+       lattice, which is a bigger event than anything else on this call, so it
+       is asked on every answer and it is asked of the route rather than of a
+       counter kept here. (src/meta/region.js) */
+    if (correct) watchRegion();
 
     if (!correct) {
       // Three consecutive slips is a different event from one slip, and the old
@@ -918,6 +1024,9 @@ export function createStory({
         // once opened, is never taken back — not by a demoted line, not by a
         // device with the wrong date on it.
         days, dayMarks: [...dayMarks], chapter,
+        // the road (src/meta/region.js): what has been announced, and what has
+        // been stood on. Neither is ever taken back.
+        regionsOpened: [...regionsOpened], regionsLanded: [...regionsLanded],
       }));
     } catch { /* private mode — the arc simply does not persist */ }
   }
@@ -1016,10 +1125,29 @@ export function createStory({
     onOrderKept(fn) { onOrderKept = typeof fn === 'function' ? fn : null; },
     /** The transcript of this session, newest last. */
     said: () => said.map((s) => ({ ...s })),
+    /**
+     * THE ROAD (src/meta/region.js). Where the cadet is on it, what the next
+     * region costs in lines, and whether one has been earned and is waiting for
+     * planetfall. The close beat reads this; so does a critic. `cross()` is the
+     * landing itself, and it is a player-facing verb rather than a debug hook —
+     * the close card offers it, exactly as the pause menu offers a restart.
+     */
+    road: () => ({
+      here: currentRegion(mastery),
+      next: nextRegion(mastery),
+      waiting: earnedRegion(mastery),
+      opened: [...regionsOpened],
+      landed: [...regionsLanded],
+    }),
+    cross: crossing,
     state: () => ({
       rank: RANKS[shownRank], rankIndex: shownRank, chapter, standing,
       toNext: shownRank < 4 ? RANK_AT[shownRank + 1] - standing : 0,
       ledger: { ...ledger }, lines, opened,
+      // How many lines the lattice actually holds. It is not ten any more: the
+      // road composes a region at a time, so anything drawing a bar against
+      // "all of them" has to be told how many that is.
+      linesTotal: mastery.graph.nodes.length,
       // the fast clock, by the name the card prints
       seals: tears, tears, toChapter: tearsToNext(tears, chapter),
       // the endgame clock: what is due tonight, and how many nights have been
@@ -1064,6 +1192,27 @@ export function createStory({
       rank = to;
       ascend(to, from);
       if (pendingRite) { const p = pendingRite; pendingRite = null; fireRite(p); }
+      return true;
+    },
+    /**
+     * Critic hook: play the region plate for one unit, now.
+     *
+     * INSPECTION ONLY. It fabricates no mastery, opens no region and moves
+     * nothing on the road — `regionsOpened` is untouched, so the real beat
+     * still plays when the real last line is held. It exists so the layout
+     * gates can photograph a ceremony that is otherwise only reachable after an
+     * hour of correct answers, in all three languages.
+     */
+    region(unit) {
+      if (!unit) return false;
+      comms.clear();
+      const params = () => ({ region: t(regionName(unit)), ground: t(regionWhat(unit)) });
+      turn.play(0, 'region', 0, {
+        kickKey: REGION_KICK, titleKey: regionName(unit), params: params(), region: unit,
+      });
+      for (let i = 0; i < REGION_LINES.length; i++) {
+        setTimeout(() => comms.push(pick(REGION_LINES[i], params), { tag: REGION_LINES[i], force: true }), i * 3200);
+      }
       return true;
     },
     /** Play one chapter's turn and its lines immediately. 6 = the coda. */

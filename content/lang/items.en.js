@@ -9,17 +9,17 @@
 export default {
   // ---- what the learner is being asked to do -----------------------------
   'ask.evaluate': 'Work out the value.',
-  'ask.evaluateAlt': 'What does this come to?',
-  'ask.evaluateAlt2': 'Settle it.',
+  'ask.evaluateAlt': 'The order of operations settles a bracket — a parenthesis — first. Then the exponent on a power. Evaluate it.',
+  'ask.evaluateAlt2': 'The order of operations settles the parentheses — the brackets — first, then the exponent on a power. Evaluate it.',
   'ask.costOfStay': 'What does a stay of {c} cycles come to?',
   'ask.costOfTow': 'What does a tow of {c} cycles come to?',
-  'ask.evaluateWhen': 'Work this out when ${v} = {val}$.',
-  'ask.evaluateWhenAlt': 'Work it out with ${v} = {val}$.',
-  'ask.evaluateWhenAlt2': 'Read this at ${v} = {val}$.',
-  'ask.evaluateWhenTwo': 'Work this out when ${a} = {av}$ and ${b} = {bv}$.',
-  'ask.valueWhen': 'If ${v} = {val}$, what is this worth?',
-  'ask.worthWhen': 'With ${v} = {val}$ on the manifest, what does this come to?',
-  'ask.settleWhen': 'Take ${v} = {val}$ and settle it.',
+  'ask.evaluateWhen': 'Substitute ${v} = {val}$ and evaluate: work out the value.',
+  'ask.evaluateWhenAlt': 'Substitute ${v} = {val}$, then evaluate it and work out the value.',
+  'ask.evaluateWhenAlt2': 'Substitute ${v} = {val}$ and evaluate. Read out the value.',
+  'ask.evaluateWhenTwo': 'Substitute ${a} = {av}$ and ${b} = {bv}$, then evaluate. Work out the value.',
+  'ask.valueWhen': 'A variable is a letter that holds a value. If ${v} = {val}$, what is this worth?',
+  'ask.worthWhen': 'The manifest fixes the variable: it gives the letter ${v} = {val}$. What does this come to?',
+  'ask.settleWhen': 'The letter ${v}$ is a variable. Take ${v} = {val}$ and settle it.',
   'ask.valueOfExpr': 'What is the expression worth?',
   'ask.howManyCadets': 'If ${v} = {val}$, how many cadets is that?',
   'ask.howManySeedlings': 'If ${v} = {val}$, how many seedlings go up?',
@@ -31,17 +31,17 @@ export default {
   'ask.solveFor': 'Find ${v}$.',
   'ask.solveForAlt': 'What must ${v}$ be?',
   'ask.solveForAlt2': 'Name the value of ${v}$ that holds this true.',
-  'ask.solveOrClassify': 'Find ${v}$ — or say what kind of statement this is.',
-  'ask.simplify': 'Write this as simply as it can be written.',
-  'ask.simplifyAlt': 'Say the same thing in fewer terms.',
-  'ask.simplifyAlt2': 'Gather what is alike, and write what is left.',
-  'ask.expand': 'Open the bracket.',
-  'ask.expandAlt': 'Take the bracket off it.',
-  'ask.expandAlt2': 'Multiply it out.',
-  'ask.expandAndSimplify': 'Open both brackets, then gather what is alike.',
+  'ask.solveOrClassify': 'Find the solution: the value of ${v}$ that holds this equation true. Or say what kind of statement this is.',
+  'ask.simplify': 'Gather the like terms of the same kind. Add the coefficients, the numbers in front. Write the equivalent line that says the same thing.',
+  'ask.simplifyAlt': 'The coefficients are the numbers in front. Write the equivalent line, the one that says the same thing.',
+  'ask.simplifyAlt2': 'Gather the like terms of the same kind. Add the coefficients.',
+  'ask.expand': 'Expand this expression: open the parentheses. The distributive property carries the outside factor to every term inside.',
+  'ask.expandAlt': 'Expand it: open the bracket and multiply the factors out.',
+  'ask.expandAlt2': 'Multiply this expression out. The distributive property carries the factor to every term inside.',
+  'ask.expandAndSimplify': 'Expand both brackets, multiply the factors out, then gather the like terms.',
   'ask.whichExpression': 'Which expression gives the total?',
-  'ask.whichEquivalent': 'Which one says exactly the same thing?',
-  'ask.whichProduct': 'Which product is this expression in disguise?',
+  'ask.whichEquivalent': 'Which one is equivalent — exactly the same thing?',
+  'ask.whichProduct': 'Which product of factors is equivalent here?',
   'ask.whichIsRight': 'Which reading is the true one?',
   'ask.whichEquationTotal': 'Which equation says the bill came to {c} credits?',
   'ask.missingReading': 'What belongs in the gap?',
@@ -74,10 +74,10 @@ export default {
      The old key is kept — other banks may point at it. (src/learn/generators.js
      `lt-perimeter`) */
   'ask.perimeterGather': 'The rule below adds that distance up. Gather what is alike, and write what is left.',
-  'ask.perimeterRound': 'Add the four sides. Gather what is alike, and write what is left.',
+  'ask.perimeterRound': 'Add the four sides. Gather what is alike.',
   'ask.areaMultiplyOut': 'The rule below gives that area. Multiply it out.',
   'ask.whenSameCost': 'After how many runs do the plans cost the same?',
-  'ask.shareOut': 'Share the bar out over every term.',
+  'ask.shareOut': 'The distributive property shares the bar out over every term and its coefficient.',
   'ask.whichEquationHold': 'Which equation says what happened to the hold?',
   'ask.whichEquationSilo': 'Which equation says what happened in the silo?',
   'ask.whichEquationReservoir': 'Which equation says what the reservoir did?',
@@ -173,7 +173,7 @@ export default {
   'why.juxtaposition': 'A number written against a letter means multiply — {k} lots of ${v}$.',
   'why.substituteHere': 'Put {val} wherever ${v}$ stands.',
   'why.substituteThenMultiply': 'Put {val} in place of ${v}$, then multiply.',
-  'why.substituteBoth': 'Both known values go in at once.',
+  'why.substituteBoth': 'Substitute both known numbers, then evaluate.',
   'why.countGroups': 'That is {k} equal groups, counted up.',
   'why.onePodEach': 'One and the same ${v}$, once for every one of the {k} — which is ${v}$ added to itself {k} times.',
   'why.groupsMeansTimes': '"{k} groups of ${v}$" is {k} times ${v}$.',
@@ -184,26 +184,30 @@ export default {
   'why.divideThenAdd': 'Divide first — the bar holds the top together.',
   'why.findColumn': 'Go along to the column where $x = {val}$.',
   'why.readHeight': 'Read the height of the trace there.',
-  'why.timesBeforePlus': 'Multiplication binds tighter than addition.',
+  'why.timesBeforePlus': 'The order of operations puts multiplication before addition.',
   'why.thenAdd': 'Now the addition.',
-  'why.powersFirst': 'Powers are settled first.',
+  'why.powersFirst': 'The exponent is settled before any multiply.',
   'why.thenTimesThenMinus': 'Then multiply, then subtract.',
   'why.bracketTakesSign': 'The bracket carries the minus inside, so the minus is squared too.',
   'why.powerBeforeMinus': 'With no bracket the power reaches only the {c}; the minus stays outside it.',
   'why.fracBarGroups': 'A fraction bar is a bracket — finish the top first.',
   'why.thenDivide': 'Now divide by {c}.',
-  'why.gatherSameKind': 'Bring the ${v}$-terms next to each other.',
+  'why.gatherSameKind': 'Bring the like terms in ${v}$ next to each other.',
   'why.numbersAndLettersSeparate': 'A bare number and a ${v}$-term never merge into one.',
   'why.addCoefficients': 'Add the counts standing in front.',
   'why.onlySameKindCombine': 'Only terms of the same kind combine.',
   'why.squaredIsItsOwnKind': '${v}$ squared is a different kind of term from ${v}$, and keeps its own count.',
   'why.doubleEachSide': 'Two of each side.',
-  'why.everyTermInside': 'The factor outside reaches every term inside.',
-  'why.multiplyEachOut': 'Multiply each part out.',
+  'why.everyTermInside': 'The distributive property takes the outside factor to each term.',
+  'why.multiplyEachOut': 'The distributive property multiplies each part out.',
   'why.twoRectangles': 'It is two rectangles standing side by side, and their areas add.',
   'why.minusIsTimesMinusOne': 'A bare minus in front is multiplying by negative one.',
   'why.everySignFlips': 'So every sign inside flips.',
-  'why.commonFactor': 'Both terms carry a factor of {k}.',
+  // THE LARGEST shared factor, not merely a shared one. `ds-factor` draws
+  // its two inside numbers coprime so that {k} really is the whole of what
+  // both terms share; before that it keyed `12y + 8` as `2(6y + 4)` and this
+  // line taught a cadet to stop as soon as anything came out.
+  'why.commonFactor': 'The largest factor both terms carry is {k}.',
   'why.pullOutFront': 'Pull the {k} out in front.',
   'why.undoBothSides': '{op} {n} on both sides — the beam stays level.',
   'why.takeSameOffBoth': 'Take {n} off both pans at once.',
@@ -221,19 +225,19 @@ export default {
   'why.removeFlatFee': 'Take off the {b} credits that were charged once, up front — both sides at the same time.',
   'why.perCycleTimesCycles': '{a} credits for each cycle it ran.',
   'why.plusFlatFeeEqualsTotal': 'Plus the {b} up front, and the bill is {c}.',
-  'why.expandFirst': 'Open the bracket first.',
+  'why.expandFirst': 'Expand the bracket first.',
   'why.collectConstants': 'Collect the loose numbers.',
   'why.simplifySideFirst': 'Simplify the side completely before undoing anything.',
   'why.gatherUnknownOneSide': 'Take {term} off both sides, so the unknown lives on one side only.',
-  'why.identityBothSidesSame': 'The two sides were the same statement all along — every value holds it true.',
-  'why.contradictionNoValue': 'The unknown has vanished and left something false behind. No value can rescue it.',
+  'why.identityBothSidesSame': 'The two sides were the same statement all along. Every number is a solution.',
+  'why.contradictionNoValue': 'The unknown has vanished and left something false behind. This equation has no solution.',
   'why.meetMeansEqual': 'Where the traces cross, the two readings are equal.',
   'why.heightIsEquation': 'Height {val} turns the chart into an equation.',
   'why.perCycle': '{a} credits per cycle.',
   'why.groupsOfGroups': '{a} inside each one, and {b} of those, so it is {a} times {b} in all.',
   'why.squareTheValueFirst': 'Square the substituted value first — {val} times itself.',
-  'why.deepestBracketFirst': 'Inside the bracket, the multiplication goes first.',
-  'why.finishTheBracket': 'Finish the bracket before anything outside it.',
+  'why.deepestBracketFirst': 'Inside the parentheses, the multiplication goes first.',
+  'why.finishTheBracket': 'Finish the parentheses before anything outside them.',
   'why.thenTheFactorOutside': 'Only now does the {a} outside reach it.',
   'why.barSharesEveryTerm': 'One bar over a sum is a bar over each term: every term is shared by {k}.',
   'why.divideEachTerm': 'Divide each term by {k} in turn.',
@@ -241,8 +245,36 @@ export default {
   'why.andThatIsTheGauge': 'And what is left is what it reads now: {c}.',
 
   // ---- special answers ---------------------------------------------------
-  'answer.noSolution': 'no solution',
-  'answer.allValues': 'every value works',
+  //
+  // SIX READINGS OF ONE STATEMENT, ALL THE SAME PRINTED LENGTH AND NONE OF THEM
+  // CARRYING A NUMERAL. Both of those are load-bearing, and each one is a leak
+  // that shipped.
+  //
+  // A special-answer card asks which reading of a statement is true and shows
+  // four readings at once. Two of them used to be BARE NUMBERS beside two
+  // phrases, so a cadet who struck every bare number was left with two readings
+  // — one of which is always the key — and first-picked 50.00% against 25%,
+  // clearing a three-item proving run 12.5% of the time against 1.56%.
+  //
+  // Writing the wrong readings as phrases that NAME a value ("only 24 works")
+  // fixed the words and kept the leak: the key is one of two readings with no
+  // numeral in it, so "take the ones with no number" is the same 50% cue with a
+  // different name. And a reading that names a value is not the misconception
+  // anyway — a learner who solved and got 24 believes there is EXACTLY ONE
+  // value, which is what these readings say.
+  //
+  // The remaining cue an eye could read is length, so all six are written to
+  // the same number of characters. Keep them that way, in every locale;
+  // `npm run check:shape` measures the real four-option card and goes red on
+  // the special-answer card if any of this drifts.
+  'answer.noSolution': 'no value works',
+  'answer.allValues': 'each one works',
+  'answer.oneAboveZero': 'one works, and it is more than zero',
+  'answer.oneBelowZero': 'one works, and it is less than zero',
+  'answer.onlyOne': 'only one works',
+  'answer.onlyA': 'only four work',
+  'answer.onlyB': 'only five work',
+  'answer.onlyC': 'only nine work',
 
   'word.add': 'Add',
   'word.subtract': 'Subtract',
@@ -337,6 +369,7 @@ export default {
   'echo.gapNeverCloses': 'And again, with a different number, and the two sides are exactly as far apart as before. The gap does not depend on ${v}$ at all, so no value of ${v}$ can close it.',
   'echo.tryOneNumberHolds': 'Put ${v} = {t}$ into both sides and weigh them.',
   'echo.holdsEverywhere': 'And again, with a different number, and it holds again. The two sides are one statement written twice — there is nothing here to solve, only something to notice.',
+  'echo.onlyThisOneHolds': 'Now a different number, and the two sides come apart. Exactly one value of ${v}$ holds it true, and it is {t}.',
 
   // A chart is a log you can see.
   'echo.traceOneRate': 'A straight trace climbs at one rate for its whole length. This is that rate, taken between the two points the chart marks.',
@@ -352,9 +385,148 @@ export default {
   'echo.sideBySideIsNotTimes': 'Setting {a} against {b} makes a two-digit number. Multiplying them does not. A number written against a letter says multiply — it has never meant "write them next to each other".',
   'echo.minusOutsideThePower': 'Those are the two readings, and they are not the same number. Without a bracket the power reaches only the digits; the minus is applied afterwards, to whatever the power came to.',
 
+  // =========================================================================
+  // LEVELS 4 AND 5: the aimed refusal.
+  //
+  // Every line below is attached to a probe that has just COMPUTED something —
+  // a square, a product multiplied back out, a reading of a printed rule, a
+  // total of squared gaps. None of them is a verdict on the learner and none of
+  // them names the value the live rift wants. They say what the rig did, and
+  // what came out.
+  // =========================================================================
 
-  'ctx.filedTwice': 'Two survey teams filed the same quantity, written two ways. The rig takes one.',
-  'ctx.twoForms': 'The same quantity was filed twice, on two forms. The rig takes one line.',
+  // Roots. A root is refused by the one test that defines it.
+  'echo.squareYoursBack': 'A root is the number that squares back. Square what you wrote and see where it comes from.',
+  'echo.squaresDisagree': 'The rift squares back to {want}. Yours squares back to {got}. Two different numbers cannot be one root.',
+  'echo.youSplitTheRoot': 'You took a root of each part and added the two. That is where your number comes from.',
+  'echo.addFirstThenRoot': 'Add under the bar first, then take one root. The bar covers the whole sum, so the two moves give different numbers.',
+
+  // A fractional count above a number, refused without taking a root at all.
+  'echo.raiseYoursBack': 'The bottom of the count says which root to take. So raise your answer to the power {q}, and it has to come back.',
+  'echo.powersDisagree': 'The rift comes back to {want}. Yours comes back to {got}.',
+
+  // Squared statements.
+  'echo.underTheRootIs': 'Read the three numbers straight off the statement. This is the part that sits under the root.',
+  'echo.aboveZeroMeansTwo': 'That is above zero, so the statement holds at two different values. You named {k}.',
+  'echo.rewriteAsASquare': 'The same rule, written as a square plus a number. Multiply it out and you get the line above.',
+  'echo.aSquareIsNeverBelowZero': 'A square is never below zero, so this side never falls that far. No value holds the statement.',
+
+  // Products, quotients and completed squares. One move: multiply back.
+  'echo.multiplyYoursOut': 'Multiply your brackets out, one pair of terms at a time.',
+  'echo.theyDifferBy': 'Now take the rift away from what you wrote. This is what is left over, and it is not zero.',
+  'echo.multiplyBack': 'A division is checked by multiplying back. Multiply the bottom by what you wrote.',
+
+  // The curve, read at an input rather than argued about.
+  'echo.readTheRuleAt': 'Run the printed rule at ${v} = {t}$.',
+  'echo.ruleReadsDifferently': 'The rule reads that at ${v} = {t}$, and your answer says something else.',
+  'echo.turnIsSymmetric': 'One step each side of a turn, a curve reads the same. Here are both readings.',
+  'echo.notSymmetricHere': 'The two do not match, so the curve does not turn at ${v} = {t}$.',
+  'echo.readingBeatsYourClaim': 'The rule reaches {got} there, and your answer of {val} leaves no room for that.',
+  'echo.neverReachesIt': 'That is below zero, so the rule never reads {val} at all.',
+  'echo.notAZeroThere': 'The rule does not read zero at ${v} = {t}$, so that value is not a crossing.',
+
+  // Lists that add, and lists that multiply.
+  'echo.yourRuleAtPosition': 'Run the rule you wrote at position {t}, which the list already prints.',
+  'echo.listReadsThere': 'The list reads {y} at position {t}.',
+  'echo.stepFromYourValue': 'This is the step your number would need, counted from the last printed line.',
+  'echo.stepTheListMakes': 'And this is the step the list itself makes. Work both out.',
+  'echo.factorFromYourValue': 'This is the factor your number would need, counted from the last printed line.',
+  'echo.factorTheListMakes': 'And this is the factor the list itself makes, used {k} times. Work both out.',
+
+  // One input, one reading — or the set is not a function.
+  'echo.sameReadingTwice': 'The input {t} appears twice with the same reading. A repeat is not a break.',
+  'echo.yourInputOnce': 'Read down the input column. {t} appears once, and one input with one reading breaks nothing.',
+  'echo.yoursIsAnOutput': 'The number {t} sits in the output column here, not in the input column.',
+  'echo.notAnInputAtAll': 'These are the inputs this set prints, and {t} is not one of them.',
+
+  // A second line, beside a printed one.
+  'echo.ratesMultiply': 'Two lines meet at a right angle when their rates multiply to minus one.',
+  'echo.yourRatesGive': 'Yours give {got}, so the two lines do not meet at a right angle.',
+  'echo.parallelRatesMatch': 'This is the rate of the printed line. Two lines that never meet carry the same rate.',
+  'echo.yourRateDiffers': 'The printed line carries {want} and yours carries {got}, so the two lines cross.',
+  'echo.throughThePoint': 'Put the marked reading, {x} and {y}, into the rule you wrote.',
+  'echo.missesThePoint': 'The two sides come out different, so your line misses that reading.',
+  'echo.rightAngleToUpright': 'The printed line stands upright. A line at a right angle to it is level, and a level line has rate zero.',
+  'echo.uprightNeedsAFlatLine': 'Your line stands upright, so it carries no rate at all. The printed line has one, so the line at a right angle to it has one too.',
+
+  // A region, with no shading anywhere: the marks are the evidence.
+  'echo.putTheMarkedReading': 'Put the marked reading, {x} and {y}, into the lean you wrote.',
+  'echo.putTheBoundaryReading': 'Put the marked boundary reading, {x} and {y}, into the lean you wrote.',
+  'echo.yourLeanLetsItIn': 'That comes out true, so your lean lets the reading in. The mark says it is out.',
+  'echo.yourLeanShutsItOut': 'That comes out false, so your lean shuts the reading out. The mark says it is in.',
+  'echo.thatIsALineNotARegion': 'The two sides come out different. An equals sign names a line, and the marks beside it name a region.',
+
+  // Two rules, written from two sets of readings.
+  'echo.runYourRuleOnTheTable': 'Run the rule you wrote at the input {t}, which one of the tables prints.',
+  'echo.tableDisagrees': 'That table reads {y} at the input {t}.',
+  'echo.sameInputTwoTables': 'At the input {t} the two tables give two different readings.',
+  'echo.twoTablesTwoRules': 'One rule gives one reading at one input. Two readings need two rules.',
+
+  // The closest line through a cloud of readings.
+  'echo.thatIsAReading': 'Your number is a reading the table already prints, at the input {t}.',
+  'echo.notTheAskedInput': 'The question asks at the input {k}, and the closest line is worked out, never read off.',
+  'echo.rateBetweenTwoReadings': 'This is the rate between one pair of readings.',
+  'echo.ratesDoNotAgree': 'And this is the rate between another pair. They do not agree, so no single pair fixes the rate.',
+  'echo.gapAtAnotherRow': 'Take a different row, at the input {t}. A gap is the reading take away the value the line gives, in that order.',
+  'echo.gapBelowMeansUnder': 'The gap is below zero there, because the line runs above the reading.',
+  'echo.gapAboveMeansOver': 'The gap is above zero there, because the reading sits above the line.',
+  'echo.squaredGapsOfYours': 'Square the gap your answer leaves at each reading, then add them all. This is the total.',
+  'echo.closestLineIsSmaller': 'The closest line leaves a smaller total than yours. That is what closest means.',
+
+  // A two-way table of counts.
+  'echo.yoursIsAboveOne': 'A frequency counts a part of a whole, and yours comes to more than one.',
+  'echo.aPartIsNeverBigger': 'A part is never bigger than the whole it sits in, so a frequency never passes one.',
+  'echo.rowAddsTo': 'Add the readings along that row.',
+  'echo.columnAddsTo': 'Add the readings down that column.',
+  'echo.wholeTableAddsTo': 'Add the row totals of the whole table.',
+  'echo.thatIsADifferentWhole': 'The whole for this question is {want}. You divided by {got}, which is a different total.',
+  'echo.readingsOfThatRow': 'These are the readings in the row the question names.',
+  'echo.readingsOfThatColumn': 'These are the readings in the column the question names.',
+  'echo.notAReadingOfThatRow': 'Your fraction, taken back over that whole, gives this. It is not one of the readings above.',
+
+  // A list that multiplies, and a rule that overtakes another.
+  'echo.multiplyByYourFactor': 'Multiply the first printed reading by the factor your answer gives.',
+  'echo.nextReadingIs': 'The next reading is {y}, so that is not the factor between them.',
+  'echo.runYourStartForward': 'Run your starting amount forward to the input {t}, one factor for each step.',
+  'echo.firstReadingIs': 'The first printed reading is {y}, and your start does not reach it.',
+  'echo.bothRulesAt': 'Run both printed rules at ${v} = {t}$.',
+  'echo.alreadyAheadThere': 'The first rule already leads one position earlier, so it passed the second before that.',
+  'echo.notAheadYet': 'The first rule does not lead there, so it has not passed the second yet.',
+
+  'echo.bothSquareToTheSame': 'Both square back to the same number, so squaring cannot tell them apart. Something else does.',
+  'echo.aRootIsNeverBelowZero': 'The bar names the value that is not below zero, and yours is below zero.',
+  'echo.squareFactorInside': 'Your value is right, and it is not finished. The number {n} under the bar has a square inside it.',
+  'echo.squareComesOutOfTheBar': 'A square under the bar comes out as its own root. Work the left root out and the bar is finished.',
+  'echo.reachedTwiceNotExtreme': 'That is above zero, so the rule reads {val} at two different inputs. A greatest or least value is reached once.',
+  'echo.thatIsAboutTheOutput': 'You wrote the line about the output. The rule gives other outputs, so that line does not run through the turn.',
+  'echo.thatIsAboutTheInput': 'You wrote the band about the input. The rule still reads a value at inputs your band shuts out, so the band is about the readings.',
+  'echo.stepsBetweenReadings': 'These are the steps between the printed readings. They are not all the same, so no one rate carries the whole log.',
+  'echo.stepsOfTheStepsAreEqual': 'And these are the steps between those steps. They ARE all the same, and that is the pattern this log follows.',
+  'echo.putAnEdgeReading': 'Take one of the printed edge readings, {x} and {y}. Put it into both sides of the lean you wrote.',
+  'echo.edgeDoesNotRunThrough': 'The two sides come out different. The edge of your region misses a reading the rift marks as an edge.',
+  'echo.yourPartsHaveFractions': 'These are the three numbers your rule carries. This form asks for whole numbers, and these are not whole.',
+  'echo.clearTheFractions': 'Multiply every part by {d} and every fraction goes. Here is the first part; do the other two the same way.',
+  'echo.thoseAreTheZeros': 'Your numbers are not nonsense. They are the inputs where this rule reads zero, and here is the first one put back.',
+  'echo.aProductStillHasTheLetter': 'And the second. Both are inputs, and the rift asks for the same rule written as a product. A product still holds the letter.',
+  'echo.plusOrMinusIsTwoValues': 'A plus-or-minus stands for two values written once. Here they are, both of them. Work each one out and the rift has its answer.',
+  'echo.yoursDoesComeBack': 'Your value does come back when you raise it to the power {q}.',
+  'echo.anEvenRootIsNotBelowZero': 'Two numbers come back, and the notation names the one that is not below zero. Yours is below zero.',
+  'echo.needsTheOneBefore': 'Your rule needs the value before it, and the list starts at position {t} with nothing printed before that. An explicit rule reaches a position straight from the position.',
+  'echo.printedLineIsNotUpright': 'Your line stands upright. The printed one does not: it answers with a different value at each of these two inputs.',
+  'echo.parallelToUprightIsUpright': 'The printed line stands upright, so a line beside it stands upright too. Yours answers at two different inputs, and an upright line answers at one.',
+  'echo.yourReadingIsUnder': 'Your top number is the reading under {h}. The question names a different heading, so read across again and take the one it asks for.',
+  'echo.aListIsNotAProduct': 'The rule does not read zero there either. A pair of numbers is not a product, and the rift asks for the same rule written as brackets.',
+  'echo.thatGapIsAtAnotherRow': 'Your number is a real gap, and it is the gap at the input {t}.',
+  'echo.notTheAskedRow': 'The question asks for the gap at the input {k}, so work it out on that row instead.',
+  'echo.youWroteOneTwice': 'That is above zero, so the statement holds at two different values. You wrote {k} down, and two of them are the same one.',
+  'echo.rateOfEachTable': 'Take the rate of the first table on its own, from two of its readings.',
+  'echo.twoRatesTwoRules': 'And now the second table, the same way. Work both out: the two rates are different, so these are two rules, and one rule cannot be both.',
+  'echo.yourFormNamesThisReading': 'This form writes a reading down: the number taken away from y, and the number taken away from x. Yours writes down this reading.',
+  'echo.notTheMarkedReading': 'The rift marks a different reading. Your line is the right line, and this form has to name the reading the rift marked.',
+
+
+  'ctx.filedTwice': 'Two survey teams filed the same quantity, written two ways.',
+  'ctx.twoForms': 'The same quantity was filed twice, on two forms.',
   'ctx.asPallets': 'The loading rig needs a count of identical pallets, and what is in one.',
   'ctx.asRacks': 'The stores rig needs a count of identical racks, and what stands in one.',
   'ctx.dockBill': 'The dock bill lost its working: {b} credits to clamp on, then {a} a cycle.',
@@ -645,11 +817,11 @@ export default {
   'ctx.sections': 'Each of {k} sections works «a|one:# shift|other:# shifts» a rotation, plus «b|one:# shift|other:# shifts» in the galley.',
 
   // ---- one quantity, filed twice, in two hands ---------------------------
-  'ctx.twoClerks': 'Two clerks wrote the same quantity in two shapes. The rig takes one line.',
-  'ctx.twoLedgers': 'The same quantity sits in two ledgers, written two ways. The rig takes one.',
-  'ctx.twoTags': 'The crate carries two tags in two notations. The rig accepts exactly one.',
-  'ctx.twoQuotes': 'Two yards quoted the same job and wrote it differently. The rig takes one.',
-  'ctx.twoManifests': 'The same load was manifested twice, in two hands. The rig accepts one line.',
+  'ctx.twoClerks': 'Two clerks wrote the same quantity in two shapes.',
+  'ctx.twoLedgers': 'The same quantity sits in two ledgers, written two ways.',
+  'ctx.twoTags': 'The crate carries two tags in two notations.',
+  'ctx.twoQuotes': 'Two yards quoted the same job and wrote it differently.',
+  'ctx.twoManifests': 'The same load was manifested twice, in two hands.',
   'ctx.asCrates': 'The loading rig needs a count of identical crates, and what is in one.',
   'ctx.asDrums': 'The pump rig needs a count of identical drums, and what is in one.',
   'ctx.asBundles': 'The stowage rig needs a count of identical bundles, and what is in one.',
@@ -755,8 +927,8 @@ export default {
   'ctx.windBreak': 'A wind break stands {k} units tall. Its width {w} was woven in two panels.',
   'ctx.coldFrame': 'A cold frame is {k} units deep. Its width {w} was glazed in two lights.',
   'ctx.shutterPanel': 'A shutter panel stands {k} units tall. Its width {w} was cast in two leaves.',
-  'ctx.twoSignals': 'The same quantity was signalled from two masts, in two notations. The rig takes one.',
-  'ctx.twoChalks': 'Two hands chalked the same quantity in two shapes. The rig accepts one line.',
+  'ctx.twoSignals': 'The same quantity was signalled from two masts, in two notations.',
+  'ctx.twoChalks': 'Two hands chalked the same quantity in two shapes.',
 
 
   // ---- ADDED: a known part beside an unknown one -------------------------
@@ -791,7 +963,7 @@ export default {
   'ctx.soSalt': 'The rake pulls ${v}$ kilograms of salt into {k} equal piles.',
   'ctx.soRope': 'The bosun cuts ${v}$ metres of rope into {k} equal falls.',
   'ctx.soGrain': 'The chute runs ${v}$ tonnes of grain into {k} equal sacks.',
-  'ask.whichShare': 'Which expression gives one share?',
+  'ask.whichShare': 'The letter is a variable. Which expression gives one share?',
 
   // ---- WIDENING, WAVE 16 -------------------------------------------------
   //
@@ -933,15 +1105,15 @@ export default {
   'ctx.saltCribs': 'A crib dries ${v}$ grams of salt a tide. {k} cribs are laid out on the flat.',
 
   // a gauge that reads the present and never recorded the past
-  'ctx.hopperBin': 'The hopper shows a level and keeps no log. {b} tonnes went down the chute; it reads {c}.',
+  'ctx.hopperBin': 'The hopper keeps no log. {b} tonnes went down the chute; it reads {c}.',
   'ctx.peatStack': 'The peat stack is measured, never remembered. {b} tonnes were cut away; it stands at {c}.',
-  'ctx.oreBunk': 'The ore bunk has a scale and no history. {b} tonnes were drawn off; it reads {c}.',
+  'ctx.oreBunk': 'The ore bunk keeps no history. {b} tonnes were drawn off; it reads {c}.',
   'ctx.mealSilo': 'The meal silo reports depth and nothing else. {b} tonnes were milled; it sits at {c}.',
   'ctx.snowLoad': 'The roof gauge reads now, never before. {b} tonnes slid off; it reads {c}.',
   'ctx.ballastHold': 'The ballast hold is sounded, never logged. {b} tonnes were pumped out; it stands at {c}.',
-  'ask.startingHopper': 'What did the hopper hold before the chute ran?',
+  'ask.startingHopper': 'What did the hopper hold before?',
   'ask.startingPeat': 'How big was the stack before the cut?',
-  'ask.startingOreBunk': 'What was in the bunk before it was drawn off?',
+  'ask.startingOreBunk': 'What was in the bunk before?',
   'ask.startingMeal': 'How deep was the silo before milling?',
   'ask.startingSnow': 'What did the roof carry before the slide?',
   'ask.startingBallast': 'What did the ballast hold carry before the pump?',

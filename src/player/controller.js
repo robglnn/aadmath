@@ -6,7 +6,7 @@ import { Animator } from './animator.js';
 import { CameraRig } from './camera.js';
 import { PlayerFX } from './effects.js';
 import { ScreenFeel } from './screen.js';
-import { heightAt, gradientAt, slopeAt, outsideWorld, deck, landingNear } from './terrain.js';
+import { heightAt, gradientAt, slopeAt, outsideWorld, deck, landingNear, escapableAt, onBuilt } from './terrain.js';
 import {
   attachScene, escapeSite, siteVerdict, openBearing, openness, frameOccluded, EYE,
 } from './escape.js';
@@ -94,6 +94,8 @@ export class Player {
     this._recovered = 0;
     /** How long the lens has had no room at all — see `_unstick`. */
     this._blindT = 0;
+    /** Seconds spent on ground that leads nowhere. See `_unstick`. */
+    this._ledgeT = 0;
     this._blindAsk = -1e9;
     /** The recovery's own second look — see `_verifyRecovery`. */
     this._verifyAt = 0;
@@ -243,8 +245,16 @@ export class Player {
     if (this._winT >= 0.9) {
       const asked = this._winWish / this._winT;
       const got = p.distanceTo(this._winMark);
+      // …and A SCRAMBLE IS NOT A WEDGE. On one-way ground the boots are allowed
+      // to climb (src/player/locomotion.js `scrambling`), and a climb is slow
+      // on purpose — a metre of run buys several metres of height. Measured
+      // against a bar written for a cadet shoving into a hillside it reads as
+      // futile, so a real session spent 234 seconds with WEDGED on screen while
+      // the cadet was doing exactly what the world wanted him to do. The world
+      // only has hold of him if he is NOT climbing out.
       const futile = asked > 0.5 && got < 1.0
-        && !this.loco.gliding && this.loco.mantleT <= 0 && this.loco.dashT <= 0;
+        && !this.loco.gliding && this.loco.mantleT <= 0 && this.loco.dashT <= 0
+        && !this.loco.scrambling;
       if (futile) this._stuckT += this._winT;
       else if (!buried && !outside) this._stuckT = Math.max(0, this._stuckT - this._winT * 2);
       this._winMark.copy(p);
@@ -264,8 +274,12 @@ export class Player {
     // clears the threshold every twentieth of a second, so the prompt offering
     // the way out strobed on and off for the entire descent and read as noise.
     // Getting somewhere means getting somewhere you can stand.
+    if (this.loco.scrambling && this.stuck) {
+      // and the prompt comes off the moment he starts climbing
+      this.stuck = false; this._stuckT = 0; this.onStuck?.(false);
+    }
     if (!this.stuck) {
-      if (this._stuckT > 1.7) {
+      if (this._stuckT > 1.7 && !this.loco.scrambling) {
         this.stuck = true;
         this._stuckAt.copy(p);
         this.onStuck?.(true);
@@ -279,6 +293,52 @@ export class Player {
     // cannot see the prompt they are being offered. Free them.
     if (buried && this._stuckT > 2.6 && this.time - this._recovered > 2) {
       this.recover('buried');
+    }
+
+    // ---- …AND NOBODY IS HELD FOR LONGER THAN A FEW SECONDS ----------------
+    //
+    // THE PROMPT WAS NEVER THE PROMISE. A cold critic spent 95 seconds and then
+    // 85 seconds unable to move, with the objective card printing a distance
+    // and a bearing the whole time; a driven walk reproduced it and sat in one
+    // place for twenty-three seconds with the WEDGED card up and RECOVER on
+    // screen. Offering a key is the right first move and it is not enough,
+    // because a fourteen-year-old who is already lost does not read a card —
+    // he presses harder, and everything he presses is the thing that is not
+    // working.
+    //
+    // So the offer stands for about three and a half seconds and then the game
+    // does it for him. This CANNOT fire in play: `futile` requires the stick
+    // held past halfway with under a metre of ground covered in nine tenths of
+    // a second, and `_stuckT` is knocked back at twice the rate the moment any
+    // of that stops being true. Five seconds of it is not a player doing
+    // something; it is a player being held.
+    if (this._stuckT > 5.0 && this.time - this._recovered > 2.5) this.recover('held');
+
+    // ---- …AND ONE-WAY GROUND HAS A CLOCK ON IT ----------------------------
+    //
+    // The boots may climb off any ledge this island has (`scrambling`), and a
+    // climb is not a wedge, so the window above deliberately does not count it.
+    // That leaves one hole: a scramble that is somehow not working — a face
+    // nobody modelled, a cadet facing the wrong way and holding the key, a
+    // build lattice in the way. This closes it with a fact rather than a
+    // physics model: **nobody spends more than fourteen seconds on ground that
+    // does not lead anywhere.** It cannot fire on 96% of the island, because
+    // `escapable` is true there and the timer never starts.
+    // …counted on the GROUND, not on the gait. A cadet crossing one-way ground
+    // is airborne half the time — a step off a lip is a fall — and a clock that
+    // resets on every airborne frame never reaches fourteen seconds. The
+    // question is where he is, not what he is doing.
+    // …and NOT on ground he made himself. A cadet standing on his own deck has
+    // not been caught by the island: he brought the floor with him and he can
+    // bring the next one. Picking him up off it after fourteen seconds is the
+    // game taking a piece of building away from him, which is the opposite of
+    // what this clock is for. (`onBuilt` — the same question the boots ask to
+    // decide whether a slope is engineered ground.)
+    this._ledgeT = (h !== null && !escapableAt(p.x, p.z) && !onBuilt(p.x, p.z))
+      ? this._ledgeT + dt : 0;
+    if (this._ledgeT > 14 && this.time - this._recovered > 2.5) {
+      this._ledgeT = 0;
+      this.recover('held');
     }
   }
 

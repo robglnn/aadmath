@@ -1,0 +1,138 @@
+{
+ "$comment": "The last recorded result of every per-wave gate. Written by `npm run wave`, read by `npm run check`. A recorded red stays red: staleness never softens it. See tools/gate-ledger.mjs.",
+ "runs": {
+  "check:quality": {
+   "gate": "check:quality",
+   "code": 1,
+   "secs": 0.206,
+   "scope": "engine",
+   "at": "2026-08-28T06:49:42.826Z",
+   "cmd": "node tools/critic/qualityloop.mjs",
+   "fingerprint": {
+    "product": "f62665390e0dc62170429562da043fb0555d993b",
+    "tool": "91499860c6119c7861265370a31091709ae1342c",
+    "key": "1e90cb19c4c983f6dc2ed789e2231fba91981df9",
+    "tools": [
+     "tools/critic/qualityloop.mjs"
+    ]
+   },
+   "said": null
+  },
+  "check:compose": {
+   "gate": "check:compose",
+   "code": 1,
+   "secs": 688.111,
+   "scope": "route",
+   "at": "2026-08-29T06:43:47.680Z",
+   "cmd": "node tools/critic/compose.mjs --self-test && tools/critic/rungate.sh tools/critic/compose.mjs --out shots/compose",
+   "fingerprint": {
+    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "tool": "dd55144a88e0ea915124d11342d787ff123a4903",
+    "key": "cafe056b42dec41451cd890b3a3c1ca6158689b5",
+    "tools": [
+     "tools/critic/compose.mjs",
+     "tools/critic/rungate.sh"
+    ]
+   },
+   "movedDuringRun": false,
+   "said": "2 finding(s) a learner meets today — check:compose"
+  },
+  "check:sustain": {
+   "gate": "check:sustain",
+   "code": 1,
+   "secs": 929.341,
+   "scope": "route",
+   "at": "2026-08-29T08:06:55.652Z",
+   "cmd": "node tools/critic/sustain.mjs --self-test && tools/critic/sustain.sh shots/sustain --minutes 15",
+   "fingerprint": {
+    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "tool": "83437645ee557ce6a5d671d5f4b9a9a890a563e1",
+    "key": "f069bef23d87e5194050229db552b619e099b1a7",
+    "tools": [
+     "tools/critic/sustain.mjs",
+     "tools/critic/sustain.sh"
+    ]
+   },
+   "movedDuringRun": false,
+   "said": "1 finding(s) a learner meets today — check:sustain"
+  },
+  "check:motion": {
+   "gate": "check:motion",
+   "code": 0,
+   "secs": 1139.355,
+   "scope": "route",
+   "at": "2026-08-29T07:02:47.067Z",
+   "cmd": "node tools/critic/_play.mjs --self-test && node tools/critic/motion.mjs --self-test && tools/critic/rungate.sh tools/critic/motion.mjs --out shots/motion --minutes 18",
+   "fingerprint": {
+    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "tool": "c475947648831d75e0e2191c4b6160d24f027fec",
+    "key": "39e6c87a4b68fe459c26703f47afef5ec8307ff7",
+    "tools": [
+     "tools/critic/_play.mjs",
+     "tools/critic/motion.mjs",
+     "tools/critic/rungate.sh"
+    ]
+   },
+   "movedDuringRun": false,
+   "said": null
+  },
+  "check:traffic": {
+   "gate": "check:traffic",
+   "code": 1,
+   "secs": 1122.656,
+   "scope": "route",
+   "at": "2026-08-29T09:12:43.709Z",
+   "cmd": "node tools/critic/_play.mjs --self-test && node tools/critic/traffic.mjs --self-test && tools/critic/rungate.sh tools/critic/traffic.mjs --out shots/traffic --minutes 18",
+   "fingerprint": {
+    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "tool": "1690f63287aa7736f5e11f6290025aac7ea0051b",
+    "key": "05434726ff8817a6654fe49d434818881521b6ec",
+    "tools": [
+     "tools/critic/_play.mjs",
+     "tools/critic/traffic.mjs",
+     "tools/critic/rungate.sh"
+    ]
+   },
+   "movedDuringRun": false,
+   "said": "1 finding(s) a learner meets today — check:traffic"
+  },
+  "check:touch": {
+   "gate": "check:touch",
+   "code": 1,
+   "secs": 636.041,
+   "scope": "route",
+   "at": "2026-08-29T08:17:31.722Z",
+   "cmd": "tools/critic/rungate.sh tools/critic/touch.mjs --out shots/touch --self-test",
+   "fingerprint": {
+    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "tool": "3f5065c83f1d1be153df335550c3e802491cb8ba",
+    "key": "1889f4f4eccbed979fc71ed681ce4f195060992e",
+    "tools": [
+     "tools/critic/rungate.sh",
+     "tools/critic/touch.mjs"
+    ]
+   },
+   "movedDuringRun": false,
+   "said": "76 finding(s) a learner meets today — check:touch"
+  },
+  "check:layout": {
+   "gate": "check:layout",
+   "code": 0,
+   "secs": 1728.964,
+   "scope": "route",
+   "at": "2026-08-29T07:31:36.062Z",
+   "cmd": "tools/critic/rungate.sh tools/critic/landscape.mjs --out shots/landscape",
+   "fingerprint": {
+    "product": "a1278e3d132a43941e3ed76ea4900ab0078bf2c2",
+    "tool": "e1541e39e11f84df0f41534b7f5af954fede58b4",
+    "key": "1af8b69a224d87225e26b14e725432697d3178fa",
+    "tools": [
+     "tools/critic/rungate.sh",
+     "tools/critic/landscape.mjs"
+    ]
+   },
+   "movedDuringRun": false,
+   "said": null
+  }
+ }
+}

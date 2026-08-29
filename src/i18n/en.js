@@ -68,7 +68,7 @@ export default {
     // --- never be trapped by your own lattice (src/build/builder.js) ---
     // The room is never refused. It is closed, and the wall that closes it
     // arrives with a door in it. (src/build/builder.js, src/build/pieces.js)
-    sealDoor: 'This wall closes the room. It gets a door.',
+    sealDoor: 'This wall closes the room, and gets a door.',
     doorCut: 'Room closed. That wall has a door in it.',
     boxedIn: 'Your lattice has you shut in',
     cutFree: 'A way out is open',
@@ -166,6 +166,36 @@ export default {
     'factor-common': 'Taking out a common factor',
     'linear-vs-exponential': 'Linear against exponential growth',
     'exponential-rule': 'Exponential rules',
+    // Level 4 (content/graph/algebra1-l4.json). Additive: a unit that is
+    // not loaded costs three strings and changes nothing on screen.
+    'radical-simplify': 'Simplifying square roots',
+    'radical-arith': 'Adding and multiplying roots',
+    'factor-trinomial-monic': 'Factoring three terms',
+    'factor-trinomial-lead': 'Factoring with a lead number',
+    'difference-of-squares': 'The difference of two squares',
+    'poly-divide': 'Dividing polynomials',
+    'quadratic-zero-product': 'The zero product rule',
+    'solve-by-factoring': 'Solving by factoring',
+    'square-root-method': 'Solving by square roots',
+    'complete-the-square': 'Completing the square',
+    'quadratic-formula': 'The quadratic formula',
+    'parabola-features': 'Reading a parabola',
+    'quadratic-from-vertex': 'Writing a squared rule',
+    'quadratic-model': 'Quadratic models',
+    // Level 5 (content/graph/algebra1-l5.json).
+    'rational-exponent': 'Fractional exponents',
+    'relation-is-function': 'Deciding if a rule is a function',
+    'sequence-terms': 'Terms of a sequence',
+    'sequence-nth-term': 'A formula for any term',
+    'point-slope-form': 'Point-slope form',
+    'parallel-perpendicular': 'Parallel and perpendicular lines',
+    'inequality-two-var': 'Inequalities in two variables',
+    'write-system': 'Writing a system',
+    'system-graphically': 'Systems by graphing',
+    'scatter-regression': 'The line of best fit',
+    'residual-and-fit': 'Residuals and fit',
+    'association-strength': 'Strength of association',
+    'exponential-model': 'Exponential models',
   },
 
   // The course manifest (content/courses.json) names its courses and units
@@ -178,8 +208,10 @@ export default {
   },
   unit: {
     'algebra1-l1': { title: 'Level 1 — The Language of Balance' },
-    'algebra1-l2': { title: 'Level 2 — Structure and Rate' },
+    'algebra1-l2': { title: 'Level 2 — Lean, Rate and Pair' },
     'algebra1-l3': { title: 'Level 3 — Name, Power and Form' },
+    'algebra1-l4': { title: 'Level 4 — Root, Factor and Turn' },
+    'algebra1-l5': { title: 'Level 5 — Rule, Fit and Pattern' },
   },
 
   settings: {
@@ -337,7 +369,7 @@ export default {
     wordIs: {
       rift: 'A rift is a ring of torn air. Each rift holds one maths statement that is not true yet.',
       line: 'A line is one idea, and every rift that tests it. You work one line at a time.',
-      held: 'Held means you proved this line with no help, on every type of question it asked you. A held line is not taught to you again. The rig still re-tests it later. If a re-test fails, the line opens again.',
+      held: 'Held means you proved this line with no help, on every type of question it asked you. The rig does not teach a held line again. The rig still re-tests it later. If a re-test fails, the line opens again.',
       lattice: 'The lattice is the argument that holds this world up. Ground stands where the argument still works.',
       mote: 'Cipher motes are what a sealed rift leaves behind. The foundry takes motes and hands back kit.',
       rank: 'Your rank is what the order thinks of you. Copper is the first rank. Repair the world to raise it.',
@@ -419,6 +451,31 @@ export default {
       // value, and being told to "type the value" when no value is wanted sends
       // a cadet looking for a number that is not there.
       keypadExpression: 'Type the expression in its shortest form. Then press Seal.',
+      // …and the third job of the same pad. A numeric item is not always an
+      // equation: `eval-expr` and five forms of `var-meaning` hand over an
+      // expression and a value for its letter, and there is no statement on
+      // the card to make true. The words are the bank's own — see
+      // `ask.evaluateWhen` in content/lang/items.en.js.
+      keypadValue: 'Substitute the value and evaluate. Then press Seal.',
+      // learn-ux: one line per TASK, not per instrument. The pad serves nine
+      // different jobs and used to describe two of them. See `_taskKey`.
+      factor: 'Write it as brackets multiplied together. Then press Seal.',
+      expand: 'Multiply it out. Leave no bracket. Then press Seal.',
+      vertex: 'Write it as one bracket squared, plus a number. Then press Seal.',
+      simplify: 'Take every whole square out of the root. Then press Seal.',
+      // learn-ux: five more tasks, and none of them is named by the FORM the
+      // grader demands. A power rule, a common factor, roots collected, a root
+      // cleared off the bottom of a fraction, and a division all used to be
+      // handed the bracket line or the whole-square line. See `_taskKey`.
+      power: 'Use the rules for powers. Write the answer as one term. Then press Seal.',
+      common: 'Take out what every term shares, and put the rest in a bracket. Then press Seal.',
+      radsum: 'Add the roots that match. Then press Seal.',
+      rationalise: 'Move the root off the bottom. Then press Seal.',
+      divide: 'Divide the top by the bottom. Then press Seal.',
+      roots: 'Type every value that makes the statement true. Then press Seal.',
+      point: 'Type the point, across first, then up. Then press Seal.',
+      bound: 'Type the range the values stay inside. Then press Seal.',
+      rule: 'Type the rule that joins the two letters. Then press Seal.',
       balance: 'Choose a move. The beam applies it to both sides. Both sides, every time — that is the whole law.',
       sort: 'Send every term to the bay it belongs in.',
       area: 'Cover each part of the field with the area that part carries.',
@@ -432,6 +489,19 @@ export default {
       back: 'Delete',
       minus: 'Negative',
       over: 'Fraction bar',
+      // learn-ux: the notation keys. A pad that could not write a bracket, a
+      // root, an equals sign or a comma could not spell most of its own answers.
+      clear: 'Clear',
+      take: 'Take away',
+      open: 'Open bracket',
+      close: 'Close bracket',
+      root: 'Square root',
+      power: 'To the power of',
+      equals: 'Equals',
+      also: 'And also',
+      plusMinus: 'Plus or minus',
+      atMost: 'At most',
+      atLeast: 'At least',
       empty: 'Type a value first',
       narrow: 'Narrow the field',
       // Counts what is on screen. A distractor the rig refuses — one that is
@@ -512,7 +582,27 @@ export default {
       liveOnly: 'The rig has no other rift of this shape on record. So the echo shows your own work, read back to you.',
       nudge: {
         keypad: 'Say the statement to yourself before you type anything. The value you want is the one that makes it true, not the one that sits nearest.',
-        keypadExpression: 'Nothing here is being solved. Write the same amount in fewer terms, and the shorter line must still hold for every value of the letter.',
+        keypadExpression: 'You do not solve anything here. Write the same amount in fewer terms, and the shorter line must still hold for every value of the letter.',
+        // The whisper for the task `keypadValue` names. Without it `t()` would
+        // fall through to the KEY, and print `rift.echo.nudge.keypadValue` on
+        // the card in all three languages.
+        keypadValue: 'Put the number in place of the letter, everywhere the letter stands. Then work the arithmetic out in order.',
+        // The whisper follows the TASK. It used to follow the item's type, so
+        // 179 of 341 forms shared the like-terms line — including one under a
+        // square root, which has no terms in it at all.
+        factor: 'Two numbers do the work here. Both must multiply to the last number and add to the middle one. Put each one in its own bracket.',
+        expand: 'Every part of the first bracket meets every part of the second one. Multiply all of those pairs, then collect what matches.',
+        vertex: 'Halve the number in front of the single letter. Square that half: the bracket wants that number inside it. Then repair the total.',
+        simplify: 'Look for a whole square hiding inside the root. Take its root out to the front, and leave the rest under the sign.',
+        power: 'The base stays the same; only the small number moves. Multiplying adds the two small numbers, dividing takes them away, and a power of a power multiplies them. A power of zero is one.',
+        common: 'Find the biggest number that goes into every term, and the letters every term holds. The shared part comes out in front; the rest stays in the bracket.',
+        radsum: 'Two roots only add when the number under the sign is the same. Reduce each root first, then count how many of the matching ones you have.',
+        rationalise: 'A root under a fraction bar is not the end of the work. Multiply the top and the bottom by that same root, then reduce.',
+        divide: 'The bottom goes into the top a whole number of times. Ask what you must multiply the bottom by to reach the top.',
+        roots: 'Find every value the unknown can take, not just the first one. Write each one as the letter, an equals sign, and its value.',
+        point: 'Read across the bottom first, then up the side. The two readings are the point, in that order.',
+        bound: 'Find the edge value first. Then ask which side of it the statement stays true on.',
+        rule: 'Find how much the output climbs for one step of the input. Then find where it starts.',
         balance: 'Something clings to the unknown. Undo the outermost thing first. The beam does the rest.',
         sort: 'Two terms are alike only when the letter part matches exactly. A number is never like a letter.',
         area: 'The factor outside touches every part inside. Every part.',
@@ -599,6 +689,28 @@ export default {
   // cheerleader. She was a cadet here once, and it cost her.
   // ---------------------------------------------------------------------
   story: {
+    /* ------------------------------------------------------------------
+       THE ROAD (src/meta/region.js, src/content/route.js).
+
+       Sixty-two lines shipped on disk and a learner reached ten, because
+       nothing in src/ ever advanced past the first region. The lattice now
+       opens region by region, and this is what is said when it does.
+
+       NEVER A LEVEL NUMBER. A region is a place with a name. "Level 2" is a
+       label out of a syllabus, and this game teaches invisibly.
+       ------------------------------------------------------------------ */
+    region: {
+      kick: 'The lattice opens',
+      open1: 'The last line of this ring holds. Look at the horizon.',
+      open2: 'New ground writes itself out there. {region}.',
+      open3: 'We land there on your next run. Finish here first.',
+      arrive: 'Planetfall. {region}. {ground}',
+      'algebra1-l1': { name: 'The Balance Ring', ground: 'Two sides of one balance, and they match.' },
+      'algebra1-l2': { name: 'The Leaning Span', ground: 'Ground that tips. Rates, pairs, and lines that cross.' },
+      'algebra1-l3': { name: 'The Naming Reach', ground: 'Ground with names on it. Powers, and rules you can call by name.' },
+      'algebra1-l4': { name: 'The Turning Deep', ground: 'Ground that curves. Roots, factors and turns.' },
+      'algebra1-l5': { name: 'The Pattern Field', ground: 'Ground with a pattern in it. Rules, fits and models.' },
+    },
     hud: {
       act: 'Chapter {n}',
       question: 'Open question',
@@ -664,6 +776,25 @@ export default {
       kept: 'The mark is out. You knew {skill} after «n|one:# night|other:# nights» away, which is the only thing this lattice has ever asked anybody to prove.',
       keptCharter: 'Mark cleared, and that is the third. The order has cut you a charter. Press H on ground you like to raise a waystation.',
     },
+
+    /* ---------------------------------------------------------------------
+       A CLAIM TAKEN BACK ON THE WAY IN (src/meta/withdrawn.js).
+
+       The engine reloads this learner's record on every visit, and loading it
+       withdraws any line that was held over a question type the learner has
+       never once got right. That is the correct call and the engine has always
+       made it. It made it in silence: a line held on Tuesday could be open on
+       Wednesday's first frame with nothing said. Honest claims run in both
+       directions, so this is the word.
+
+       INSTRUCTIONAL. Short sentences, active voice, and the last line is the
+       one action: it says what to do to get the line back.
+       --------------------------------------------------------------------- */
+    withdrawn: {
+      one: '{skill} is open again. You held that line. One kind of question in it has never come out right, so the rig took the claim back.',
+      many: '«n|one:# line is|other:# lines are» open again: {skills}. Each one has a kind of question you have never got right.',
+      why: 'You keep everything you did. Answer that kind of question right once, with no help. Then the line is yours again.',
+    },
     day: {
       d2: {
         a: 'Second day. You came back. Most cadets in the record did not, and the record is not kind about it.',
@@ -699,8 +830,8 @@ export default {
         a: 'That is a warden. The lattice sends one out when a shard starts to hold again.',
         b: 'It carries a statement and drops the answers behind it. Take the correct weight.',
       },
-      wake: 'Another warden is out. It came up over the ridge a minute ago and it is already moving.',
-      left: 'The warden came apart. What it was carrying is still hanging where you caught it.',
+      wake: 'Another warden is out. The warden came up over the ridge a minute ago and is already moving.',
+      left: 'The warden came apart. The load still hangs where you caught it.',
       full: 'The warden came apart. The shard will hold no more caches, so you were paid in motes.',
     },
 
@@ -861,7 +992,7 @@ export default {
          one and states the true one. See src/meta/dossier.js. */
       here: 'You are here · {have} of {need} standing',
       hereNights: 'You are here · standing is in, «n|one:# night held to go|other:# nights held to go»',
-      hereReady: 'You are here · the next rite is earned',
+      hereReady: 'You are here · you earned the next rite',
       costs: 'Opens at {n} standing',
       costsNights: 'Opens at {n} standing and «nights|one:# night held|other:# nights held»',
       outOf: 'of {n} the shard can award',
@@ -1309,9 +1440,13 @@ export default {
          put the distance in different places once you leave English. */
       mark: {
         ahead: 'The rift is {n} m away, straight ahead.',
-        left: 'The rift is {n} m away, off to your left.',
+        aheadRight: 'The rift is {n} m away, ahead and to the right.',
         right: 'The rift is {n} m away, off to your right.',
+        backRight: 'The rift is {n} m away, behind you on the right.',
         behind: 'The rift is {n} m away, behind you.',
+        backLeft: 'The rift is {n} m away, behind you on the left.',
+        left: 'The rift is {n} m away, off to your left.',
+        aheadLeft: 'The rift is {n} m away, ahead and to the left.',
         here: 'You are standing in the rift.',
       },
       title: 'Orders',
@@ -1362,8 +1497,8 @@ export default {
          twenty minutes; this one row is where the learner now stands. */
       linesHeld: '{n} of {total} lines held',
       linesHeldNote: 'This is the number. A held line is one this engine will stand behind, and it does not come back.',
-      linesHeldNone: 'No line holds yet. A line takes more than one run, and nothing you did today is lost.',
-      linesHeldAll: 'Every line on this shard is held. The proof is closed.',
+      linesHeldNone: 'No line holds yet. A line takes more than one run. You keep everything you did today.',
+      linesHeldAll: 'You hold every line on this shard. The proof is closed.',
       heldLab: 'Held',
       groundLab: 'Ground gained',
       heldNote: 'You proved it with no help, at the top difficulty band, and with no worked examples. The line is yours now.',
@@ -1374,6 +1509,8 @@ export default {
       groundNone: 'Everything you touched today was already yours.',
       openedLab: 'Opened',
       openedNote: 'A new line of rifts, open to you.',
+      regionNote: 'A whole new region of the lattice. Every line here now holds.',
+      regionNext: 'Your next run lands there. This ground stays on the map.',
       chapterNote: 'The record turns a page.',
       rankNote: 'The order has revised its estimate of you.',
       openedNoneStrong: 'The lattice, unchanged',
@@ -1405,6 +1542,10 @@ export default {
       signWorked: 'Nobody grades this, and you lose nothing. Next time we open on the line you were working. The line will be exactly where you left it.',
       signHeld: 'That line does not rot, and it does not reset. Everything above it is now within reach.',
       rest: 'Stand down',
+      /* THE KEY, PRINTED ON THE BUTTON IT WORKS. The keycap only — the word
+         beside it is the button's own label, and a cap is a cap in every
+         locale this game ships (see `menu.bind.kbm.menu`). */
+      restKey: 'Esc',
       more: 'One more line',
       aria: 'Run closed. «n|one:# rift|other:# rifts» sealed this run.',
       /* THE HEADLINE OF THE RUN RÉSUMÉ IS THE ONE PROGRESS NUMBER — the same
@@ -1416,7 +1557,7 @@ export default {
       repairedLab: 'of the world repaired',
       repairedGain: '+{n}% this run',
       repairedFlat: 'The ground you took today sits under the next line.',
-      ariaRepaired: 'Run closed. The world is {n} per cent repaired.',
+      ariaRepaired: 'Run closed. You have repaired {n} per cent of the world.',
       ariaWorked: 'Run closed. «n|one:# question|other:# questions» worked this run.',
       // A run that sealed nothing leads with the work instead of with a
       // screen-height zero, and the rows below say what the work bought.
@@ -1481,6 +1622,15 @@ export default {
       off: 'Close the channel',
       signOff: 'Channel closed. The lattice holds while you are gone, and I will keep the light on. Same sky tomorrow, cadet.',
       wakeUp: 'Open the channel',
+      /* THE WAY OUT OF THE BREAK, and it is not `skip`.
+         `skip` ends the breathing and shows the card that offers another run —
+         "Back to the shard" — and it is drawn at opacity 0 for the first forty
+         seconds by design. This one gives the world back, from the first frame
+         of the beat and from every phase of it. The two must not read alike:
+         "Back to the shard" and "back to the world" would have been the same
+         sentence twice with two different outcomes, on one screen. */
+      leave: 'Leave the break',
+      leaveKey: 'Esc',
       aria: 'Break. Breathe with the ring. Nobody wants anything from you.',
     },
     voice: {
@@ -1489,7 +1639,7 @@ export default {
       extend: 'Carrying on, then. Same run, same ledger — the count does not start again just because you asked for more.',
       // …and the one thing that DID change, said out loud on the frame it
       // changes. The band keeps it printed; this says it once, in his voice.
-      raised: 'Same run, same ledger. The goal is now {to} rifts instead of {from} — that is what one more line costs, and I would rather say it than let you find it.',
+      raised: 'Same run, same ledger. The goal is now {to} rifts instead of {from}. One more line costs that much, and I would rather say it than let you find it.',
       // You started before I finished briefing you, which is the correct order
       // of operations. The goal is said in one line rather than on a card,
       // because a card would have to stop you to be read. (src/session/index.js)
@@ -1511,7 +1661,7 @@ export default {
     title: 'Progress report',
     sub: 'What you have proved, what proved it, and what comes next.',
     close: 'Close',
-    skillsHead: 'The ten lines',
+    skillsHead: 'Every line',
     recordHead: 'The record',
     recordSub: 'What this claim is worth, said plainly. A teacher checks these figures. The last one is the uncomfortable one.',
     foot: 'Nothing here is a stored grade. This report recomputes every live figure from the learner model each time it opens. Behind a held line sits the receipt written when the claim was granted, and that receipt never moves. Open a line to see it.',
@@ -1526,7 +1676,7 @@ export default {
       repairedNote: 'The one number. Every line counts what this engine currently believes about it, and it moves on every seal.',
       time: 'Time on task',
       // Two clocks, and they are meant to differ. This is the smaller one.
-      timeNote: 'Measured between answers and capped, so idling never counts as work. It is not the session clock, and it is meant to read lower than it.',
+      timeNote: 'Measured between answers and capped, so idling never counts as work. This clock is not the session clock, and reads lower than it on purpose.',
       /* THE SCOPE IS PART OF THE NOUN. Under the bare words "Time on task" this
          lifetime total read 7 min beside a session strip reading 5 min, and a
          cold reader called the pair a contradiction — on the words, correctly.
@@ -1546,7 +1696,7 @@ export default {
          belong to this fact and this fact belongs here, where a number can
          stand beside them. */
       sealed: 'Rifts sealed in all',
-      sealedNote: 'Every statement you have closed on this shard, across every session. One correct answer, one sealed rift. This is the count the chapter card is paced against.',
+      sealedNote: 'Every statement you have closed on this shard, across every session. One correct answer, one sealed rift. The chapter card paces itself against this count.',
       itemsNote: 'Every question this record has ever seen, across every run. Each one generated fresh and re-solved by machine before you saw it.',
       accuracy: 'Solved unaided',
       accuracyNote: 'Correct first time, with no hint and no worked example, out of every question answered.',
@@ -1559,8 +1709,8 @@ export default {
       // the line was answered cold and that opened the proving run; whether the
       // run then went straight through is on the line's own card. Counting the
       // road and describing the run was one of the contradictions.
-      sightNote: 'On these lines the very first question was answered cold, at the top of the bank, with nothing taught in front of it. Same claim, fewest questions this engine accepts. Open a line to see whether its proving run went straight through. Cold re-tests come soonest for these.',
-      sightNone: 'No line was opened cold. Every claim here came after practice.',
+      sightNote: 'On these lines you answered the very first question cold, at the top of the bank, with nothing taught in front of it. Same claim, fewest questions this engine accepts. Open a line to see whether its proving run went straight through. Cold re-tests come soonest for these.',
+      sightNone: 'You opened no line cold. Every claim here came after practice.',
       timeUnknown: 'Not measurable. Part of this record came back without its ledger, so the minutes before that are gone. The report shows them as unknown, not as zero.',
       accuracyUnknown: 'Not measurable on a restored record. The model remembers the questions, but not which ones you answered without help.',
     },
@@ -1587,9 +1737,9 @@ export default {
     /* THE NUMBER ON A ROW, named on the page rather than in a tooltip. See
        `renderLegend` in src/report/index.js for why it may not stay a tooltip. */
     pctTerm: 'The percentage',
-    pctIs: 'Your weakest reading on that line, not an average — the question type you are worst at, or your record at the hardest band, whichever is lower. Open a line to see which one it is.',
+    pctIs: 'Your weakest reading on that line, not an average. The rig takes the question type you are worst at, or your record at the hardest band, whichever is lower. Open a line to see which one it is.',
     flag: { under: 'Ground reopened' },
-    flagNote: { under: 'You still hold this line. A line underneath it missed a cold re-test and has gone back to practice, so the rig is re-proving the ground before it sends you back up here.' },
+    flagNote: { under: 'You still hold this line. A line underneath it missed a cold re-test and has gone back to practice. The rig is re-proving the ground before it sends you back up here.' },
 
     road: {
       sight: 'Tested out',
@@ -1607,7 +1757,7 @@ export default {
       // which is the gate's setting quoting itself and was untrue of every run
       // that absorbed a miss. The count lives on the card, where it is read off
       // the receipt.
-      sight: 'Opened cold: the first question on this line was answered at the top of the bank, with nothing taught in front of it, and it counted as the proving run’s first question. Open the line for what the run then cost.',
+      sight: 'Opened cold: you answered the first question on this line at the top of the bank, with nothing taught in front of it. That answer counted as the proving run’s first question. Open the line for what the run then cost.',
       fast: 'One clean solve with no help, at the gate band, opened the proving run. Fewer items than the long road, and each one harder.',
       long: 'Opened the proving run the long way: three clean unassisted solves and a posterior at the full threshold.',
     },
@@ -1677,30 +1827,34 @@ export default {
       // opening belief, read off the lines underneath — a plan for where to
       // start, not a reading of this learner. It is not printed as a
       // percentage, because a percentage is what a measurement looks like.
-      posteriorNone: 'Nothing has been asked on this line yet, so there is nothing measured to be sure about. The model opens it at a level read off the lines underneath. That is a starting point, not evidence.',
+      posteriorNone: 'The rig has asked nothing on this line yet, so there is nothing measured to be sure about. The model opens it at a level read off the lines underneath. That level is a starting point, not evidence.',
       coldVal: 'cold, band {band}',
       cleanSight: 'None needed. This line proved out on first contact. The cold item is the proving run’s own first item, and the row below counts it once.',
       // The same road, and a different story. Passing the cold item opens the
       // run; it does not finish it. A run that then stumbled and paid for it is
       // still a claim — on more unassisted evidence, not less — but it did not
       // prove out on first contact, and the card said it did.
-      cleanSightCharged: 'The first question on this line was answered cold, at band {band}, with nothing taught in front of it — that is what opened the proving run. The run then «n|one:missed once|other:missed # times» and paid for it in extra unassisted questions.',
-      cleanSightOld: 'The first question on this line was answered cold, at band {band}, and that opened the proving run. This receipt is from an earlier build and does not record how the run itself went.',
+      cleanSightCharged: 'You answered the first question on this line cold, at band {band}, with nothing taught in front of it. That answer opened the proving run. The run then «n|one:missed once|other:missed # times» and paid for it in extra unassisted questions.',
+      cleanSightOld: 'You answered the first question on this line cold, at band {band}, and that opened the proving run. This receipt is from an earlier build and does not record how the run itself went.',
       cleanRoad: {
         long: 'Three in a row, unassisted, at difficulty band {band} — the long road to the proving run.',
         fast: 'One clean solve with no help, taken at difficulty band {band} — the gate band itself. The short road asks for fewer items, and harder ones.',
       },
-      provingExtended: 'Unassisted, support off, band {band} or above. The run extended itself by {n} to span a second surface and a modelling item.',
-      provingCharged: 'Unassisted, support off, band {band} or above. The run «n|one:absorbed one miss|other:absorbed # misses» and charged itself extra unassisted questions for it, so it closed on more evidence than a clean run, not less.',
+      // "to span a second surface" was the engine's INTENTION, said as an
+      // outcome. What it did was keep drawing until the run's items carried a
+      // second representation label and one modelling label. See
+      // report.record.repsNote and src/report/teacher.js claimText().
+      provingExtended: 'Unassisted, support off, band {band} or above. The run extended itself by {n} to reach a second surface label and a modelling label.',
+      provingCharged: 'Unassisted, support off, band {band} or above. The run «n|one:absorbed one miss|other:absorbed # misses» and charged itself extra unassisted questions for it. So it closed on more evidence than a clean run, not less.',
       noReceipt: 'not recorded',
       noReceiptNote: 'This claim was granted by an earlier build that kept no record of what proved it. It is reported as unevidenced rather than reconstructed from the settings — a threshold quoting itself is not evidence.',
       rests: 'This claim rests on {n} unassisted items, out of {of} questions answered on this line.',
       // The denominator a claim is allowed to be measured against: what was
       // asked before it was granted. Anything asked afterwards is on the next
       // line, because a claim cannot rest on a question it never saw.
-      restsSplit: 'This claim rests on {n} unassisted questions, taken across the {of} questions asked on this line before it was granted.',
-      sinceClaim: '«n|one:# question has|other:# questions have» been answered here since, on a line already held: {pct} of them unaided. That is practice and re-testing. It is not what the claim was granted on.',
-      sinceNone: 'No question has been asked on this line since the claim was granted.',
+      restsSplit: 'This claim rests on {n} unassisted questions, taken across the {of} questions asked on this line before the rig granted it.',
+      sinceClaim: 'You answered «n|one:# question|other:# questions» here since, on a line already held: {pct} of them unaided. Those answers are practice and re-testing. The claim does not rest on them.',
+      sinceNone: 'The rig has asked nothing on this line since it granted the claim.',
       restsUnknown: 'This build did not record the items behind the claim. You have answered {of} questions on this line.',
       grantedOn: 'Granted {date}.',
       /* THE ROW THAT AN AGGREGATE CANNOT CARRY. Every other row on this list
@@ -1894,9 +2048,31 @@ export default {
       classSub: '{n} student records · assembled {date}',
       classEmpty: 'No student records yet. Each student exports their own record from this screen; add the files here and they stay on this device.',
       classFoot: 'Assembled from records the students exported themselves. Nothing was uploaded, and this list lives only in this browser — clearing site data clears it.',
+      // WHERE THE EVIDENCE ACTUALLY IS. A record a district cannot attach to a
+      // student is not a record, and on a shared Chromebook this one cannot be
+      // attached to anyone. That is a scope statement, not a defect, and it
+      // belongs on the sheet a teacher files rather than in a design document
+      // nobody in the building will read. content/STANDARDS.md section 6
+      // carries the same limitation and the smallest honest path out of it.
+      custody: {
+        head: 'Where this record lives',
+        device: 'Every figure here lives in one browser, on one device. The record never leaves this device. There is no account, no class list and no server behind this sheet.',
+        shared: 'On a shared or wiped device the record goes when the device goes. The exported file and this printed sheet are the copies that last.',
+        name: 'Whoever holds the keyboard types the name at the top. Nothing here checks that name against a roster.',
+        klass: 'A teacher builds a class record by hand, from files students export themselves.',
+      },
       claimItemsShort: '{n} unassisted items at band {band}',
       claimMissed: '«n|one:absorbed one miss|other:absorbed # misses»',
-      claimReps: 'across {n} representations',
+      // WHAT THE ENGINE COUNTED, WORD FOR WORD. This read "across {n}
+      // representations", which a teacher reads as evidence that the learner
+      // met the idea on two different surfaces. The engine counted the `rep`
+      // LABELS the run's items carried, and a label sits on the item form, not
+      // on the act: rule-from-table has four forms labelled table, table,
+      // context and verbal, and every one of them is answered with a value out
+      // of the same table. See src/report/teacher.js claimText(), and
+      // report.record.repsNote below, which says so on the sheet.
+      claimReps: 'items labelled with {n} representations',
+      repsNote: 'A question type carries a label for its surface: a table, a chart, a picture or a story. The rig counts those labels when it grants a claim. The rig does not check whether two labelled types ask for the same act. On some lines they do.',
       claimRegrant: 're-earned after a withdrawal',
       foot: 'Record {id} · {n} observations. None of this is a stored grade. This sheet recomputes every figure from the learner model and the evidence ledger on this device. A line is held only after a proving run with no help, at the gate band. Two failed cold re-tests withdraw the claim again.',
       trust: {
@@ -2001,6 +2177,35 @@ export default {
       'factor-common': 'Factoring is expanding read backwards: take out the most every term shares.',
       'linear-vs-exponential': 'A straight rule adds the same amount; a growing rule multiplies by the same factor.',
       'exponential-rule': 'A start multiplied by a factor once per step — and at zero steps, the start.',
+      // Level 4 (content/graph/algebra1-l4.json).
+      'radical-simplify': 'A square root asks which number, times itself, gives the one under the bar. The largest square inside comes out, and the rest stays under.',
+      'radical-arith': 'Two roots add only when the number under the bar is the same. Two roots always multiply.',
+      'factor-trinomial-monic': 'Factoring is expanding read backwards. Find the pair of numbers that multiplies to the last term and adds to the middle one.',
+      'factor-trinomial-lead': 'A number on the squared term has to go into both brackets. Now the pair multiplies to the first coefficient times the last.',
+      'difference-of-squares': 'Two squares with a minus between them split into a sum bracket and a difference bracket. Two squares with a plus do not split at all.',
+      'poly-divide': 'Division asks what to multiply the second expression by to give the first. Multiply the answer back, and every term has to return.',
+      'quadratic-zero-product': 'When two quantities multiply to zero, at least one of them is zero. So a product of brackets is zero exactly where one bracket is zero.',
+      'solve-by-factoring': 'Move everything to one side and leave zero on the other. Then factoring turns one hard statement into two easy ones.',
+      'square-root-method': 'Taking the root of both sides undoes a square. A square has two roots, so this gives two answers.',
+      'complete-the-square': 'Half the middle coefficient, squared, completes a perfect square. Add it to both sides and a squared bracket appears.',
+      'quadratic-formula': 'Completing the square on a general rule gives one formula that always works. The part under the root says how many real answers there are.',
+      'parabola-features': 'A squared rule draws a curve that falls, turns and rises. The turn, the crossings and the highest or lowest value all come from the same three numbers.',
+      'quadratic-from-vertex': 'A squared rule can show its turning point, or show the two brackets that give its zeros. Both spellings describe one curve.',
+      'quadratic-model': 'A thrown object, a fenced area and a price against takings all follow a squared rule. The turn is the best value and the zeros end the story.',
+      // Level 5 (content/graph/algebra1-l5.json).
+      'rational-exponent': 'A count above a number does not have to be whole. The bottom of the fraction says which root to take, and the top says which power.',
+      'relation-is-function': 'A rule is a function when every input has exactly one output. One input with two outputs breaks it. Two inputs sharing an output do not.',
+      'sequence-terms': 'A list of numbers is a rule whose inputs are the positions 1, 2, 3 and so on. A recursive rule gives the next value from the one before.',
+      'sequence-nth-term': 'One formula gives any value straight from its position. A list that adds needs a step formula, and a list that multiplies needs a power formula.',
+      'point-slope-form': 'One reading and a rate pin a line down. The same line has three spellings, and each one makes a different fact easy to read.',
+      'parallel-perpendicular': 'Lines that never meet share one rate. Lines that cross at a right angle have rates that multiply to minus one.',
+      'inequality-two-var': 'A lean in two letters names a region, not a line. The boundary says where the region stops, and one tested reading says which side.',
+      'write-system': 'One statement is not enough when two things are unknown. Two different statements about the same pair pin both of them down.',
+      'system-graphically': 'Two statements drawn as two traces meet where both are true. The crossing is the answer, and it has to fit both statements.',
+      'scatter-regression': 'Real readings never sit exactly on one line. The closest line comes nearest to all of them at once, and it can predict.',
+      'residual-and-fit': 'The gap between a real reading and the model is the residual. Gaps that keep one sign along a run say the shape of the rule is wrong.',
+      'association-strength': 'Two measurements can rise together, fall against each other, or show no pattern at all. A share is never a cause.',
+      'exponential-model': 'A rule that multiplies by the same factor each step grows or shrinks by a fixed percentage. Multiplying always overtakes adding in the end.',
     },
 
     slip: {
@@ -2171,7 +2376,7 @@ export default {
     station: {
       name: 'Waystation',
       short: 'Station',
-      what: 'H — raise a waystation: a permanent tower of rising air. Travel between any two of them. It costs one charter, and the motes on the chip.',
+      what: 'H — raise a waystation: a permanent tower of rising air. Travel between any two of them. A waystation costs one charter, and the motes on the chip.',
       gist: 'a permanent tower, and a place you can step to',
     },
     charter: {
@@ -2215,14 +2420,52 @@ export default {
       prove: 'Prove the line',
       watch: 'Stand the watch',
       sound: 'Sound the lattice',
+      /* THE THREE THAT ARE NOT A KEYPAD. Every kind the scheduler could ask for
+         meant "open a rift", so the card had no way to send anybody to the
+         places you solve with your feet — and across fifty-four minutes of
+         measured play nobody opened one. (src/meta/objective.js) */
+      crack: 'Crack the cache',
+      lay: 'Lay the span',
+      climb: 'Reach the mark',
+    },
+
+    /* The places, by their own names. A cache, a span and a survey mark are
+       things you stand in front of, so the word is defined by the thing. */
+    site: {
+      cache: 'Hanging cache',
+      deepcache: 'Deep cache',
+      span: 'Hanging span',
+    },
+
+    /* WHEN THE ONE NUMBER GOES DOWN. It is a posterior, not a ratchet, so it
+       can fall — and it used to fall in silence, which reads as the game taking
+       ground away. Neither line carries a figure: the sentence that explains a
+       number must never be a second reading of it.
+       (src/meta/progress.js `createRepairWatch`) */
+    slip: {
+      line: 'World repaired went down. That miss cost ground on {skill}. Get it right and the ground comes back.',
+      held: 'World repaired went down. {skill} did not come back this time. Work it again and the claim returns.',
     },
 
     metres: '{n} m',
+    /* EIGHT POINTS, NOT FOUR — and every one of them a whole phrase.
+       Four buckets carry a worst case of 45 degrees. At the 88 m that this
+       island puts between two rifts that is 62 m of lateral miss, which is a
+       player who walks a straight line on a true instruction and arrives at the
+       wrong hill. Eight halve it, and the fine instrument is the compass arc
+       above (src/world/afford.js), which is language-free.
+       The distance sits in its own element beside these, tagged as a figure —
+       so no locale has to carry a number inside a bearing.
+       `src/world/bearing.js` owns the bands and names each id. */
     rel: {
-      ahead: 'Ahead',
-      left: 'To your left',
+      ahead: 'Straight ahead',
+      aheadRight: 'Ahead, bearing right',
       right: 'To your right',
-      behind: 'Behind you',
+      backRight: 'Behind you, on the right',
+      behind: 'Turn round',
+      backLeft: 'Behind you, on the left',
+      left: 'To your left',
+      aheadLeft: 'Ahead, bearing left',
       here: 'You are standing in it',
     },
 
@@ -2245,6 +2488,11 @@ export default {
          say what the thing is. `{gist}` is the short form of `kit.<id>.what`,
          carried here by src/meta/objective.js. Name and meaning, one breath. */
       kit: 'Hold it and {name} is yours — {gist}.',
+      /* WHY A PLACE IS WORTH THE WALK. Not a number, and not a promise about
+         the learner: it is the one kind of work in this game that you do with
+         your feet, and the thing it leaves behind stays in the world.
+         (src/meta/objective.js) */
+      field: 'You solve this one with your feet. What it opens stays open.',
       calm: 'Seal it and the surges here stop for good.',
       sound: 'You hold this line. A sounding walks back down it, one harder question at a time.',
     },
@@ -2294,7 +2542,7 @@ export default {
     // -------------------------------------------------------------------
     n: {
       rift: 'That ring is a rift. Walk in and it shows you a statement. Make it true and the hole closes.',
-      surge: 'That ring of light is a rift surge. It knocks motes loose and takes your footing. Jump it.',
+      surge: 'That ring of light is a rift surge. A surge knocks motes loose and takes your footing. Jump it.',
       mote: 'Cipher motes: loose lattice, where the ground bled. Run through them. The foundry buys kit with them.',
       charged: 'Gold motes grew beside an open rift. Each pays three times a pale one. Seal it and the surges stop.',
       husk: 'Husks are veins you emptied. Each lights up again in about five minutes. Range further out.',
@@ -2344,6 +2592,23 @@ export default {
     balanceReset: 'The weights re-form',
     cacheOpen: 'Cache broken open — {n} motes, and the air here rises for good',
 
+    // --- THE MEET (src/world/meet.js): the third kind of off-island place.
+    // A cache is a balance you load with a weight and a span is a plot you
+    // cover. A meet is a plot you WALK: statement one is a rail drawn on the
+    // deck, statement two is a balance that substitutes the cell under your
+    // boots while you move, and the claim is made by stepping off the rail.
+    // Six words on the whole site, and this is all of them.
+    meetLock: 'Crossing lock',
+    // Said once, ever, on the first meet a cadet ever stands on — the wardens'
+    // own pattern (`wardenFan`). It names the verb and the claim and stops.
+    meetFirst: 'Walk the rail. Step off it where the beam is level.',
+    meetNo: 'The beam is not level here',
+    meetReset: 'The rail re-forms',
+    meetOpen: 'Crossing found — {n} motes, and a road runs out from here for good',
+    // The two statements never meet. Finding that out IS the answer, so it
+    // pays the same as a crossing does.
+    meetNone: 'No crossing anywhere — {n} motes, and both rails run on for good',
+
     // --- the spans (src/world/span.js): the second kind of off-island place.
     // A cache is a balance and pays rising air. A span is a rectangle of ground
     // you have to cover, and it pays a road. Every line here is about slabs and
@@ -2362,7 +2627,7 @@ export default {
     wardenFan: 'Run into the correct weight',
     wardenOver: 'Too big by {n}',
     wardenUnder: 'Too small by {n}',
-    wardenBound: 'Warden bound — {n} motes. It is coming apart.',
+    wardenBound: 'Warden bound — {n} motes. The warden is coming apart.',
     deepOpen: 'Deep cache open — {n} motes, and the air here rises for good',
 
     // --- what the world says when you walk up to it (src/world/beckon.js) ---
@@ -2396,7 +2661,7 @@ export default {
     spine: 'The Spine',
     said: {
       reckoning: 'Something here still keeps count. We never learned of what. The air over it rises now — that is a road, and it stays.',
-      ossuary: 'A colony ship, two hundred years down. It is still, technically, on schedule.',
+      ossuary: 'A colony ship, two hundred years down. The ship is still, technically, on schedule.',
       watchtower: 'They watched the gulf from this head of stone. Now you can leave from it.',
       cathedral: 'The grove below is a seedling of this. Everybody should stand under it once.',
       arch: 'The lake leaves the world here. The arch was already old when it started.',
@@ -2410,6 +2675,15 @@ export default {
     toMark: 'Survey mark · {name} — {n} m',
     stay: 'This line is still the best use of your time. Step back onto the plate when you are ready.',
     rhythm: 'A tear gives you a handful of questions, then it settles. Use the gap — there is always something out there worth the walk.',
+    /* THE REPLY AT A SETTLED TEAR (src/session/stint.js bounds an arrival).
+       The key still answers, and it answers with a place. */
+    onwardTear: 'The tear has settled. Next line · {skill} — {n} m',
+    onwardMark: 'The tear has settled. Survey mark · {name} — {n} m',
+    /* THE REPLY AT A SETTLED TEAR (src/session/stint.js spends an arrival).
+       An arrival buys three questions and then the tear settles until the cadet
+       opens another one. The key still answers, and it answers with a place: a
+       refusal that names nowhere is the one defect this project has fixed the
+       most times. */
   },
   // --- the affordance layer (src/world/afford.js): what a rift says it will
   // do, the key that does it, and the bearing to the next one -------------
@@ -2426,6 +2700,14 @@ export default {
     tap: 'Tap',
     next: 'Next rift',
     metres: '{n} m',
+    /* THE WRONG-WAY RULE'S LAST WORD (src/world/afford.js).
+       Said once a session, after the road has rippled back at the cadet for
+       eight seconds and a vein of motes has lit along the correct heading for
+       eight more. It is the third response and there is never a fourth: a
+       player who is deliberately exploring is not lost. Two short sentences,
+       the fact first and the action second, and no scolding — the world has
+       already said this twice without words. */
+    lost: 'The rift is behind you now. Turn round and follow the gold road.',
   },
 
   // ---------------------------------------------------------------------
@@ -2484,7 +2766,7 @@ export default {
      */
     first: {
       seal: 'Rift sealed — the statement is true now, and the hole in the world closes.',
-      assist: 'Sealed with a worked example. It counts. The next one is yours alone.',
+      assist: 'Sealed with a worked example. That seal counts. The next one is yours alone.',
       vein: 'Cipher vein — loose lattice you can run through and keep.',
       cache: 'Hanging cache — a balance you open by standing on the missing weight.',
       anchor: 'Lattice anchor — a fixed point of the proof, hung out of reach on purpose.',
@@ -2492,6 +2774,7 @@ export default {
       bind: 'Warden bound — you ran down the construct and took the weight that made its statement true.',
       deepcache: 'Deep cache — a hanging cache with an unknown on both pans. A warden left it there.',
       span: 'Span — a rectangle of ground in the sky. Cover it exactly, and it pays you a road.',
+      meet: 'Crossing — two statements over one plot. Walk the rail to where the beam goes level, and it pays you a road.',
       surge: 'Rift surge — the ring an open rift throws out. Jump it, or it costs you motes.',
       vault: 'Vault plate set — stand on it and it throws you twelve metres straight up.',
       plate: 'Vault plate bought — a fifth piece for the lattice.',
@@ -2511,6 +2794,7 @@ export default {
       bind: 'Warden bound',
       deepcache: 'Deep cache',
       span: 'Span covered',
+      meet: 'Crossing opened',
       order: 'Mark cleared',
       found: 'Picked up',
       // lost

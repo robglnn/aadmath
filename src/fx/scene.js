@@ -41,7 +41,13 @@ export function conditionScene(scene, {
         // sane authored value alone and tight enough to catch a runaway.
         o.userData.__fxMax = Math.max(12, 1.6 * (o.distance || 30));
         lights.push(o);
-      } else if (o.isHemisphereLight && o.intensity > maxHemi) {
+      } else if (o.isHemisphereLight && !o.userData.deck && o.intensity > maxHemi) {
+        // The cap is for STRAY hemisphere lights — a decorative one somebody
+        // adds and then modulates. The deck (src/world/daylight.js, created in
+        // world.js) is one of the four authored lights of this hour and points
+        // DOWN; capping it against the sky fill would silently undo the only
+        // light in the game that reaches a face pointing at the cloud sea, and
+        // a silent clamp is the kind of thing that costs a wave to find.
         o.intensity = maxHemi;
       }
     });

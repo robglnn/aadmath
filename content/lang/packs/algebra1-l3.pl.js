@@ -28,7 +28,6 @@ export default {
   'l3.ask.shareOnePower': "Zapisz jedną część jako jedną potęgę.",
   'l3.ask.oneExpression': 'Zapisz to jako jedno wyrażenie.',
   'l3.ask.exactValue': 'Jaka jest dokładna wartość?',
-  'l3.ask.whichIsRight': 'Który kadet ma rację?',
   'l3.ask.valueOfF': 'Ile wynosi $f({k})$?',
   'l3.ask.whichInputGives': 'Które wejście daje wyjście ${out}$?',
   'l3.ask.largestOutput': 'Jakie jest największe wyjście?',
@@ -42,7 +41,7 @@ export default {
   'l3.ask.stepAdd': 'Wyjście dodaje tę samą liczbę na każdym kroku. Jaka to liczba?',
   'l3.ask.gapAt': 'Ile to wynosi przy ${v} = {k}$?',
   'l3.ask.startValue': 'Jakie jest wyjście na starcie?',
-  'l3.ask.nextReading': 'Jakie jest wyjście o jeden krok później?',
+  'l3.ask.nextReading': 'Jakie jest wyjście o jeden krok po $f({k})$?',
 
   // -------------------------------------------------------------- wejścia
   'l3.ctx.inputsRun': 'Wejścia to liczby całkowite od {lo} do {hi}.',

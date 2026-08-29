@@ -72,6 +72,21 @@ import {
   GLOSSED, GLOSS_ALLOW, GLOSS_NAMESPACES, GLOSS_MIN,
 } from './lang/rules.mjs';
 import { generate, SKILLS } from '../src/learn/generators.js';
+import { allUnits, loadUnit } from './_courses.mjs';
+import { findings } from './_findings.mjs';
+
+/**
+ * EVERY UNIT THE MANIFEST SHIPS, not just the one `generators.js` registers at
+ * import. `SKILLS` is a live view over the registry, and with no pack loaded it
+ * holds ten skills — so the two item rules below (`stem` and `decoy`) read the
+ * Level 1 bank and reported "language: clean across en/es/pl" while saying
+ * nothing whatever about the other fifty-two skills the manifest ships. A
+ * pack's stems are composed from a pack's own situations and questions, which
+ * is exactly where the forty-word sentence lives.
+ */
+async function loadEveryUnit() {
+  for (const { unit } of await allUnits()) await loadUnit(unit);
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -524,6 +539,53 @@ export const MAX_STEM_WORDS = 25;
  * wrong value is allowed to be an option, and putting it in the prose as well
  * is the defect this rule exists to catch.
  */
+/**
+ * THE OTHER END OF A STATED RANGE.
+ *
+ * A correction to the `decoy` rule, with the evidence for it, because a gate is
+ * not allowed to be softened without one.
+ *
+ * `domain-range/dr-bottom` prints
+ *
+ *     "The inputs are the whole numbers from 1 to 5. What is the smallest
+ *      output?"     over    f(n) = 2n + 3
+ *
+ * The arithmetic uses 1. The 5 is in no latex, no step, no answer and no check
+ * environment, so `mathsNumerals` did not have it and the rule called it "a
+ * numeral the mathematics never uses". It is the top of the stated domain. The
+ * sibling form `dr-top` prints the SAME sentence and asks for the largest
+ * output, and its answer is f(5) — a numeral that decides the answer of the
+ * sibling ask on the same sentence is not scenery, and without it "the smallest
+ * output" is a question about an unbounded set. Four forms, 231 findings across
+ * three locales, every one of them wrong; the rule had never seen them because
+ * it only ever read the ten Level 1 skills.
+ *
+ * The carve-out is deliberately narrow. Both numerals must be the two ends of a
+ * range the prose states outright, and the OTHER end must be one the
+ * mathematics really does use. Two numerals the mathematics ignores are still
+ * two decoys, however they are punctuated — the self-test holds that line.
+ */
+const RANGES = [
+  /(-?\d+)\s+to\s+(-?\d+)/gi,          // en: "from 1 to 5", "between 1 and 5"
+  /(-?\d+)\s+and\s+(-?\d+)/gi,
+  /(-?\d+)\s+a\s+(-?\d+)/gi,           // es: "de 1 a 5"
+  /(-?\d+)\s+y\s+(-?\d+)/gi,
+  /(-?\d+)\s+do\s+(-?\d+)/gi,          // pl: "od 1 do 5"
+];
+function rangePartners(stem, maths) {
+  const out = new Set();
+  for (const re of RANGES) {
+    re.lastIndex = 0;
+    for (const m of String(stem).matchAll(re)) {
+      const a = m[1].replace('-', '');
+      const b = m[2].replace('-', '');
+      if (maths.has(a) && !maths.has(b)) out.add(b);
+      if (maths.has(b) && !maths.has(a)) out.add(a);
+    }
+  }
+  return out;
+}
+
 function mathsNumerals(item) {
   const parts = [item.latex, item.answer, item.check, item.steps, item.table,
     item.rows, item.graph, item.trace, item.given, item.state];
@@ -571,17 +633,36 @@ export function checkItem(item) {
     });
   }
 
-  // A stem that prints the item's own answer is asking the learner to choose
-  // between readings it has stated. Those readings are the question, so the
-  // wrong ones are allowed to be in the prose — and only those.
+  // A stem that QUOTES READINGS is asking the learner to weigh them, and those
+  // readings are the question, so their numerals are allowed in the prose.
+  //
+  // WHICH ITEMS THOSE ARE USED TO BE INFERRED, AND THE INFERENCE WAS THE WRONG
+  // ONE. The test was "does the stem print the item's own answer" — which is
+  // true of a dispute card only because it was handing the answer over, and
+  // `src/learn/generators.js` no longer does that on a free keypad: a surface
+  // with no option set has no baseline but zero, so a sentence that prints the
+  // answer is a card a cadet seals by typing what they just read. 171 route
+  // cards did. The moment that stopped, every one of those stems became two
+  // numerals "the mathematics never uses" and this rule fired on all of them.
+  //
+  // So the item now SAYS what its sentence quotes (`item.quoted`), and that is
+  // read here. The older inference is kept beside it, because the dispute forms
+  // in the preview units still print the answer and this rule is not the gate
+  // that should be telling them so — `npm run check:shape` is, and it does, on
+  // the free-keypad line of its report.
   const maths = mathsNumerals(item);
   const answer = String(item.answer ?? '');
   const statesAnswer = answer !== ''
     && new RegExp(`(?<!\\d)${answer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\d)`).test(stem);
-  const allowed = statesAnswer ? new Set([...maths, ...distractorNumerals(item)]) : maths;
+  const quoted = new Set();
+  for (const q of item.quoted || []) for (const n of String(q).match(/\d+/g) || []) quoted.add(n);
+  const allowed = statesAnswer
+    ? new Set([...maths, ...distractorNumerals(item), ...quoted])
+    : new Set([...maths, ...quoted]);
+  const spare = rangePartners(stem, allowed);
 
   for (const num of stem.match(/\d+/g) || []) {
-    if (allowed.has(num)) continue;
+    if (allowed.has(num) || spare.has(num)) continue;
     found.push({
       rule: 'decoy',
       detail: `the stem says "${num}", and the mathematics never uses it`,
@@ -755,8 +836,46 @@ function selfTest() {
     stem: 'Cadet Iro makes it 23. Cadet Ashe makes it 32. Which reading is true?',
     latex: '3 + 5 \\cdot 4', answer: '23', check: {}, distractors: [{ v: '32' }],
   };
+  /* …and the stated range, in all three languages. The far end of a domain is
+     the reason the question has an answer; see `rangePartners`. */
+  for (const stem of [
+    'The inputs are the whole numbers from 1 to 5. What is the smallest output?',
+    'Las entradas son los números enteros de 1 a 5. ¿Cuál es la salida más pequeña?',
+    'Wejścia to liczby całkowite od 1 do 5. Jakie jest najmniejsze wyjście?',
+  ]) {
+    const RANGE_ITEM = { stem, latex: 'f(n) = 2n + 3', answer: '5', check: { kind: 'evaluate', math: '2n + 3', env: { n: 1 } }, distractors: [] };
+    if (checkItem(RANGE_ITEM).some((f) => f.rule === 'decoy')) {
+      console.error(`SELF-TEST FAIL: the far end of a stated domain was called a decoy: ${stem}`); bad++;
+    }
+  }
+  /* AND THE LINE THAT MUST NOT MOVE: two numerals the mathematics ignores are
+     two decoys, however they are punctuated. If this stops firing, the carve-out
+     above has been widened into a hole. */
+  const FAKE_RANGE = {
+    stem: 'Cadet Rell counts crates from 7 to 9. The manifest says c = 29. What is the expression worth?',
+    latex: '5c', answer: '145', check: { env: { c: 29 } }, distractors: [{ v: '15' }],
+  };
+  if (!checkItem(FAKE_RANGE).some((f) => f.rule === 'decoy')) {
+    console.error('SELF-TEST FAIL: a range whose BOTH ends are scenery went through as a range'); bad++;
+  }
   if (checkItem(CHOICE_ITEM).length) {
     console.error(`SELF-TEST FAIL: stated-candidate item flagged: ${JSON.stringify(checkItem(CHOICE_ITEM))}`); bad++;
+  }
+  /* THE READINGS A CARD QUOTES ARE THE QUESTION — and nothing else is. The
+     first of these declares the two numerals its sentence quotes and must pass
+     even though neither of them is the answer; the second prints the same two
+     numerals and declares nothing, and must still be refused, or the carve-out
+     has become a hole anyone can walk through by putting a number in a stem. */
+  const QUOTED_ITEM = {
+    stem: 'Cadet Iro makes it 23. Cadet Ashe makes it 32. Work out the value.',
+    latex: '3 + 5 \\cdot 4', answer: '19', check: {}, distractors: [{ v: '32' }],
+    quoted: ['23', '32'],
+  };
+  if (checkItem(QUOTED_ITEM).some((f) => f.rule === 'decoy')) {
+    console.error(`SELF-TEST FAIL: a card that DECLARES the two readings it quotes was called a decoy: ${JSON.stringify(checkItem(QUOTED_ITEM))}`); bad++;
+  }
+  if (!checkItem({ ...QUOTED_ITEM, quoted: undefined }).some((f) => f.rule === 'decoy')) {
+    console.error('SELF-TEST FAIL: the same two numerals with nothing declared went through as scenery'); bad++;
   }
   if (bad) { console.error(`\nself-test: ${bad} failure(s)`); process.exit(1); }
   console.log('self-test: ok — every rule fires, and none fires on clean text or a clean item');
@@ -786,6 +905,7 @@ async function main() {
   }
   if (SELF_TEST) return selfTest();
 
+  await loadEveryUnit();
   const B = await bundles();
   const locales = ONLY_LOCALE ? [ONLY_LOCALE] : ['en', 'es', 'pl'];
   const report = {};
@@ -834,11 +954,13 @@ async function main() {
 
   console.log('');
   if (STATS_ONLY) return;
-  if (errors) {
-    console.log(`\x1b[31m${errors} finding(s)\x1b[0m — run with --list=<rule> to see them`);
-    process.exit(1);
-  }
-  console.log(`\x1b[32mlanguage: clean across ${locales.join('/')}\x1b[0m`);
+  if (!errors) console.log(`\x1b[32mlanguage: clean across ${locales.join('/')}\x1b[0m`);
+  /* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This sweeps the
+     bundles and real composed stems in every unit, and the bundles are shared,
+     so a sentence a learner cannot read is one a learner meets. */
+  const F = findings('check:lang', { scope: 'sweep' });
+  if (errors) F.route(`${errors} ASD-STE100 / ELI18 finding(s) across ${locales.join('/')} — run with --list=<rule> to see them`);
+  F.done();
 }
 
 const invokedDirectly = process.argv[1]

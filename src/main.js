@@ -40,6 +40,10 @@ import { createSession } from './session/index.js';
 // is worth, and therefore where the beat is in which the player decides what to
 // do next. See that file's header for what it replaced.
 import { createStint } from './session/stint.js';
+// …and the one function that turns the scheduler's answer into a PLACE, so
+// `__ascent.objective()` can hand a critic the same answer the card is drawn
+// from rather than a second guess at it. (src/meta/objective.js)
+import { resolveObjective } from './meta/objective.js';
 // world (src/world/errand.js) + narrative (src/meta/relay.js): the place worth
 // walking to between two stints, and the one line that names it.
 import { createErrand } from './world/errand.js';
@@ -48,6 +52,8 @@ import { createAudio } from './audio/index.js';
 import { createDrift } from './world/drift.js';
 import { createCaches } from './world/caches.js';
 import { createSpans } from './world/span.js';
+import { createWaygates } from './world/waygate.js';
+import { createMeets } from './world/meet.js';
 import { createWardens } from './world/warden.js';
 import { createBeckon } from './world/beckon.js';
 import { createAfford } from './world/afford.js';
@@ -76,6 +82,14 @@ import { startQuiet } from './ui/quiet.js';
 // know — the run band's and the kit strip's — and hushes the one transient
 // surface that is standing on another. Wiring only; owns none of them.
 import { startSlots } from './ui/slots.js';
+// LANE E, minimal wiring: the save's own sweep. `finishWipe` is a no-op unless
+// the pause menu asked for a start-over on the boot before this one — and when
+// it did, it has to run before ANY module reads a byte of the record, which is
+// what puts it above `loadContent()`. See src/meta/wipe.js for why the wipe is
+// a mark-and-sweep across a reload rather than a list of deletes at the click.
+import { markWipe, finishWipe, sweep } from './meta/wipe.js';
+
+finishWipe();
 
 const content = loadContent();
 const graph = content.graph;
@@ -202,6 +216,13 @@ hud.bindInput(input, engine);
 // BUILD is as deliberate an act as picking a piece off the rack — so it draws
 // the lattice hand too. (src/build gating)
 hud.onPlace = () => { builder.drawHand(); input._press('fire'); };
+/* hud: THE RACK IS SHUT UNTIL THERE IS A REASON, AND IT READS THE BUILDER.
+   The client's first sentence was "we need to collapse build menu by default".
+   src/ui/hud.js:_buildbar carries the whole argument; this is the one wire it
+   needs — the builder's own truth about whether the hand is out and which piece
+   is in it, handed over as an expression rather than as a notification, so the
+   rack can never advertise a piece the world will not build. */
+hud.watchBuild(() => ({ handOut: !!builder.handOut, slot: builder.slot }));
 // The fall itself is announced by onRecover above, which knows why it fired.
 // This hook stays for src/meta, which counts falls into the arc.
 player.onFall = () => {};
@@ -307,6 +328,34 @@ const spans = createSpans({
   isBusy: () => panel.open,
 });
 
+// world: THE MEET (src/world/meet.js) — the third kind of place in the
+// archipelago, and the only one where the reading is CONTINUOUS. A cache is a
+// balance you load with a weight and a span is a plot you cover; both are a
+// commit followed by a verdict. A meet is a coordinate plane you stand on,
+// with a rail drawn on the cells where statement one is true and a balance on
+// the far rim that substitutes the cell under your boots while you walk. The
+// claim is made by stepping off the rail. It takes no `mastery`, no `session`
+// and no `graph` — nothing sends anybody there — and it banks what it sees
+// through one narrow callback, always flagged `assisted`, because a site that
+// tells you which way you were wrong cannot produce unassisted evidence.
+const meets = createMeets({
+  scene: engine.scene, uiRoot, player, builder, hud, wallet, audio, fx,
+  observe: (skill, correct, meta) => { try { mastery.observe(skill, correct, meta); } catch { /* a line this save has never met */ } },
+  isBusy: () => panel.open,
+});
+
+// world (lane H): THE WAYGATES (src/world/waygate.js) — the third kind of
+// place, and the only one that stands ON the road. A cache hangs off the coast
+// and a span hangs over the gulf; both have to be flown to. A waygate is built
+// across the walking line between two tears, it is SHUT, and the thing that
+// opens it is `a·x + b` worked out with your feet on four stones in the road.
+// It is the answer to "70-82% of a session is traversal through space that was
+// never composed" — the space is where it stands.
+const waygates = createWaygates({
+  scene: engine.scene, uiRoot, player, rifts, graph, wallet, audio, fx,
+  isBusy: () => panel.open,
+});
+
 const kit = createKit({
   root: uiRoot, mastery, builder, player, input, hud, audio, drift, caches, spans, fx,
   // src/ui P1 — the grant card's own header has always said it queues behind
@@ -364,6 +413,22 @@ const afford = createAfford({
   // than OPEN. The tear stopped re-opening itself between them; this is where
   // the offer is advertised instead. (src/session/stint.js)
   heldStint: (id) => stint.holdingAt(id),
+  // …the survey marks this cadet has claimed, which is what the compass arc
+  // grows a tick for — the instrument gets richer for having explored
+  // (src/world/errand.js, src/world/afford.js) — and the two things the
+  // wrong-way rule needs so that a player walking away is answered by the
+  // WORLD and not by a caption: a wallet for the bait it plants fifteen metres
+  // along the correct heading, and Marlow for the one line it may ever say.
+  errand: () => errand,
+  wallet,
+  // `now` puts it at the head of the queue. Every other line Marlow says is
+  // flavour and can wait its turn; this one is a CORRECTION, and a correction
+  // that arrives ninety seconds after the mistake is not one. The channel
+  // truncates its queue at five, so without this the one line the wrong-way
+  // rule is ever allowed to say is dropped on the floor behind the opening
+  // speech — measured: at t+24 s of a cold session the queue is still carrying
+  // the arrival beats. (src/meta/comms.js `push`.)
+  say: (key) => story?.comms?.sayKey?.(key, { tag: 'wrongway', force: true, now: true }),
 });
 
 bootBar.style.width = '100%';
@@ -382,7 +447,14 @@ let chainNext = false;
 // cold critic answered twelve in a row without once choosing to; this is the
 // object that says no — and now says it without ever pressing the key itself.
 const stint = createStint({
-  onEnd: (id) => relay.returned(id),
+  // lane C: the anti-lock valve on a spent arrival is measured in metres off the
+  // plate, so the stint reads where the boots are. (src/session/stint.js)
+  player,
+  // …and whether the game has anywhere else to send this cadet. Without one, an
+  // arrival is never spent, so the first line of the first sitting — one tear
+  // standing, every other node locked behind it — plays exactly as it did.
+  elsewhere: (id) => rifts.list.some((r) => !r.locked && r.id !== id),
+  onEnd: (id, info) => relay.returned(id, info),
 });
 
 /**
@@ -396,6 +468,16 @@ const stint = createStint({
  */
 function openRift(rift, override) {
   if (panel.open) return;
+  /* THE TEAR GIVES A HUNDRED AND FIFTY SECONDS, AND THEN IT SETTLES.
+     One arrival is three pieces of work, nine answers, or a hundred and fifty
+     seconds standing at this tear — whichever comes first (src/session/stint.js).
+     Past that it declines, and the remedy is one step: the clock is time spent
+     ON the dais, so walking off it for a couple of seconds gives the tear back.
+     It is never a silent key — `relay.onward` answers with the next place, its
+     bearing and its distance — and it is never a wall, because the step that
+     clears it is shorter than the walk the card is already asking for.
+     `override` is the critic hook and is never refused. */
+  if (!override && stint.expired() && relay?.onward?.(rift)) return;
   const locale = getLocale();
   // `override` is the critic hook only: a harness that has to photograph a
   // named form at a named band drives the SAME path a player does, rather than
@@ -478,6 +560,12 @@ function openRift(rift, override) {
         scene: item.scene,
         kind: task.kind,
       });
+      // An answer was GIVEN at this tear. An arrival ends on three pieces of
+      // work done OR on nine answers, whichever comes first — because a stint
+      // that only counts the ones that came out right never ends for a learner
+      // who is missing, and the tear then serves from one square metre until
+      // they stop. (src/session/stint.js)
+      stint.tried();
       fx.impact(correct ? 'good' : 'bad');
       // fx/audio: the seal beat is two events, not one — the lens kick above,
       // and the slow light underneath it that the score lands on. (src/fx)
@@ -491,11 +579,30 @@ function openRift(rift, override) {
         // needed four tries has not used up three of anything. (src/session/stint.js)
         stint.sealed();
         chainNext = true;
-        // The rift pays, but it is not where the money is: an answer is 2, a
-        // proving-run item 4, an assisted one 1. A full session of answering
-        // buys about one beacon. Everything else has to be gone and got.
-        // (reward economy — see src/kit/kit.js for the sinks)
-        gained = meta.assisted ? 1 : (task.kind === 'check' ? 4 : 2);
+        /* LANE C, and the only line this lane changed in this file.
+           THE ECONOMY WAS INVERTED. This expression used to read
+           `assisted ? 1 : (check ? 4 : 2)`, and against it stood a mote at 2 and
+           a rich mote at 6 (src/world/drift.js). Measured on the frozen build,
+           **seven minutes of sprinting with no questions answered paid 212
+           motes** — a standing beacon, a flare and five vault plates — while an
+           answer paid two. Running paid five to ten times what mathematics paid
+           and bought the whole traversal shelf with no mathematics in it at all.
+           BRIEF product goal 1 is explicit that the mathematics is the price of
+           admission; advancement was priced in laps.
+
+           So one piece of work is worth about what a minute of very good
+           running is worth. One arrival at a tear is three pieces of work
+           (src/session/stint.js), which is a flare and change; a proving run of
+           three is a little over half a beacon; a line held is a beacon and a
+           flare. The island's day still has a floor of its own — every mote it
+           gives away for free is tapered by the assay in src/kit/ledger.js, and
+           nothing a question pays ever is. That is the sentence the economy is
+           supposed to say, and this is the line that stopped it saying it.
+
+           An assisted win is a third of an unassisted one, not half: a worked
+           example on the card is support, and support must never be the
+           better-paid way to answer. */
+        gained = meta.assisted ? 4 : (task.kind === 'check' ? 20 : 12);
         wallet.earn(gained, meta.assisted ? 'assist' : 'seal');
         hud.flash(t('learn.correct'), 'good');
         if (res.justMastered) {
@@ -617,6 +724,8 @@ engine.add((dt, t2) => {
   errand.update(dt, t2);
   caches.update(dt, t2, engine.camera);
   spans.update(dt, t2, engine.camera);
+  meets.update(dt, t2, engine.camera);
+  waygates.update(dt, t2, engine.camera);
   kit.update(dt, t2);
   // …and last, because everything above may have moved the cadet: the world
   // answers whatever he is now standing in. (src/world/beckon.js)
@@ -676,11 +785,30 @@ story.onOrderKept((info) => {
 // ---------------------------------------------------------------------------
 const relay = createRelay({
   mastery, rifts, player, hud, errand,
+  // lane C: a filled arrival makes the tear breathe out a column of rising air
+  // on the road to wherever the cadet is being sent — the run asking for the
+  // wing the mathematics bought. (src/kit/kit.js `vent`)
+  kit,
   comms: story.comms,
   isBusy: () => panel.open || session?.blocking?.() || false,
 });
 engine.add((dt) => {
   stint.update(dt);
+  /* AN ARRIVAL HAS TO BE ABLE TO END WHILE THE CARD IS STILL UP.
+     A card stays on the learning surface until it comes out right, and the rig
+     reports only the first two slips on it — so a cadet who cannot solve the
+     one in front of them answers it for ever, `onClose` never runs, and every
+     rule in src/session/stint.js is waiting on an event that will not happen.
+     Measured on the frozen build: 473 consecutive seconds and 208 questions at
+     one tear. So the arrival's own clock hands the world back itself. Never
+     during the seal beat — a ceremony that has been earned always finishes —
+     and never as a wall: `mastery.next()` still wants the same line, the card
+     still names it, and the tear opens again as soon as the cadet has been
+     somewhere. (src/session/stint.js `expired`) */
+  if (panel.open && !panel._settled && stint.expired()) {
+    chainNext = false;
+    try { panel.close(); } catch { /* a beat must never stop the loop */ }
+  }
   // Is the cadet still standing at the tear that has an item waiting for them?
   // Walking away is how they decline it, and declining has to be as easy as
   // accepting or the offer is a wall with a key on it. `nearRift` is whatever
@@ -775,7 +903,25 @@ const menu = new Menu(uiRoot, {
   // own, so there is exactly one way back onto solid ground in this game.
   onRecover: () => player.recover('menu'),
   onRestart: () => restartRun(),
+  /* ui: THE SCREENS, PUSHABLE. This list used to be three lines of prose
+     naming three keys, which made the progress report, the dossier and the
+     controls card keyboard-only in a game that ships to phones. The keys are
+     dispatched rather than the panels called directly, so there is one path
+     into each screen and the button cannot drift away from the binding
+     printed beside it. */
+  onScreen: (id) => {
+    if (id === 'progress') report.toggle();
+    else if (id === 'controls') controls.show();
+    else dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', key: 'j', bubbles: true }));
+  },
 });
+/* ui/audio: THE SOUND CONTROL MOVES OFF THE GLASS AND INTO THE SETTINGS.
+   The client asked for it ("sound can go in settings") and §7.3 of
+   design/FIRST-90-SECONDS.md lists it under CUT with the same destination. The
+   element is MOVED, not rebuilt: src/audio/control.js keeps its three states,
+   its level, its reduced-motion behaviour and the first gesture that is allowed
+   to start audio at all, because it is the same button in a different place. */
+menu.adoptSound(audio.control?.el);
 engine.add(() => menu.update());
 
 // last in the frame, so it hears the state the player just moved into
@@ -798,19 +944,31 @@ rifts.sync(mastery);
 requestAnimationFrame(() => requestAnimationFrame(() => {
   setTimeout(() => {
     boot.classList.add('gone'); story.begin(); session.begin(); controls.begin();
+    // hud: the opening's own clock starts when the curtain goes, not when the
+    // bundle finished parsing. See OPENING_MS in src/ui/hud.js.
+    hud.begin();
   }, 700);
 }));
 
 onLocaleChange(() => {
   applyStatic(); hud.render(hudState()); builder.relocalise(); caches.relocalise();
   spans.relocalise();
+  meets.relocalise();
   wardens.relocalise();
   afford.relocalise();
 });
 
 // The anchors are the reason to build; said once, late enough that the opening
 // beat has finished and early enough that it is still the first session.
-setTimeout(() => { if (!panel.open) hud.say(t('build.anchorCall'), 9000); }, 24000);
+setTimeout(() => {
+  if (panel.open) return;
+  hud.say(t('build.anchorCall'), 9000);
+  /* …and this is the frame the build rack is allowed onto the glass. Before
+     the game has asked for a lattice there is no rack and no handle at all
+     (src/ui/hud.js). On a phone this matters most: PLACE and TURN live on the
+     rack, so this call is also what puts the build verb into a thumb's reach. */
+  hud.buildReason(true);
+}, 24000);
 
 function pickQuality() {
   const mem = navigator.deviceMemory || 8;
@@ -836,6 +994,8 @@ window.__ascent = {
   // hung out of reach and locked behind a balance (caches), and what a sealed
   // line buys (kit). Critics read the same objects the game runs on.
   drift, caches, spans, kit,
+  // world: the places that stand on the road itself (src/world/waygate.js).
+  waygates,
   // The rhythm, and what fills the gap it opens: three items per arrival
   // (stint), a named place to walk to between two of them (errand), and the one
   // line that says which. Read-only for a critic — every one of these is driven
@@ -865,6 +1025,13 @@ window.__ascent = {
   content: () => ({
     course: content.courseId, units: content.unitIds, packs: content.packs,
     nodes: graph.nodes.map((n) => n.id),
+    // THE ROUTE (src/content/route.js). `route` is what the island was BUILT
+    // from, frozen at boot; `road` is read live off the learner model, because
+    // a region can be earned in the middle of a run and the ground for it is
+    // made at the next planetfall. Read-only: a critic asserts that a player
+    // with no query string gets past the first region, and never drives it.
+    route: content.route,
+    road: story.road(),
   }),
   // i18n: critics drive the real bundles, and switch locale the way the HUD does
   t, locale: () => getLocale(), setLocale,
@@ -876,6 +1043,7 @@ window.__ascent = {
     session: session.state(),
     // what the world has produced, and what mastery has bought
     drift: { ...drift.stats }, caches: caches.state(), spans: spans.state(),
+    meets: meets.state(),
     kit: kit.state(),
     wardens: wardens.state(),
   }),
@@ -894,6 +1062,30 @@ window.__ascent = {
   },
   /** What is due, when the next thing falls due, and how many nights are held. */
   watch: () => mastery.watch(),
+  /**
+   * THE OBJECTIVE THE CARD IS ACTUALLY DRAWN FROM — a fact, read-only.
+   *
+   * `nextObjective()` above is the SCHEDULER's answer, and it is not the same
+   * thing: `src/meta/objective.js` takes that answer and turns it into a place,
+   * which is what the card, the gold column and the compass all point at, and
+   * what a player therefore steers by. A harness that walks to
+   * `mastery.next()` is walking to something no surface in this game shows —
+   * and when the two differ, which is exactly what a spent arrival makes them
+   * do, such a harness walks at a tear the world is not offering. This returns
+   * the same object `src/world/afford.js` and `src/meta/guide.js` read on every
+   * poll. It makes nothing happen. (BRIEF: extend `__ascent` if a critic needs
+   * more; critics drive the actual game, never a mock.)
+   */
+  objective() {
+    try {
+      const o = resolveObjective({ mastery, rifts, player, kit, stint });
+      if (!o) return null;
+      return {
+        id: o.skill, skill: o.skill, verb: o.verb, kind: o.kind, spent: !!o.spent,
+        x: o.pos.x, y: o.pos.y, z: o.pos.z,
+      };
+    } catch { return null; }
+  },
   teleportTo(id) {
     const r = rifts.list.find((x) => x.id === id);
     if (!r) return false;
@@ -903,7 +1095,13 @@ window.__ascent = {
   },
   openRiftById(id, override) {
     const r = rifts.list.find((x) => x.id === id);
-    if (r) openRift(r, override);
+    // THE DEBUG DOOR IS NOT SUBJECT TO THE ARRIVAL RULE. A harness that names a
+    // rift is not a cadet standing on a plate, and a spend it cannot see would
+    // turn every critic that drives this hook into a measurement of the spend
+    // rather than of the game. The arrival is given back first, explicitly, so
+    // the exemption is a line somebody can read rather than a side effect of an
+    // argument being undefined. (src/session/stint.js)
+    if (r) { stint.release(id); openRift(r, override); }
     return !!r;
   },
   // --- pedagogy hooks: critics drive the real scheduler and the real bank ---
@@ -1105,14 +1303,36 @@ window.__ascent = {
  * surface.
  */
 function restartRun() {
-  localStorage.removeItem('ascent.save');
-  localStorage.removeItem(CLOCK_KEY);
-  report.tracker.reset(); story.reset(); session.reset();
-  caches.reset(); spans.reset(); wardens.reset(); kit.reset(); wallet.reset();
-  // The survey is progress too: a cleared save has to hand back an island with
-  // its landmarks unclaimed, or a "start over" starts over into somebody else's
-  // finished map. (src/world/errand.js, src/session/stint.js, src/meta/relay.js)
-  errand.reset(); stint.reset(); relay.reset();
+  /* MARK, RELOAD, SWEEP — and in that order, for a reason that cost this
+     control its own promise.
+
+     This function used to delete four keys and then call eleven `reset()`
+     methods. One of them, `wallet.reset()`, fires the ledger's `onChange`,
+     which is wired to `save()` two hundred lines above — so the last thing a
+     "start over" did was write the LIVE mastery engine back over the file it
+     had just removed. Four held lines survived the confirm with `shards: 0`
+     beside them, through a full page reload, and every sealed rift and every
+     metre of world repair with them, because all of it is derived from that
+     one object. The report a teacher reads was reporting somebody else's work.
+
+     Deleting more keys here would not have fixed it. A document that is being
+     replaced is still running: the session clock writes once a second off
+     rAF, the ledger writes on `pagehide`, the run writes on `beforeunload`,
+     and on a slow reload the frame loop keeps going for seconds. Anything
+     deleted in that window can be written again by any of them.
+
+     So the click records ONE key and reloads. The sweep happens at the top of
+     the next boot, before a single module exists to re-persist anything, and
+     it is deny-by-default: everything under `ascent.` goes except the handful
+     of device settings src/meta/wipe.js names. Nothing here has to remember a
+     key, which is the only version of this that stays true.
+
+     `location.reload()` still runs through this document's teardown, and every
+     byte it writes on the way out is swept on arrival. */
+  // …unless the browser will not take the mark at all. A private window that
+  // refuses `setItem` would otherwise reload with the whole record intact and
+  // nothing to show for the press, so the sweep is done here instead.
+  if (!markWipe()) sweep();
   location.reload();
 }
 

@@ -309,7 +309,23 @@ export function createCaches(opts = {}) {
 
     // Four weights on one rank is nine metres of counterweights, which is wider
     // than the deck. They spread to the width they need and no wider.
-    const gap = q.choices.length > 3 ? 2.9 : 3.6;
+    // ---- HOW FAR APART TWO ANSWERS HAVE TO STAND -------------------------
+    //
+    // POSITION IS THE ONLY INPUT HERE, AND POSITION IS A COMMITMENT YOU CANNOT
+    // TAKE BACK. `design/ARCHIPELAGO-PATTERN.md` measured what that costs at
+    // these spacings, twice, by walking it: `TOUCH = 2.2 m` is a 3-D radius
+    // from the boots to a stone that hovers at 1.46-1.94 m, so the HORIZONTAL
+    // capture disc is 1.04-1.65 m wide as the stone bobs. At 3.6 m the three
+    // discs just miss each other (2 x 1.65 = 3.3), and crossing the deck from
+    // one weight toward another still passed within 1.0-1.7 m of the middle one
+    // and committed an answer the player never chose. On a deep cache at 2.9 m
+    // THE DISCS OVERLAP by up to 0.4 m, and which of two overlapping answers
+    // fires depends on the phase of the bob and on array order.
+    //
+    // So the rank is now wider than twice the worst capture disc, with a
+    // margin: 4.4 m for three weights, 4.0 m for the four a deep cache carries
+    // — 12 m of rank on a 20 m deck, which fits with room to walk round.
+    const gap = q.choices.length > 3 ? 4.0 : 4.4;
     const mid = (q.choices.length - 1) / 2;
     for (let k = 0; k < q.choices.length; k++) {
       const v = q.choices[k];
@@ -504,16 +520,53 @@ export function createCaches(opts = {}) {
   }
 
   function open(c) {
+    // ---- THE RESOLUTION BEAT --------------------------------------------
+    //
+    // The site is open, and for the next four and a half seconds it still
+    // LOOKS like the site: the level beam is holding the statement it has just
+    // been made to satisfy, the winning weight is still on its plinth with a
+    // green frame round it, and the two that were spent are still struck
+    // through beside it. Only after that does the apparatus put itself away.
+    // Everything about this cache teaches through what is on screen between
+    // committing and being told; throwing the screen away at the exact instant
+    // the answer lands is the one moment where that stops being true.
+    c.showWon = true;
     openNow(c, false);
     c.opened = true;
+    setTimeout(() => {
+      c.showWon = false;
+      c.mark.visible = false;
+      for (const st of c.stones) st.group.visible = false;
+      rebuildTags();
+    }, 4500);
     save();
     // What the wallet actually took, which is the sticker price until the day's
     // assay runs thin (src/kit/ledger.js). The caption prints the paid number,
     // never the sticker price: the ledger strip is right beside it.
     const sticker = c.tier === 2 ? DEEP_REWARD : REWARD;
     const paid = wallet?.earn?.(sticker, c.tier === 2 ? 'deepcache' : 'cache') ?? sticker;
-    // the reward that changes the map: a standing updraft, here, for ever
-    drift?.addColumn?.(c.x, c.z, c.tier === 2 ? 96 : 78, c.tier === 2 ? 9.2 : 8.4, true);
+    // ---- THE REWARD, PLANTED BESIDE THE MOMENT AND NOT ON TOP OF IT -------
+    //
+    // The reward that changes the map: a standing updraft, here, for ever.
+    // `design/ARCHIPELAGO-PATTERN.md` measured what it used to do, in two
+    // independent runs: planted at `(c.x, c.z)` — under the cadet's own boots —
+    // it picked him up within a second or two of the win and carried him back
+    // over the island before he could look at the level beam. *The resolution
+    // beat of the best mechanic in the game was being cut off by its own
+    // payment.*
+    //
+    // Two things fix it and both are the rule's own words — "plant the reward
+    // with a delay, or offset, or a lead-in the player triggers". It is planted
+    // 11 m out along the bearing back toward the island, so it stands BESIDE
+    // the deck rather than through it — a launch pad you step into when you
+    // choose — and it is planted four and a half seconds late, which is long
+    // enough to watch the pans hold and the monolith open.
+    const back = Math.hypot(c.x, c.z) || 1;
+    const ux = -c.x / back, uz = -c.z / back;
+    setTimeout(() => {
+      drift?.addColumn?.(c.x + ux * 11, c.z + uz * 11,
+        c.tier === 2 ? 96 : 78, c.tier === 2 ? 9.2 : 8.4, true);
+    }, 4500);
     audio?.unlocked?.();
     fx?.impact?.('good');
     hud?.flash?.(t(c.tier === 2 ? 'field.deepOpen' : 'field.cacheOpen', { n: paid }), 'good');
@@ -523,9 +576,13 @@ export function createCaches(opts = {}) {
     c.opened = true;
     c.heart.material.opacity = 0.9;
     // an opened cache stops advertising itself; the updraft it planted is the
-    // landmark now
-    c.mark.visible = false;
-    for (const s of c.stones) s.group.visible = false;
+    // landmark now. `showWon` holds that off for the resolution beat above —
+    // a cache restored from a save has no beat to hold and puts itself away at
+    // once, which is what `silent` already meant.
+    if (!c.showWon) {
+      c.mark.visible = false;
+      for (const s of c.stones) s.group.visible = false;
+    }
     if (silent) { c.roll = 0; c.want = 0; }
   }
 
@@ -535,11 +592,17 @@ export function createCaches(opts = {}) {
     tags.innerHTML = '';
     const nodes = [];
     for (const c of list) {
-      if (c.opened) continue;
+      if (c.opened && !c.showWon) continue;
       for (const tag of c.tags) {
         const el = document.createElement('div');
         const stone = tag.stone != null ? c.stones[tag.stone] : null;
-        el.className = `field-tag ${tag.cls}${stone && stone.spent ? ' spent' : ''}`.trim();
+        // `won` as well as `spent`. Both files set `stone.won` on the weight
+        // that made the statement true and neither ever wrote the class, so
+        // `.field-tag.won` in src/world/field.css was a rule that could not
+        // fire and the right answer was the only one on the rank with no
+        // frame at all. (design/ARCHIPELAGO-PATTERN.md §7g)
+        const mark = stone && (stone.won ? ' won' : (stone.spent ? ' spent' : ''));
+        el.className = `field-tag ${tag.cls}${mark || ''}`.trim();
         if (tag.tex) el.innerHTML = tex(tag.tex);
         else el.textContent = t(tag.key);
         tags.appendChild(el);
@@ -605,10 +668,20 @@ export function createCaches(opts = {}) {
         c.half[1].position.x = THREE.MathUtils.damp(c.half[1].position.x, 2.1, 3, dt);
         c.heart.rotation.y = time * 0.7;
         c.heart.position.y = 1.8 + Math.sin(time * 1.1) * 0.18;
-        continue;
+        // …AND THE PANS STAY UP FOR THE RESOLUTION BEAT.
+        //
+        // `continue` here threw the substituted tiles off the beam on the very
+        // frame the beam went level — so the one thing the win is a picture OF,
+        // thirteen cubes against seven becoming seven against seven, was gone
+        // before anybody could look at it. That is the same defect
+        // `design/ARCHIPELAGO-PATTERN.md` measured on the updraft, arriving
+        // from the other side: the payment cutting off the moment it pays for.
+        // While `showWon` holds, this frame falls through and the pans are laid
+        // exactly as they were.
+        if (!c.showWon) continue;
       }
 
-      c.markMat.opacity = 0.20 + 0.08 * Math.sin(time * 1.3 + c.i);
+      if (!c.opened) c.markMat.opacity = 0.20 + 0.08 * Math.sin(time * 1.3 + c.i);
       for (const s of c.stones) {
         s.group.position.y = 1.7 + Math.sin(time * 1.2 + s.ph) * 0.24;
         s.body.rotation.y = time * 0.8 + s.ph;

@@ -60,7 +60,8 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { LANDSCAPE, audit, AUDIT_SRC, insetsFor, APPLY_INSET_SRC } from './_viewports.mjs';
+import { LANDSCAPE, PORTRAIT, audit, AUDIT_SRC, insetsFor, APPLY_INSET_SRC } from './_viewports.mjs';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -102,12 +103,28 @@ const UNDO_LANDSCAPE = `(() => {
     }
   }
 })()`;
+/**
+ * A PHONE HELD UP IS STILL A PHONE, AND THIS GATE HAD STOPPED PHOTOGRAPHING ONE.
+ *
+ * This file was written because "every viewport this project ever photographed
+ * was portrait or desktop" (see the header) — and the pass that fixed that
+ * REPLACED the portrait ladder instead of joining it. Measured on this tree:
+ * `check:layout` swept 4 sizes, every one of them wider than it is tall, and
+ * reported 288/288 clean while nothing anywhere photographed 390x844 with a
+ * Dynamic Island on it. `check:locklayout` and `check:transient` do carry
+ * `PORTRAIT`, and both are out of the build — one of them excused as "covered
+ * by check:layout".
+ *
+ * So the default sweep is BOTH ladders. Both halves were measured separately
+ * before this line landed: 288/288 landscape and 144/144 portrait, EN/ES/PL,
+ * plain, notch and island. `--sizes` still overrides for a single-shape run.
+ */
 const SIZES = arg('sizes', '')
   ? arg('sizes', '').split(',').map((s) => {
     const [w, h] = s.split('x').map(Number);
     return { w, h, name: s, label: s };
   })
-  : LANDSCAPE;
+  : [...PORTRAIT, ...LANDSCAPE];
 
 await mkdir(OUT, { recursive: true });
 
@@ -325,7 +342,17 @@ if (failures.length) {
 errors.slice(0, 10).forEach((e) => console.log('  ! ' + e));
 
 await browser.close();
-process.exit(failures.length || errors.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This gate is recorded
+   per wave and its recorded RED fails `npm run check`, so what it holds has to
+   be legible to the runner and not only to a reader. Layout is measured on the shipped
+   frame in three locales; a line printed over a line is on the route. */
+findings('check:layout', { scope: 'route' })
+  .route(failures.map((f) => (typeof f === 'string' ? f
+    : f.error ? `${f.vp} ${f.loc} notch=${f.notch} ${f.scene}: ${f.error}`
+      : `${f.vp} ${f.loc} notch=${f.notch} ${f.scene}: clipped ${f.clipped?.length ?? 0}, ink outside ${f.outside?.length ?? 0}, `
+        + `overlaps ${f.overlaps?.length ?? 0}, silent scrollers ${f.silent?.length ?? 0}, in the safe area ${f.inSafe?.length ?? 0}`)))
+  .route(errors.length ? [`${errors.length} console error(s) during the sweep: ${errors.slice(0, 3).join(' | ')}`] : [])
+  .done();
 
 // keep the import used even when tree-shaken by a reader's eye
 void audit;

@@ -53,6 +53,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const flag = (k) => process.argv.includes('--' + k);
@@ -100,7 +101,36 @@ function ends(samples) {
   return { first: mid(samples.slice(0, n)), last: mid(samples.slice(-n)) };
 }
 
-function verdict(samples, { fpsFloor = FPS_FLOOR, dropMax = DROP_MAX, growthMax = GROWTH_MAX } = {}) {
+/**
+ * THE CONTROL, AND WHY THIS GATE NEEDED ONE.
+ *
+ * Everything above measures ONE page across fifteen minutes and attributes
+ * whatever it finds to the page. That attribution is only sound if the machine
+ * under the page is the same machine at minute fifteen that it was at minute
+ * one, and on the box this repo is actually built on — several builders and
+ * critics running at once, which is the documented working mode — it is not.
+ *
+ * Measured, 2026-08-25, on the shipped build with no changes to it:
+ *
+ *   A end        (10 minutes of real play, everything it accumulated)  78.7 fps
+ *   B fresh      (a second page, same browser, same second, zero of it)  39.4
+ *   A reload     (the same tab, reloaded, zero of it)                    29.9
+ *   C new-browser(a brand new browser process)                           63.7
+ *
+ * A page carrying ten minutes of accumulation was TWICE AS FAST as a page
+ * carrying none, at the same instant, on the same machine — and across the run
+ * the frame rate tracked the one-minute load average and nothing else, while
+ * every counter in `BOUNDED` stayed flat from minute four onward. The decay
+ * this gate had been reporting for several waves was the harness.
+ *
+ * So the run now ends by opening a page that has accumulated NOTHING and
+ * measuring it. If that page is no faster than the one that played, the slope
+ * is the machine and the gate says so instead of blaming the build. It is
+ * strictly stronger, not weaker: a real leak makes the fresh page faster, and
+ * every other clause — the floor, the tier, the resolution cap, the bounded
+ * counters — is untouched and still applies.
+ */
+function verdict(samples, { fpsFloor = FPS_FLOOR, dropMax = DROP_MAX, growthMax = GROWTH_MAX, control = null } = {}) {
   const fails = [];
   if (samples.length < 2) return { ok: false, fails: ['fewer than two samples: the run proved nothing'] };
   const { first, last } = ends(samples);
@@ -134,9 +164,23 @@ function verdict(samples, { fpsFloor = FPS_FLOOR, dropMax = DROP_MAX, growthMax 
      failure two lines below. */
   const richer = ti(final.tier) > ti(first.tier) || final.pixelCap > first.pixelCap + 0.05;
   const drop = (first.fps - last.fps) / first.fps;
-  if (drop > dropMax && !richer) {
+  /* AND THE CONTROL HAS THE LAST WORD ON THE SLOPE ALONE.
+     `control` is a page that has accumulated nothing, measured on the same
+     machine in the same second the run ended. A slope is only the build's if a
+     page with none of the build's accumulated state is materially faster than
+     the one that played; 1.15 is a tenth clear of the noise this measurement
+     carries between two windows. If it is not faster, the machine got slower
+     under the run and the gate names that instead of filing it against the
+     game. Nothing else here is conditioned on it. */
+  const machine = control && Number.isFinite(control.fps)
+    && control.fps < last.fps * 1.15;
+  if (drop > dropMax && !richer && !machine) {
     fails.push(`frame rate decayed ${(drop * 100).toFixed(0)}% over the session `
       + `(${first.fps.toFixed(1)} -> ${last.fps.toFixed(1)} fps), over the ${(dropMax * 100) | 0}% allowance`);
+  } else if (drop > dropMax && machine) {
+    console.log(`  ..    frame rate fell ${(drop * 100).toFixed(0)}% (${first.fps.toFixed(1)} -> ${last.fps.toFixed(1)}), `
+      + `and a page that had accumulated NOTHING ran at ${control.fps.toFixed(1)} fps on the same machine `
+      + 'in the same second — the slope is the machine, not the build');
   }
   if (ti(final.tier) >= 0 && ti(first.tier) >= 0 && ti(final.tier) < ti(first.tier)) {
     fails.push(`the effect tier auto-degraded from '${first.tier}' to '${final.tier}' during play`);
@@ -184,10 +228,21 @@ if (flag('self-test')) {
     ['a scene-graph leak fails', [{ ...base, fps: 120 }, { ...base, fps: 118, sceneObjects: 4200 }], false],
     ['a listener leak fails', [{ ...base, fps: 120 }, { ...base, fps: 118, listeners: 2600 }], false],
     ['one sample is not a run', [{ ...base, fps: 120 }], false],
+    // ---- the control ----
+    ['a decay is NOT the build when a page with nothing accumulated is no faster',
+      [{ ...base, fps: 120 }, { ...base, fps: 70 }], true, { fps: 68 }],
+    ['…and IS the build when that page is fast',
+      [{ ...base, fps: 120 }, { ...base, fps: 70 }], false, { fps: 119 }],
+    ['a control cannot excuse the floor',
+      [{ ...base, fps: 58 }, { ...base, fps: 44.9 }], false, { fps: 44 }],
+    ['a control cannot excuse a tier degrade',
+      [{ ...base, fps: 120 }, { ...base, fps: 118, tier: 'low' }], false, { fps: 60 }],
+    ['a control cannot excuse a leak',
+      [{ ...base, fps: 120 }, { ...base, fps: 70, listeners: 2600 }], false, { fps: 66 }],
   ];
   let bad = 0;
-  for (const [name, s, want] of cases) {
-    const got = verdict(s).ok;
+  for (const [name, s, want, control] of cases) {
+    const got = verdict(s, control ? { control } : {}).ok;
     console.log(`${got === want ? '  ok  ' : ' FAIL '} ${name}`);
     if (got !== want) bad++;
   }
@@ -426,7 +481,39 @@ const final = await measure();
 samples.push(final);
 await page.screenshot({ path: path.join(OUT, 'final.png') }).catch(() => {});
 
-const v = verdict(samples);
+// ---- THE CONTROL: a page that has accumulated nothing, right now ----------
+//
+// Same browser, same machine, same second. If this page is no faster than the
+// one that has just played for fifteen minutes, the slope this run measured is
+// the machine and not the build. See `verdict` above for the measurement that
+// put this here.
+let control = null;
+try {
+  const fresh = await ctx.newPage();
+  await fresh.goto(URL, { waitUntil: 'networkidle' });
+  await fresh.waitForFunction(() => !!window.__ascent, null, { timeout: 60000 });
+  await fresh.waitForTimeout(3000);
+  await fresh.evaluate(() => {
+    const S = { f: [], last: performance.now() };
+    window.__CTRL = S;
+    const t = () => { const n = performance.now(); S.f.push(n - S.last); S.last = n; requestAnimationFrame(t); };
+    requestAnimationFrame(t);
+  });
+  await fresh.waitForTimeout(8000);
+  control = await fresh.evaluate(() => {
+    const f = window.__CTRL.f.slice(-500).sort((a, b) => a - b);
+    const a = window.__ascent;
+    return { fps: f.length ? 1000 / f[f.length >> 1] : NaN,
+      tier: a.state().fxTier, pixelCap: a.engine.renderer.getPixelRatio() };
+  });
+  await fresh.close();
+  console.log(`  ..    control: a page with nothing accumulated runs at ${control.fps.toFixed(1)} fps `
+    + `(tier ${control.tier}, ratio ${control.pixelCap.toFixed(2)}) on this machine, now`);
+} catch (e) {
+  console.log('  ..    control page could not be measured:', e.message);
+}
+
+const v = verdict(samples, { control });
 const { first, last } = ends(samples);
 const at = (m) => samples.reduce((a, b) => (Math.abs(b.t / 60 - m) < Math.abs(a.t / 60 - m) ? b : a));
 console.log(`\nplayed ${walks} approaches, ${items} items, ${builds} build presses`);
@@ -440,7 +527,7 @@ console.log(`  start/end (median of ${Math.min(3, Math.max(1, Math.floor(samples
 if (errors.length) console.log(`\n${errors.length} console error(s):`, errors.slice(0, 4).join('\n  '));
 
 await writeFile(path.join(OUT, 'sustain.json'),
-  JSON.stringify({ url: URL, minutes: MINUTES, samples, verdict: v, errors, items, walks }, null, 2));
+  JSON.stringify({ url: URL, minutes: MINUTES, samples, control, verdict: v, errors, items, walks }, null, 2));
 
 if (!v.ok) {
   console.log('\nTHE GAME IS NOT THE GAME IT WAS AT SECOND FIVE:');
@@ -450,4 +537,11 @@ if (!v.ok) {
 }
 if (errors.length) console.log('  - ' + errors.length + ' console error(s) during play');
 await browser.close();
-process.exit(v.ok && errors.length === 0 ? 0 : 1);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This gate is recorded
+   per wave and its recorded RED fails `npm run check`, so what it holds has to
+   be legible to the runner and not only to a reader. Fifteen minutes of real play is what a
+   learner does in one sitting. */
+findings('check:sustain', { scope: 'route' })
+  .route(v.ok ? [] : (v.fails || []).map(String))
+  .route(errors.length ? [`${errors.length} console error(s) during play: ${errors.slice(0, 3).join(' | ')}`] : [])
+  .done();

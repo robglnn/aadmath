@@ -19,9 +19,30 @@
  *            ground and it is most of why gliding feels like gliding.
  *   motif    six notes. The only fixed melodic material in the game, saved for
  *            phrase heads when something is actually happening.
+ *   pedal    one tone, only while a proving run is open, climbing a degree per
+ *            item the run banks. The one continuous thing in the score that
+ *            means "you are being asked to hold something up".
+ *
+ * WHAT THE SCORE KNOWS ABOUT THE LEARNER, which is the half that was missing.
+ *
+ * It had one number — the mean posterior over the whole record — and that
+ * number moves by a sixtieth when a line holds, against cadence banks a quarter
+ * of the range wide. So the dial that was supposed to make the music follow
+ * mastery could not be turned by an afternoon of genuine mastery. It now runs
+ * on four inputs, and three of them move on the timescale a learner lives on:
+ *
+ *   mastery  the lattice. The arc of a course. Slow, and it still counts.
+ *   line     the posterior on the skill this rift is asking about. Fast.
+ *   run      how far a live proving run has filled. Fast, and it is the only
+ *            one that is *about to be resolved*, so it carries the pedal.
+ *   open     how much of the ground in front of the learner is unknown. This
+ *            one runs the other way: it takes the third out of the chord,
+ *            thins the bells, widens the rest, and lets the wind back in. A
+ *            unit opening is supposed to sound like standing somewhere new,
+ *            which is a quieter sound than the one you were making before.
  */
 
-import { harmony, PHRASE, PLACES } from './theory.js';
+import { harmony, resolveOf, runPedal, PHRASE, PLACES } from './theory.js';
 import { pad, sub, bell, pluck, shimmer } from './voices.js';
 import { clamp, rnd } from './dsp.js';
 
@@ -50,6 +71,23 @@ export class Score {
     // learner who is *going*. Nobody will notice it arrive. They will notice
     // it leave.
     this.momentum = 0;
+    // --- what the learner is doing, right now -----------------------------
+    // `line` is the posterior on the skill in front of them; `open` is how much
+    // of the ground is unknown; `run` is a live proving run's fill. All three
+    // are set by the director from the mastery engine, all three are 0 for a
+    // cadet who is simply out walking, and none of them is ever read as a
+    // volume — they change what the harmony is, not how loud it is.
+    this.line = 0;
+    this.open = 0;
+    this.run = 0;
+    // THE SCORE STANDS DOWN. At 1 the phrase stops entirely and all that is
+    // left is the root and the island. It is set while the break beat is on
+    // screen (`src/session/rest.js`), because a rest whose whole premise is
+    // looking at something a long way off is not improved by a chord
+    // progression, and because the ONE thing a paced breath needs is room.
+    this.hush = 0;
+    this._pedalT = 0;
+    this._pedalNote = null;
     this.index = 0;
     this.phrase = 0;
     this.rest = 2;        // chords of silence after each phrase
@@ -63,6 +101,21 @@ export class Score {
   setPlace(id) { if (PLACES[id]) this.place = id; }
 
   setMastery(m) { this.mastery = clamp(m, 0, 1); }
+
+  /**
+   * The fast half of the dial. Everything here is a fact the mastery engine
+   * already holds; nothing is computed twice and nothing is remembered between
+   * calls, so a learner who walks away from a rift stops sounding like one who
+   * is standing at it inside a chord.
+   */
+  setLine({ line = 0, open = 0, run = 0 } = {}) {
+    this.line = clamp(line, 0, 1);
+    this.open = clamp(open, 0, 1);
+    this.run = clamp(run, 0, 1);
+  }
+
+  /** The blended number the harmony is actually built from. */
+  get resolve() { return resolveOf(this.mastery, this.line, this.run); }
 
   update(dt) {
     const A = this.A;
@@ -108,15 +161,27 @@ export class Score {
       // music and seventeen of island. Moving: the phrase runs its full four
       // and the gap closes to nothing.
       this.play = this.focus > 0.5 ? PHRASE : (drive > 0.35 ? PHRASE : 2);
-      this.rest = this.focus > 0.5 ? 0 : Math.max(0, Math.round(2.2 - drive * 2.4));
+      // Unknown ground gets a longer silence. Standing at the mouth of a unit
+      // nobody has opened, the score plays two chords and then leaves for
+      // twenty-six seconds — which is the difference between a game that is
+      // telling you something is coming and a game that is waiting with you.
+      this.rest = this.focus > 0.5 ? 0
+        : Math.max(0, Math.round(2.2 - drive * 2.4 + this.open * 1.4));
     }
-    const resting = this.slot >= this.play;
+    const resting = this.slot >= this.play || this.hush > 0.5;
 
-    const H = harmony(this._place, this.mastery, this.index);
+    // Unknown ground opens the voicing, and it opens the SILENCE too — see
+    // the rest arithmetic above. Both halves matter: a chord with no third in
+    // it, played continuously, is a drone.
+    const H = harmony(this._place, this.resolve, this.index, { open: this.open });
     const P = H.place;
 
     const focus = this.focus;
-    const open = 1 - focus;                   // how much of the world is audible
+    // How much of the world is audible. Named for what it is, because the score
+    // now carries a second, unrelated `this.open` — how much of the ground in
+    // front of the learner is unknown — and two things called `open` inside one
+    // function is a defect waiting for somebody in a hurry.
+    const audible = 1 - focus;
     const air = P.air * (0.6 + this.alt * 0.6);
     const bright = P.bright * (0.72 + H.settle * 0.5 + this.alt * 0.25 + this.momentum * 0.22);
 
@@ -126,19 +191,29 @@ export class Score {
     // The root fills its whole slot and releases over the next one, so there is
     // never a moment with no floor under the island.
     sub(A, H.root - 12 + (P.oct < 0 ? 12 : 0), t0, CHORD,
-      (0.054 + this.mastery * 0.024) * (resting ? 0.72 : 1),
+      (0.054 + this.resolve * 0.024) * (resting ? 0.72 : 1) * (1 - this.hush * 0.30),
       { attack: resting ? 3.0 : 1.6, release: 3.4 });
+
+    // --- the proving run's pedal ---------------------------------------
+    // It plays through the rest as well as through the phrase, because the one
+    // thing it is saying is that something is still being asked of you, and
+    // that does not stop being true for seventeen seconds.
+    this._pedal(t0, H, P);
 
     if (resting) {
       // Two or three notes of harp across seventeen seconds, high and wet, and
       // nothing else. This is the part of the score that sounds expensive.
+      // Under a full hush there is one note, or none.
       const scale0 = H.scale;
       const oct0 = P.oct > 0 ? 12 : 0;
-      const n = 1 + ((Math.random() * 3) | 0);
+      const n = this.hush > 0.5
+        ? (Math.random() < 0.55 ? 1 : 0)
+        : 1 + ((Math.random() * 3) | 0);
       for (let i = 0; i < n; i++) {
         const deg = scale0[3 + ((Math.random() * (scale0.length - 3)) | 0)];
         pluck(A, deg + oct0 + 12, t0 + rnd(0.2, CHORD - 1.2), {
-          level: 0.13 * P.bell, air: 0.9, damp: 0.24, pan: rnd(-0.9, 0.9),
+          level: 0.13 * P.bell * (1 - this.hush * 0.45), air: 0.9, damp: 0.24,
+          pan: rnd(-0.9, 0.9),
         });
       }
       this._advance();
@@ -146,14 +221,22 @@ export class Score {
     }
 
     // --- chord ---------------------------------------------------------
-    const level = (0.086 + H.settle * 0.018) * (0.78 + open * 0.22);
-    const voices = H.notes.slice(0, focus > 0.5 ? 3 : Math.min(4, H.notes.length));
+    const level = (0.086 + H.settle * 0.018) * (0.78 + audible * 0.22) * (1 - this.open * 0.30);
+    // Unknown ground is voiced with fewer players and further apart. Three
+    // notes across two octaves is a horizon; five inside one is a wall — and
+    // taking the FIRST three of a quartal stack throws away the top of it,
+    // which is the half that was doing the work. Root, the fourth over it, and
+    // the top of the stack.
+    const cap = focus > 0.5 ? 3 : Math.min(4, H.notes.length);
+    const voices = this.open > 0.66 && H.notes.length >= 3
+      ? [H.notes[0], H.notes[1], H.notes[H.notes.length - 1]].slice(0, Math.min(3, cap))
+      : H.notes.slice(0, cap);
     voices.forEach((n, i) => {
       pad(A, n, t0 + i * 0.06, CHORD, {
         level: level * (i === 0 ? 1.15 : 1),
         bright,
         air,
-        pan: (i / Math.max(1, voices.length - 1) - 0.5) * 1.25,
+        pan: (i / Math.max(1, voices.length - 1) - 0.5) * (1.25 + this.open * 0.5),
         // Voices enter at slightly different rates, which is what makes a
         // chord sound like players rather than like a key being pressed. The
         // release runs on into the next chord: the harmony changes underneath
@@ -171,7 +254,7 @@ export class Score {
     // has a harp in it; what integrity buys is how *often* it plays and how
     // resolved what it plays is.
     const density = clamp(0.34 + H.settle * 0.30 + this.travel * 0.26 + this.arrival * 0.20
-      + this.momentum * 0.22, 0, 0.94) * open;
+      + this.momentum * 0.22, 0, 0.94) * audible * (1 - this.open * 0.45);
     const scale = H.scale;
     const octave = P.oct > 0 ? 12 : 0;
     for (let b = 0; b < 8; b++) {
@@ -197,8 +280,17 @@ export class Score {
     // --- theme ---------------------------------------------------------
     // Saved. It plays on the head of a phrase when the cadet has just arrived
     // somewhere or is moving with purpose, and never twice running.
-    const wantMotif = (this.arrival > 0 || this.travel > 0.55 || this.mastery > 0.82
-      || this.momentum > 0.45)
+    // …and it is not played over ground nobody has stood on. The theme is the
+    // sound of this cadet's own history in a place; a unit that opened ninety
+    // seconds ago has none yet, and playing it there spends the one piece of
+    // fixed melodic material the game owns on nothing.
+    //
+    // ARRIVING SOMEWHERE IS THE EXCEPTION, and it has to be, or a cadet who has
+    // never played would never hear the theme at all — everything is unknown
+    // ground on the first morning. Walking into a region is the game
+    // introducing itself; a unit opening mid-session is not.
+    const earned = this.travel > 0.55 || this.mastery > 0.82 || this.momentum > 0.45;
+    const wantMotif = (this.arrival > 0 || (earned && this.open < 0.5))
       && this.slot === 0 && this.phrase !== this._lastMotif;
     if (wantMotif) {
       this._lastMotif = this.phrase;
@@ -227,6 +319,33 @@ export class Score {
     this._advance();
   }
 
+  /**
+   * One held tone over the region's root, only while a proving run is open,
+   * climbing a degree per item the run has banked.
+   *
+   * It is deliberately at the level of the harp rather than the level of the
+   * pad: a learner should not be able to say what it is, only that the room is
+   * holding its breath. It is silent for every cadet who is not inside a run,
+   * which is most of the game most of the time.
+   */
+  _pedal(t0, H, P) {
+    const A = this.A;
+    if (this.run <= 0 || this.hush > 0.5) { this._pedalNote = null; return; }
+    const note = runPedal(this._place, this.run * 100, 100);
+    if (note === null) return;
+    this._pedalNote = note;
+    // A whole chord long, released over the next one, so a run has no seam in
+    // it. The level rises as the run fills — barely, and never past the harp.
+    pad(A, note, t0, CHORD, {
+      level: (0.020 + this.run * 0.014) * (1 - this.focus * 0.35),
+      bright: P.bright * 1.25,
+      air: P.air * 1.1,
+      pan: 0.0,
+      attack: 2.6, release: 3.2,
+      detune: 3,
+    });
+  }
+
   _advance() {
     this.index++;
     this.slot++;
@@ -242,7 +361,7 @@ export class Score {
   lift(big = false) {
     const A = this.A;
     if (!A.live) return;
-    const H = harmony(this._place, Math.min(1, this.mastery + 0.15), 0);
+    const H = harmony(this._place, Math.min(1, this.resolve + 0.15), 0);
     const t0 = A.t + 0.02;
     const oct = (PLACES[this._place] || PLACES.home).oct > 0 ? 12 : 0;
     H.scale.slice(0, big ? 7 : 5).forEach((n, i) => {

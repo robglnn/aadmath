@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { fbm, ridge, clamp, sstep, mix, segDist, GLSL_NOISE } from './noise.js';
 import { zoneWeights, glslBlend, ZONE_INDEX } from './biomes.js';
+// The light from below. There is one hour in this game and it lives there.
+import { DECK } from './daylight.js';
 
 /**
  * THE ISLAND.
@@ -221,10 +223,17 @@ function rawHeight(x, z, rn) {
   return h;
 }
 
-export function heightAt(x, z) {
+/**
+ * The island as an equation — every feature, at infinite resolution.
+ *
+ * PRIVATE, and it is the whole of the repair below. Nothing outside this file
+ * may call it, because *this is not the surface anybody walks on*. See
+ * `heightAt`.
+ */
+function analyticHeight(x, z, Rc0) {
   const r = Math.hypot(x, z);
   const ang = Math.atan2(z, x);
-  const Rc = coastRadius(ang);
+  const Rc = Rc0 === undefined ? coastRadius(ang) : Rc0;
   if (r > Rc) return null;
 
   let h = rawHeight(x, z, r / Rc);
@@ -299,6 +308,125 @@ export function heightAt(x, z) {
   return h;
 }
 
+// ---------------------------------------------------------------------------
+// THE ONE SURFACE — and the fifteen metres of daylight that used to be between
+// the island you see and the island you stand on.
+//
+// This file has always opened with the claim "one CPU heightfield is the single
+// source of truth… what you see is what you stand on." That claim was false,
+// and the amount by which it was false was measured, on this build, at the exact
+// spot a walk wedged:
+//
+//     x = 36.0, z = −88.3     the ground you WALK on   37.7 m
+//                             the island that is DRAWN 48.7 m
+//
+// **The drawn hillside stood eleven metres over the cadet's head**, so ordinary
+// forward running put him — and the lens six metres behind him — inside solid
+// mesh, which is a full-screen beige wash and no way to see where to go. Across
+// nine thousand samples the two surfaces differ by −14.4 m to +15.1 m, and on
+// 1.7% of the island the drawn ground stands a body or more above the walked
+// ground. That is not a phantom floor and it is not a collision bug. It is a
+// sampling rate:
+//
+//   · the collision surface was `analyticHeight` — exact, continuous, and full
+//     of gradient-15 walls, because the North Gate's cut meets the Spine's
+//     uncut flank in a 73 m rise over 24 m of run;
+//   · the DRAWN surface is a 200-sector polar mesh whose tangential vertex
+//     spacing at r = 130 is 4.1 m, and which therefore renders that wall as a
+//     straight chord between two vertices four metres apart.
+//
+// Linear interpolation across a gradient-15 feature is wrong by metres, and
+// everything in the game except the triangles was reading the other surface.
+//
+// So the lattice below IS the island, for everybody. `heightAt` interpolates it,
+// `buildIsland` draws it, the grass grows on it, the props stand on it, the
+// tears are seated on it, and the boots walk on it. There is one surface now,
+// and the promise at the top of this file is true rather than aspirational.
+//
+// It is also, incidentally, some fifty times cheaper than the function it
+// replaces — twelve octaves of noise become four table reads — which is most of
+// a second off boot.
+// ---------------------------------------------------------------------------
+
+/** Sectors around the island. THE DRAWN MESH USES EXACTLY THIS. */
+const MSECT = 256;
+/** Rings from the middle to the coastline. THE DRAWN MESH USES EXACTLY THIS. */
+const MTOP = 112;
+/** rad/Rc as a function of the ring parameter — the mesh's radial spacing. */
+const RAD_K = 0.006, RAD_M = 0.994, RAD_P = 1.06;
+
+let HTAB = null;          // (MTOP + 1) x MSECT — the island, as it is drawn
+let RCS = null;           // coast radius per sector
+let HCEN = 0;             // the single vertex in the middle
+
+function lattice() {
+  if (HTAB) return HTAB;
+  RCS = new Float32Array(MSECT);
+  for (let s = 0; s < MSECT; s++) RCS[s] = coastRadius((s / MSECT) * Math.PI * 2);
+  const tab = new Float32Array((MTOP + 1) * MSECT);
+  for (let ring = 0; ring <= MTOP; ring++) {
+    const t = ring / MTOP;
+    const f = RAD_K + RAD_M * Math.pow(t, RAD_P);
+    for (let s = 0; s < MSECT; s++) {
+      const a = (s / MSECT) * Math.PI * 2;
+      const rad = RCS[s] * f;
+      const h = analyticHeight(Math.cos(a) * rad, Math.sin(a) * rad, RCS[s]);
+      // The outermost ring sits exactly on the coastline, where the analytic
+      // form returns null on the wrong side of a rounding error. It is ground.
+      tab[ring * MSECT + s] = h === null
+        ? analyticHeight(Math.cos(a) * rad * 0.999, Math.sin(a) * rad * 0.999, RCS[s]) ?? 8
+        : h;
+    }
+  }
+  HCEN = analyticHeight(0, 0, RCS[0]) ?? 13;
+  HTAB = tab;
+  return HTAB;
+}
+
+/** The coast radius on this bearing, off the same table the mesh is built on. */
+function coastR(ang) {
+  lattice();
+  const sf = ((ang / (Math.PI * 2)) % 1 + 1) % 1 * MSECT;
+  const s0 = Math.floor(sf), fs = sf - s0;
+  const a = RCS[s0 % MSECT], b = RCS[(s0 + 1) % MSECT];
+  return a + (b - a) * fs;
+}
+
+/**
+ * THE surface. Bilinear across the very quad the GPU is about to rasterise, so
+ * the ground under the boots and the ground under the eye are the same ground
+ * to within a centimetre. Null off the coastline, exactly as before.
+ */
+export function heightAt(x, z) {
+  const tab = lattice();
+  const r = Math.hypot(x, z);
+  const ang = Math.atan2(z, x);
+  const sf = ((ang / (Math.PI * 2)) % 1 + 1) % 1 * MSECT;
+  const s0 = Math.floor(sf) % MSECT, s1 = (s0 + 1) % MSECT, fs = sf - Math.floor(sf);
+  const Rc = RCS[s0] + (RCS[s1] - RCS[s0]) * fs;
+  if (r > Rc) return null;
+  const f = r / Rc;
+  // Inside the first ring the mesh is a fan of triangles onto the middle
+  // vertex; blend to it rather than clamping, or the plaza grows a pimple.
+  if (f <= RAD_K) {
+    const h0 = tab[s0] + (tab[s1] - tab[s0]) * fs;
+    return HCEN + (h0 - HCEN) * (f / RAD_K);
+  }
+  const t = Math.pow((f - RAD_K) / RAD_M, 1 / RAD_P);
+  const tf = Math.min(MTOP - 1e-6, t * MTOP);
+  const r0 = Math.floor(tf), ft = tf - r0;
+  const o0 = r0 * MSECT, o1 = o0 + MSECT;
+  // NOT bilinear — PLANAR, on the very triangle the rasteriser will fill.
+  // `buildIsland` splits each quad along the a0–b1 diagonal, so a bilinear
+  // read is wrong by up to five metres in the middle of a quad that spans a
+  // twenty-metre step, which is precisely where it matters. Same split, same
+  // plane, same height.
+  const A = tab[o0 + s0], B = tab[o0 + s1], C = tab[o1 + s1], D = tab[o1 + s0];
+  return ft <= fs
+    ? A + fs * (B - A) + ft * (C - B)
+    : A + ft * (D - A) + fs * (C - D);
+}
+
 /** True where the lake would cover this spot — nothing grows there. */
 export function underWater(x, z, margin = 0.6) {
   if (Math.hypot(x - LAKE.x, z - LAKE.z) > LAKE.r * 1.6) return false;
@@ -317,6 +445,46 @@ export function slopeAt(x, z, e = 1.4) {
   if (h === null) return 1;
   const hx = heightAt(x + e, z) ?? h, hz = heightAt(x, z + e) ?? h;
   return Math.min(1, Math.hypot(hx - h, hz - h) / e);
+}
+
+/**
+ * CAN YOU SEE OUT OF HERE?
+ *
+ * The fraction of `n` bearings on which a level line of sight from head height
+ * runs `far` metres without the ground coming up in front of it. Terrain only:
+ * this answers a question about the shape of the island, not about what is
+ * standing on it (src/world/clearings.js answers that).
+ *
+ * WHY A PLACEMENT RULE NEEDS THIS. `padOk` in src/world/rifts.js asked two
+ * things of a site — is there ground under all of it, and is it flat — and both
+ * are true at the bottom of a bowl. The composition gate then walked to the
+ * objectives that seating produced and read `nothing in the frame reaches 25m`
+ * at twenty-one of them: no wall in front of the lens, nothing inside three
+ * metres, and every ray in the frame stopping on a hillside between five and
+ * twenty. Flat and solid is not the same as composed, and this is the missing
+ * third question.
+ *
+ * `far` is 28 m because the instrument's own `seeFar` clause counts frame rays
+ * that get past 25.
+ */
+export function skylineAt(x, z, far = 28, n = 8) {
+  const h0 = heightAt(x, z);
+  if (h0 === null) return 0;
+  const eye = h0 + 1.6;
+  let open = 0;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const dx = Math.cos(a), dz = Math.sin(a);
+    let clear = true;
+    for (let s = 3; s <= far; s += 3) {
+      const h = heightAt(x + dx * s, z + dz * s);
+      // off the edge of the island: this bearing sees for ever
+      if (h === null) break;
+      if (h > eye + 0.6) { clear = false; break; }
+    }
+    if (clear) open++;
+  }
+  return open / n;
 }
 
 // Water level and plaza level, resolved from the uncarved terrain so the lake
@@ -514,6 +682,8 @@ export function makeTerrainMaterial() {
     uLakeY: { value: LAKE.y },
     uSnow: { value: SNOW_Y },
     uSkyBounce: { value: new THREE.Color(0x8ea4c0) },
+    // THE DECK. See the block that reads it, below `aomap_fragment`.
+    uDeck: { value: new THREE.Color(DECK.color).multiplyScalar(DECK.intensity) },
     uTime: { value: 0 },
   };
 
@@ -559,6 +729,7 @@ export function makeTerrainMaterial() {
         uniform float uSnow;
         uniform float uTime;
         uniform vec3 uSkyBounce;
+        uniform vec3 uDeck;
         varying vec3 vWPos;
         varying vec3 vWNrm;
         varying float vMoist;
@@ -1052,6 +1223,40 @@ export function makeTerrainMaterial() {
         // weight of the bake while the sun keeps its own hard shadow
         reflectedLight.indirectDiffuse += diffuseColor.rgb * uSkyBounce
           * (0.26 + 0.36 * skyUp * skyUp) * mix(0.30, 1.0, gAO) * ambOcc;
+        /**
+         * ---- THE DECK UNDER THE ISLAND IS A LIGHT SOURCE ------------------
+         *
+         * Every term above this line is light from ABOVE — the sun, the sky
+         * dome, the sky bounce — and every one of them is scaled by 'skyUp' or
+         * by the sun mask. So a face that points down, or away from a
+         * twenty-two degree sun, is lit by almost nothing: measured on the
+         * shipped build, the island's own shadowed slopes and the undersides of
+         * the floating shards came out of the tone map at **RGB 0,0,0**, in
+         * runs big enough to take a third of the frame. A critic called it *"a
+         * dead region with a hard edge"*, and it is: not a dark surface, an
+         * absent one, with no gradient in it to read the shape off.
+         *
+         * That is not a grading problem and it cannot be fixed downstream —
+         * there is nothing in those pixels to bring back. It is a missing
+         * light, and the light is missing because this world forgot what it is
+         * standing on. ASCENT is a floating island over a lit cloud sea (see
+         * src/world/deeps.js): the brightest thing in the frame after the sun
+         * is the deck BELOW the horizon. Everything that faces down is lit by
+         * it, and every vertical face sees the bright band all the way round.
+         *
+         * It is deliberately NOT multiplied by 'sunMask'. Nothing standing
+         * between this patch of ground and the sun is standing between it and
+         * the cloud deck a kilometre underneath, so the cadet's own shadow —
+         * which the block above exists to make readable — keeps every bit of
+         * its contrast on upward-facing ground, where 'deckDown' is zero. This
+         * light only ever arrives where the frame was black.
+         */
+        vec3 deckN = normalize(vWNrm);
+        float deckDown = clamp(-deckN.y, 0.0, 1.0);
+        float deckRing = 1.0 - abs(deckN.y);
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * uDeck
+          * (deckDown * 0.55 + deckRing * deckRing * 0.16) * mix(0.55, 1.0, gAO);
+
         // Cloud shadows. A deck of cloud a kilometre up drags its shadow across
         // the island, and that moving dapple is most of what tells you the
         // ground has scale and that the world is running rather than posed.
@@ -1071,8 +1276,14 @@ export function makeTerrainMaterial() {
 
 export function buildIsland(quality) {
   const hi = quality > 0.6;
-  const SECT = hi ? 200 : 120;
-  const TOP = hi ? 104 : 62;
+  // THE TOP SURFACE IS NOT A QUALITY SETTING. It is the collision surface (see
+  // `lattice` above), and a mesh drawn at a different resolution from the one
+  // the boots read is the fifteen-metre disagreement this file used to ship.
+  // Only the keel — which is scenery hanging under the coastline and which
+  // nothing stands on — scales.
+  const tab = lattice();
+  const SECT = MSECT;
+  const TOP = MTOP;
   const KEEL = hi ? 16 : 11;
   const RINGS = TOP + KEEL;
 
@@ -1094,7 +1305,7 @@ export function buildIsland(quality) {
     aZoneE[i] = zw[4];
   };
 
-  const centerH = heightAt(0, 0) ?? 13;
+  const centerH = HCEN;
   pos[0] = 0; pos[1] = centerH; pos[2] = 0;
   aMoist[0] = moistAt(0, 0); aPath[0] = 1; aSide[0] = 0; aLush[0] = 0; aAO[0] = 1;
   writeZone(0, 0, 0);
@@ -1106,8 +1317,8 @@ export function buildIsland(quality) {
   for (let s = 0; s < SECT; s++) {
     const a = (s / SECT) * Math.PI * 2;
     angs[s] = a;
-    Rcs[s] = coastRadius(a);
-    coastH[s] = heightAt(Math.cos(a) * Rcs[s] * 0.995, Math.sin(a) * Rcs[s] * 0.995) ?? 8;
+    Rcs[s] = RCS[s];
+    coastH[s] = tab[TOP * SECT + s];
     keelDepth[s] = 150 + fbm(Math.cos(a) * 3.1 + 5, Math.sin(a) * 3.1 - 2, 3) * 110;
   }
 
@@ -1119,15 +1330,17 @@ export function buildIsland(quality) {
       const i = idx(ring, s), o = i * 3;
       if (ring <= TOP) {
         const t = ring / TOP;
-        const rad = Rc * (0.006 + 0.994 * Math.pow(t, 1.06));
+        const rad = Rc * (RAD_K + RAD_M * Math.pow(t, RAD_P));
         const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
-        const h = heightAt(x, z);
-        pos[o] = x; pos[o + 1] = h === null ? coastH[s] : h; pos[o + 2] = z;
+        // Straight off the table: the vertex the GPU draws IS the sample the
+        // boots stand on, by construction rather than by coincidence.
+        const h = tab[ring * SECT + s];
+        pos[o] = x; pos[o + 1] = h; pos[o + 2] = z;
         aMoist[i] = moistAt(x, z);
         aPath[i] = pathAt(x, z);
         aSide[i] = 0;
-        aLush[i] = grassDensityAt(x, z, h === null ? coastH[s] : h);
-        aAO[i] = aoAt(x, z, h === null ? coastH[s] : h);
+        aLush[i] = grassDensityAt(x, z, h);
+        aAO[i] = aoAt(x, z, h);
         writeZone(i, x, z);
       } else {
         const u = (ring - TOP) / KEEL;                 // 0 at the shore, 1 at the keel tip

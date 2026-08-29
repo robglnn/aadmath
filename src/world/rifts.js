@@ -1,10 +1,13 @@
 import * as THREE from 'three';
-import { heightAt, ISLAND_R, slopeAt } from './world.js';
+import { heightAt, ISLAND_R, slopeAt, skylineAt } from './world.js';
 import { merge } from './geom.js';
 // fx owns the beacon: it is a volumetric lens phenomenon, not a piece of the
 // world's geometry. Same uniforms (uCol / uPow / uTime), so `sync` and `update`
 // below are unchanged.
 import { createBeacon } from '../fx/beacon.js';
+// A tear is a place the game sends a cadet to, so it gets a clearing.
+// (src/world/clearings.js — and read the header there before changing this.)
+import { reserve, obstructionAt } from './clearings.js';
 
 const daisStone = new THREE.MeshStandardMaterial({ color: 0xc0b7a8, roughness: 0.88, flatShading: true });
 // ---- A DOORWAY, NOT A PEDESTAL -------------------------------------------
@@ -22,8 +25,66 @@ const daisStone = new THREE.MeshStandardMaterial({ color: 0xc0b7a8, roughness: 0
 // walking through a door, which is what every player tried to do first.
 const DAIS_TOP = 0.62;    // metres of stone above the ground at the crown
 const RING_Y = 2.72;      // ring centre: a 2.4 m aperture standing on the podium
-const daisGeo = new THREE.CylinderGeometry(5.4, 6.0, 1.0, 9);
-const stepGeo = new THREE.CylinderGeometry(7.4, 8.4, 1.1, 9);
+// ---- AND NOTHING OF IT IS BURIED DEEPER THAN IT HAS TO BE ------------------
+// Both courses used to run most of a metre below the ground they stand on —
+// invisible on the flat and, on any slope, a slab of drawn stone hanging in the
+// air on the downhill side with a cadet walking about *inside* it. Neither
+// course has a collider, so `heightAt` says "ground" from the middle of the
+// plinth and the lens, which sits about two metres over the boots, ends up in
+// the masonry with it. That is the reported frame at the one-step-mul ring
+// exactly: `minD 0.37 m`, `short 0.73`, `open 0.00`, boom crushed to `1.85`.
+// Measured on this build, the four rift daises are the meshes that block every
+// one of the seventeen probe directions at once.
+//
+// So the two courses now reach only as far below the ground as they need to
+// look seated: 0.38 m for the outer step and 0.22 m for the crown, against
+// 0.82 m and 0.38 m before. On the flat the silhouette is identical, because
+// the part that went is the part nobody could see; on a slope there is a bit
+// under half as much stone for a cadet or a lens to be inside.
+//
+// IT IS HALF A FIX AND THE OTHER HALF IS WRITTEN DOWN HERE RATHER THAN BUILT.
+// Thinning the plinth shrinks the volume; it cannot remove it, because the
+// plinth is drawn at ONE height and the ground under it is not flat. Two ways
+// out were measured this wave:
+//
+//   · REQUIRE A FLAT PAD. Measured over 7,483 pads this island really offers:
+//     holding the ground under the crown to 0.9 m and under the skirt to 1.6 m
+//     leaves 11.8% of them, and a lattice seated on those clears every camera
+//     clause at every tear — but the qualifying pads are the flat shelves in
+//     the middle of the island, the ten tears cluster into them, and
+//     `check:traverse` goes red: the straight 45° approach into `eval-expr`
+//     wedged for 7.1 s with the boom crushed for 7.2 s. Do not re-seat the
+//     lattice without walking all eight approach bearings into every tear.
+//   · GIVE THE CROWN A COLLIDER, the way `src/world/caches.js` gives its perch
+//     one — 25 fixed `floor` cells in `builder.solids`. Then the cadet stands
+//     ON the stone and can never be inside it, on any slope, and no placement
+//     rule is needed at all. It changes collision at every tear and the route
+//     planner does not know about solids, so it needs its own wave.
+const daisGeo = new THREE.CylinderGeometry(5.4, 6.0, 0.84, 9);
+/**
+ * ---- WHY THE PLATE IS THIN, AND WHAT IS STILL WRONG WITH THAT ------------
+ *
+ * 0.66 m of stone spanning −0.38 … +0.28 about the site's ground height. A
+ * nine-sided disc that thin OVERHANGS the moment the ground under it is not
+ * level, and a cadet walking in on the low bearing walks UNDER it: the
+ * composition gate photographed exactly that at `eval-expr`, `order-ops` and
+ * `distribute`, with every one of the escape instrument's seventeen probe
+ * directions blocked and straight up at twenty centimetres.
+ *
+ * A DEEP PLINTH WAS TRIED AND IS WORSE, and the reason is worth leaving here.
+ * Reaching the ground on the low side means a cylinder eight metres across and
+ * five deep — and the dais has no collider, so the same cadet does not walk
+ * under the stone any more, he walks INSIDE it. The overhang is not a geometry
+ * problem.
+ *
+ * The two honest fixes are a collider on the dais (src/player, and it would
+ * change what the boots do at every tear) or seating tears on level ground —
+ * an apron-fall cost in the search below. The second was measured: it works,
+ * and it also re-seats the whole lattice, because this search is greedy and
+ * chained, and a layout no gate has walked is not one to leave behind at the
+ * end of a session. It is written up in the report instead of half-landed.
+ */
+const stepGeo = new THREE.CylinderGeometry(7.4, 8.4, 0.66, 9);
 const pillarGeo = new THREE.BoxGeometry(0.9, 4.2, 0.9);
 // the standing pad on the dais, and the bars that shut a rift the cadet has
 // not earned yet — one geometry each, ten rifts
@@ -101,7 +162,32 @@ export class Rifts {
     // a root — by a line a cadet can actually walk. Candidates are tried
     // outward from the ideal point, nearest first, so the spiral the map is
     // read by survives intact.
-    const MIN_SEP = 26;      // metres between two daises: no two ever overlap
+    // ---- HOW FAR APART TWO TEARS STAND, AND WHY IT IS NOT ONE NUMBER ----
+    //
+    // 26 m was sized for the ten-node lattice this game ships, and it is
+    // right for it. It is not a property of the island, though: it is a
+    // property of the island DIVIDED BY the number of tears standing on it,
+    // and `content/courses.json` composes a whole course into one lattice
+    // whenever `?course=` names it.
+    //
+    // Measured, off this terrain: 27,052 m² of ground takes the 7.2 m pad a
+    // dais needs. At 26 m apart that is 46 sites under perfect hexagonal
+    // packing and about thirty in practice, so a 35-node course already ran
+    // out of island — the search fell through to its last resort and put
+    // `distribute` and `poly-add-sub` 7.8 m apart, with two more tears on
+    // ground that is not there at all. Sixty-two nodes made it four.
+    //
+    // So the spacing is now searched, roomiest first, and the lattice is
+    // seated at the widest one that actually fits. Nothing moves that already
+    // fitted: a ten-node graph seats at 26 m on the first try and lands on
+    // exactly the ground it landed on before.
+    //
+    // THE FLOOR IS NOT A TASTE. `REACH` is how far a plate reaches for the
+    // cadet standing near it. Two plates closer than twice that share ground
+    // he can stand on, and this file has already paid for that once: two
+    // labels on one ring, one reading OPEN THE RIFT and one SEALED SHUT.
+    const SEPARATIONS = [26, 24, 22, 20, 2 * REACH];
+    let MIN_SEP = SEPARATIONS[0];
     const PAD_R = 7.2;       // the dais needs ground under all of it
     // Metres of rise per 2.5 m of walking. The boots stop at a gradient of 1.5
     // and mantle a 2.7 m ledge, so 2.6 is a steep hill a cadet can run up and
@@ -109,8 +195,82 @@ export class Rifts {
     const STEP_MAX = 2.6;
     const sites = new Map();
 
+    /**
+     * HOW WELL YOU CAN SEE OUT OF A PLACE **AND OFF ITS APPROACHES**.
+     *
+     * Not the site alone. The composition gate walks in from eight bearings and
+     * reads the frame at the ring, twice on the way in and standing on the
+     * plate, so a tear on a shelf with a horizon in one direction and a bank
+     * three metres behind it fails seven approaches out of eight. What has to
+     * be open is the ROOM, and the room is the site and the ground a cadet
+     * crosses to reach it.
+     *
+     * Memoised on a four-metre grid because ten sites sweep overlapping rings
+     * of candidates and the heightfield march is the expensive part.
+     */
+    const skyMemo = new Map();
+    const sky1 = (x, z) => {
+      const k = ((x / 4) | 0) + ',' + ((z / 4) | 0);
+      let v = skyMemo.get(k);
+      if (v === undefined) { v = skylineAt(x, z, 30, 6); skyMemo.set(k, v); }
+      return v;
+    };
+    /**
+     * HOW MANY OF THE EIGHT BEARINGS YOU CAN ACTUALLY WALK IN FROM.
+     *
+     * `padOk` guarantees ground under the dais and its 7.2 m apron. It says
+     * nothing about seventeen metres out, which is where a cadet who is coming
+     * to this tear is standing a moment earlier — and the composition gate
+     * puts him there on every one of eight bearings. Seat a tear on a shelf and
+     * three of those eight are a cliff face he slides down: the gate reads
+     * `not standing on a surface` and it is right, because he is falling.
+     */
+    const ringMemo = new Map();
+    const ringOk = (x, z) => {
+      const k = ((x / 4) | 0) + ',' + ((z / 4) | 0);
+      let v = ringMemo.get(k);
+      if (v !== undefined) return v;
+      let n = 0;
+      for (let i = 0; i < 8; i++) {
+        const a2 = (i / 8) * Math.PI * 2;
+        const rx = x + Math.cos(a2) * 17, rz = z + Math.sin(a2) * 17;
+        const h = heightAt(rx, rz);
+        if (h === null || slopeAt(rx, rz) > 0.85) continue;
+        if (!walkable(rx, rz, x, z)) continue;
+        n++;
+      }
+      v = n / 8;
+      ringMemo.set(k, v);
+      return v;
+    };
+
+    const roomOpen = (x, z) => {
+      let m = sky1(x, z) * 2;
+      let w = 2;
+      for (let k = 0; k < 4; k++) {
+        const a2 = (k / 4) * Math.PI * 2 + 0.4;
+        m += sky1(x + Math.cos(a2) * 13, z + Math.sin(a2) * 13);
+        w++;
+      }
+      return m / w;
+    };
+
     const padOk = (x, z) => {
-      if (heightAt(x, z) === null || slopeAt(x, z) > 0.40) return false;
+      const g0 = heightAt(x, z);
+      if (g0 === null || slopeAt(x, z) > 0.40) return false;
+      // …and not inside the aqueduct, a hoodoo or a landmark. `heightAt` has
+      // nothing to say about standing stone — it answers for the ground the
+      // stone is standing ON — so without this a dais can be seated inside a
+      // pier, and one was. (src/world/clearings.js)
+      if (obstructionAt(x, z) > 0) return false;
+      // …and the apron a cadet walks in over is clear of it too. The gate
+      // that found this walked in from eight bearings and ended INSIDE an
+      // aqueduct pier that stood nine metres from a dais the search had
+      // already called fine, because the dais itself was outside the stone.
+      for (let k = 0; k < 8; k++) {
+        const a3 = (k / 8) * Math.PI * 2;
+        if (obstructionAt(x + Math.cos(a3) * 9, z + Math.sin(a3) * 9) > 0) return false;
+      }
       for (let k = 0; k < 6; k++) {
         const a2 = (k / 6) * Math.PI * 2;
         if (heightAt(x + Math.cos(a2) * PAD_R, z + Math.sin(a2) * PAD_R) === null) return false;
@@ -144,10 +304,14 @@ export class Rifts {
      */
     const siteFor = (ix, iz, from) => {
       const fromH = heightAt(from.x, from.z);
-      let best = null, bestCost = Infinity, loose = null;
-      for (let ring = 0; ring < 15; ring++) {
-        const rad = ring * 5;
-        const steps = ring === 0 ? 1 : ring * 8;
+      // A crowded island needs a finer and a wider sweep to find the gaps
+      // that are left. The ten-node lattice never asks for one, so it is
+      // swept exactly as before and seats on exactly the same ground.
+      const tight = MIN_SEP < SEPARATIONS[0];
+      let best = null, bestCost = Infinity, loose = null, crowded = null, crowdedGap = -1;
+      for (let ring = 0; ring < (tight ? 30 : 15); ring++) {
+        const rad = ring * (tight ? 4 : 5);
+        const steps = ring === 0 ? 1 : ring * (tight ? 12 : 8);
         for (let k = 0; k < steps; k++) {
           const th = (k / steps) * Math.PI * 2 + ring * 0.19;
           const x = ix + Math.cos(th) * rad, z = iz + Math.sin(th) * rad;
@@ -157,7 +321,16 @@ export class Rifts {
           for (const s of sites.values()) {
             if (Math.hypot(x - s.x, z - s.z) < MIN_SEP) { clear = false; break; }
           }
-          if (!clear) continue;
+          if (!clear) {
+            // Too close to a tear already placed. Remember the roomiest of
+            // these anyway: a site that is solid and merely crowded beats the
+            // old last resort, which was the ideal point itself and could be
+            // in the sea.
+            let gap = Infinity;
+            for (const s2 of sites.values()) gap = Math.min(gap, Math.hypot(x - s2.x, z - s2.z));
+            if (gap > crowdedGap) { crowdedGap = gap; crowded = { x, z }; }
+            continue;
+          }
           if (!walkable(from.x, from.z, x, z)) {
             // separated and solid, but the approach is a cliff — keep it as the
             // answer of last resort and go on looking for a road.
@@ -171,14 +344,59 @@ export class Rifts {
           // spends a quarter of it.
           const gh2 = heightAt(x, z);
           const climb = (fromH === null || gh2 === null) ? 0 : Math.abs(gh2 - fromH);
+          /**
+           * ---- AND IT HAS TO BE A PLACE YOU CAN SEE OUT OF ------------------
+           *
+           * `padOk` above asks whether there is ground under the dais and
+           * whether it is flat. Both are true at the bottom of a bowl, and the
+           * composition gate walked to the objectives this search produced and
+           * read `nothing in the frame reaches 25m` at twenty-one of them —
+           * nothing within three metres of the lens, no wall in front of it,
+           * and every ray in the frame stopping on a hillside between five and
+           * twenty metres out. A tear seated there is a worksheet in a pit.
+           *
+           * It is a COST and not a veto on purpose. Sixty-two nodes have to
+           * seat on one island, the ladder above already drops the spacing rung
+           * by rung to make them fit, and a hard requirement here would fail
+           * the whole search on a crowded lattice rather than trade a metre of
+           * drift for a horizon. At 34 it outweighs about seven metres of walk
+           * and is worth more than any climb the search will ever consider, so
+           * an open site three rings further out always wins over a blind one
+           * next door — and when nothing on the island can see out, the least
+           * blind site still wins.
+           */
+          // THRESHOLDS, NOT SLOPES — and that distinction is the lattice.
+          //
+          // As a straight `1 - openness` these two terms are a gradient over
+          // the whole island, so a site forty metres off the line that unlocks
+          // it can win on being marginally more open, and the map stops being
+          // the knowledge graph laid on the ground. `one-step-add` duly seated
+          // itself nineteen metres from the landing, in front of its own
+          // prerequisite. Composition is a BAR: once a room is open enough and
+          // reachable enough it costs nothing more to be better, and the drift
+          // from the ideal decides — which is what the ideal is for.
+          const blind = Math.max(0, 0.55 - roomOpen(x, z)) / 0.55;
+          // …and the approaches have to be ground he can stand on, not a face
+          // he slides down. See `ringOk`.
+          const unreachable = Math.max(0, 0.75 - ringOk(x, z)) / 0.75;
+          // Just outside a pier is barely better than inside it: the walk in
+          // from three of eight bearings still ends against stone.
+          let nearStone = 0;
+          for (let q = 0; q < 8; q++) {
+            const a3 = (q / 8) * Math.PI * 2;
+            if (obstructionAt(x + Math.cos(a3) * 17, z + Math.sin(a3) * 17) > 0) nearStone++;
+          }
           const cost = rad
             + Math.max(0, Math.hypot(x - from.x, z - from.z) - 36) * 1.5
-            + climb * 0.7;
+            + climb * 0.7
+            + blind * 46
+            + unreachable * 44
+            + nearStone * 9;
           if (cost < bestCost) { bestCost = cost; best = { x, z }; }
         }
         if (best && rad >= bestCost) break;
       }
-      return best || loose || { x: ix, z: iz };
+      return best || loose || crowded || { x: ix, z: iz };
     };
 
     // ---- THE IDEAL MAP: the lattice, laid on the ground ------------------
@@ -214,22 +432,55 @@ export class Rifts {
       });
     }
 
+    /**
+     * Seat every tear at the spacing now in `MIN_SEP`. True when they all
+     * really fit — read off the sites themselves, not off what the search
+     * believed it did, and abandoned the moment one tear does not.
+     *
+     * `strict` is off on the last rung of the ladder, because there is no
+     * rung under it: every tear must come out of this with a site, so the
+     * floor seats whatever it can get and the caller stops asking.
+     */
+    const seatAll = (strict) => {
+      sites.clear();
+      for (let i = 0; i < graph.nodes.length; i++) {
+        const node = graph.nodes[i];
+        const want = plan.get(node.id) || { fan: i * 0.9, from: node.prereqs?.[0] || null };
+        // A tear is reached *from the line beneath it*, so that is the walk the
+        // search has to guarantee. A root tear is reached from the landing plaza.
+        const from = sites.get(want.from) || { x: 0, z: 0 };
+        // …and it stands further out than that line does, so the map grows away
+        // from the plaza in the same order the lattice does.
+        const bear = want.from
+          ? Math.atan2(from.z, from.x) + (want.fan || 0)
+          : (want.a ?? -Math.PI / 2);
+        const site = siteFor(from.x + Math.cos(bear) * OUT, from.z + Math.sin(bear) * OUT, from);
+        if (strict) {
+          if (!padOk(site.x, site.z)) return false;
+          for (const s2 of sites.values()) {
+            if (Math.hypot(site.x - s2.x, site.z - s2.z) < MIN_SEP - 1e-6) return false;
+          }
+        }
+        sites.set(node.id, site);
+      }
+      return true;
+    };
+    for (let a2 = 0; a2 < SEPARATIONS.length; a2++) {
+      MIN_SEP = SEPARATIONS[a2];
+      if (seatAll(a2 < SEPARATIONS.length - 1)) break;
+    }
+
     graph.nodes.forEach((node, i) => {
       const tier = depthOf(graph, node.id);
-      const want = plan.get(node.id) || { fan: i * 0.9, from: node.prereqs?.[0] || null };
-      // A tear is reached *from the line beneath it*, so that is the walk the
-      // search has to guarantee. A root tear is reached from the landing plaza.
-      const from = sites.get(want.from) || { x: 0, z: 0 };
-      // …and it stands further out than that line does, so the map grows away
-      // from the plaza in the same order the lattice does.
-      const bear = want.from
-        ? Math.atan2(from.z, from.x) + (want.fan || 0)
-        : (want.a ?? -Math.PI / 2);
-      const site = siteFor(from.x + Math.cos(bear) * OUT, from.z + Math.sin(bear) * OUT, from);
+      const site = sites.get(node.id);
       const x = site.x, z = site.z;
-      sites.set(node.id, site);
       const gh = heightAt(x, z) ?? 6;
       const y = gh + RING_Y;
+      // The dais is 7.2 m of stone with four pillars stood at 6.4 m. Nothing
+      // that grew is allowed inside that, and the wood thins for a dozen metres
+      // past it, so a cadet who walks to the objective the game gave him
+      // arrives somewhere with a frame in it.
+      reserve(x, z, 18, 'rift');
 
       // A built place: stepped dais, four broken pillars, and a light shaft.
       //
@@ -242,8 +493,9 @@ export class Rifts {
       // Two courses, and most of their mass is under the turf: the outer kerb
       // tops out 28 cm up and the crown 62 cm. You step onto a rift the way you
       // step onto a kerb — which is to say, without noticing that you did.
-      const step = stepGeo.clone(); step.translate(0, -0.27, 0); parts.push(step);
-      const top = daisGeo.clone(); top.translate(0, DAIS_TOP - 0.5, 0); parts.push(top);
+      // spans −0.38 … +0.28 and −0.22 … +0.62 about the ground, respectively
+      const step = stepGeo.clone(); step.translate(0, -0.05, 0); parts.push(step);
+      const top = daisGeo.clone(); top.translate(0, DAIS_TOP - 0.42, 0); parts.push(top);
       // The pillars are pushed out past the aperture so that the doorway itself
       // is clear from every bearing: a stone standing in the walking line of a
       // door is the same defect as the plinth, one metre to the left.
@@ -257,6 +509,7 @@ export class Rifts {
         parts.push(p);
       }
       const dais = new THREE.Mesh(merge(parts), daisStone);
+      dais.name = 'rift-dais';
       for (const p of parts) p.dispose();
       dais.position.set(x, gh, z);
       dais.castShadow = true;

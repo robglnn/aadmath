@@ -4,6 +4,8 @@ import {
   sampleH, sampleSlope, moistAt, underWater, grassDensityAt, ISLAND_R, LAKE,
 } from './terrain.js';
 import { zoneWeights, blendSlot } from './biomes.js';
+// The light from below — the deck this island floats over. See daylight.js.
+import { DECK, SHADE } from './daylight.js';
 
 /**
  * Wind-blown ground cover.
@@ -125,6 +127,7 @@ export function createGrass(scene, sunDir, quality) {
       uSun: { value: sunDir.clone() },
       uSunCol: { value: new THREE.Color(0xffd9a8) },
       uSkyCol: { value: new THREE.Color(0x7fa8e0) },
+      uDeck: { value: new THREE.Color(DECK.color).multiplyScalar(DECK.intensity) },
       uCam: { value: new THREE.Vector3() },
       uReach: { value: REACH },
       uWind: { value: new THREE.Vector2(0.86, 0.51) },
@@ -196,7 +199,10 @@ export function createGrass(scene, sunDir, quality) {
       }`,
     fragmentShader: /* glsl */`
       ${GLSL_NOISE}
-      uniform vec3 uSun, uSunCol, uSkyCol;
+      // The one floor under a cast shadow, shared with three's own
+      // light.shadow.intensity so the meadow and the ground agree. daylight.js.
+      const float SHADE_FLOOR = ${(1 - SHADE.intensity).toFixed(4)};
+      uniform vec3 uSun, uSunCol, uSkyCol, uDeck;
       uniform float uTime;
       uniform sampler2D uShadowMap;
       uniform mat4 uShadowMat;
@@ -240,11 +246,35 @@ export function createGrass(scene, sunDir, quality) {
         float cShade = mix(0.55, 1.0, smoothstep(0.30, 0.70, aa_n(cq)));
         // A blade is sampled a little above its own root, or the ground it
         // grows out of shadows it at every step of the bias.
-        float sun = sunShadow(vWP + vec3(0.0, 0.03, 0.0));
+        // THE SAME FLOOR THE GROUND HAS. A blade shader is outside three's
+        // lighting, so light.shadow.intensity — which is what stops the
+        // island's own cast shadows coming out of the tone map at RGB 0,0,0 —
+        // never reaches here. Without this line the ground inside a shadow
+        // lifts and the meadow standing on it does not, which is a worse frame
+        // than either of the two it is made of. See SHADE in daylight.js.
+        float sun = mix(SHADE_FLOOR, 1.0, sunShadow(vWP + vec3(0.0, 0.03, 0.0)));
         // Same rule the ground obeys: what blocks the sun also blocks its share
         // of the sky, so a blade inside a shadow loses fill as well as key.
         float amb = mix(0.44, 1.0, sun);
         vec3 col = base * (uSkyCol * (0.34 + 0.22 * vT) * amb + uSunCol * wrap * 1.15 * cShade * sun);
+        /**
+         * THE LIGHT FROM BELOW, AND THE ONE READING IT SETTLES.
+         *
+         * Every term above is shadowed by 'sun', so a blade in shade was lit by
+         * base * skyCol * 0.15 or so — under the black point, which used to
+         * clip to exactly zero. On flat ground that is invisible. Along a RIDGE
+         * it is not: a line of blades standing against a bright sky came out at
+         * RGB 0,0,0 in a row, one blade on one blade off, which is precisely
+         * the "repeating black sawtooth along a terrain silhouette" a round of
+         * this project reported and the next round could not reproduce. It was
+         * real, it was here, and it is only visible from the bearings where a
+         * grassy ridge is between the lens and the sky.
+         *
+         * The deck under the island is not occluded by whatever is occluding
+         * the sun, so this term is deliberately not multiplied by 'sun'. It is
+         * small — it does not lift the meadow, it stops a blade being absent.
+         */
+        col += base * uDeck * (0.34 + 0.50 * vT);
         float back = pow(clamp(dot(vView, -uSun) * 0.5 + 0.5, 0.0, 1.0), 3.0);
         col += base * uSunCol * back * 0.95 * vT * cShade * sun;
         col *= mix(0.40, 1.08, smoothstep(0.0, 0.55, vT));

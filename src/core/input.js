@@ -73,6 +73,40 @@ function uiHit(el) {
   return hit;
 }
 
+/**
+ * The pad's own attribute. The on-screen stick and the four action buttons in
+ * src/player/touch.js carry `data-verbs="world"` on their root, and that is the
+ * whole of the contract between the two files.
+ */
+const OWN_CONTROLS = '[data-verbs="world"]';
+
+/**
+ * Is this press on the game's OWN on-screen controls?
+ *
+ * THE PAD IS THE PLAYER'S HANDS, NOT THE INTERFACE. This distinction has to be
+ * made in exactly one place, and this is it.
+ *
+ * `uiHit` above answers a different question — "could a person have been aiming
+ * at a control?" — and for the touch pad the honest answer is yes: the four
+ * action buttons are real `<button>` elements, so `uiHit` returns true and
+ * `worldPointer` returns false. That is CORRECT for what `worldPointer` is for:
+ * a thumb on the jump button must not also set a build piece down in the world
+ * behind it.
+ *
+ * It is not correct for the *deafness*. A press on the interface buys the world
+ * 0.16 s of silence so that a panel fading out under the cursor cannot leak a
+ * click through to the ground. But the pad is not a panel fading out. It is the
+ * only way a phone can say `jump` at all, and it says it through `_press` a few
+ * milliseconds after this handler runs — so the pad's own tap was arriving into
+ * a silence its own tap had just bought, and `_press` threw it away on the
+ * `_grace > 0` line. Every button on the pad was dead on every touch device,
+ * always: jump, dash, glide and interact. See tools/critic/touch.mjs, which taps
+ * all four for real and fails if the world does not answer.
+ */
+function ownControls(el) {
+  return !!(el && typeof el.closest === 'function' && el.closest(OWN_CONTROLS));
+}
+
 /** Radial deadzone + response curve. Returns a vector of length 0..1. */
 function stick(x, y, dz = STICK_DZ, expo = 1.35) {
   const m = Math.hypot(x, y);
@@ -202,7 +236,19 @@ export class Input {
    */
   worldPointer(e) {
     if (this.uiOpen || this._grace > 0) return false;
-    if (this.locked) return true;
+    // A CONTROL WINS, LOCK OR NO LOCK.
+    //
+    // `if (this.locked) return true` used to stand here, above the target test,
+    // and it made "the interface ate that click" conditional on a browser
+    // setting. Under a granted lock every event really does target the canvas,
+    // so the line below answers the locked case correctly and the short circuit
+    // bought nothing — but any press that reaches a real button while `locked`
+    // is still set (a lock the page has lost and not been told about yet, a
+    // synthesised press, a machine that reports the lock and delivers events to
+    // the element anyway) was handed to the world with the button under it.
+    // This project has already shipped one catastrophic version of a pointer
+    // that went to the wrong owner, so the question is now asked the same way
+    // every time. (learn-ux, lane B: smallest change that closes the hole.)
     const el = e && e.target;
     if (!el || el === this.canvas) return true;
     return !uiHit(el);
@@ -478,8 +524,12 @@ export class Input {
       const world = this.worldPointer(e);
       this.pointerOnUI = !world;
       // A gesture the interface ate also buys the world a moment of deafness,
-      // which covers a panel that is still fading out under the cursor.
-      if (!world && !this.locked) this.eatPointer(0.16);
+      // which covers a panel that is still fading out under the cursor. The
+      // game's own on-screen pad is exempt: it is the hands, not the interface,
+      // and the deafness bought here landed on its own `_press` a few
+      // milliseconds later and killed it. (`ownControls`, above.)
+      const mine = ownControls(e.target);
+      if (!world && !this.locked && !mine) this.eatPointer(0.16);
       // A press in the world is a candidate look. Touch is excluded: a thumb
       // already has its own stick and its own TURN pad. (src/player/touch.js)
       this._dragged = false;

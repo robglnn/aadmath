@@ -192,6 +192,45 @@ const EXPO = [[2, 3], [3, 4], [4, 5], [5, 6], [6, 7]];
  */
 /** Small pairs, for the forms whose band is carried by the number in front. */
 const XW_HEAVY = [[3, 2], [2, 3], [3, 3]];
+/**
+ * THE NUMBER IN FRONT OF A POWER OF A POWER, BAND BY BAND.
+ *
+ * This skill used to borrow `COEF`, and turn it on at band 4 and nowhere else:
+ * bands 1 to 3 printed `\left(x^{3}\right)^{3}` with nothing in front, and
+ * band 4 printed `\left(9x^{3}\right)^{3}` — a front number raised to a
+ * third power, so the largest number on the card went from 9 to 729 in one
+ * step. Measured, the five bands read 4.01 4.44 4.96 9.16 10.21: sixty-eight
+ * per cent of the whole climb at one boundary, which `tools/critic/ladder.mjs`
+ * calls a wall rather than a rung, and which adaptivity cannot move a learner
+ * across gently because there is nothing in between.
+ *
+ * A table of its own, entered at band 3 and grown one rung at a time. The
+ * ceiling is what a cadet can raise in their head and what `needExact` can
+ * still check exactly: nine cubed is 729 and is the top of the bank.
+ */
+const XW_FRONT = [[1, 1], [2, 2], [2, 4], [3, 6], [5, 12]];
+/**
+ * The largest number a cadet is asked to raise a front number to on one card.
+ * `needExact` would allow more at a small total count and nothing at a large
+ * one, which is a ceiling that moves with the pair rather than with the band;
+ * this one does not move, so the front number is drawn from the values that
+ * fit rather than re-rolled until one does.
+ */
+const XW_RAISED_MAX = 400;
+/** The same, for `xw-nested`, which is band five and nothing else. */
+const XW_NEST = [[2, 4], [2, 4], [2, 4], [2, 4], [2, 4]];
+/** The same, for `xw-coef`, whose front number is on the card from band 2. */
+const XW_COEF = [[2, 4], [2, 4], [3, 5], [4, 7], [6, 12]];
+/**
+ * The band's front-number range, narrowed to what raising to the `b`-th power
+ * keeps readable. Both ends move, so a band whose floor is above the ceiling
+ * for this pair falls back to the ceiling instead of drawing an empty range.
+ */
+function frontRange(table, d, b) {
+  const [lo, hi] = table[rung(d)];
+  const cap = Math.max(2, Math.min(hi, Math.floor(XW_RAISED_MAX ** (1 / b))));
+  return [Math.min(lo, cap), cap];
+}
 const XW_PAIRS = [
   [[2, 3], [3, 2]],
   [[4, 2], [2, 4]],
@@ -503,6 +542,13 @@ const exponentProduct = [
   },
   {
     id: 'xp-dispute', rep: 'verbal', dMin: 2, dMax: 4,
+    /* A DISPUTE IS A SITUATION, NOT A CHOICE SET.
+       This form used to end in "Which answer is right?" over a keypad, with no
+       answers on the card at all — so the sentence pointed at something a
+       cadet could look for and never find, and the only way through was to
+       ignore it. The dispute stays, because caring about a disagreement is
+       what makes a cadet check their own work; the question after it states
+       the task, which is what every other form in this skill already does. */
     build({ r, d, T, sr }) {
       const sc = scene(sr, DISPUTES_EXP);
       const v = pick(r, VARS);
@@ -513,7 +559,7 @@ const exponentProduct = [
       const math = `${v}^{${a}} \\cdot ${v}^{${b}}`;
       const ans = `${v}^{${total}}`;
       return {
-        stem: `${T(sc.ctx)} ${T('l3.ask.whichIsRight')}`,
+        stem: `${T(sc.ctx)} ${T('l3.ask.onePower')}`,
         latex: math,
         type: 'expression',
         answer: ans,
@@ -589,7 +635,10 @@ const exponentPower = [
       const v = pick(r, VARS);
       const b = int(r, 2, d >= 4 ? 3 : 2);
       const a = int(r, 2, 3);
-      const p = (d >= 5 && r() < 0.5 ? -1 : 1) * from(r, COEF, d);
+      // `XW_COEF`, not the unit-wide `COEF`: see `XW_FRONT`. Borrowing the
+      // unit-wide coefficients put a third power of a number up to thirteen on
+      // band 4 and nothing at all on band 3.
+      const p = (d >= 5 && r() < 0.5 ? -1 : 1) * int(r, ...frontRange(XW_COEF, d, b));
       const total = a * b;
       const raised = p ** b;
       if (!distinct(p, b, raised, a)) throw new Error('retry: repeated number');
@@ -620,6 +669,13 @@ const exponentPower = [
   },
   {
     id: 'xw-nested', rep: 'symbolic', dMin: 5, dMax: 5,
+    /* THE TOP OF THIS SKILL ASKED LESS THAN THE MIDDLE OF IT.
+       This form is band five and nothing else, and it measured 4.90 against a
+       band-three mean of 5.24: two brackets, one letter and no number on the
+       card at all, so `demandOf` read it as one of the easiest items in the
+       unit. A number in front is not decoration here — it is the same rule
+       said twice more, because EVERY factor inside a bracket is raised, and it
+       is what the two forms either side of this one already do. */
     build({ r, d, T }) {
       const v = pick(r, VARS);
       const a = int(r, 2, 3);
@@ -627,9 +683,15 @@ const exponentPower = [
       const c = 2;
       const total = a * b * c;
       if (a === b) throw new Error('retry: equal counts hide which one moved');
-      needExact(total);
-      const math = `\\left(\\left(${v}^{${a}}\\right)^{${b}}\\right)^{${c}}`;
-      const ans = `${v}^{${total}}`;
+      // The front number is raised to the two OUTER counts together, so what
+      // keeps it readable is `b * c` and not either count on its own.
+      const p = int(r, ...frontRange(XW_NEST, d, b * c));
+      const raised = p ** (b * c);
+      const inner = p ** b;
+      if (!distinct(p, inner, raised, total)) throw new Error('retry: repeated number');
+      needExact(total, raised);
+      const math = `\\left(\\left(${mono(p, v, a)}\\right)^{${b}}\\right)^{${c}}`;
+      const ans = mono(raised, v, total);
       return {
         stem: T('l3.ask.onePower'),
         latex: math,
@@ -637,17 +699,18 @@ const exponentPower = [
         answer: ans,
         check: { kind: 'equivalent', math, variable: v },
         steps: [
-          { latex: `${math} = \\left(${v}^{${a * b}}\\right)^{${c}}`, why: T('l3.why.innerPairFirst') },
-          { latex: `\\left(${v}^{${a * b}}\\right)^{${c}} = ${ans}`, why: T('l3.why.multiplyTheCounts', { a: a * b, b: c }) },
+          { latex: `${math} = \\left(${mono(inner, v, a * b)}\\right)^{${c}}`, why: T('l3.why.innerPairFirst') },
+          { latex: `\\left(${mono(inner, v, a * b)}\\right)^{${c}} = ${ans}`, why: T('l3.why.raiseNumberMultiplyCounts') },
         ],
         distractors: [
-          { v: `${v}^{${a + b + c}}`, m: 'exponents-added' },
-          { v: `${v}^{${a * b + c}}`, m: 'partial-rule' },
-          { v: `${v}^{${total + 1}}`, m: 'arith-slip' },
-          { v: `${v}^{${a * b}}`, m: 'partial-rule' },
-          { v: `${v}^{${a + b * c}}`, m: 'exponents-added' },
-          { v: `${v}^{${total - 1}}`, m: 'arith-slip' },
-          { v: mono(total, v, 1), m: 'base-times-exponent' },
+          { v: mono(raised, v, a + b + c), m: 'exponents-added' },
+          { v: mono(raised, v, a * b + c), m: 'partial-rule' },
+          { v: mono(raised, v, total + 1), m: 'arith-slip' },
+          { v: mono(inner, v, a * b), m: 'partial-rule' },
+          { v: mono(p, v, total), m: 'coefficient-not-raised' },
+          { v: mono(raised, v, total - 1), m: 'arith-slip' },
+          { v: mono(p * b * c, v, total), m: 'base-times-exponent' },
+          { v: mono(raised, v, a + b * c), m: 'exponents-added' },
         ],
       };
     },
@@ -661,9 +724,9 @@ const exponentPower = [
       // stay small: raising a big number to a count of five leaves exact
       // arithmetic at once, and the guard would then force the number back down
       // — which made band 4 measure harder than band 5.
-      const heavy = d >= 4;
-      const [a, b] = heavy ? pick(r, XW_HEAVY) : pick(r, XW_PAIRS[rung(d)]);
-      const base = heavy ? from(r, COEF, d) : 1;
+      const heavy = d >= 2;
+      const [a, b] = pick(r, XW_PAIRS[rung(d)]);
+      const base = heavy ? int(r, ...frontRange(XW_FRONT, d, b)) : 1;
       const raised = base ** b;
       const total = a * b;
       // The ONE pair that must never be drawn: 2 and 2, where multiplying the
@@ -931,7 +994,18 @@ const zeroNegativeExponent = [
       const b = a + gapSize;
       needExact(b);
       const math = `\\frac{${v}^{${a}}}{${v}^{${b}}}`;
-      const ans = `\\frac{1}{${v}^{${gapSize}}}`;
+      /* A POWER OF ONE IS NOT WRITTEN, ON THE SKILL WHOSE SUBJECT IS POWERS.
+         The key here used to be `\\frac{1}{n^{1}}` whenever the two counts
+         differed by one — the explicit exponent that every other form in this
+         pack drops (see `mono`, which has written `n` rather than `n^{1}`
+         since it was written). It is not simplest form, and it is the form the
+         echo, the worked steps and the seal all printed back at a learner who
+         is being taught what an exponent means. The reciprocal distractor
+         carried the same `n^{1}`, and the "one count short" distractor came
+         out as `\\frac{1}{n^{1}}` — the key again, wearing a different
+         spelling, which the bank then silently dropped for being correct. */
+      const power = (e) => (e === 1 ? v : `${v}^{${e}}`);
+      const ans = `\\frac{1}{${power(gapSize)}}`;
       return {
         stem: T('l3.ask.oneExpression'),
         latex: math,
@@ -943,13 +1017,13 @@ const zeroNegativeExponent = [
           { latex: `${v}^{-${gapSize}} = ${ans}`, why: T('l3.why.negativeCountIsUnderTheBar', { n: gapSize }) },
         ],
         distractors: [
-          { v: `${v}^{${gapSize}}`, m: 'negative-power-is-reciprocal-slip' },
+          { v: power(gapSize), m: 'negative-power-is-reciprocal-slip' },
           { v: mono(-1, v, gapSize), m: 'negative-power-is-negative' },
-          { v: `\\frac{1}{${v}^{${gapSize + 1}}}`, m: 'arith-slip' },
-          { v: `\\frac{1}{${v}^{${Math.min(MAX_COUNT, a + b)}}}`, m: 'exponents-added' },
-          { v: `-\\frac{1}{${v}^{${gapSize}}}`, m: 'negative-power-is-negative' },
-          { v: `\\frac{1}{${v}^{${Math.max(1, gapSize - 1)}}}`, m: 'arith-slip' },
-          { v: `${v}^{${Math.min(MAX_COUNT, a + b)}}`, m: 'exponents-added' },
+          { v: `\\frac{1}{${power(gapSize + 1)}}`, m: 'arith-slip' },
+          { v: `\\frac{1}{${power(Math.min(MAX_COUNT, a + b))}}`, m: 'exponents-added' },
+          { v: `-\\frac{1}{${power(gapSize)}}`, m: 'negative-power-is-negative' },
+          { v: `\\frac{1}{${power(gapSize + 2)}}`, m: 'arith-slip' },
+          { v: power(Math.min(MAX_COUNT, a + b)), m: 'exponents-added' },
         ],
       };
     },
@@ -1552,6 +1626,13 @@ const polyAddSub = [
   },
   {
     id: 'pa-dispute', rep: 'verbal', dMin: 3, dMax: 5,
+    /* A DISPUTE IS A SITUATION, NOT A CHOICE SET.
+       This form used to end in "Which answer is right?" over a keypad, with no
+       answers on the card at all — so the sentence pointed at something a
+       cadet could look for and never find, and the only way through was to
+       ignore it. The dispute stays, because caring about a disagreement is
+       what makes a cadet check their own work; the question after it states
+       the task, which is what every other form in this skill already does. */
     build({ r, d, T, sr }) {
       const sc = scene(sr, DISPUTES_SIGN);
       const v = pick(r, VARS);
@@ -1565,7 +1646,7 @@ const polyAddSub = [
       const ans = poly(S, v);
       const halfDone = poly(addTriples(P, [[-Q[0][0], 2], [Q[1][0], 1], [Q[2][0], 0]]), v);
       return {
-        stem: `${T(sc.ctx)} ${T('l3.ask.whichIsRight')}`,
+        stem: `${T(sc.ctx)} ${T('l3.ask.whatIsLeft')}`,
         latex: math,
         type: 'expression',
         answer: ans,
@@ -1785,6 +1866,38 @@ const polyMultiply = [
 // common factor and not merely a common one — `gcdOf(...) === 1` on what is
 // left is asserted, not hoped for.
 // ===========================================================================
+/** Is this whole number a square of a whole number? Negative: never. */
+function isWholeSquare(n) {
+  if (n < 0) return false;
+  const r = Math.round(Math.sqrt(n));
+  return r * r === n;
+}
+/**
+ * WHAT IS LEFT INSIDE THE BRACKET MUST NOT COME APART EITHER.
+ *
+ * Taking the largest common factor out is this node's whole subject, and the
+ * key it writes is a product. A product that still comes apart is a
+ * factorisation stopped one step early — which is exactly what Level 4 marks
+ * wrong, so keying one here is the bank contradicting itself, and
+ * `tools/validate-courses.mjs` fails on it by rule now rather than by luck.
+ * `52n^{2} + 44n - 8` was keyed `4\left(13n^{2} + 11n - 2\right)`, and that
+ * bracket is `\left(13n - 2\right)\left(n + 1\right)`.
+ *
+ * A quadratic with integer coefficients comes apart over the whole numbers
+ * exactly when its discriminant is a square, so the draw is refused rather
+ * than re-rolled. Anything that is not a quadratic in `v` — a straight line, a
+ * cube, a higher power with one term — is left alone: `x^{3} - 8` is outside
+ * what any Algebra I unit here factors.
+ *
+ * @param {number} a coefficient of the squared term (0 if there is none)
+ * @param {number} b coefficient of the letter
+ * @param {number} c the loose number
+ */
+function bracketComesApart(a, b, c) {
+  if (!a) return false;
+  const disc = b * b - 4 * a * c;
+  return disc >= 0 && isWholeSquare(disc);
+}
 const gcd2 = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) { const t = a % b; a = b; b = t; } return a || 1; };
 const gcdOf = (...ns) => ns.reduce((g, n) => gcd2(g, n));
 
@@ -1798,6 +1911,9 @@ const factorCommon = [
       const b = fromNz(r, KONST, d);
       if (gcdOf(a, b) !== 1) throw new Error('retry: something more still comes out');
       const e = int(r, 1, 1 + rung(d));
+      // See `bracketComesApart`: `4x^{2} - 16` keyed `4(x^{2} - 4)` is a
+      // factorisation stopped one step early, and Level 4 marks it wrong.
+      if (e === 2 && bracketComesApart(a, 0, b)) throw new Error('retry: the bracket still comes apart');
       needExact(e, Math.abs(k * a));
       if (!distinct(k, a, b, k * a, k * b)) throw new Error('retry: repeated number');
       const math = poly([[k * a, e], [k * b, 0]], v);
@@ -1834,6 +1950,7 @@ const factorCommon = [
       const a = coefOf(r, d);
       const b = coefOf(r, d);
       if (gcdOf(a, b) !== 1) throw new Error('retry: a number still comes out too');
+      if (q === 2 && bracketComesApart(a, 0, b)) throw new Error('retry: the bracket still comes apart');
       needExact(p + q, Math.abs(a));
       if (!distinct(a, b, p, q)) throw new Error('retry: repeated number');
       const math = poly([[a, p + q], [b, p]], v);
@@ -1871,6 +1988,7 @@ const factorCommon = [
       const a = fromNz(r, COEF, d);
       const b = fromNz(r, COEF, d);
       if (gcdOf(a, b) !== 1) throw new Error('retry: something more still comes out');
+      if (q === 2 && bracketComesApart(a, 0, b)) throw new Error('retry: the bracket still comes apart');
       needExact(p + q, Math.abs(k * a));
       if (!distinct(k, a, b, p, q, k * a, k * b)) throw new Error('retry: repeated number');
       const math = poly([[k * a, p + q], [k * b, p]], v);
@@ -1908,6 +2026,7 @@ const factorCommon = [
       const b = fromNz(r, COEF, d);
       const c = fromNz(r, KONST, d);
       if (gcdOf(a, b, c) !== 1) throw new Error('retry: something more still comes out');
+      if (bracketComesApart(a, b, c)) throw new Error('retry: the bracket still comes apart');
       needExact(2, Math.abs(k * a));
       if (!distinct(k, a, b, c, k * a, k * b, k * c)) throw new Error('retry: repeated number');
       const math = poly([[k * a, 2], [k * b, 1], [k * c, 0]], v);
@@ -2244,12 +2363,26 @@ const exponentialRule = [
       if (!distinct(a, b, k, out)) throw new Error('retry: repeated number');
       const rule = expTex(a, b, v);
       return {
-        stem: `${T('l3.ask.valueOfF', { k })} ${T('l3.ask.nextReading')}`,
+        // ONE QUESTION, AND THE READING IT STARTS FROM IS IN IT.
+        // This stem used to be two sentences glued together — "What is f(3)?"
+        // followed by "What is the output one step later?" — with the checker
+        // evaluating at k + 1. It asked for f(3), accepted f(4), and offered
+        // f(3) as the `partial-rule` distractor, so a cadet who answered the
+        // first sentence of the stem was marked wrong for it. `check:lang`
+        // reported the same thing from the other end: the 3 printed in the
+        // prose appeared in no latex, no step, no answer and no check
+        // environment, which is the `decoy` rule (6 findings per locale, 18 in
+        // all). The single question carries the anchor, and the worked lines
+        // below start FROM that anchor — which is also why one step later
+        // multiplies by the base, so the trace teaches the rule instead of
+        // asserting it. (coherence seam: lanes C/D x check:lang)
+        stem: T('l3.ask.nextReading', { k }),
         latex: named(v, rule),
         type: 'numeric',
         answer: String(out),
         check: { kind: 'evaluate', math: rule, env: { [v]: k + 1 } },
         steps: [
+          { latex: `${a} \\cdot ${b}^{${k}} = ${a * b ** k}`, why: T('l3.why.putTheInputIn', { k }) },
           { latex: `${a} \\cdot ${b}^{${k + 1}} = ${a} \\cdot ${b ** (k + 1)}`, why: T('l3.why.oneMoreStepMultiplies') },
           { latex: `${a} \\cdot ${b ** (k + 1)} = ${out}`, why: T('l3.why.workItOut') },
         ],

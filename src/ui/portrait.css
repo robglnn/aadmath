@@ -86,14 +86,15 @@
 
      The numbers are measured, not chosen. At 390x844, in the longest of the
      three languages: the rig comes in at 60, the session band at 51 once the
-     row the track already draws comes off, the three pills at 34, the objective
+     row the track already draws comes off, the three pills at 44 (they were
+     34, which is under the published floor for a touch target), the objective
      card publishes 79 through `--gd-h`, and the rack is 297.
      ========================================================================= */
   #ui {
     --pt-gap: 6px;
     --pt-rig: 64px;                 /* the rig's own height, plus the gap */
     --pt-band: 0px;                 /* the session band, when it is up */
-    --pt-ctl: 40px;                 /* PROGRESS · MENU · sound, one row */
+    --pt-ctl: 50px;                 /* PROGRESS · MENU · sound, one 44 px row */
     --pt-obj: 0px;                  /* the objective card = --gd-h */
     --pt-chap: 0px;                 /* the chapter strip, when it is up */
 
@@ -152,6 +153,21 @@
      whole width. A narrow window on a laptop is not a phone. */
   :root:not([data-touch]) #ui { --pt-flank: 0px; --pt-rack: 0px; }
 
+  /* …AND ONLY WHILE THERE IS A RACK AT ALL.
+     56 px of a 390 px frame — one seventh of the width — was held for the build
+     rack from the first frame of the game, on a screen where the rack itself
+     was not yet earned. The client asked for the space back, and this is the
+     horizontal half of it: until the game has given the cadet a reason to
+     build there is no rack on this flank and nothing to reserve for it.
+
+     THE SHUT RACK STILL GETS THE WHOLE FLANK, deliberately. A draft gave it 52
+     px — the width of its one handle — and tools/critic/transient.mjs found the
+     grant card and a ledger row 8 px into each other on the notched 390 frame
+     that the extra width had let them grow into. The ladder below is measured
+     against a full-width rack in three languages; narrowing the reservation
+     under it buys four pixels and re-opens a column that was already tuned. */
+  #ui:not(:has(.buildbar[data-reason])) { --pt-flank: 0px; --pt-rack: 0px; }
+
   /* The three bands that appear and disappear mid-run. `:has()` is how the
      ladder learns about them: the session band arrives at the first charter,
      the objective card whenever there is somewhere to be, the chapter strip
@@ -192,7 +208,6 @@
   #ui .hud-top { right: calc(var(--pad-r) + 118px); }
   #ui .rig-cap { white-space: normal; }
   #ui .rig-rank i, #ui .rig-shards i { overflow: visible; text-overflow: clip; }
-  #ui .langs { top: var(--pad-t); right: var(--pad-r); }
 
   /* =========================================================================
      2. THE RIGHT FLANK — the build rack, and nothing else, ever.
@@ -273,22 +288,27 @@
      than `#ui .rp-launch` and wins however late this sheet is loaded. Matching
      its shape is what lets the ladder do the moving instead. The same is true
      of the two cards below. */
+  /* 34 px was under the published floor for a touch target on the only device
+     this block is ever composed for. All three are 44 now, on the same rule as
+     the pad and the rift's own controls, and `--pt-ctl` above carries the extra
+     ten pixels so the ladder under them moves rather than the objective card
+     being printed on. */
   #ui .rp-launch,
   #ui:has(.ses-band.show) .rp-launch {
     top: var(--pt-y-ctl); bottom: auto;
     left: var(--pad-l); right: auto;
-    min-height: 34px; padding: .36rem .58rem;
+    min-height: 44px; min-width: 44px; padding: .36rem .58rem;
     z-index: var(--pt-z-col);
   }
   .sound {
     top: var(--pt-y-ctl); bottom: auto;
     left: auto; right: calc(var(--pad-r) + var(--pt-flank));
-    padding: .3rem .5rem;
+    min-height: 44px; min-width: 44px; padding: .3rem .5rem;
   }
   #ui .mnu-pill {
     top: var(--pt-y-ctl); bottom: auto;
     left: auto; right: calc(var(--pad-r) + var(--pt-flank) + 63px);
-    min-height: 34px; padding: .34rem .5rem;
+    min-height: 44px; min-width: 44px; padding: .34rem .5rem;
     z-index: var(--pt-z-col);
   }
   #ui .mnu-pill b { display: none; }        /* the icon and the title carry it */
@@ -607,9 +627,14 @@
      The cluster is 132x150 with 46 px buttons and a 72 px jump, and the resting
      ring is 104. On a 390 px frame that is a third of the width per side and
      18% of the height, for four buttons. Everything here is scaled to a thumb
-     rather than to a screenshot: 40 px clears Apple's 36 pt minimum at this
-     density, the jump keeps its emphasis at 62, and the cluster fits in
-     122x134 — which is what buys the companion her lines back.
+     rather than to a screenshot — and a thumb has a published size. The line
+     that used to stand here read "40 px clears Apple's 36 pt minimum at this
+     density", and it was wrong twice over: the figure Apple's HIG and Google's
+     Material both publish is 44 pt, and a pt is not a device pixel to be traded
+     against a scale factor. Three of the four verbs shipped at 40 x 40 on that
+     sentence. They are 44 now, the jump keeps its emphasis at 62, and the
+     cluster fits in 126x146 — four pixels wider and twelve taller than before,
+     which is what a published minimum costs.
      ========================================================================= */
   :root[data-touch] { --thumb-b: 150px; }
 
@@ -624,10 +649,15 @@
 
   #touchpad .pads {
     right: max(10px, var(--sa-r)); bottom: calc(14px + var(--sa-b));
-    width: 122px; height: 134px;
+    width: 126px; height: 146px;
   }
-  #touchpad .btn { width: 40px; height: 40px; }
-  #touchpad .btn svg { width: 20px; height: 20px; }
+  /* 44, NOT 40. Apple's HIG and Google's Material publish the same floor for a
+     touch target — 44 x 44 CSS px — and three of the four verbs on this pad
+     were under it in portrait as well as sideways. A thumb does not get
+     smaller because the phone is held up. `tools/critic/touch.mjs` measures
+     every button on nine phone profiles and refuses one under 44 x 44. */
+  #touchpad .btn { width: 44px; height: 44px; }
+  #touchpad .btn svg { width: 22px; height: 22px; }
   /* Each button prints its own name UNDER itself, so this cluster is laid out
      on eight boxes and not four, and every gap below is the width or the height
      of a WORD — the longest of the three languages' words, not the English one.
@@ -638,8 +668,8 @@
   #touchpad .btn[data-a="jump"] svg { width: 28px; height: 28px; }
   #touchpad .btn[data-a="jump"] b { font-size: 10px; }
   #touchpad .btn[data-a="dash"] { right: 70px; bottom: 18px; }
-  #touchpad .btn[data-a="glide"] { right: 2px; bottom: 92px; }
-  #touchpad .btn[data-a="interact"] { right: 74px; bottom: 86px; }
+  #touchpad .btn[data-a="glide"] { right: 2px; bottom: 96px; }
+  #touchpad .btn[data-a="interact"] { right: 74px; bottom: 90px; }
 
   /* =========================================================================
      8. THE PANELS THAT TAKE THE WHOLE FRAME.
@@ -651,11 +681,32 @@
      ========================================================================= */
   #ui .fcs { width: min(340px, 88vw); }
   /* the language pill is a modal's business too: it must not sit on a card */
-  #ui:has(.rift.show) .langs,
-  #ui:has(.rp-scrim.show) .langs,
-  #ui:has(.mnu.show) .langs { opacity: 0; pointer-events: none; }
+  /* THE LOCALE SWITCHER USED TO BE HERE AND IS NOT ANY MORE.
+     It stood at the top-right of the glass and had to be hidden under every
+     panel that took the frame — including, fatally for this rule, the menu.
+     It now lives INSIDE that menu (src/ui/menu.js), so a rule that hides
+     `.langs` while `.mnu` is open would hide the control the player just
+     opened the menu to reach. */
 }
 
 @media (max-width: 560px) and (orientation: portrait) and (prefers-reduced-motion: reduce) {
   #ui .meta-comms, #ui .fc, #ui .gd-card, #ui .meta-quest { transition-duration: .01ms; }
+}
+
+/* ===========================================================================
+   44 x 44, HELD UP — the same floor as src/ui/landscape.css, for the same
+   reason and against the same published number. Measured on a 390x844
+   iPhone 13 profile before this block: `.slot` 44 x 40, `.fc-x` 78 x 17.4.
+   Forty is not forty-four, and a rack that is nearly big enough is a rack a
+   thumb drops a piece out of.
+   =========================================================================== */
+@media (pointer: coarse) {
+  :root[data-touch] .slot,
+  #ui .slot { min-width: 44px; min-height: 44px; }
+  :root[data-touch] .buildbar .place,
+  #ui .buildbar .place { min-width: 44px; min-height: 44px; }
+  #ui .fc-x {
+    min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
 }

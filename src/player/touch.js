@@ -24,6 +24,17 @@ export class TouchControls {
     const el = document.createElement('div');
     el.id = 'touchpad';
     el.className = 'on';
+    // THIS PAD IS THE PLAYER'S HANDS, NOT THE INTERFACE.
+    //
+    // Every button below is a real `<button>`, so `uiHit()` in src/core/input.js
+    // correctly reports "a control was pressed" and `worldPointer()` correctly
+    // refuses to also drop a build piece in the world behind the thumb. What it
+    // must NOT do is buy the world 0.16 s of deafness, because the verb this
+    // very press is about to fire arrives inside that window and was thrown
+    // away on the `_grace > 0` line — which is why the on-screen jump button
+    // did nothing on any phone, ever. One attribute, read in one place
+    // (`ownControls`, src/core/input.js), is the whole of the contract.
+    el.dataset.verbs = 'world';
     // icon-only, and hidden from assistive tech: these duplicate the keyboard
     // and pad bindings, and no learner-visible string may live outside i18n
     el.setAttribute('aria-hidden', 'true');

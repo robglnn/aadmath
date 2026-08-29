@@ -59,7 +59,7 @@ export default {
     keyClear: 'Q · usuń',
     turn: 'Obróć',
     // --- własna krata nigdy nie może cię zamknąć (src/build/builder.js) ---
-    sealDoor: 'Ta ściana zamyka pokój. Będzie miała drzwi.',
+    sealDoor: 'Ta ściana zamyka pokój i będzie miała drzwi.',
     doorCut: 'Pokój zamknięty. Ta ściana ma drzwi.',
     boxedIn: 'Własna krata cię zamurowała',
     cutFree: 'Wyjście otwarte',
@@ -147,6 +147,35 @@ export default {
     'factor-common': 'Wyłączanie wspólnego czynnika',
     'linear-vs-exponential': 'Wzrost liniowy a wykładniczy',
     'exponential-rule': 'Reguły wykładnicze',
+    // Poziom 4 (content/graph/algebra1-l4.json).
+    'radical-simplify': 'Upraszczanie pierwiastków',
+    'radical-arith': 'Dodawanie i mnożenie pierwiastków',
+    'factor-trinomial-monic': 'Rozkład trójmianu',
+    'factor-trinomial-lead': 'Rozkład trójmianu ze współczynnikiem',
+    'difference-of-squares': 'Różnica kwadratów',
+    'poly-divide': 'Dzielenie wielomianów',
+    'quadratic-zero-product': 'Reguła iloczynu zerowego',
+    'solve-by-factoring': 'Rozwiązywanie przez rozkład',
+    'square-root-method': 'Rozwiązywanie przez pierwiastek',
+    'complete-the-square': 'Uzupełnianie do kwadratu',
+    'quadratic-formula': 'Wzór na pierwiastki',
+    'parabola-features': 'Czytanie paraboli',
+    'quadratic-from-vertex': 'Zapis funkcji kwadratowej',
+    'quadratic-model': 'Modele kwadratowe',
+    // Poziom 5 (content/graph/algebra1-l5.json).
+    'rational-exponent': 'Wykładnik ułamkowy',
+    'relation-is-function': 'Czy reguła jest funkcją',
+    'sequence-terms': 'Wyrazy ciągu',
+    'sequence-nth-term': 'Wzór na dowolny wyraz',
+    'point-slope-form': 'Postać punktowo-kierunkowa',
+    'parallel-perpendicular': 'Proste równoległe i prostopadłe',
+    'inequality-two-var': 'Nierówności z dwiema literami',
+    'write-system': 'Zapisywanie układu',
+    'system-graphically': 'Układy z wykresu',
+    'scatter-regression': 'Prosta najlepszego dopasowania',
+    'residual-and-fit': 'Reszty i dopasowanie',
+    'association-strength': 'Siła zależności',
+    'exponential-model': 'Modele wykładnicze',
   },
 
   course: {
@@ -157,8 +186,10 @@ export default {
   },
   unit: {
     'algebra1-l1': { title: 'Poziom 1 — Język równowagi' },
-    'algebra1-l2': { title: 'Poziom 2 — Struktura i tempo' },
+    'algebra1-l2': { title: 'Poziom 2 — Przechył, tempo i para' },
     'algebra1-l3': { title: 'Poziom 3 — Nazwa, potęga i postać' },
+    'algebra1-l4': { title: 'Poziom 4 — Pierwiastek, czynnik i zwrot' },
+    'algebra1-l5': { title: 'Poziom 5 — Reguła, dopasowanie i wzorzec' },
   },
 
   settings: {
@@ -359,6 +390,27 @@ export default {
     help: {
       keypad: 'Wpisz wartość, która czyni zdanie prawdziwym. Potem naciśnij „Zapieczętuj”.',
       keypadExpression: 'Wpisz wyrażenie w najkrótszej postaci. Potem naciśnij „Zapieczętuj”.',
+      // …i trzecie zadanie tej samej klawiatury. Element liczbowy nie zawsze
+      // jest równaniem: nie ma tu zdania, które trzeba uczynić prawdziwym.
+      // Zobacz `ask.evaluateWhen` w content/lang/items.pl.js.
+      keypadValue: 'Podstaw wartość i oblicz. Potem naciśnij „Zapieczętuj”.',
+      // learn-ux: jedna linia na ZADANIE, nie na przyrząd. Klawiatura służy
+      // dziewięciu różnym zadaniom, a opisywała dwa. Zobacz `_taskKey`.
+      factor: 'Zapisz to jako nawiasy pomnożone przez siebie. Potem naciśnij „Zapieczętuj”.',
+      expand: 'Wymnóż to do końca. Nie zostaw żadnego nawiasu. Potem naciśnij „Zapieczętuj”.',
+      vertex: 'Zapisz to jako jeden nawias do kwadratu plus liczba. Potem naciśnij „Zapieczętuj”.',
+      simplify: 'Wyciągnij spod pierwiastka każdy pełny kwadrat. Potem naciśnij „Zapieczętuj”.',
+      // learn-ux: pięć kolejnych zadań, a żadnego nie nazywa POSTAĆ, której
+      // żąda sprawdzarka. Zobacz `_taskKey`.
+      power: 'Użyj reguł potęgowania. Zapisz wynik jako jeden wyraz. Potem naciśnij „Zapieczętuj”.',
+      common: 'Wyciągnij to, co mają wszystkie wyrazy, a resztę zostaw w nawiasie. Potem naciśnij „Zapieczętuj”.',
+      radsum: 'Dodaj pierwiastki, które do siebie pasują. Potem naciśnij „Zapieczętuj”.',
+      rationalise: 'Usuń pierwiastek z dołu ułamka. Potem naciśnij „Zapieczętuj”.',
+      divide: 'Podziel górę przez dół. Potem naciśnij „Zapieczętuj”.',
+      roots: 'Wpisz każdą wartość, która czyni zdanie prawdziwym. Potem naciśnij „Zapieczętuj”.',
+      point: 'Wpisz punkt: najpierw w bok, potem w górę. Potem naciśnij „Zapieczętuj”.',
+      bound: 'Wpisz przedział, w którym mieszczą się wartości. Potem naciśnij „Zapieczętuj”.',
+      rule: 'Wpisz regułę, która łączy obie litery. Potem naciśnij „Zapieczętuj”.',
       balance: 'Wybierz ruch. Belka wykona go po obu stronach. Po obu, za każdym razem — na tym polega całe prawo.',
       sort: 'Odeślij każdy wyraz do właściwej ładowni.',
       area: 'Pokryj każdą część pola powierzchnią, którą ta część niesie.',
@@ -372,6 +424,19 @@ export default {
       back: 'Usuń',
       minus: 'Minus',
       over: 'Kreska ułamkowa',
+      // learn-ux: klawisze notacji. Klawiatura bez nawiasu, pierwiastka, znaku
+      // równości i przecinka nie potrafiła zapisać większości własnych odpowiedzi.
+      clear: 'Wyczyść',
+      take: 'Odejmij',
+      open: 'Otwórz nawias',
+      close: 'Zamknij nawias',
+      root: 'Pierwiastek kwadratowy',
+      power: 'Do potęgi',
+      equals: 'Równa się',
+      also: 'Oraz',
+      plusMinus: 'Plus lub minus',
+      atMost: 'Co najwyżej',
+      atLeast: 'Co najmniej',
       empty: 'Najpierw wpisz wartość',
       narrow: 'Zawęź pole',
       // Liczy to, co jest na ekranie. Gdy układ odrzuci jeden dystraktor,
@@ -448,7 +513,26 @@ export default {
       liveOnly: 'Osprzęt nie ma w zapisie innej wyrwy o tym kształcie. Więc echo pokazuje twoją własną pracę, odczytaną z powrotem.',
       nudge: {
         keypad: 'Powiedz sobie to zdanie, zanim cokolwiek wpiszesz. Szukasz wartości, która czyni je prawdziwym, a nie tej, która leży najbliżej.',
-        keypadExpression: 'Tu nic się nie rozwiązuje. Zapisz tę samą wielkość w mniejszej liczbie wyrazów, a krótszy zapis musi nadal zgadzać się dla każdej wartości litery.',
+        keypadExpression: 'Tu niczego nie rozwiązujesz. Zapisz tę samą wielkość w mniejszej liczbie wyrazów, a krótszy zapis musi nadal zgadzać się dla każdej wartości litery.',
+        // Podpowiedź dla zadania `keypadValue`. Bez niej `t()` sięgnęłaby po
+        // KLUCZ i wypisała `rift.echo.nudge.keypadValue` na karcie.
+        keypadValue: 'Wstaw liczbę w miejsce litery, wszędzie tam, gdzie ta litera stoi. Potem wykonaj działania po kolei.',
+        // Szept idzie za ZADANIEM. Wcześniej szedł za typem zadania, więc 179 z
+        // 341 form miało tę samą linię o wyrazach podobnych — także pod
+        // pierwiastkiem, gdzie żadnych wyrazów nie ma.
+        factor: 'Pracują tu dwie liczby. Pomnożone dają ostatnią liczbę, a dodane — środkową. Wstaw każdą z nich do własnego nawiasu.',
+        expand: 'Każda część pierwszego nawiasu spotyka każdą część drugiego. Pomnóż wszystkie te pary, a potem zbierz to, co pasuje do siebie.',
+        vertex: 'Podziel na pół liczbę stojącą przed samotną literą. Podnieś tę połowę do kwadratu: właśnie tej liczby nawias chce w środku. Potem napraw sumę.',
+        simplify: 'Poszukaj pełnego kwadratu ukrytego pod pierwiastkiem. Wyciągnij jego pierwiastek przed znak, a resztę zostaw pod spodem.',
+        power: 'Podstawa się nie zmienia; rusza się tylko mała liczba. Przy mnożeniu małe liczby dodają się, przy dzieleniu odejmują się, a potęga potęgi je mnoży. Potęga zerowa daje jeden.',
+        common: 'Znajdź największą liczbę, która dzieli każdy wyraz, oraz litery, które ma każdy z nich. Wspólna część wychodzi przed nawias; reszta zostaje w środku.',
+        radsum: 'Dwa pierwiastki dodają się tylko wtedy, gdy liczba pod znakiem jest ta sama. Najpierw uprość każdy pierwiastek, a potem policz, ile ich pasuje.',
+        rationalise: 'Pierwiastek pod kreską ułamka to jeszcze nie koniec pracy. Pomnóż górę i dół przez ten sam pierwiastek, a potem skróć.',
+        divide: 'Dół mieści się w górze całkowitą liczbę razy. Zapytaj, przez co pomnożyć dół, żeby otrzymać górę.',
+        roots: 'Znajdź każdą wartość, jaką może przyjąć niewiadoma, nie tylko pierwszą. Zapisz każdą jako literę, znak równości i jej wartość.',
+        point: 'Odczytaj najpierw w bok, po dole, a potem w górę, po boku. Oba odczyty to punkt, w tej kolejności.',
+        bound: 'Znajdź najpierw wartość na brzegu. Potem zapytaj, po której jego stronie zdanie pozostaje prawdziwe.',
+        rule: 'Znajdź, o ile rośnie wynik na jeden krok wejścia. Potem znajdź, gdzie się zaczyna.',
         balance: 'Coś przykleiło się do niewiadomej. Zdejmij najpierw to z wierzchu. Belka zrobi resztę.',
         sort: 'Dwa wyrazy są podobne tylko wtedy, gdy część z literą zgadza się co do joty. Liczba nigdy nie jest podobna do litery.',
         area: 'Czynnik z zewnątrz dotyka każdej części w środku. Każdej.',
@@ -535,6 +619,20 @@ export default {
   // jak cheerleaderka. Marlow jest „inteligencją”, stąd żeńska zgoda.
   // ---------------------------------------------------------------------
   story: {
+    /* DROGA (src/meta/region.js, src/content/route.js). Sieć otwiera się obszar
+       po obszarze. Nigdy numer poziomu: obszar to miejsce z nazwą. */
+    region: {
+      kick: 'Sieć się otwiera',
+      open1: 'Ostatnia linia tego pierścienia trzyma. Spójrz na horyzont.',
+      open2: 'Tam w dali rośnie nowy grunt. {region}.',
+      open3: 'Lądujemy tam w następnym przebiegu. Najpierw skończ tutaj.',
+      arrive: 'Lądowanie. {region}. {ground}',
+      'algebra1-l1': { name: 'Pierścień Równowagi', ground: 'Dwie strony wagi, i zgadzają się.' },
+      'algebra1-l2': { name: 'Pochyłe Przęsło', ground: 'Grunt, który się przechyla. Tempa, pary i linie, które się przecinają.' },
+      'algebra1-l3': { name: 'Zasięg Nazw', ground: 'Grunt z nazwami. Potęgi i reguły, które możesz nazwać.' },
+      'algebra1-l4': { name: 'Głębia Zwrotu', ground: 'Grunt, który się wygina. Pierwiastki, czynniki i zwroty.' },
+      'algebra1-l5': { name: 'Pole Wzorów', ground: 'Grunt ze wzorem w środku. Reguły, dopasowania i modele.' },
+    },
     hud: {
       act: 'Rozdział {n}',
       question: 'Pytanie otwarte',
@@ -571,6 +669,14 @@ export default {
     order: {
       kept: 'Znak zgasł. Linia „{skill}” trzyma po «n|one:# nocy|few:# nocach|many:# nocach» przerwy, a tylko o to ta sieć kiedykolwiek kogokolwiek prosiła.',
       keptCharter: 'Znak zgaszony, i to trzeci. Zakon wystawił przywilej. Naciśnij H na wybranym gruncie, aby postawić przystanek.',
+    },
+
+    /* Potwierdzenie cofnięte przy wejściu (src/meta/withdrawn.js). INSTRUKCJA:
+       krótkie zdania, strona czynna, a ostatnia linia mówi, co zrobić. */
+    withdrawn: {
+      one: 'Linia „{skill}” znowu jest otwarta. Sprzęt cofa jej potwierdzenie. Jeden rodzaj jej pytań nigdy ci nie wychodzi.',
+      many: '«n|one:# linia znowu jest otwarta|few:# linie znowu są otwarte|many:# linii znowu jest otwartych»: {skills}. Każda ma rodzaj pytań, który nigdy ci nie wychodzi.',
+      why: 'Zachowujesz całą swoją pracę. Rozwiąż taki rodzaj pytania dobrze jeden raz, bez pomocy. Wtedy linia znowu jest twoja.',
     },
     day: {
       d2: {
@@ -744,7 +850,7 @@ export default {
       lockedShort: 'Zapieczętowane',
       here: 'Tutaj jesteś · {have} z {need} pozycji',
       hereNights: 'Tutaj jesteś · pozycja jest, «n|one:została # utrzymana noc|few:zostały # utrzymane noce|many:zostało # utrzymanych nocy»',
-      hereReady: 'Tutaj jesteś · następny rytuał już zasłużony',
+      hereReady: 'Tutaj jesteś · masz już następny rytuał',
       costs: 'Otwiera się przy {n} pozycji',
       costsNights: 'Otwiera się przy {n} pozycji i «nights|one:# utrzymanej nocy|few:# utrzymanych nocach|many:# utrzymanych nocach»',
       outOf: 'z {n}, które odłamek może przyznać',
@@ -1185,9 +1291,13 @@ export default {
       // kierunku poza angielskim wygląda inaczej.
       mark: {
         ahead: 'Wyrwa jest {n} m stąd, prosto przed tobą.',
-        left: 'Wyrwa jest {n} m stąd, w lewo od ciebie.',
+        aheadRight: 'Wyrwa jest {n} m stąd, przed tobą i w prawo.',
         right: 'Wyrwa jest {n} m stąd, w prawo od ciebie.',
+        backRight: 'Wyrwa jest {n} m stąd, za tobą po prawej.',
         behind: 'Wyrwa jest {n} m stąd, za tobą.',
+        backLeft: 'Wyrwa jest {n} m stąd, za tobą po lewej.',
+        left: 'Wyrwa jest {n} m stąd, w lewo od ciebie.',
+        aheadLeft: 'Wyrwa jest {n} m stąd, przed tobą i w lewo.',
         here: 'Stoisz w samej wyrwie.',
       },
       title: 'Rozkazy',
@@ -1218,8 +1328,8 @@ export default {
       tears: '«n|one:zamknięta wyrwa|few:zamknięte wyrwy|many:zamkniętych wyrw» w tym przebiegu',
       linesHeld: '{n} z {total} linii utrzymanych',
       linesHeldNote: 'To jest ta liczba. Utrzymana linia to taka, za którą ten silnik ręczy, i która już nie wraca.',
-      linesHeldNone: 'Żadna linia jeszcze nie trzyma. Linia kosztuje więcej niż jeden przebieg, a nic z dzisiaj nie przepadło.',
-      linesHeldAll: 'Wszystkie linie tego odłamka są utrzymane. Dowód jest domknięty.',
+      linesHeldNone: 'Żadna linia jeszcze nie trzyma. Linia kosztuje więcej niż jeden przebieg. Nic z dzisiaj nie przepadło.',
+      linesHeldAll: 'Trzymasz wszystkie linie tego odłamka. Dowód domknięty.',
       heldLab: 'Utrzymane',
       groundLab: 'Zdobyty teren',
       heldNote: 'Dowiedzione bez wsparcia, na najwyższym paśmie trudności i bez żadnego przykładu. Linia jest już twoja.',
@@ -1230,6 +1340,8 @@ export default {
       groundNone: 'Wszystko, co dziś przeszło ci przez ręce, było już twoje.',
       openedLab: 'Otwarte',
       openedNote: 'Nowa linia wyrw, otwarta dla ciebie.',
+      regionNote: 'Cały nowy obszar sieci. Każda linia tutaj już trzyma.',
+      regionNext: 'Następny przebieg ląduje tam. Ten grunt zostaje na mapie.',
       chapterNote: 'Zapis przewraca stronę.',
       rankNote: 'Zakon zmienił swoją ocenę ciebie.',
       openedNoneStrong: 'Sieć bez zmian',
@@ -1256,6 +1368,7 @@ export default {
       signWorked: 'Nikt tego nie ocenia i nic tu nie przepada. Następnym razem otwieramy tę linię, na której skończyliśmy. Linia będzie dokładnie w tym samym miejscu.',
       signHeld: 'Ta linia nie gnije i nie resetuje się. Wszystko, co jest nad nią, masz już w zasięgu.',
       rest: 'Odmelduj się',
+      restKey: 'Esc',
       more: 'Jeszcze jedna linia',
       aria: 'Przebieg domknięty. W tym przebiegu zamknięte «n|one:# wyrwa|few:# wyrwy|many:# wyrw».',
       repairedN: '{n}%',
@@ -1312,6 +1425,8 @@ export default {
       off: 'Zamknij kanał',
       signOff: 'Kanał zamknięty. Sieć trzyma pod twoją nieobecność, a ja zostawiam zapalone światło. Do jutra. To samo niebo.',
       wakeUp: 'Otwórz kanał',
+      leave: 'Zakończ przerwę',
+      leaveKey: 'Esc',
       aria: 'Przerwa. Oddychaj razem z pierścieniem. Nikt nic od ciebie nie chce.',
     },
     voice: {
@@ -1337,7 +1452,7 @@ export default {
     title: 'Raport postępów',
     sub: 'Co masz udowodnione, co to udowodniło i co dalej.',
     close: 'Zamknij',
-    skillsHead: 'Dziesięć linii',
+    skillsHead: 'Wszystkie linie',
     recordHead: 'Zapis',
     recordSub: 'Ile warte jest każde potwierdzenie, powiedziane wprost. Te liczby sprawdza nauczyciel. Ostatnia jest tą niewygodną.',
     foot: 'Nie ma tu żadnej zapisanej oceny. Ten raport przelicza każdą liczbę z modelu ucznia przy każdym otwarciu. Pod trzymaną linią leży zapis sporządzony w chwili przyznania potwierdzenia, i ten zapis już się nie zmienia. Rozwiń linię, żeby go zobaczyć.',
@@ -1388,7 +1503,7 @@ export default {
     pctTerm: 'Procent',
     pctIs: 'Twój najsłabszy odczyt na tej linii, a nie średnia: rodzaj zadania, który idzie ci najgorzej, albo twój wynik na najtrudniejszym poziomie — to, co niższe. Otwórz linię, żeby zobaczyć który.',
     flag: { under: 'Grunt znów otwarty' },
-    flagNote: { under: 'Ta linia nadal jest twoja. Linia pod nią nie przeszła sprawdzenia na zimno i wróciła do ćwiczeń, więc sprzęt na nowo dowodzi gruntu, zanim wyśle cię tu z powrotem.' },
+    flagNote: { under: 'Ta linia nadal jest twoja. Linia pod nią nie przeszła sprawdzenia na zimno i wróciła do ćwiczeń. Sprzęt na nowo dowodzi gruntu, zanim wyśle cię tu z powrotem.' },
 
     road: {
       sight: 'Z marszu',
@@ -1474,8 +1589,8 @@ export default {
         long: 'Trzy pod rząd, bez pomocy, na poziomie trudności {band} — dłuższa droga do próby.',
         fast: 'Jedno czyste rozwiązanie bez pomocy, wzięte na paśmie trudności {band} — czyli na samym progu. Krótsza droga to mniej zadań, ale trudniejszych.',
       },
-      provingExtended: 'Bez pomocy, ze wsparciem wyłączonym, na poziomie {band} lub wyżej. Próba wydłużyła się o {n}, żeby objąć drugą postać zadania i zadanie z sytuacją.',
-      provingCharged: 'Bez pomocy, ze wsparciem wyłączonym, na poziomie {band} lub wyżej. Próba «n|one:przyjęła jedno nietrafienie|few:przyjęła # nietrafienia|many:przyjęła # nietrafień» i doliczyła sobie za to dodatkowe zadania bez pomocy, więc zamknęła się na większym dowodzie niż próba czysta, nie na mniejszym.',
+      provingExtended: 'Bez pomocy, ze wsparciem wyłączonym, na poziomie {band} lub wyżej. Próba wydłużyła się o {n}, żeby sięgnąć po drugą etykietę postaci i etykietę sytuacji.',
+      provingCharged: 'Bez pomocy, ze wsparciem wyłączonym, na poziomie {band} lub wyżej. Próba «n|one:przyjęła jedno nietrafienie|few:przyjęła # nietrafienia|many:przyjęła # nietrafień» i doliczyła sobie za to dodatkowe zadania bez pomocy. Zamknęła się więc na większym dowodzie niż próba czysta, nie na mniejszym.',
       noReceipt: 'brak zapisu',
       noReceiptNote: 'To potwierdzenie przyznała wcześniejsza wersja, która nie zapisywała, co je uzasadniło. Zgłaszamy je jako nieudokumentowane, zamiast odtwarzać z ustawień: próg cytujący sam siebie nie jest dowodem.',
       rests: 'To potwierdzenie opiera się na {n} zadaniach bez pomocy, z {of} rozwiązanych na tej linii.',
@@ -1662,9 +1777,17 @@ export default {
       classSub: 'Zapisów uczniów: {n} · zebrane {date}',
       classEmpty: 'Nie ma jeszcze żadnych zapisów. Każdy uczeń eksportuje swój z tego ekranu; dodaj tu te pliki, a zostaną na tym urządzeniu.',
       classFoot: 'Zebrane z zapisów, które uczniowie wyeksportowali sami. Nic nie zostało wysłane — ta lista żyje wyłącznie w tej przeglądarce i znika razem z danymi witryny.',
+      custody: {
+        head: 'Gdzie żyje ten zapis',
+        device: 'Każda liczba na tej karcie żyje w jednej przeglądarce, na jednym urządzeniu. Nikt nic nie wysłał. Nie ma konta, listy klasy ani serwera za tą kartą.',
+        shared: 'Na urządzeniu współdzielonym lub wyczyszczonym zapis znika razem z urządzeniem. Trwałe kopie to plik eksportu i ta wydrukowana karta.',
+        name: 'Imię na górze wpisuje osoba przy klawiaturze. Nikt tutaj nie porównuje go z listą klasy.',
+        klass: 'Nauczyciel składa zapis klasy ręcznie, z plików, które uczniowie eksportują sami.',
+      },
       claimItemsShort: 'zadania bez pomocy: {n}, poziom {band}',
       claimMissed: '«n|one:przyjęła jedno nietrafienie|few:przyjęła # nietrafienia|many:przyjęła # nietrafień»',
-      claimReps: 'w {n} postaciach',
+      claimReps: 'zadania oznaczone {n} reprezentacjami',
+      repsNote: 'Każdy typ zadania nosi etykietę swojej postaci: tabela, wykres, rysunek albo opowieść. Rig liczy te etykiety, gdy przyznaje potwierdzenie. Nie sprawdza, czy dwa oznaczone typy wymagają tego samego działania. Na niektórych liniach wymagają tego samego.',
       claimRegrant: 'odzyskane po cofnięciu',
       foot: 'Zapis {id} · obserwacji: {n}. Nie ma tu żadnej zapisanej oceny. Ta karta przelicza każdą liczbę z modelu ucznia i rejestru dowodów na tym urządzeniu. Linia zostaje zamknięta dopiero po próbie bez pomocy, na progowym paśmie. Dwa nieudane sprawdzenia na zimno cofają potwierdzenie.',
       trust: {
@@ -1766,6 +1889,35 @@ export default {
       'factor-common': 'Wyłączanie to mnożenie czytane wstecz: wyjmij wszystko, co wyrazy dzielą.',
       'linear-vs-exponential': 'Prosta reguła dodaje tyle samo; rosnąca mnoży przez ten sam czynnik.',
       'exponential-rule': 'Start pomnożony przez czynnik raz na krok, a przy zerze kroków — sam start.',
+      // Poziom 4 (content/graph/algebra1-l4.json).
+      'radical-simplify': 'Pierwiastek kwadratowy pyta, która liczba razy sama siebie daje tę spod kreski. Największy kwadrat ze środka wychodzi przed kreskę, a reszta zostaje pod nią.',
+      'radical-arith': 'Dwa pierwiastki dodają się tylko wtedy, gdy liczba pod kreską jest ta sama. Mnożą się zawsze.',
+      'factor-trinomial-monic': 'Rozkład to mnożenie nawiasów czytane wstecz. Znajdź parę liczb, która mnoży się do ostatniego wyrazu i dodaje do środkowego.',
+      'factor-trinomial-lead': 'Liczba przy kwadracie musi rozejść się między oba nawiasy. Teraz para mnoży się do pierwszego współczynnika razy ostatni.',
+      'difference-of-squares': 'Dwa kwadraty z minusem między nimi rozpadają się na nawias sumy i nawias różnicy. Z plusem nie rozpadają się wcale.',
+      'poly-divide': 'Dzielenie pyta, przez co pomnożyć drugie wyrażenie, żeby dać pierwsze. Pomnóż wynik z powrotem, a każdy wyraz musi wrócić.',
+      'quadratic-zero-product': 'Gdy dwie wielkości mnożą się do zera, przynajmniej jedna równa się zeru. Iloczyn nawiasów równa się zeru dokładnie tam, gdzie zeruje się jeden nawias.',
+      'solve-by-factoring': 'Przenieś wszystko na jedną stronę i zostaw zero po drugiej. Wtedy rozkład zamienia jedno trudne zdanie w dwa łatwe.',
+      'square-root-method': 'Pierwiastek z obu stron cofa kwadrat. Kwadrat ma dwa pierwiastki, więc odpowiedzi wychodzą dwie.',
+      'complete-the-square': 'Połowa środkowego współczynnika, do kwadratu, uzupełnia kwadrat zupełny. Dodaj ją do obu stron, a pojawi się nawias w kwadracie.',
+      'quadratic-formula': 'Uzupełnianie kwadratu na regule ogólnej daje jeden wzór, który działa zawsze. Wyrażenie pod pierwiastkiem mówi, ile jest odpowiedzi rzeczywistych.',
+      'parabola-features': 'Reguła z kwadratem rysuje krzywą, która opada, zawraca i rośnie. Zwrot, miejsca zerowe i wartość największa lub najmniejsza wynikają z tych samych trzech liczb.',
+      'quadratic-from-vertex': 'Regułę z kwadratem można zapisać z widocznym punktem zwrotu albo jako iloczyn dwóch nawiasów. Oba zapisy opisują tę samą krzywą.',
+      'quadratic-model': 'Rzucony przedmiot, ogrodzone pole i cena wobec utargu idą za regułą z kwadratem. Zwrot to najlepsza wartość, a miejsca zerowe kończą historię.',
+      // Poziom 5 (content/graph/algebra1-l5.json).
+      'rational-exponent': 'Wykładnik nie musi być liczbą całkowitą. Dół ułamka mówi, który pierwiastek wziąć, a góra, do której potęgi podnieść.',
+      'relation-is-function': 'Reguła jest funkcją, gdy każde wejście ma dokładnie jedno wyjście. Jedno wejście z dwoma wyjściami ją psuje. Dwa wejścia z jednym wyjściem nie psują.',
+      'sequence-terms': 'Lista liczb to reguła, której wejściami są pozycje 1, 2, 3 i tak dalej. Reguła rekurencyjna podaje następną wartość z poprzedniej.',
+      'sequence-nth-term': 'Jeden wzór daje dowolną wartość wprost z jej pozycji. Lista, która dodaje, potrzebuje wzoru z krokiem, a lista, która mnoży, wzoru z potęgą.',
+      'point-slope-form': 'Jeden odczyt i tempo wyznaczają prostą. Ta sama prosta ma trzy zapisy, a każdy ułatwia odczytanie czegoś innego.',
+      'parallel-perpendicular': 'Proste, które nigdy się nie spotykają, mają to samo tempo. Proste przecinające się pod kątem prostym mają tempa o iloczynie minus jeden.',
+      'inequality-two-var': 'Nierówność z dwiema literami nazywa obszar, a nie prostą. Brzeg mówi, gdzie obszar się kończy, a jeden sprawdzony odczyt, po której stronie leży.',
+      'write-system': 'Jedno zdanie nie wystarczy, gdy niewiadome są dwie. Dwa różne zdania o tej samej parze wyznaczają obie naraz.',
+      'system-graphically': 'Dwa zdania w postaci wykresu spotykają się tam, gdzie oba są prawdziwe. Punkt przecięcia to odpowiedź i musi pasować do obu zdań.',
+      'scatter-regression': 'Prawdziwe odczyty nigdy nie leżą dokładnie na jednej prostej. Najbliższa prosta przechodzi najbliżej wszystkich naraz i pozwala przewidywać.',
+      'residual-and-fit': 'Odstęp między prawdziwym odczytem a modelem to reszta. Reszty o jednym znaku wzdłuż serii mówią, że kształt reguły jest zły.',
+      'association-strength': 'Dwie miary mogą rosnąć razem, iść w przeciwne strony albo nie mieć żadnego wzorca. Udział nigdy nie jest przyczyną.',
+      'exponential-model': 'Reguła, która na każdym kroku mnoży przez ten sam czynnik, rośnie lub maleje o stały procent. Mnożenie w końcu zawsze przegania dodawanie.',
     },
 
     slip: {
@@ -1973,14 +2125,39 @@ export default {
       prove: 'Udowodnij linię',
       watch: 'Stań na warcie',
       sound: 'Zbadaj sieć',
+      /* Trzy cele, które nie są klawiaturą: teraz gra może wysłać cadeta w
+         miejsce, które rozwiązuje się nogami. (src/meta/objective.js) */
+      crack: 'Otwórz skrytkę',
+      lay: 'Wyłóż przęsło',
+      climb: 'Dotrzyj do znaku',
+    },
+
+    site: {
+      cache: 'Wisząca skrytka',
+      deepcache: 'Głęboka skrytka',
+      span: 'Wiszące przęsło',
+    },
+
+    /* Kiedy liczba spada. Żadne z tych zdań nie podaje liczby.
+       (src/meta/progress.js `createRepairWatch`) */
+    slip: {
+      line: 'Świat naprawiony spadł. Ten błąd kosztował cię grunt na tej linii: {skill}. Odpowiedz dobrze, a grunt wróci.',
+      held: 'Świat naprawiony spadł. Ta linia tym razem nie wróciła: {skill}. Popracuj nad nią, a odzyskasz zaliczenie.',
     },
 
     metres: '{n} m',
+    /* Osiem kierunków, nie cztery. Każdy jest całą frazą: odległość stoi obok,
+       we własnym elemencie, więc żaden język nie musi wciskać liczby w środek
+       kierunku. (src/world/bearing.js) */
     rel: {
-      ahead: 'Przed tobą',
-      left: 'Po lewej',
-      right: 'Po prawej',
-      behind: 'Za tobą',
+      ahead: 'Prosto przed tobą',
+      aheadRight: 'Przed tobą, w prawo',
+      right: 'Po twojej prawej',
+      backRight: 'Za tobą, po prawej',
+      behind: 'Zawróć',
+      backLeft: 'Za tobą, po lewej',
+      left: 'Po twojej lewej',
+      aheadLeft: 'Przed tobą, w lewo',
       here: 'Stoisz w środku',
     },
 
@@ -1994,6 +2171,7 @@ export default {
       /* …i „dostajesz {name}” zamiast „{name} będzie twoja”: nazwy sprzętu są
          w trzech rodzajach, a orzeczenie imienne zgadzało się tylko z jednym. */
       kit: 'Utrzymaj ją, a dostajesz {name}: {gist}.',
+      field: 'To zadanie rozwiązujesz nogami. Miejsce zostaje otwarte na zawsze.',
       calm: 'Zamknij je, a wstrząsy w tym miejscu ustaną na dobre.',
       sound: 'Tę linię już trzymasz. Sondowanie schodzi nią w dół, po jednym trudniejszym zadaniu.',
     },
@@ -2076,6 +2254,16 @@ export default {
     balanceReset: 'Odważniki układają się na nowo',
     cacheOpen: 'Skrytka otwarta — drobiny: {n}, a powietrze wznosi się tu już na stałe',
 
+    // --- skrzyżowanie (src/world/meet.js): trzeci rodzaj miejsca poza wyspą.
+    // Skrytka to waga, którą ładujesz odważnikiem, a przęsło to działka, którą
+    // pokrywasz. Skrzyżowanie to działka, po której CHODZISZ.
+    meetLock: 'Zamek skrzyżowania',
+    meetFirst: 'Idź po szynie. Zejdź z niej tam, gdzie belka jest w poziomie.',
+    meetNo: 'Tutaj belka nie jest w poziomie',
+    meetReset: 'Szyna układa się na nowo',
+    meetOpen: 'Skrzyżowanie znalezione — drobiny: {n}, a droga biegnie stąd już na stałe',
+    meetNone: 'Nigdzie nie ma skrzyżowania — drobiny: {n}, a obie szyny biegną dalej już na stałe',
+
     // --- przęsła (src/world/span.js): drugi rodzaj miejsca poza wyspą.
     // Skrytka to waga i płaci wznoszącym powietrzem. Przęsło to prostokąt
     // gruntu, który trzeba pokryć, i płaci drogą.
@@ -2136,6 +2324,13 @@ export default {
     toMark: 'Znak pomiarowy · {name}: {n} m',
     stay: 'Ta linia nadal daje najwięcej. Wróć na płytę, kiedy zechcesz.',
     rhythm: 'Wyrwa daje garść pytań, a potem cichnie. Wykorzystaj przerwę — zawsze jest tam coś wartego drogi.',
+    /* Odpowiedź przy ucichłej wyrwie. Klawisz nadal odpowiada i wskazuje
+       miejsce. (src/session/stint.js) */
+    onwardTear: 'Wyrwa ucichła. Następna linia · {skill}: {n} m',
+    onwardMark: 'Wyrwa ucichła. Znak pomiarowy · {name}: {n} m',
+    /* Odpowiedź przy ucichłej wyrwie (src/session/stint.js zużywa wizytę).
+       Jedna wizyta daje trzy pytania, a potem wyrwa cichnie, dopóki kadet nie
+       otworzy innej. Klawisz nadal odpowiada i wskazuje miejsce. */
   },
   // --- warstwa afordancji (src/world/afford.js): co oferuje wyrwa, który
   // klawisz to robi i w którą stronę jest następna -------------------------
@@ -2151,6 +2346,10 @@ export default {
     tap: 'Dotknij',
     next: 'Następna wyrwa',
     metres: '{n} m',
+    /* Ostatnie słowo reguły złego kierunku (src/world/afford.js). Mówione raz
+       na sesję, po tym jak świat dwa razy powiedział to bez słów. Czwartej
+       odpowiedzi nigdy nie ma. */
+    lost: 'Wyrwa została za tobą. Zawróć i idź złotą drogą.',
   },
 
   // ---------------------------------------------------------------------
@@ -2188,6 +2387,7 @@ export default {
       bind: 'Strażnik ujęty — konstrukt dogoniony, odważnik zabrany, a jego zdanie staje się prawdziwe.',
       deepcache: 'Głęboka skrytka: wisząca skrytka z niewiadomą na obu szalkach. Zostawił ją strażnik.',
       span: 'Przęsło: prostokąt gruntu w powietrzu. Pokryj go dokładnie, a zapłaci ci drogą.',
+      meet: 'Skrzyżowanie: dwa zdania na jednej działce. Idź po szynie tam, gdzie belka wchodzi w poziom, a zapłaci ci drogą.',
       surge: 'Wyładowanie wyrwy: pierścień, który wyrzuca otwarta wyrwa. Przeskocz je albo stracisz drobiny.',
       vault: 'Płyta wyrzutni postawiona: stań na niej, a wyrzuci cię dwanaście metrów w górę.',
       plate: 'Płyta wyrzutni kupiona: piąty element sieci.',
@@ -2206,6 +2406,7 @@ export default {
       bind: 'Strażnik ujęty',
       deepcache: 'Głęboka skrytka',
       span: 'Przęsło pokryte',
+      meet: 'Skrzyżowanie otwarte',
       order: 'Znak zgaszony',
       found: 'Zebrane',
       surge: 'Wyładowanie wyrwy',

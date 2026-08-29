@@ -28,12 +28,23 @@
 import 'katex/dist/katex.min.css';
 import { RiftPanel } from '../../../src/ui/rift.js';
 import { safeGenerate, SKILLS, FORMS_BY_SKILL } from '../../../src/learn/generators.js';
-// Every unit the manifest ships, not only the one that registers itself at
-// import. Without this the render-level audit covers Level 1 and silently
-// says nothing at all about any other course.
+/* EVERY UNIT THE MANIFEST NAMES, not a list somebody kept up to date by hand.
+   This block used to register `algebra1-l2` and nothing else, so the
+   render-level audit covered 24 of the 62 shipped skills and said nothing at
+   all about the other 38 — including every item form in Levels 3, 4 and 5. It
+   reported "PASS" in exactly the same words either way, which is the failure
+   mode a hand-maintained list always has. The manifest is now the only list. */
 import { registerPack } from '../../../src/content/registry.js';
-import algebra1L2 from '../../../src/content/packs/algebra1-l2.js';
-registerPack(algebra1L2);
+import manifest from '../../../content/courses.json';
+const PACKS = import.meta.glob('../../../src/content/packs/*.js', { eager: true, import: 'default' });
+for (const course of manifest.courses) {
+  for (const unit of course.units || []) {
+    if (!unit.pack) continue;                       // null means the core bank, already in
+    const pack = PACKS[`../../../src/content/packs/${unit.pack}.js`];
+    if (!pack) throw new Error(`the manifest names a generator pack that is not there: ${unit.pack}`);
+    registerPack(pack);
+  }
+}
 import { ITEM_BUNDLES } from '../../../src/learn/strings.js';
 import { setLocale, LOCALES } from '../../../src/i18n/index.js';
 import { evaluate, solveLinear, equivalent, parseArrayCells } from '../../../src/learn/parser.js';
@@ -71,6 +82,20 @@ function readNode(node, out) {
       return;
     }
   }
+  /* A RADICAL IS DRAWN, NOT WRITTEN.
+     KaTeX sets the surd as an SVG and the radicand as ordinary text, so the DOM
+     reads `\sqrt{5}` as "5" — and this audit then reported that `5` and
+     `\sqrt{5}` are "two options a learner sees as identical", which is the
+     opposite of true. Twenty-one of those, all in `radical-simplify` and
+     `radical-arith`, appeared the moment Levels 3 to 5 were put on this
+     surface; the bug had simply never had a radical to be wrong about. The
+     surd is a mark that changes what a number IS, so it is read out. */
+  if (node.classList.contains('sqrt')) {
+    const inner = [];
+    for (const c of node.childNodes) readNode(c, inner);
+    out.push(`√(${inner.join('').trim()})`);
+    return;
+  }
   for (const c of node.childNodes) readNode(c, out);
 }
 function visibleText(el) {
@@ -96,7 +121,50 @@ const canon = (s) => String(s)
  */
 // A relation is one of those marks: "x > 5" and "x \\ge 5" are different
 // statements about different sets, so the four of them are kept.
-const glyphs = (s) => canon(s).replace(/[^0-9A-Za-zÀ-ɏ\-/()<>≤≥]/g, '');
+// …and so are the surd and the plus-or-minus: √5 is not 5 and ±2 is not 2.
+const glyphs = (s) => canon(s).replace(/[^0-9A-Za-zÀ-ɏ\-/()<>≤≥√±∓]/g, '');
+
+/**
+ * `\frac{1}{t^{2}}` -> `(1)/(t^{2})`, with BALANCED braces.
+ *
+ * The old rewriter was `\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}` run four times,
+ * which cannot see a denominator that contains a brace of its own. Every
+ * `\frac{1}{t^{n}}` in the exponent bank therefore kept its control sequence
+ * and was "expected" to read `\frac1t^2` — a string no rendered option can
+ * ever equal — so the audit reported 2,415 render mismatches and 819 wrong
+ * answers, none of them real, the first time Level 3 was put on this surface.
+ * A group is read to its matching close brace instead.
+ */
+function readGroup(s, at) {
+  let depth = 0;
+  for (let i = at; i < s.length; i++) {
+    if (s[i] === '{') depth += 1;
+    else if (s[i] === '}') { depth -= 1; if (!depth) return { body: s.slice(at + 1, i), end: i + 1 }; }
+  }
+  return null;
+}
+/** Rewrite every `\frac{a}{b}` as `(a)/(b)` and every `\sqrt{a}` as `√(a)`, nested. */
+function unstack(s) {
+  let out = '';
+  let i = 0;
+  const skipSpace = (j) => { while (s[j] === ' ') j += 1; return j; };
+  while (i < s.length) {
+    if (s.startsWith('\\frac', i)) {
+      const a = readGroup(s, skipSpace(i + 5));
+      if (a) {
+        const b = readGroup(s, skipSpace(a.end));
+        if (b) { out += `(${unstack(a.body)})/(${unstack(b.body)})`; i = b.end; continue; }
+      }
+    }
+    if (s.startsWith('\\sqrt', i)) {
+      const a = readGroup(s, skipSpace(i + 5));
+      if (a) { out += `√(${unstack(a.body)})`; i = a.end; continue; }
+    }
+    out += s[i];
+    i += 1;
+  }
+  return out;
+}
 
 /**
  * What the glyphs for a value SHOULD be, derived from the value string itself
@@ -117,13 +185,19 @@ function expectedVisible(value) {
     .replace(/\\ge(?![a-zA-Z])/g, '≥')
     .replace(/\\lt(?![a-zA-Z])/g, '<')
     .replace(/\\gt(?![a-zA-Z])/g, '>')
+    /* THE SIGN THAT IS A DRAWING, NOT A WORD. KaTeX sets \pm as ±, and this
+       function did not know it, so every square-root answer of the shape
+       "n = \pm 2" was expected to read "n=\pm2" — 585 render mismatches, none
+       of them real, the first time Level 4 was put on this surface. */
+    .replace(/\\pm(?![a-zA-Z])/g, '±')
+    .replace(/\\mp(?![a-zA-Z])/g, '∓')
     .replace(/\\Rightarrow/g, '⇒')
     .replace(/\\square/g, '□')
     .replace(/\\qquad|\\quad/g, '')
     .replace(/\\[,;:! ]/g, '');
-  // A stacked fraction is read numerator first — the same convention the DOM
-  // reader above puts it back into.
-  for (let i = 0; i < 4; i++) s = s.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)');
+  // A stacked fraction is read numerator first, and a radical carries its surd
+  // — the same conventions `readNode` above puts the DOM back into.
+  s = unstack(s);
   // "a/b" typed plainly is stacked by texify(), so it reads the same way.
   s = s.replace(/^(-?)(\d+)\/(\d+)$/, '$1($2)/($3)');
   return canon(s.replace(/[{}]/g, ''));
@@ -311,9 +385,24 @@ function auditItem(item, locale, ctx) {
     seen.set(k, o.value);
   }
 
-  // ---- every option must render as the value it claims to be ----
+  /* ---- every option must render as the value it claims to be ----
+     …and when this audit does not KNOW how a value draws, it says so instead of
+     calling the option wrong. `expectedVisible` turns a value string into the
+     glyphs it should show; a control sequence it has no rule for survives into
+     the expectation, and no rendered option can ever equal a string with a
+     backslash in it. Two whole families of that shipped as "render-mismatch" —
+     `\frac{1}{t^{2}}` and `n = \pm 2` — 3,234 findings, none of them real, and
+     each one read exactly like an answer-integrity defect. An unknown sequence
+     is now its own finding, naming itself, and the comparison it would have
+     poisoned is skipped. */
   for (const o of options) {
     const want = expectedVisible(o.value);
+    const unknown = String(want).match(/\\[a-zA-Z]+/);
+    if (unknown) {
+      add('expectation-unknown', `this audit has no rule for "${unknown[0]}" in "${o.value}", so it cannot say what the option should read`
+        + ` (it reads "${canon(o.visible)}") — add the rule to expectedVisible() in tools/critic/choicelab/lab.js`);
+      continue;
+    }
     if (glyphs(o.visible) !== glyphs(want)) {
       add('render-mismatch', `value "${o.value}" should read "${want}" but reads "${canon(o.visible)}"`);
     }
@@ -331,7 +420,12 @@ function auditItem(item, locale, ctx) {
   if (trueIdx.length === 1) {
     const want = truthVisible(item, truth, locale);
     const got = options[trueIdx[0]].visible;
-    if (glyphs(got) !== glyphs(want)) {
+    // Same guard as above: an expectation with a live control sequence in it is
+    // not an expectation, and reporting it as a wrong answer is a lie.
+    if (/\\[a-zA-Z]+/.test(String(want))) {
+      add('expectation-unknown', `this audit has no rule for "${String(want).match(/\\[a-zA-Z]+/)[0]}" in the answer,`
+        + ` so it cannot say what the correct option should read (it reads "${canon(got)}")`);
+    } else if (glyphs(got) !== glyphs(want)) {
       add('answer-renders-wrong', `answer should read "${want}" but the correct option reads "${canon(got)}"`);
     }
   }

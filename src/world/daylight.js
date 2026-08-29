@@ -35,12 +35,43 @@ export const SUN_DIR = new THREE.Vector3(-0.740, 0.375, -0.500).normalize();
 export const SUN_ELEVATION = Math.asin(SUN_DIR.y);
 
 /** The key. Warm, and strong enough to be unmistakably the only key. */
-export const KEY = { color: new THREE.Color('#ffd6a1'), intensity: 5.6 };
+export const KEY = { color: new THREE.Color('#ffd6a1'), intensity: 4.90 };
+
+/**
+ * THE CAST SHADOW IS NOT ALLOWED TO BE EMPTY.
+ *
+ * `light.shadow.intensity` is three's own floor — `getShadow()` ends
+ * `return mix( 1.0, shadow, shadowIntensity )` — so this is the fraction of the
+ * key a cast shadow is allowed to remove. It costs a uniform and nothing else.
+ *
+ * WHY IT IS NOT 1.0, MEASURED RATHER THAN ARGUED. On the shipped build the
+ * arrival plaza's own obelisk threw a shadow across half the frame that came
+ * out of the tone map at RGB 0,0,0 — a critic's *"dead region with a hard
+ * edge"*, in the first thirty seconds of the game. Switching `castShadow` off
+ * in the running build took that framing from **57.9% of the frame at RGB
+ * 0,0,0 to 0.00%**, which is the proof that the dead region IS the cast shadow
+ * and not a missing bounce term.
+ *
+ * AND THE OBVIOUS FIX WAS TRIED FIRST AND DISPROVED. An `AmbientLight` at
+ * 0.70 — more than the entire sky fill — moved the same frame from 65.9% black
+ * to 55.5%, because a shadow sitting at 1.5% of the lit value is not made
+ * legible by doubling it: it needs about six times more light, and six times
+ * the fill is an overcast afternoon. A floor under the shadow buys the same
+ * six times, in the shadow only, for nothing.
+ *
+ * 0.70 leaves the cadet's own contact shadow at roughly half the luminance of
+ * the ground beside it, which is a shadow anybody can see — the thing three
+ * critics said was missing — while the island's own hillsides keep their shape.
+ * `src/world/grass.js` applies the same floor by hand, because a blade shader
+ * is outside three's lighting and a meadow that stays black inside a shadow the
+ * ground under it has lifted is worse than either.
+ */
+export const SHADE = { intensity: 0.70 };
 
 /**
  * The fill, in three parts, and the ratio between them and the key is the
  * whole look. It used to run at about 1.5:1, which is an overcast afternoon
- * with a warm gel on it — flat, no modelling, no rim. This runs near 3:1.
+ * with a warm gel on it — flat, no modelling, no rim.
  *
  *  hemi    the sky dome itself, cool from above, warm bounce from the ground
  *  bounce  a cheap directional from the anti-sun bearing standing in for the
@@ -50,13 +81,76 @@ export const KEY = { color: new THREE.Color('#ffd6a1'), intensity: 5.6 };
  *          grass tips, rock edges and the cadet's shoulders all carry a hot
  *          contour against the shade. This is the light that makes a low sun
  *          look low.
+ *
+ * THE FILL WAS TWENTY TIMES UNDER THE KEY AND THAT IS WHY THE SHADOWS WERE
+ * EMPTY. At 5.6 the key delivers about 1.4 of irradiance onto flat ground at a
+ * 22-degree sun; the fill delivered about 0.07 onto an anti-sun slope once the
+ * terrain's own occlusion had taken its share. A surface lit only by that lands
+ * at RGB 3 through ACES, which is not a dark surface — it is an absent one.
+ * The key is down an eighth and the fill is up, so the LIT half of the frame
+ * lands within a few percent of where it was (measured on the plaza: mean
+ * luminance 95 before, 103 after) and the shaded half has something in it.
  */
 export const HEMI = {
   sky: new THREE.Color('#8fb2e0'),
   ground: new THREE.Color('#6f5d47'),
-  intensity: 0.60,
+  intensity: 1.10,
 };
-export const BOUNCE = { color: new THREE.Color('#ffb887'), intensity: 0.80 };
+export const BOUNCE = { color: new THREE.Color('#ffb887'), intensity: 1.08 };
+
+/**
+ * THE DECK — the fourth light, and the one this world had forgotten it needs.
+ *
+ * Every light above is light from above. On a planet that is the whole story:
+ * what faces down faces dirt, and dirt is dark. ASCENT is not on a planet. It
+ * is a shard hanging over a lit cloud sea (src/world/deeps.js), and after the
+ * sun the brightest thing in any frame is the deck BELOW the horizon line.
+ *
+ * Without this term every downward face in the game — the island's own keel,
+ * the undersides of the floating shards, the overhangs — came out of the tone
+ * map at RGB 0,0,0: not dark, absent, in runs a critic measured at up to a
+ * third of the frame and called *"a dead region with a hard edge"*.
+ *
+ * It is not a fill light and it must not be used as one. It is scaled by how
+ * far a surface faces DOWN, so it adds nothing at all to the upward-facing
+ * ground where the cadet's shadow is read.
+ *
+ * ---- AND IT WAS A TERM IN TWO SHADERS, NOT A LIGHT --------------------------
+ *
+ * That is the defect this constant kept having. `intensity` below is a number
+ * two hand-written shaders multiply their own albedo by — terrain.js and
+ * grass.js, and NOBODY ELSE. The island got its deck; the seventy-odd other
+ * `MeshStandardMaterial`s in `src/` — every prop, every hoodoo, every landmark,
+ * every floating shard, every rift frame, every span, the cadet himself — got
+ * nothing, because there was nothing for them to get. Two consecutive critics
+ * described the result independently: *"a dead region with a hard edge"*, and
+ * the undersides of the floating shards *"can occupy a fifth of the frame"*.
+ * Both were looking at drawn solids, not at the island.
+ *
+ * A light is delivered by the renderer to everything that is lit, including
+ * whatever another lane adds tomorrow. So the deck is now BOTH, from one
+ * declaration, in the two units the two mechanisms count in:
+ *
+ *   `light`     three.js `HemisphereLight` intensity, pointed straight DOWN,
+ *               with a black ground colour so nothing that faces up receives
+ *               a photon of it. Created once, in world.js, beside the other
+ *               three. This is what reaches the whole scene graph.
+ *   `intensity` the same light as a hand-written shader has to add it: a
+ *               multiplier on albedo, i.e. irradiance / π. Read by grass.js,
+ *               which is a raw ShaderMaterial outside three's lighting
+ *               entirely, and by terrain.js, which adds the deck AFTER its own
+ *               ambient occlusion so that the cadet's shadow keeps its
+ *               contrast on the ground it is read on.
+ *
+ * The conversion between them is π, and the two numbers are set so that a
+ * fully down-facing prop gets the same deck the island's own keel already had:
+ * terrain applies `intensity · 0.55` to a down-face, so the matching light
+ * intensity is 0.55 · 0.30 · π ≈ 0.52. It is set a little under that, because
+ * a hemisphere also lights VERTICAL faces at half weight — which the terrain
+ * term only did at 0.16 — and vertical anti-sun faces are the other half of
+ * what was black.
+ */
+export const DECK = { color: new THREE.Color('#cfd8ea'), intensity: 0.30, light: 0.68 };
 export const RIM = { color: new THREE.Color('#ffd2a4'), intensity: 1.05 };
 
 /**

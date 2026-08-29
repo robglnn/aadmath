@@ -1,0 +1,258 @@
+{
+  "$comment": [
+    "THE PROCESS AND PRACTICE CATALOGUE, for the whole Algebra I course.",
+    "",
+    "A process standard is how a learner works, not what a unit teaches, so it is",
+    "the same sentence in Level 1 and in Level 5 and it does not belong to either.",
+    "It used to: the wording and the \"how\" prose lived inside the two Level 1 unit",
+    "maps, and the teacher record read them from there. That was invisible while",
+    "only Level 1 shipped and wrong the moment a second unit opened — Levels 2 and",
+    "5 cite MP.5, which no Level 1 file had ever needed, so the record printed a",
+    "practice standard with no wording and no sentence beside it.",
+    "",
+    "So the catalogue is here, once, for the course. WHICH NODES CLAIM A CODE IS",
+    "NOT IN THIS FILE. That is read out of the loaded graph at run time, which is",
+    "the only reading that can be true of whatever units a learner has open.",
+    "",
+    "The `text` fields are the published wording of a standard and stay English,",
+    "disclosed on screen. The `how` fields are ours — this project explaining what",
+    "it actually does about a process standard — so they are translated."
+  ],
+  "framework": "process and practice standards — Algebra I",
+  "course": "algebra1",
+  "ccss": [
+    {
+      "code": "MP.1",
+      "text": "Make sense of problems and persevere in solving them.",
+      "how": "Prerequisite gating means a learner never meets a problem they were not equipped for, so persistence is asked for where it can succeed.",
+      "i18n": {
+        "es": {
+          "how": "El control de prerrequisitos hace que el estudiante nunca encuentre un problema para el que no esté equipado. Así, la persistencia se pide donde puede tener éxito."
+        },
+        "pl": {
+          "how": "Bramkowanie wymagań wstępnych sprawia, że uczeń nigdy nie trafia na zadanie, do którego nie był przygotowany. Wytrwałości żądamy więc tam, gdzie może przynieść skutek."
+        }
+      }
+    },
+    {
+      "code": "MP.2",
+      "text": "Reason abstractly and quantitatively.",
+      "how": "Contextual forms move between a situation and its symbols in both directions.",
+      "i18n": {
+        "es": {
+          "how": "Las formas contextuales van de la situación a sus símbolos y de vuelta."
+        },
+        "pl": {
+          "how": "Formy kontekstowe przechodzą między sytuacją a jej symbolami w obie strony."
+        }
+      }
+    },
+    {
+      "code": "MP.3",
+      "text": "Construct viable arguments and critique the reasoning of others.",
+      "how": "Error-analysis items present two cadets' contradictory chains and ask which is sound; each wrong option is a real, named misconception rather than a random number.",
+      "i18n": {
+        "es": {
+          "how": "Las preguntas de análisis de errores presentan las cadenas contradictorias de dos cadetes y preguntan cuál es válida. Cada opción errónea es un error conceptual real y con nombre, no un número al azar."
+        },
+        "pl": {
+          "how": "Zadania analizy błędu pokazują sprzeczne ciągi rozumowania dwojga kadetów i pytają, który jest poprawny. Każda błędna opcja to prawdziwe, nazwane błędne przekonanie, a nie przypadkowa liczba."
+        }
+      }
+    },
+    {
+      "code": "MP.4",
+      "text": "Model with mathematics.",
+      "how": "The modelling form asks for the equation that records a situation, before any solving happens.",
+      "i18n": {
+        "es": {
+          "how": "La forma de modelado pide la ecuación que registra una situación, antes de resolver nada."
+        },
+        "pl": {
+          "how": "Forma modelowania prosi o równanie, które zapisuje sytuację, zanim cokolwiek rozwiążemy."
+        }
+      }
+    },
+    {
+      "code": "MP.5",
+      "text": "Use appropriate tools strategically.",
+      "how": "The tools are real and the learner works in them: a coordinate grid whose scale is cut to the readings on it, a table of measurements, and an answer surface that holds exact fractions rather than rounded decimals. Only three lines claim this practice, and they claim the USING half. The learner does not SELECT the tool — the question hands it over — so the strategic half is not claimed anywhere in this course.",
+      "i18n": {
+        "es": {
+          "how": "Las herramientas son reales y el estudiante trabaja dentro de ellas: una cuadrícula cuya escala se ajusta a las lecturas que lleva, una tabla de medidas y una superficie de respuesta que admite fracciones exactas en vez de decimales redondeados. Solo tres destrezas afirman esta práctica, y afirman la mitad de USARLAS. El estudiante no ELIGE la herramienta, porque la pregunta se la entrega, así que la mitad estratégica no se afirma en ningún punto del curso."
+        },
+        "pl": {
+          "how": "Narzędzia są prawdziwe i uczeń w nich pracuje: siatka współrzędnych o skali dopasowanej do naniesionych odczytów, tabela pomiarów oraz pole odpowiedzi, które przyjmuje dokładne ułamki zamiast zaokrąglonych liczb dziesiętnych. Tę praktykę zgłaszają tylko trzy umiejętności i zgłaszają połowę dotyczącą UŻYWANIA. Uczeń nie WYBIERA narzędzia, bo podaje mu je pytanie, więc połowy strategicznej nie zgłaszamy nigdzie w tym kursie."
+        }
+      },
+      "met": "partial"
+    },
+    {
+      "code": "MP.6",
+      "text": "Attend to precision.",
+      "how": "Answers are exact rationals; the game never accepts a rounded value, and negative signs are generated deliberately from difficulty band 3.",
+      "i18n": {
+        "es": {
+          "how": "Las respuestas son racionales exactos. El juego nunca acepta un valor redondeado, y los signos negativos se generan a propósito a partir de la banda de dificultad 3."
+        },
+        "pl": {
+          "how": "Odpowiedzi są dokładnymi liczbami wymiernymi. Gra nigdy nie przyjmuje wartości zaokrąglonej, a znaki ujemne pojawiają się celowo od pasma trudności 3."
+        }
+      }
+    },
+    {
+      "code": "MP.7",
+      "text": "Look for and make use of structure.",
+      "how": "Factoring items ask the learner to see a sum as a product; the area model shows the distributive property as a split rectangle.",
+      "i18n": {
+        "es": {
+          "how": "Las preguntas de factorización piden al estudiante ver una suma como un producto. El modelo de área muestra la propiedad distributiva como un rectángulo partido."
+        },
+        "pl": {
+          "how": "Zadania rozkładu na czynniki proszą ucznia, by zobaczył sumę jako iloczyn. Model pola pokazuje rozdzielność jako dzielony prostokąt."
+        }
+      }
+    },
+    {
+      "code": "MP.8",
+      "text": "Look for and express regularity in repeated reasoning.",
+      "how": "Table forms make a rule visible across rows before it is written symbolically.",
+      "i18n": {
+        "es": {
+          "how": "Las formas de tabla hacen visible una regla a lo largo de las filas antes de escribirla en símbolos."
+        },
+        "pl": {
+          "how": "Formy tabelaryczne pokazują regułę w kolejnych wierszach, zanim zapiszemy ją symbolami."
+        }
+      }
+    }
+  ],
+  "teks": [
+    {
+      "code": "A.1(A)",
+      "citation": "19 TAC §111.39(c)(1)(A)",
+      "text": "apply mathematics to problems arising in everyday life, society, and the workplace;",
+      "ccss": [
+        "MP.4"
+      ],
+      "met": "full",
+      "how": "Every skill carries a contextual form, and the mastery gate cannot be cleared without passing at least one modelling item that walks between a situation and the algebra.",
+      "i18n": {
+        "es": {
+          "how": "Cada destreza lleva una forma contextual. El sello de dominio no se supera sin aprobar al menos una pregunta de modelado que recorra el camino entre una situación y el álgebra."
+        },
+        "pl": {
+          "how": "Każda umiejętność ma formę kontekstową. Próby biegłości nie da się przejść bez zaliczenia co najmniej jednego zadania modelującego, które przechodzi między sytuacją a algebrą."
+        }
+      }
+    },
+    {
+      "code": "A.1(B)",
+      "citation": "19 TAC §111.39(c)(1)(B)",
+      "text": "use a problem-solving model that incorporates analyzing given information, formulating a plan or strategy, determining a solution, justifying the solution, and evaluating the problem-solving process and the reasonableness of the solution;",
+      "ccss": [
+        "MP.1"
+      ],
+      "met": "partial",
+      "how": "The worked echo makes the plan visible as a sequence of justified moves, and fades as competence shows. The learner is not asked to write the plan out, so the `justifying` and `evaluating` stages are modelled and recognised rather than composed.",
+      "i18n": {
+        "es": {
+          "how": "El eco resuelto hace visible el plan como una secuencia de movimientos justificados, y se desvanece a medida que aparece la competencia. Al estudiante no se le pide escribir el plan. Por eso las etapas de «justificar» y «evaluar» se modelan y se reconocen, pero no se componen."
+        },
+        "pl": {
+          "how": "Rozwiązane echo pokazuje plan jako ciąg uzasadnionych ruchów i zanika w miarę, jak rośnie biegłość. Uczeń nie jest proszony o spisanie planu. Dlatego etapy „uzasadniania” i „oceniania” są modelowane i rozpoznawane, a nie tworzone."
+        }
+      }
+    },
+    {
+      "code": "A.1(C)",
+      "citation": "19 TAC §111.39(c)(1)(C)",
+      "text": "select tools, including real objects, manipulatives, paper and pencil, and technology as appropriate, and techniques, including mental math, estimation, and number sense as appropriate, to solve problems;",
+      "ccss": [],
+      "met": "partial",
+      "how": "The balance beam, the split rectangle and the coordinate grid are working manipulatives, not illustrations. But the rift chooses which one appears — the learner does not select it. The selection half of this process standard is not met and is not claimed. MP.5 is claimed by three lines on the Common Core side, for the using half only, and says the same thing.",
+      "i18n": {
+        "es": {
+          "how": "La balanza, el rectángulo partido y la cuadrícula son manipulativos que funcionan, no dibujos. Pero la grieta elige cuál aparece: el estudiante no lo elige. La mitad de la selección de este estándar de proceso no se cumple y no se afirma. En el lado de Common Core, MP.5 lo afirman tres destrezas, solo por la mitad de usar la herramienta, y dice lo mismo."
+        },
+        "pl": {
+          "how": "Waga, podzielony prostokąt i siatka współrzędnych to działające pomoce, a nie rysunki. Ale to szczelina wybiera, która się pojawi — uczeń jej nie wybiera. Połowy dotyczącej wyboru w tym standardzie procesu nie spełniamy i jej nie zgłaszamy. Po stronie Common Core MP.5 zgłaszają trzy umiejętności, wyłącznie za połowę dotyczącą używania, i mówi to samo."
+        }
+      }
+    },
+    {
+      "code": "A.1(D)",
+      "citation": "19 TAC §111.39(c)(1)(D)",
+      "text": "communicate mathematical ideas, reasoning, and their implications using multiple representations, including symbols, diagrams, graphs, and language as appropriate;",
+      "ccss": [
+        "MP.2",
+        "MP.6"
+      ],
+      "met": "full",
+      "how": "Every node declares the representations its gate demands, and the proving run refuses to close until it has spanned two of them with at least one not symbolic. All notation is strict KaTeX, in the reader's own operator conventions.",
+      "i18n": {
+        "es": {
+          "how": "Cada nodo declara las representaciones que exige su sello. La ronda de prueba no se cierra hasta cubrir dos de ellas, y al menos una no puede ser simbólica. Toda la notación es KaTeX estricto, con las convenciones de operadores del propio lector."
+        },
+        "pl": {
+          "how": "Każdy węzeł deklaruje reprezentacje, których wymaga jego próba. Bieg dowodowy nie zamknie się, dopóki nie obejmie dwóch z nich, a co najmniej jedna nie może być symboliczna. Cała notacja to ścisły KaTeX, w konwencjach operatorów właściwych dla czytelnika."
+        }
+      }
+    },
+    {
+      "code": "A.1(E)",
+      "citation": "19 TAC §111.39(c)(1)(E)",
+      "text": "create and use representations to organize, record, and communicate mathematical ideas;",
+      "ccss": [
+        "MP.4"
+      ],
+      "met": "partial",
+      "how": "The modelling forms ask the learner to create the symbolic representation of a situation and are scored on the equation itself. Tables and graphs are supplied for reading rather than created, so the `create` half is met in symbols only.",
+      "i18n": {
+        "es": {
+          "how": "Las formas de modelado piden al estudiante crear la representación simbólica de una situación, y se puntúan por la ecuación misma. Las tablas y las gráficas se entregan para leerlas, no para crearlas. Por eso la mitad de «crear» se cumple solo en símbolos."
+        },
+        "pl": {
+          "how": "Formy modelowania proszą ucznia o utworzenie symbolicznej reprezentacji sytuacji i są oceniane za samo równanie. Tabele i wykresy są podawane do odczytu, a nie do utworzenia. Dlatego połowa „tworzenia” jest spełniona tylko w symbolach."
+        }
+      }
+    },
+    {
+      "code": "A.1(F)",
+      "citation": "19 TAC §111.39(c)(1)(F)",
+      "text": "analyze mathematical relationships to connect and communicate mathematical ideas;",
+      "ccss": [
+        "MP.7",
+        "MP.8"
+      ],
+      "met": "full",
+      "how": "Table forms make a rule visible across rows before it is written symbolically; the factoring form asks the learner to see a sum as a product; the special-case form asks what kind of statement is left once the unknown has vanished.",
+      "i18n": {
+        "es": {
+          "how": "Las formas de tabla hacen visible una regla a lo largo de las filas antes de escribirla en símbolos. La forma de factorización pide al estudiante ver una suma como un producto. La forma de casos especiales pregunta qué clase de enunciado queda una vez que la incógnita ha desaparecido."
+        },
+        "pl": {
+          "how": "Formy tabelaryczne pokazują regułę w kolejnych wierszach, zanim zapiszemy ją symbolami. Forma rozkładu na czynniki prosi ucznia, by zobaczył sumę jako iloczyn. Forma przypadków szczególnych pyta, jakie zdanie zostaje, gdy niewiadoma zniknie."
+        }
+      }
+    },
+    {
+      "code": "A.1(G)",
+      "citation": "19 TAC §111.39(c)(1)(G)",
+      "text": "display, explain, and justify mathematical ideas and arguments using precise mathematical language in written or oral communication.",
+      "ccss": [
+        "MP.3"
+      ],
+      "met": "partial",
+      "how": "The dispute forms put two contradictory chains of reasoning side by side and ask which is sound; every wrong chain is a named misconception rather than a random slip. The learner decides and is shown why, but does not compose the justification in their own words. The written-and-oral half of this process standard is a teacher's job, not the game's, and is not claimed.",
+      "i18n": {
+        "es": {
+          "how": "Las formas de disputa ponen dos cadenas de razonamiento contradictorias una junto a otra y preguntan cuál es válida. Cada cadena errónea es un error conceptual con nombre, no un descuido al azar. El estudiante decide y ve por qué, pero no compone la justificación con sus propias palabras. La mitad escrita y oral de este estándar de proceso es trabajo del docente, no del juego, y no se afirma."
+        },
+        "pl": {
+          "how": "Formy sporu stawiają obok siebie dwa sprzeczne ciągi rozumowania i pytają, który jest poprawny. Każdy błędny ciąg to nazwane błędne przekonanie, a nie przypadkowa pomyłka. Uczeń decyduje i widzi dlaczego, ale nie tworzy uzasadnienia własnymi słowami. Połowa pisemna i ustna tego standardu procesu to zadanie nauczyciela, nie gry, i nie jest twierdzona."
+        }
+      }
+    }
+  ]
+}

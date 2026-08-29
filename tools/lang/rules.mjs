@@ -320,7 +320,13 @@ export const FANCY = {
     obtain: 'get', purchase: 'buy', assist: 'help', require: 'need',
     numerous: 'many', comprehend: 'understand', facilitate: 'help',
     initiate: 'start', accomplish: 'do', attempt: 'try', permit: 'let',
-    indicate: 'show', modify: 'change', construct: 'build', component: 'part',
+    indicate: 'show', modify: 'change', component: 'part',
+    // `construct` was here, mapped to 'build'. It is a bare substring match with no
+    // part-of-speech test, and the bank uses `construct` as a COUNTABLE NOUN naming a
+    // world entity: "you ran down the construct" (src/i18n/en.js ledger.first.bind).
+    // Applying the rule's own advice yields "you ran down the build", which is not
+    // English — and `build` is already a different thing in this game (src/build/).
+    // Removed rather than reworded: the verb sense has plain alternatives already.
     deploy: 'use', furthermore: 'also', however: 'but', therefore: 'so',
     regarding: 'about', concerning: 'about', numerically: 'in numbers',
     'in order to': 'to', 'is able to': 'can', 'at this time': 'now',
@@ -387,7 +393,7 @@ export const PASSIVE = {
 
 /** Words whose -ed/-ny form is a plain adjective, not a passive. */
 export const PASSIVE_EXEMPT = {
-  en: /\b(?:is|are|was|were|be|been|am)\s+(?:not\s+)?(?:tired|interested|pleased|based|used to|supposed to|limited to|able|aware|willing|worth|ready|closed|open|left|right|fixed|red|dead|good|bad|late|hard)\b/i,
+  en: /\b(?:is|are|was|were|be|been|am)\s+(?:not\s+)?(?:tired|interested|pleased|based|used to|supposed to|limited to|able|aware|willing|worth|ready|closed|open|left|right|fixed|red|dead|good|bad|late|hard|stuck)\b/i,
   es: /\b(?:es|son|est[áa]n?)\s+(?:no\s+)?(?:cansad[oa]s?|interesad[oa]s?|content[oa]s?)\b/i,
   pl: /\b(?:jest|s[ąa])\s+(?:nie\s+)?(?:gotow[ayei]|zmęczon[ayei]|zadowolon[ayei])\b/i,
 };
@@ -504,7 +510,11 @@ export const NOT_NOUN = {
     ahead behind forward backward upward downward outward inward
     across through over under between beside near far next last first
     who whom whose which what where when why how than then thus hence
-    say says said tell told ask asks asked answer answers answered`.split(/\s+/).filter(Boolean)),
+    say says said tell told ask asks asked answer answers answered
+    dividing divides divided multiplying subtracting adding cancels cancel cancelled
+    cancelling matching charges charge charged charging
+    itself himself herself themselves yourself myself ourselves
+    extra unassisted unaided`.split(/\s+/).filter(Boolean)),
   es: new Set(`el la los las un una unos unas de del al a en con sin por para
     y o pero si que qué cuando donde cómo cuál quien cuyo
     es son era eran fue fueron ser estar está están estaba
@@ -519,6 +529,7 @@ export const NOT_NOUN = {
     w we na do od z ze za po przed pod nad przy o u bez dla przez między
     jest są był była było były będzie będą nie tak już jeszcze tylko bardzo
     to ta ten te ci tego tej tym tych tam tu teraz potem najpierw znowu
+    który która które którzy których któremu którym którą
     naciśnij wpisz otwórz zamknij zapieczętuj wybierz spójrz przeczytaj dodaj
     odejmij pomnóż podziel rozwiąż sprawdź użyj trzymaj idź wejdź wyjdź skocz leć
     twój twoja twoje mój moja moje swój jego jej ich

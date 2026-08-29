@@ -1,0 +1,137 @@
+{
+  "$comment": [
+    "THE CASES AN EXPECTATION NAMES BY NAME.",
+    "",
+    "Some student expectations do not just say what to do; they name the hard",
+    "cases that make the doing worth a credit. A.5(B) says \"solve linear",
+    "inequalities in one variable, INCLUDING those for which the application of",
+    "the distributive property is necessary and for which variables are included",
+    "on both sides\". A node whose four forms produce neither of those has not",
+    "taught A.5(B) at core, however well it teaches what it does teach.",
+    "",
+    "One shipped node claimed exactly that, at core, with no caveat, while its",
+    "own sibling said in writing on the same graph that it was the only node in",
+    "the course where both named cases are met. The two claims sat eighty lines",
+    "apart, contradicting each other, through every gate in the build — because",
+    "every gate asks whether a claim is WELL FORMED, and none of them generated",
+    "the items and read them against the words of the standard.",
+    "",
+    "HOW TO READ A CASE.",
+    "  text      the words the expectation itself uses. CHECKED against the",
+    "            expectation's own `text` on every run, so a case cannot be",
+    "            invented here: if the words are not the standard's, the gate",
+    "            refuses to run at all.",
+    "  detector  a function in tools/check-named-cases.mjs. Regular expressions",
+    "            live in the tool and not in this file, because a regular",
+    "            expression in a content file is a content file nobody reviews.",
+    "  side      where the case counts. `stem` for an expectation whose verb is",
+    "            SOLVE or SIMPLIFY — the case is a property of what the learner",
+    "            is handed. `answer` for one whose verb is WRITE, because a form",
+    "            that PRINTS Ax + By = C and asks for y = mx + b has not written",
+    "            it. `either` where both readings are the same act.",
+    "  says      what a caveat has to say for this case to count as disclosed.",
+    "",
+    "A caveat may also name ALL of an expectation's cases at once — \"the two",
+    "cases A.5(B) names by name are still absent\" tells a reader precisely what",
+    "is missing without listing it twice. That idiom is COLLECTIVE in",
+    "tools/check-named-cases.mjs, one pattern for every expectation, because it",
+    "is a fact about English and not about any one standard."
+  ],
+  "expectations": {
+    "A.5(A)": {
+      "text": "solve linear equations in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides;",
+      "cases": [
+        {
+          "id": "distributive",
+          "text": "the application of the distributive property is necessary",
+          "detector": "distributive",
+          "side": "stem",
+          "says": "distribut"
+        },
+        {
+          "id": "bothSides",
+          "text": "variables are included on both sides",
+          "detector": "bothSides",
+          "side": "stem",
+          "says": "both sides"
+        }
+      ]
+    },
+    "A.5(B)": {
+      "text": "solve linear inequalities in one variable, including those for which the application of the distributive property is necessary and for which variables are included on both sides; and",
+      "cases": [
+        {
+          "id": "distributive",
+          "text": "the application of the distributive property is necessary",
+          "detector": "distributive",
+          "side": "stem",
+          "says": "distribut"
+        },
+        {
+          "id": "bothSides",
+          "text": "variables are included on both sides",
+          "detector": "bothSides",
+          "side": "stem",
+          "says": "both sides"
+        }
+      ]
+    },
+    "A.2(B)": {
+      "text": "write linear equations in two variables in various forms, including y = mx + b, Ax + By = C, and y - y1 = m(x - x1), given one point and the slope and given two points;",
+      "cases": [
+        {
+          "id": "slopeIntercept",
+          "text": "y = mx + b",
+          "detector": "slopeIntercept",
+          "side": "answer",
+          "says": "y = mx \\+ b|slope-intercept"
+        },
+        {
+          "id": "standardForm",
+          "text": "Ax + By = C",
+          "detector": "standardForm",
+          "side": "answer",
+          "says": "standard form|Ax \\+ By"
+        },
+        {
+          "id": "pointSlope",
+          "text": "y - y1 = m(x - x1)",
+          "detector": "pointSlope",
+          "side": "answer",
+          "says": "point-slope|y - y1"
+        }
+      ]
+    },
+    "A.11(B)": {
+      "text": "simplify numeric and algebraic expressions using the laws of exponents, including integral and rational exponents.",
+      "cases": [
+        {
+          "id": "integralExp",
+          "text": "integral",
+          "detector": "integralExp",
+          "side": "either",
+          "says": "integral|whole-number|whole number|integer"
+        },
+        {
+          "id": "rationalExp",
+          "text": "rational exponents",
+          "detector": "rationalExp",
+          "side": "either",
+          "says": "rational"
+        }
+      ]
+    },
+    "A.10(E)": {
+      "text": "factor, if possible, trinomials with real factors in the form ax^2 + bx + c, including perfect square trinomials of degree two; and",
+      "cases": [
+        {
+          "id": "perfectSquare",
+          "text": "perfect square trinomials of degree two",
+          "detector": "perfectSquare",
+          "side": "either",
+          "says": "perfect square"
+        }
+      ]
+    }
+  }
+}

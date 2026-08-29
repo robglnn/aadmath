@@ -1,0 +1,1392 @@
+{
+  "$comment": [
+    "THE STANDARD'S OWN VOCABULARY, AND WHERE THE GAME TEACHES IT.",
+    "",
+    "WHERE THIS LIVES. Beside tools/lang/rules.mjs, which holds the same kind of table for the words this GAME invented, and for the same reason: this file is a gate's register, not learner prose. The words a learner reads live in content/lang/items.*.js and content/lang/packs/**, which is where they are taught. Keeping the register out of content/ also keeps check:i18n honest — that gate reads content/ as prose a learner meets and asks for a Spanish and a Polish beside every English sentence, which is right for an item and wrong for a note explaining why a citation is deferred.",
+    "WHY THIS FILE EXISTS. The item bank is written in plain language on purpose:",
+    "'the rate', 'the start', 'the letter', 'the line leans'. That register is why",
+    "check:lang is green and it is not up for negotiation. But a cadet who holds",
+    "every line on the shipped route used to have met the word SLOPE exactly zero",
+    "times, and INTERCEPT zero, and INEQUALITY zero, and VARIABLE zero — while the",
+    "standards those very skills are aligned to are written in nothing else. Put a",
+    "STAAR card in front of that cadet and the question is in a language the game",
+    "never taught.",
+    "",
+    "The fix is not to delete the plain words. It is what any good teacher does:",
+    "name the thing in plain words first, then give it the name people use for it,",
+    "then use both. So every row below carries BOTH — the plain phrase the bank",
+    "already uses, and the formal word the standard is written in — and",
+    "tools/check-vocab.mjs proves, against the real generated bank in all three",
+    "locales, that the formal word is present, is introduced beside its plain twin",
+    "before it is ever used bare, and is met often enough to be recognised cold.",
+    "",
+    "EVERY WORD IS ACCOUNTED FOR. The term list is not a list from memory. The gate",
+    "reads the CCSS and TEKS text quoted in the route's own graph files, splits it",
+    "into words, and refuses a build where any word is in none of the four buckets",
+    "below: `terms` (taught), `deferred` (a maths word inside a clause the node's",
+    "own caveat puts outside this unit — with the reason written down), `symbol`",
+    "(a letter or a notation fragment) and `ordinary` (plain English used in its",
+    "ordinary sense). Adding a word to `ordinary` is a visible, reviewable act.",
+    "",
+    "OWNER. The node that EARNS the word — the one whose work the word names. The",
+    "gate proves no learner-facing string on any earlier skill uses the word, so a",
+    "term can never arrive before the lesson that gives it meaning.",
+    "",
+    "NATIVE. Some of the standard's words were already the bank's own words —",
+    "expression, term, equation, ratio, formula, factor. Those need no",
+    "introduction, because there is no plain synonym standing in their place. They",
+    "still have to be MET often enough, and the gate still counts them.",
+    "",
+    "ES AND PL ARE NOT TRANSLATED ENGLISH. A Spanish maths teacher writes",
+    "`pendiente`, `ordenada al origen`, `desigualdad`; a Polish one writes",
+    "`nachylenie`, `wyraz wolny`, `nierówność`. Each locale's `word` is the term",
+    "that locale's own classroom uses, and its `plain` is the plain phrase that",
+    "locale's bank already uses — neither is a gloss of the English.",
+    "",
+    "THE THREE NUMBERS AT THE TOP",
+    "  itemsPerSkillFloor  The fewest items a learner can possibly be served on one",
+    "                      skill, read off the graph's own mastery block:",
+    "                      cleanRun (3) + checkItems (3). A real learner does more;",
+    "                      a gate must assume the floor.",
+    "  introShare          The share of a skill's item stems that must carry the",
+    "                      introduction, at EVERY band. At 0.40 the chance a learner",
+    "                      clears the owning skill without ever reading it is",
+    "                      0.6^6 = 4.7%, which the gate prints for every term.",
+    "  meetFloor           How many times a learner must meet the formal word across",
+    "                      the whole route, counted as sum over skills of",
+    "                      itemsPerSkillFloor x stem coverage."
+  ],
+  "itemsPerSkillFloor": 6,
+  "introShare": 0.4,
+  "meetFloor": 8,
+  "terms": [
+    {
+      "id": "variable",
+      "owner": "var-meaning",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.A.2.A",
+        "CCSS.MATH.CONTENT.6.EE.B.6"
+      ],
+      "words": [
+        "variable",
+        "variables"
+      ],
+      "en": {
+        "word": "variable",
+        "re": "\\bvariables?\\b",
+        "plain": "letter",
+        "plainRe": "\\bletters?\\b"
+      },
+      "es": {
+        "word": "variable",
+        "re": "\\bvariables?\\b",
+        "plain": "letra",
+        "plainRe": "\\bletras?\\b"
+      },
+      "pl": {
+        "word": "zmienna",
+        "re": "\\bzmienn(a|ej|ą|e|ych|ymi)\\b",
+        "plain": "litera",
+        "plainRe": "\\bliter(a|y|ę|ze|ą|om|ami|ach)?\\b"
+      }
+    },
+    {
+      "id": "expression",
+      "owner": "var-meaning",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+        "CCSS.MATH.CONTENT.6.EE.A.2.A"
+      ],
+      "words": [
+        "expression",
+        "expressions"
+      ],
+      "en": {
+        "word": "expression",
+        "re": "\\bexpressions?\\b"
+      },
+      "es": {
+        "word": "expresión",
+        "re": "\\bexpresi(ón|ones)\\b"
+      },
+      "pl": {
+        "word": "wyrażenie",
+        "re": "\\bwyrażeni(e|a|u|em|ach|om|ami)\\b"
+      }
+    },
+    {
+      "id": "evaluate",
+      "owner": "eval-expr",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.A.2.C",
+        "CCSS.MATH.CONTENT.6.EE.A.1"
+      ],
+      "words": [
+        "evaluate"
+      ],
+      "en": {
+        "word": "evaluate",
+        "re": "\\bevaluat(e|es|ed|ing|ion)\\b",
+        "plain": "work out the value",
+        "plainRe": "\\b(work out|worth|value)\\b"
+      },
+      "es": {
+        "word": "evaluar",
+        "re": "\\beval[úu][\\w\\u00C0-\\u024F]*|\\bevaluar\\b",
+        "plain": "calcula el valor",
+        "plainRe": "\\b(calcula|vale|valor)\\b"
+      },
+      "pl": {
+        "word": "wartość wyrażenia",
+        "re": "warto(ść|ści|ścią) wyrażeni",
+        "plain": "oblicz wartość",
+        "plainRe": "\\b(oblicz|wynosi|warto(ść|ści))\\b"
+      },
+      "nativeIn": [
+        "pl"
+      ],
+      "nativeNote": "Polish names this one way and only one way: `obliczyć wartość wyrażenia` is what a Polish teacher writes on the board and what this bank already wrote. There is no plain synonym standing in front of a formal word, so there is nothing to introduce it against."
+    },
+    {
+      "id": "substitute",
+      "owner": "eval-expr",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.B.5",
+        "CCSS.MATH.CONTENT.6.EE.A.4"
+      ],
+      "words": [
+        "substituted",
+        "substitution"
+      ],
+      "en": {
+        "word": "substitute",
+        "re": "\\bsubstitut(e|es|ed|ing|ion)\\b"
+      },
+      "es": {
+        "word": "sustituir",
+        "re": "\\bsustitu(ye|ir|imos|ción|yendo)\\b"
+      },
+      "pl": {
+        "word": "podstawić",
+        "re": "\\bpodstaw[\\w\\u00C0-\\u024F]*"
+      }
+    },
+    {
+      "id": "order-of-operations",
+      "owner": "order-ops",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.A.2.C"
+      ],
+      "words": [
+        "operations",
+        "order",
+        "conventional"
+      ],
+      "en": {
+        "word": "order of operations",
+        "re": "\\border of operations\\b",
+        "plain": "which move is settled first",
+        "plainRe": "\\bfirst\\b"
+      },
+      "es": {
+        "word": "orden de las operaciones",
+        "re": "orden de las operaciones",
+        "plain": "qué se resuelve primero",
+        "plainRe": "\\bprimero\\b"
+      },
+      "pl": {
+        "word": "kolejność działań",
+        "re": "kolejno(ść|ści|ścią) dzia[łl]a",
+        "plain": "co rozstrzyga się najpierw",
+        "plainRe": "\\b(najpierw|pierwszy|pierwsza|pierwsze)\\b"
+      },
+      "meet": 3,
+      "meetNote": "Every meeting a word gets is an item stem that says it, and a stem can only say it where the word is doing work. 6.EE.A.2.C names the order of operations at ONE node on this route, `order-ops`, and `order-ops` deals four of its eight forms beside a dispute deck that already runs to twenty-two words in Spanish. The two asks that stand on their own carry the phrase; three and a half meetings is what one skill with two free asks can give. More would mean printing it where there is no order to settle."
+    },
+    {
+      "id": "exponent",
+      "owner": "order-ops",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.A.1",
+        "CCSS.MATH.CONTENT.6.EE.A.2.C"
+      ],
+      "words": [
+        "exponents"
+      ],
+      "en": {
+        "word": "exponent",
+        "re": "\\bexponents?\\b",
+        "plain": "power",
+        "plainRe": "\\bpowers?\\b"
+      },
+      "es": {
+        "word": "exponente",
+        "re": "\\bexponentes?\\b",
+        "plain": "potencia",
+        "plainRe": "\\bpotencias?\\b"
+      },
+      "pl": {
+        "word": "wykładnik",
+        "re": "\\bwyk[łl]adnik(a|i|iem|ów|om)?\\b",
+        "plain": "potęga",
+        "plainRe": "\\bpot[ęe](g|dz)[\\w\\u00C0-\\u024F]*"
+      },
+      "meet": 3,
+      "meetNote": "Every meeting a word gets is an item stem that says it, and a stem can only say it where the word is doing work. Powers appear on this route at exactly one node — `order-ops`, 6.EE.A.1 — and nowhere after it. There is no later skill with an exponent on the card, so there is nowhere honest to say the word again. Exponent rules are Level 3."
+    },
+    {
+      "id": "parentheses",
+      "owner": "order-ops",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.A.2.C"
+      ],
+      "words": [
+        "parentheses"
+      ],
+      "en": {
+        "word": "parentheses",
+        "re": "\\bparenthes[ei]s\\b",
+        "plain": "bracket",
+        "plainRe": "\\bbrackets?\\b"
+      },
+      "es": {
+        "word": "paréntesis",
+        "re": "\\bparéntesis\\b",
+        "plain": "paréntesis",
+        "plainRe": "\\bparéntesis\\b"
+      },
+      "pl": {
+        "word": "nawias",
+        "re": "\\bnawias(u|y|ie|em|ów|om|ami|ach)?\\b",
+        "plain": "nawias",
+        "plainRe": "\\bnawias(u|y|ie|em|ów|om|ami|ach)?\\b"
+      },
+      "nativeIn": [
+        "es",
+        "pl"
+      ],
+      "nativeNote": "Spanish and Polish call a bracket a paréntesis / nawias in the classroom and in this bank already, so there is no plain synonym to introduce it against. Only English has two words for it, and only English needs the introduction.",
+      "meet": 5,
+      "meetNote": "Every meeting a word gets is an item stem that says it, and a stem can only say it where the word is doing work. The word is cited only at `order-ops` (6.EE.A.2.C). It is also said at `distribute`, where a bracket is opened, and that is the whole of what this route can carry: five meetings, in English. Spanish and Polish are native here and meet it far more often."
+    },
+    {
+      "id": "term",
+      "owner": "like-terms",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+        "CCSS.MATH.CONTENT.8.EE.C.7.B"
+      ],
+      "words": [
+        "terms"
+      ],
+      "en": {
+        "word": "term",
+        "re": "\\bterms?\\b"
+      },
+      "es": {
+        "word": "término",
+        "re": "\\btérminos?\\b"
+      },
+      "pl": {
+        "word": "wyraz",
+        "re": "\\bwyraz(y|u|em|ach|om|ami|ów)?\\b"
+      }
+    },
+    {
+      "id": "like-terms",
+      "owner": "like-terms",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.EE.C.7.B",
+        "CCSS.MATH.CONTENT.6.EE.A.3"
+      ],
+      "words": [
+        "like",
+        "collecting"
+      ],
+      "en": {
+        "word": "like terms",
+        "re": "\\blike terms\\b",
+        "plain": "same kind",
+        "plainRe": "\\b(same kind|alike|same sort)\\b"
+      },
+      "es": {
+        "word": "términos semejantes",
+        "re": "términos semejantes",
+        "plain": "misma clase",
+        "plainRe": "\\b(misma clase|mismo tipo)\\b"
+      },
+      "pl": {
+        "word": "wyrazy podobne",
+        "re": "wyraz(y|ów|ami|om) podobn",
+        "plain": "tego samego rodzaju",
+        "plainRe": "\\btego samego rodzaju\\b"
+      }
+    },
+    {
+      "id": "coefficient",
+      "owner": "like-terms",
+      "cited": [
+        "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+        "CCSS.MATH.CONTENT.7.EE.A.1",
+        "CCSS.MATH.CONTENT.HSA.REI.B.3"
+      ],
+      "words": [
+        "coefficients"
+      ],
+      "en": {
+        "word": "coefficient",
+        "re": "\\bcoefficients?\\b",
+        "plain": "count in front",
+        "plainRe": "\\b(count|counts|number|numbers|in front)\\b"
+      },
+      "es": {
+        "word": "coeficiente",
+        "re": "\\bcoeficientes?\\b",
+        "plain": "cantidad de delante",
+        "plainRe": "\\b(cantidad|cantidades|número|números|de delante)\\b"
+      },
+      "pl": {
+        "word": "współczynnik",
+        "re": "\\bwsp[óo][łl]czynnik(a|i|iem|ów|om|ami|ach)?\\b",
+        "plain": "liczba z przodu",
+        "plainRe": "\\bliczb(a|y|ę|ie|ą|om|ami|ach)?\\b|\\bz przodu\\b"
+      }
+    },
+    {
+      "id": "equivalent",
+      "owner": "like-terms",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.A.4",
+        "CCSS.MATH.CONTENT.6.EE.A.3"
+      ],
+      "words": [
+        "equivalent",
+        "generate"
+      ],
+      "en": {
+        "word": "equivalent",
+        "re": "\\bequivalent\\b",
+        "plain": "exactly the same thing",
+        "plainRe": "\\b(the same thing|same thing|the same)\\b"
+      },
+      "es": {
+        "word": "equivalente",
+        "re": "\\bequivalentes?\\b",
+        "plain": "exactamente lo mismo",
+        "plainRe": "\\b(lo mismo|la misma)\\b"
+      },
+      "pl": {
+        "word": "równoważne",
+        "re": "\\br[óo]wnoważn",
+        "plain": "dokładnie to samo",
+        "plainRe": "\\b(to samo|ta sama|tak samo)\\b"
+      },
+      "meet": 4,
+      "meetNote": "Every meeting a word gets is an item stem that says it, and a stem can only say it where the word is doing work. 6.EE.A.4 is cited at `like-terms` alone, and only two forms on this route ask whether two writings say the same thing (`lt-equivalent` at like-terms and `ds-factor` at distribute). Four meetings is what those two forms deal."
+    },
+    {
+      "id": "factor",
+      "owner": "distribute",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+        "CCSS.MATH.CONTENT.7.EE.A.1"
+      ],
+      "words": [
+        "factor",
+        "factors"
+      ],
+      "en": {
+        "word": "factor",
+        "re": "\\bfactors?\\b"
+      },
+      "es": {
+        "word": "factor",
+        "re": "\\bfactor(es)?\\b"
+      },
+      "pl": {
+        "word": "czynnik",
+        "re": "\\bczynnik(a|i|iem|ów|om|ami|ach)?\\b"
+      }
+    },
+    {
+      "id": "distributive-property",
+      "owner": "distribute",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.EE.C.7.B",
+        "A.5(A)",
+        "A.5(B)"
+      ],
+      "words": [
+        "distributive",
+        "property"
+      ],
+      "en": {
+        "word": "distributive property",
+        "re": "\\bdistributive\\b",
+        "plain": "every term inside",
+        "plainRe": "\\b(every term|each term|inside)\\b"
+      },
+      "es": {
+        "word": "propiedad distributiva",
+        "re": "\\bdistributiva\\b",
+        "plain": "cada término de dentro",
+        "plainRe": "\\b(cada término|todos los términos|de dentro)\\b"
+      },
+      "pl": {
+        "word": "rozdzielność mnożenia",
+        "re": "\\brozdzielno(ść|ści|ścią)\\b",
+        "plain": "każdy wyraz w nawiasie",
+        "plainRe": "\\b(każdy wyraz|każdego wyrazu|w nawiasie)\\b"
+      },
+      "meet": 4,
+      "meetNote": "Every meeting a word gets is an item stem that says it, and a stem can only say it where the word is doing work. 8.EE.C.7.B and TEKS A.5(A)/A.5(B) name the distributive property at multi-step, both-sides, bracket-both-sides, fraction-solve and the three inequality lines. `distribute` is the only one of those with an ask of its own; every other one is dealt through an ask it SHARES with a line that comes earlier, where the word would arrive before the lesson that earns it. Four meetings is the honest ceiling until one of those lines gets an ask of its own (src/content/packs, not this file)."
+    },
+    {
+      "id": "expand",
+      "owner": "distribute",
+      "cited": [
+        "CCSS.MATH.CONTENT.7.EE.A.1",
+        "CCSS.MATH.CONTENT.8.EE.C.7.B"
+      ],
+      "words": [
+        "expand",
+        "expanding"
+      ],
+      "en": {
+        "word": "expand",
+        "re": "\\bexpand(s|ed|ing)?\\b",
+        "plain": "open the bracket",
+        "plainRe": "\\b(open|opens|multiply it out|multiply out)\\b"
+      },
+      "es": {
+        "word": "desarrollar",
+        "re": "\\bdesarr[oó]ll[\\w\\u00C0-\\u024F]*",
+        "plain": "abre el paréntesis",
+        "plainRe": "\\b(abre|abrir|quita|multiplica)\\b"
+      },
+      "pl": {
+        "word": "rozwinąć",
+        "re": "\\brozwi(ń|nąć|ń\\w*|jamy|nięcie|nięcia)\\b|\\brozwiń\\b",
+        "plain": "otwórz nawias",
+        "plainRe": "\\b(otw(ó|o)rz|opu(ś|s)(ć|c)|wymn(ó|o)(ż|z))[\\w\\u00C0-\\u024F]*"
+      },
+      "meet": 5,
+      "meetNote": "Every meeting a word gets is an item stem that says it, and a stem can only say it where the word is doing work. Same shape as `distributive-property`: 7.EE.A.1 and 8.EE.C.7.B name expanding on six lines and only `distribute` has asks of its own."
+    },
+    {
+      "id": "equation",
+      "owner": "one-step-add",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.B.5",
+        "CCSS.MATH.CONTENT.6.EE.B.7",
+        "CCSS.MATH.CONTENT.HSA.REI.B.3"
+      ],
+      "words": [
+        "equation",
+        "equations"
+      ],
+      "en": {
+        "word": "equation",
+        "re": "\\bequations?\\b"
+      },
+      "es": {
+        "word": "ecuación",
+        "re": "\\becuaci(ón|ones)\\b"
+      },
+      "pl": {
+        "word": "równanie",
+        "re": "\\br[óo]wnani(e|a|u|em|ach|om|ami)\\b"
+      }
+    },
+    {
+      "id": "solution",
+      "owner": "both-sides",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.EE.C.7.A",
+        "CCSS.MATH.CONTENT.7.EE.B.4.A",
+        "CCSS.MATH.CONTENT.HSA.REI.A.1"
+      ],
+      "words": [
+        "solution",
+        "solutions"
+      ],
+      "en": {
+        "word": "solution",
+        "re": "\\bsolutions?\\b",
+        "plain": "the value that holds it true",
+        "plainRe": "\\b(holds|true|value)\\b"
+      },
+      "es": {
+        "word": "solución",
+        "re": "\\bsoluci(ón|ones)\\b",
+        "plain": "el valor que lo hace cierto",
+        "plainRe": "\\b(cierto|verdadero|valor)\\b"
+      },
+      "pl": {
+        "word": "rozwiązanie",
+        "re": "\\brozwi[ąa]zani(e|a|u|em|ach|om|ami)\\b",
+        "plain": "wartość, przy której to jest prawdą",
+        "plainRe": "\\b(prawd|warto(ść|ści))\\b"
+      },
+      "ownerNote": "8.EE.C.7.A is cited at both-sides and is the only citation on the route that turns on the WORD: one solution, infinitely many solutions, or no solutions. That is exactly what `bs-special` asks, so the word is earned there rather than at the first equation."
+    },
+    {
+      "id": "linear",
+      "owner": "write-linear",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.F.B.4",
+        "A.3(B)",
+        "CCSS.MATH.CONTENT.HSA.REI.B.3"
+      ],
+      "words": [
+        "linear"
+      ],
+      "en": {
+        "word": "linear",
+        "re": "\\blinear\\b",
+        "plain": "even steps",
+        "plainRe": "\\b(even step|even steps|straight|steady)\\b"
+      },
+      "es": {
+        "word": "lineal",
+        "re": "\\blineal(es)?\\b",
+        "plain": "pasos iguales",
+        "plainRe": "\\b(pasos iguales|recta|constante)\\b"
+      },
+      "pl": {
+        "word": "liniowy",
+        "re": "\\bliniow(y|a|e|ego|ej|ym|ą)\\b",
+        "plain": "równe kroki",
+        "plainRe": "\\b(równe kroki|prost\\w*|stał\\w*)"
+      },
+      "ownerNote": "Same as `function`: the first node on the route where a learner writes the straight rule down."
+    },
+    {
+      "id": "function",
+      "owner": "write-linear",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.F.B.4",
+        "CCSS.MATH.CONTENT.HSF.LE.A.2",
+        "A.3(C)"
+      ],
+      "words": [
+        "function",
+        "functions"
+      ],
+      "en": {
+        "word": "function",
+        "re": "\\bfunctions?\\b",
+        "plain": "rule",
+        "plainRe": "\\brules?\\b"
+      },
+      "es": {
+        "word": "función",
+        "re": "\\bfunci(ón|ones)\\b",
+        "plain": "regla",
+        "plainRe": "\\breglas?\\b"
+      },
+      "pl": {
+        "word": "funkcja",
+        "re": "\\bfunkcj(a|i|ę|ą|e|om|ami|ach)\\b",
+        "plain": "reguła",
+        "plainRe": "\\bregu[łl](a|y|ę|ą|om|ami|ach)?\\b"
+      },
+      "ownerNote": "8.F.B.4 is cited at rule-from-table, whose own caveat says every form there is answered with a value out of the table. write-linear is the first node where the RULE itself is the answer, so `function` is earned there."
+    },
+    {
+      "id": "rate-of-change",
+      "owner": "slope-rate",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.F.B.4",
+        "A.3(B)",
+        "CCSS.MATH.CONTENT.HSF.IF.B.6"
+      ],
+      "words": [
+        "rate",
+        "rates",
+        "change"
+      ],
+      "en": {
+        "word": "rate of change",
+        "re": "\\brate of change\\b",
+        "plain": "the climb for one step across",
+        "plainRe": "\\b(climb|step across|per step|one step)\\b"
+      },
+      "es": {
+        "word": "tasa de cambio",
+        "re": "\\btasa de cambio\\b",
+        "plain": "la subida por cada paso",
+        "plainRe": "\\b(subida|por cada paso|cada paso)\\b"
+      },
+      "pl": {
+        "word": "szybkość zmian",
+        "re": "szybko(ść|ści|ścią) zmian",
+        "plain": "wzrost na jeden krok",
+        "plainRe": "\\b(wzrost|na jeden krok|jeden krok)\\b"
+      }
+    },
+    {
+      "id": "initial-value",
+      "owner": "write-linear",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.F.B.4"
+      ],
+      "words": [
+        "initial"
+      ],
+      "en": {
+        "word": "initial value",
+        "re": "\\binitial value\\b",
+        "plain": "start",
+        "plainRe": "\\bstarts?\\b"
+      },
+      "es": {
+        "word": "valor inicial",
+        "re": "\\bvalor inicial\\b",
+        "plain": "punto de partida",
+        "plainRe": "\\b(punto de partida|arranque|empieza)\\b"
+      },
+      "pl": {
+        "word": "wartość początkowa",
+        "re": "warto(ść|ści|ścią|ści) pocz[ąa]tkow",
+        "plain": "początek",
+        "plainRe": "\\b(pocz[ąa]tek|pocz[ąa]tku|startu|start)\\b"
+      },
+      "ownerNote": "8.F.B.4 names the initial value and is cited at rule-from-table, whose own caveat says no form there asks for it. write-linear is the first node on the route where the start of a rule is the answer, so that is where the word is earned."
+    },
+    {
+      "id": "inequality",
+      "owner": "inequality-one-step",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.B.8",
+        "A.5(B)",
+        "6.10(A)",
+        "CCSS.MATH.CONTENT.HSA.REI.B.3"
+      ],
+      "words": [
+        "inequality",
+        "inequalities"
+      ],
+      "en": {
+        "word": "inequality",
+        "re": "\\binequalit(y|ies)\\b",
+        "plain": "leans",
+        "plainRe": "\\b(lean|leans|leaning)\\b"
+      },
+      "es": {
+        "word": "desigualdad",
+        "re": "\\bdesigualdad(es)?\\b",
+        "plain": "se inclina",
+        "plainRe": "\\b(inclina|inclinación|se inclina)\\b"
+      },
+      "pl": {
+        "word": "nierówność",
+        "re": "\\bnier[óo]wno(ść|ści|ścią|ściom|ściami)\\b",
+        "plain": "przechyla się",
+        "plainRe": "\\b(przechy|przechył)[\\w\\u00C0-\\u024F]*"
+      }
+    },
+    {
+      "id": "constraint",
+      "owner": "compound-inequality",
+      "cited": [
+        "CCSS.MATH.CONTENT.6.EE.B.8",
+        "CCSS.MATH.CONTENT.HSA.CED.A.3"
+      ],
+      "words": [
+        "constraint",
+        "constraints"
+      ],
+      "en": {
+        "word": "constraint",
+        "re": "\\bconstraints?\\b",
+        "plain": "limit",
+        "plainRe": "\\b(limit|limits|refuses|only while)\\b"
+      },
+      "es": {
+        "word": "restricción",
+        "re": "\\brestricci(ón|ones)\\b",
+        "plain": "límite",
+        "plainRe": "\\b(límite|límites|rechaza|solo mientras)\\b"
+      },
+      "pl": {
+        "word": "ograniczenie",
+        "re": "\\bograniczeni(e|a|u|em|ach|om|ami)\\b",
+        "plain": "próg",
+        "plainRe": "\\bprog[\\w\\u00C0-\\u024F]*|\\bpr[óo]g\\b"
+      },
+      "ownerNote": "HSA.CED.A.3 is cited at compound-inequality and its caveat says outright what this node does: 'Constraints are represented and read back as a band.'"
+    },
+    {
+      "id": "domain",
+      "owner": "compound-inequality",
+      "cited": [
+        "A.2(A)"
+      ],
+      "words": [
+        "domain"
+      ],
+      "scopeNote": "A.2(A) is cited at compound-inequality at depth `supporting`, and that node's own caveat says the domain and range OF A FUNCTION are not treated in Level 2. What the node does do is the clause it claims: it reads a machine's band of allowed readings back as an inequality. That band is what is named here, in exactly that sense and no wider.",
+      "en": {
+        "word": "domain",
+        "re": "\\bdomains?\\b",
+        "plain": "values the input may take",
+        "plainRe": "\\b(input|inputs)\\b"
+      },
+      "es": {
+        "word": "dominio",
+        "re": "\\bdominios?\\b",
+        "plain": "valores que admite la entrada",
+        "plainRe": "\\b(entrada|entradas)\\b"
+      },
+      "pl": {
+        "word": "dziedzina",
+        "re": "\\bdziedzin(a|y|ę|ie|ą|om|ami|ach)\\b",
+        "plain": "wartości, jakie przyjmuje wejście",
+        "plainRe": "\\bwej(ś|s)ci[\\w\\u00C0-\\u024F]*"
+      }
+    },
+    {
+      "id": "range",
+      "owner": "compound-inequality",
+      "cited": [
+        "A.2(A)"
+      ],
+      "scopeNote": "Same clause and same limit as `domain` above. The band the machine gives back is named here; the range of a function is Level 3 (`domain-range`).",
+      "words": [
+        "range"
+      ],
+      "en": {
+        "word": "range",
+        "re": "\\branges?\\b",
+        "plain": "readings it gives back",
+        "plainRe": "\\b(reading|readings|output|outputs|given back|gives back)\\b"
+      },
+      "es": {
+        "word": "rango",
+        "re": "\\brangos?\\b",
+        "plain": "lecturas que devuelve",
+        "plainRe": "\\b(lectura|lecturas|devuelve|salida|salidas)\\b"
+      },
+      "pl": {
+        "word": "zbiór wartości",
+        "re": "zbi[óo]r(?:u|em)? warto(ść|ści)",
+        "plain": "odczyty, które oddaje",
+        "plainRe": "\\b(odczyt\\w*|oddawan\\w*|oddaje|wyj(ś|s)ci\\w*)\\b"
+      }
+    },
+    {
+      "id": "formula",
+      "owner": "literal-equations",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.HSA.CED.A.4",
+        "A.12(E)",
+        "CCSS.MATH.CONTENT.6.EE.A.2.C"
+      ],
+      "words": [
+        "formulas"
+      ],
+      "en": {
+        "word": "formula",
+        "re": "\\bformulas?\\b"
+      },
+      "es": {
+        "word": "fórmula",
+        "re": "\\bfórmulas?\\b"
+      },
+      "pl": {
+        "word": "wzór",
+        "re": "\\bwzor(u|y|em|ów|om|ami|ach)\\b|\\bwz[óo]r\\b"
+      }
+    },
+    {
+      "id": "literal-equation",
+      "owner": "literal-equations",
+      "cited": [
+        "A.12(E)"
+      ],
+      "words": [
+        "literal"
+      ],
+      "en": {
+        "word": "literal equation",
+        "re": "\\bliteral equations?\\b",
+        "plain": "an equation written in letters",
+        "plainRe": "\\bletters?\\b"
+      },
+      "es": {
+        "word": "ecuación literal",
+        "re": "\\becuaci(ón|ones) literal(es)?\\b",
+        "plain": "una ecuación escrita con letras",
+        "plainRe": "\\bletras?\\b"
+      },
+      "pl": {
+        "word": "równanie z literami",
+        "re": "r[óo]wnani\\w* z literami",
+        "plain": "zapisane literami",
+        "plainRe": "\\bzapisan\\w* literami\\b"
+      }
+    },
+    {
+      "id": "ratio",
+      "owner": "ratio-proportion",
+      "native": true,
+      "cited": [
+        "CCSS.MATH.CONTENT.6.RP.A.3",
+        "6.5(A)",
+        "CCSS.MATH.CONTENT.7.RP.A.2.C"
+      ],
+      "words": [
+        "ratio",
+        "ratios"
+      ],
+      "en": {
+        "word": "ratio",
+        "re": "\\bratios?\\b"
+      },
+      "es": {
+        "word": "razón",
+        "re": "\\braz(ón|ones)\\b"
+      },
+      "pl": {
+        "word": "stosunek",
+        "re": "\\bstosun(ek|ku|kiem|ki|ków|kom|kami|kach)\\b"
+      }
+    },
+    {
+      "id": "proportion",
+      "owner": "ratio-proportion",
+      "cited": [
+        "6.5(A)",
+        "CCSS.MATH.CONTENT.7.RP.A.2.C",
+        "CCSS.MATH.CONTENT.HSA.CED.A.1"
+      ],
+      "words": [
+        "proportions",
+        "proportional"
+      ],
+      "en": {
+        "word": "proportion",
+        "re": "\\bproportions?\\b",
+        "plain": "two ratios that agree",
+        "plainRe": "\\bratios?\\b"
+      },
+      "es": {
+        "word": "proporción",
+        "re": "\\bproporci(ón|ones)\\b",
+        "plain": "dos razones que concuerdan",
+        "plainRe": "\\braz(ón|ones)\\b"
+      },
+      "pl": {
+        "word": "proporcja",
+        "re": "\\bproporcj(a|i|ę|ą|e|om|ami|ach)\\b",
+        "plain": "dwa zgodne stosunki",
+        "plainRe": "\\bstosun(ek|ku|kiem|ki|ków|kom|kami|kach)\\b"
+      }
+    },
+    {
+      "id": "slope",
+      "owner": "slope-rate",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.EE.B.6",
+        "A.3(A)",
+        "8.4(A)",
+        "CCSS.MATH.CONTENT.8.EE.B.5"
+      ],
+      "words": [
+        "slope"
+      ],
+      "en": {
+        "word": "slope",
+        "re": "\\bslopes?\\b",
+        "plain": "rate",
+        "plainRe": "\\brates?\\b"
+      },
+      "es": {
+        "word": "pendiente",
+        "re": "\\bpendientes?\\b",
+        "plain": "ritmo",
+        "plainRe": "\\b(ritmo|tasa)\\b"
+      },
+      "pl": {
+        "word": "nachylenie",
+        "re": "\\bnachyleni(e|a|u|em)\\b",
+        "plain": "tempo",
+        "plainRe": "\\b(tempo|tempem|tempa)\\b"
+      }
+    },
+    {
+      "id": "point",
+      "owner": "slope-rate",
+      "cited": [
+        "A.3(A)",
+        "8.4(A)",
+        "CCSS.MATH.CONTENT.8.EE.B.6"
+      ],
+      "words": [
+        "point",
+        "points",
+        "plotted"
+      ],
+      "en": {
+        "word": "point",
+        "re": "\\bpoints?\\b",
+        "plain": "reading",
+        "plainRe": "\\breadings?\\b"
+      },
+      "es": {
+        "word": "punto",
+        "re": "\\bpuntos?\\b",
+        "plain": "lectura",
+        "plainRe": "\\blecturas?\\b"
+      },
+      "pl": {
+        "word": "punkt",
+        "re": "\\bpunkt(u|y|em|ów|om|ami|ach|cie)?\\b",
+        "plain": "odczyt",
+        "plainRe": "\\bodczyt(u|y|em|ów|om|ami|ach)?\\b"
+      }
+    },
+    {
+      "id": "coordinate-plane",
+      "owner": "graph-linear",
+      "cited": [
+        "CCSS.MATH.CONTENT.8.EE.B.6",
+        "A.3(C)",
+        "A.3(F)"
+      ],
+      "words": [
+        "coordinate",
+        "plane"
+      ],
+      "en": {
+        "word": "coordinate plane",
+        "re": "\\bcoordinate plane\\b",
+        "plain": "chart",
+        "plainRe": "\\bcharts?\\b|\\bgrid\\b"
+      },
+      "es": {
+        "word": "plano cartesiano",
+        "re": "\\bplano cartesiano\\b",
+        "plain": "carta",
+        "plainRe": "\\bcartas?\\b|\\bcuadrícula\\b"
+      },
+      "pl": {
+        "word": "układ współrzędnych",
+        "re": "uk[łl]ad(?:zie|u|em)? wsp[óo][łl]rz[ęe]dnych",
+        "plain": "mapa",
+        "plainRe": "\\bmap(a|y|ie|ę|ą|om|ami|ach)\\b|\\bsiat(ka|ki|ce|kę|ką)\\b"
+      }
+    },
+    {
+      "id": "graph",
+      "owner": "graph-linear",
+      "cited": [
+        "A.3(C)",
+        "CCSS.MATH.CONTENT.HSA.REI.D.10",
+        "CCSS.MATH.CONTENT.8.EE.C.8.A",
+        "CCSS.MATH.CONTENT.6.EE.C.9"
+      ],
+      "words": [
+        "graph",
+        "graphs",
+        "graphed",
+        "graphing"
+      ],
+      "en": {
+        "word": "graph",
+        "re": "\\bgraphs?\\b",
+        "plain": "trace",
+        "plainRe": "\\btraces?\\b"
+      },
+      "es": {
+        "word": "gráfica",
+        "re": "\\bgráfic(a|as)\\b",
+        "plain": "traza",
+        "plainRe": "\\btrazos?\\b|\\btrazas?\\b"
+      },
+      "pl": {
+        "word": "wykres",
+        "re": "\\bwykres(u|y|em|ie|ów|om|ami|ach)?\\b",
+        "plain": "ślad",
+        "plainRe": "\\b([śs]lad|[śs]ladu|[śs]lady|[śs]ladem)\\b"
+      }
+    },
+    {
+      "id": "y-intercept",
+      "owner": "graph-linear",
+      "cited": [
+        "A.3(C)",
+        "CCSS.MATH.CONTENT.HSF.IF.C.7.A",
+        "CCSS.MATH.CONTENT.8.EE.B.6"
+      ],
+      "words": [
+        "y-intercept",
+        "intercepts",
+        "intercepting",
+        "vertical"
+      ],
+      "en": {
+        "word": "y-intercept",
+        "re": "\\by-intercept\\b",
+        "plain": "where the line crosses the upright axis",
+        "plainRe": "\\bupright axis\\b"
+      },
+      "es": {
+        "word": "ordenada al origen",
+        "re": "\\bordenada al origen\\b",
+        "plain": "donde la recta corta el eje vertical",
+        "plainRe": "\\beje vertical\\b"
+      },
+      "pl": {
+        "word": "wyraz wolny",
+        "re": "\\bwyraz(?:ie|u|em)? woln(y|ego|ym)\\b",
+        "plain": "gdzie prosta przecina oś pionową",
+        "plainRe": "\\bo(ś|si) pionow\\w*"
+      }
+    },
+    {
+      "id": "system-of-equations",
+      "owner": "system-substitution",
+      "cited": [
+        "CCSS.MATH.CONTENT.HSA.REI.C.6",
+        "CCSS.MATH.CONTENT.8.EE.C.8.B",
+        "A.5(C)",
+        "CCSS.MATH.CONTENT.8.EE.C.8.A",
+        "CCSS.MATH.CONTENT.HSA.REI.C.5",
+        "A.3(F)"
+      ],
+      "words": [
+        "system",
+        "systems"
+      ],
+      "en": {
+        "word": "system of equations",
+        "re": "\\bsystems?\\b",
+        "plain": "two statements at once",
+        "plainRe": "\\bboth statements\\b|\\btwo statements\\b|\\bat once\\b"
+      },
+      "es": {
+        "word": "sistema de ecuaciones",
+        "re": "\\bsistemas?\\b",
+        "plain": "dos enunciados a la vez",
+        "plainRe": "\\blos dos enunciados\\b|\\bdos enunciados\\b|\\ba la vez\\b"
+      },
+      "pl": {
+        "word": "układ równań",
+        "re": "uk[łl]ad(?:zie|u|em|y|ów)? r[óo]wna",
+        "plain": "dwa zdania naraz",
+        "plainRe": "\\boba zdania\\b|\\bdwa zdania\\b|\\bnaraz\\b"
+      }
+    }
+  ],
+  "deferred": {
+    "quadratic": "graph-linear/HSF.IF.C.7.A, caveat: 'Linear functions only, and intercepts only. Quadratic functions, maxima and minima are named by the expectation and are outside Algebra I Level 2.'",
+    "maxima": "graph-linear/HSF.IF.C.7.A, same caveat as `quadratic`.",
+    "minima": "graph-linear/HSF.IF.C.7.A, same caveat as `quadratic`.",
+    "curve": "graph-linear/HSA.REI.D.10, caveat: 'Lines only. The learner never plots a curve.'",
+    "exponential": "rule-from-table and write-linear/HSF.LE.A.2, caveat: 'Linear only. Nothing in this unit constructs an exponential function.'",
+    "geometric": "write-linear/HSF.LE.A.2, caveat: '...or a geometric sequence.' Also 6.10(A)'s 'geometric concepts', which this unit does not model.",
+    "sequence": "two-step/7.EE.B.4.A names the sequence of operations, not an arithmetic or geometric sequence; the sequence of moves is what every worked echo shows line by line.",
+    "sequences": "write-linear/HSF.LE.A.2, same caveat as `geometric`.",
+    "similar": "slope-rate/8.4(A) and 8.EE.B.6, caveat: 'The similar-triangles argument for why the rate is constant is not made.'",
+    "triangles": "slope-rate/8.4(A), same caveat as `similar`.",
+    "tape": "ratio-proportion/6.RP.A.3, caveat: 'Tape diagrams and double number lines are not drawn anywhere in this unit.'",
+    "double": "ratio-proportion/6.RP.A.3, same caveat as `tape`.",
+    "diagrams": "inequality-one-step/6.EE.B.8, caveat: 'Number-line diagrams are not drawn anywhere in this unit'; and ratio-proportion/6.RP.A.3 as above.",
+    "continuous": "compound-inequality/A.2(A), caveat: 'Domain and range of a function are not treated in Level 2.' Continuous and discrete classify a function's domain, which this node does not reach.",
+    "discrete": "compound-inequality/A.2(A), same caveat as `continuous`.",
+    "viable": "compound-inequality/HSA.CED.A.3, caveat: 'Systems of inequalities, and judging an option viable or nonviable, are not tested.'",
+    "nonviable": "compound-inequality/HSA.CED.A.3, same caveat as `viable`.",
+    "options": "compound-inequality/HSA.CED.A.3, same caveat as `viable`.",
+    "modeling": "compound-inequality/HSA.CED.A.3, same caveat as `viable`; the modelling context the clause needs is not built.",
+    "direct": "ratio-proportion/A.2(D), caveat: 'The proportional relationship is written and solved, but it is never named as direct variation and the constant is never written as k.'",
+    "variation": "ratio-proportion/A.2(D), same caveat as `direct`.",
+    "scale": "ratio-proportion/6.5(A). Map and model situations are dealt, but no item names the multiplier a scale factor, so the term is not claimed.",
+    "interval": "slope-rate/HSF.IF.B.6, caveat: 'Linear only, so the average rate of change over an interval is the rate of the whole rule.'",
+    "average": "slope-rate/HSF.IF.B.6, same caveat as `interval`.",
+    "estimate": "system-substitution/8.EE.C.8.B, caveat: 'Estimating a solution by graphing is not asked, because every pair here meets at whole numbers.'",
+    "approximately": "system-substitution/HSA.REI.C.6, same caveat as `estimate`.",
+    "inspection": "system-substitution/8.EE.C.8.B; solving simple cases by inspection is not a form this unit deals.",
+    "non-proportional": "graph-linear/8.5(B). Lines with a non-zero start are dealt everywhere, but no item asks the learner to classify a situation as proportional or not.",
+    "dependent": "eval-expr/6.EE.C.9, depth `supporting`. The node evaluates one expression at a value and never asks which quantity depends on which. The pair belongs to Level 3 (`function-notation`, `domain-range`). NAMED GAP.",
+    "independent": "eval-expr/6.EE.C.9, same as `dependent`. NAMED GAP.",
+    "origin": "slope-rate/8.EE.B.6. Every item on this line works from two readings; the derivation of y = mx for a line through the origin is not one of its five forms, and no item names the point (0, 0). NAMED GAP.",
+    "zeros": "graph-linear/A.3(C). The x-intercept is taught by name. `zero` is refused as a countable term here because in this bank the word already names the NUMBER zero ('on the across axis y is zero'), and a regex cannot tell the two apart, so counting it would be a false reading. NAMED GAP.",
+    "equality": "multi-step/HSA.REI.A.1 uses `equality` to describe the chain of justification between steps. The object itself is the equation, which is taught, and every worked echo gives the reason for each step.",
+    "properties": "like-terms/6.EE.A.3 and distribute/7.EE.A.1. The one property this unit applies by name is the distributive property, which is taught; `properties of operations` as a collective is never asked for.",
+    "rational": "eval-expr/7.EE.B.3 and multi-step/8.EE.C.7.B describe the coefficients the equations carry. No item asks the learner to classify a number as rational; that is a number-system expectation, not an Algebra I Level 1-2 one.",
+    "algebraic": "two-step/7.EE.B.4.A contrasts an algebraic with an arithmetic solution. Both routes are shown in the worked echoes; neither is named by that adjective.",
+    "algebraically": "rule-from-table/A.3(B) and system-substitution/8.EE.C.8.B name the three representations. Each representation is on the card by its own name — a table, a graph, a rule — so the adverb naming the set is not taught.",
+    "tabularly": "rule-from-table/A.3(B), same as `algebraically`.",
+    "graphically": "rule-from-table/A.3(B), same as `algebraically`.",
+    "symbolically": "slope-rate/HSF.IF.B.6, same as `algebraically`.",
+    "simultaneously": "system-substitution/8.9(A) uses it adverbially. The object it describes is the system of equations, which is taught by name.",
+    "unit": "two-step/8.EE.B.5, depth `introduced` — the only `introduced` citation on the route. The rate is taught by name everywhere; no item asks for `the unit rate` in those words.",
+    "features": "graph-linear/A.3(C) says 'identify key features'. Each feature it then names — x-intercept, y-intercept, zeros, slope — is taught by its own name.",
+    "key": "graph-linear/A.3(C), same as `features`.",
+    "entity": "like-terms and bracket-both-sides/HSA.SSE.A.1.B, caveat at bracket-both-sides: the full expectation covers non-linear structure, which this unit does not reach. A bracket read as one thing is taught in plain words in every worked echo.",
+    "input-output": "rule-from-table/HSF.LE.A.2 names a pair of readings. The table's two columns are exactly that pair and are on the card; the hyphenated term is Level 3 vocabulary (`function-notation`).",
+    "one-variable": "inequality-one-step/6.10(A) and 7.11(A). `variable` is taught; the compound counts how many, which is arithmetic, not vocabulary.",
+    "one-step": "6.10(A). Names the number of moves, which the worked echo shows line by line.",
+    "two-step": "7.11(A) and inequality-two-step, same as `one-step`.",
+    "multi-step": "eval-expr/7.EE.B.3, same as `one-step`.",
+    "real-life": "7.EE.B.3. Every context form is a real situation; the adjective is not vocabulary a learner is tested on.",
+    "real-world": "many nodes, same as `real-life`.",
+    "whole-number": "order-ops/6.EE.A.1. `whole` is already the bank's own word on every edge form ('the largest whole x that works').",
+    "nonnegative": "one-step-add/6.EE.B.7 restricts the case, and this unit's band 1 and 2 draws obey it. It is a restriction on the numbers, not a word a learner meets.",
+    "non-vertical": "slope-rate/8.EE.B.6 excludes the one line that has no rate. This unit never draws a vertical line, so the case never arises.",
+    "literal-note": "reserved",
+    "x-intercept": "graph-linear/A.3(C). The only form that asks for it, `gl-standard`, deals 27 items in 600 and none below band 3. A word a learner meets in one item in twenty-two, never at the bands they start on, cannot be claimed as taught. The y-intercept IS taught, on the same line. NAMED GAP: the form has to be dealt more often before the word can be, and how often a form is dealt is generators.js, not this file.",
+    "intersection": "system-substitution/8.9(A) (depth `supporting`, caveat: 'Reading the pair off an intersection on a drawn graph is offered but is not what the gate proves') and both-sides/8.EE.C.8.A (depth `introduced`). Every band-1 item on system-substitution comes from ONE ask, which already carries `system of equations` and has three words of headroom in English and none in Spanish; system-elimination has no ask of its own at all. There is nowhere on this route to introduce the phrase without pushing a stem past the 25-word cap, and a stem over the cap is a worse defect than a missing word. NAMED GAP: it needs one skill-exclusive ask, which is src/content/packs/algebra1-l2.js, not this file.",
+    "intersections": "system-substitution/8.9(A), same as `intersection`.",
+    "set": "inequality-two-step/7.EE.B.4.B, caveat: 'Graphing the solution set is not [core]: this unit never draws a solution set on a number line.' And every ask inequality-two-step deals is shared with inequality-one-step, which comes BEFORE it, so the phrase cannot be introduced on the line that earns it without using it first on a line that does not. NAMED GAP: it needs one skill-exclusive ask, which is src/content/packs/algebra1-l2.js, not this file."
+  },
+  "symbol": [
+    "a",
+    "b",
+    "c",
+    "e",
+    "g",
+    "i",
+    "m",
+    "p",
+    "q",
+    "r",
+    "x",
+    "y",
+    "ax",
+    "mx",
+    "px",
+    "x-values",
+    "y-values"
+  ],
+  "ordinary": [
+    "about",
+    "add",
+    "all",
+    "an",
+    "analyze",
+    "and",
+    "another",
+    "answering",
+    "any",
+    "application",
+    "apply",
+    "approach",
+    "are",
+    "argument",
+    "arise",
+    "arising",
+    "arithmetic",
+    "as",
+    "asserted",
+    "assumption",
+    "at",
+    "axis",
+    "be",
+    "because",
+    "between",
+    "both",
+    "by",
+    "calculate",
+    "can",
+    "case",
+    "cases",
+    "compare",
+    "comparing",
+    "complicated",
+    "concepts",
+    "condition",
+    "construct",
+    "context",
+    "correspond",
+    "could",
+    "create",
+    "depending",
+    "derive",
+    "description",
+    "determine",
+    "develop",
+    "different",
+    "distinct",
+    "each",
+    "exactly",
+    "examples",
+    "exist",
+    "explain",
+    "express",
+    "fluently",
+    "focusing",
+    "following",
+    "for",
+    "form",
+    "forming",
+    "forms",
+    "from",
+    "give",
+    "given",
+    "hand",
+    "has",
+    "have",
+    "highlight",
+    "how",
+    "identify",
+    "identifying",
+    "if",
+    "in",
+    "include",
+    "included",
+    "including",
+    "infinitely",
+    "interest",
+    "interpret",
+    "interpreting",
+    "into",
+    "involving",
+    "is",
+    "it",
+    "its",
+    "justify",
+    "leading",
+    "letters",
+    "light",
+    "line",
+    "make",
+    "makes",
+    "many",
+    "mathematic",
+    "mathematical",
+    "method",
+    "model",
+    "models",
+    "more",
+    "multiple",
+    "name",
+    "necessary",
+    "negative",
+    "no",
+    "number",
+    "numbers",
+    "numerical",
+    "of",
+    "often",
+    "on",
+    "one",
+    "or",
+    "original",
+    "other",
+    "over",
+    "pairs",
+    "particular",
+    "parts",
+    "perform",
+    "posed",
+    "positive",
+    "possibilities",
+    "presented",
+    "previous",
+    "problem",
+    "problems",
+    "process",
+    "produces",
+    "prove",
+    "purpose",
+    "quantities",
+    "quantity",
+    "question",
+    "reading",
+    "reasonable",
+    "reasoning",
+    "rearrange",
+    "recognize",
+    "record",
+    "regardless",
+    "relate",
+    "related",
+    "relationship",
+    "relationships",
+    "replacing",
+    "represent",
+    "represented",
+    "require",
+    "results",
+    "rewrite",
+    "rewriting",
+    "right",
+    "same",
+    "satisfy",
+    "scientific",
+    "shed",
+    "show",
+    "sides",
+    "simple",
+    "simpler",
+    "single",
+    "situation",
+    "situations",
+    "solve",
+    "solving",
+    "specific",
+    "specified",
+    "specify",
+    "standing",
+    "starting",
+    "step",
+    "strategically",
+    "strategies",
+    "structure",
+    "subtract",
+    "successively",
+    "such",
+    "sum",
+    "table",
+    "tables",
+    "that",
+    "the",
+    "their",
+    "them",
+    "there",
+    "these",
+    "they",
+    "those",
+    "thought",
+    "through",
+    "to",
+    "tools",
+    "transforming",
+    "true",
+    "two",
+    "understand",
+    "understanding",
+    "unknown",
+    "until",
+    "use",
+    "used",
+    "using",
+    "value",
+    "values",
+    "various",
+    "verbal",
+    "verify",
+    "viewing",
+    "ways",
+    "when",
+    "where",
+    "whether",
+    "which",
+    "whose",
+    "why",
+    "with",
+    "word",
+    "write",
+    "writing",
+    "written"
+  ]
+}

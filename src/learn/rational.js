@@ -32,6 +32,27 @@ export const isZero = (a) => a.n === 0;
 export const isInt = (a) => a.d === 1;
 export const toNum = (a) => a.n / a.d;
 
+/**
+ * Order two exact rationals. Cross-multiplying keeps the comparison in whole
+ * numbers, so nothing here is decided by a decimal. Denominators are always
+ * positive after `R()`, so the cross-multiplication does not turn the sign.
+ */
+export const cmp = (a, b) => { const l = a.n * b.d, r = b.n * a.d; return l < r ? -1 : l > r ? 1 : 0; };
+
+/** -1, 0 or 1. */
+export const sign = (a) => (a.n < 0 ? -1 : a.n > 0 ? 1 : 0);
+
+/**
+ * Is this value still held EXACTLY?
+ *
+ * Every operation above multiplies numerators and denominators, and a
+ * JavaScript number stops being able to hold a whole number exactly above
+ * 2^53. Past that point arithmetic silently rounds and an "exact" checker is
+ * quietly deciding on approximations. Long chains — a least-squares fit over a
+ * table of readings, say — must ask this and refuse rather than round.
+ */
+export const isSafe = (a) => Number.isSafeInteger(a.n) && Number.isSafeInteger(a.d);
+
 export function pow(a, k) {
   if (!Number.isInteger(k)) throw new Error('non-integer exponent');
   if (k < 0) return pow(div(R(1), a), -k);

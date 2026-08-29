@@ -34,12 +34,47 @@
  *          you write has to come to what this comes to;
  *        · a legal-but-useless move on the beam  ->  what is still standing in
  *          the way, counted, not gestured at;
- *        · a move that changed the solution set  ->  proof that it did.
+ *        · a move that changed the solution set  ->  proof that it did;
+ *
+ *      and, from Levels 4 and 5, on the eight kinds those units introduced:
+ *
+ *        · a root  ->  both sides squared back, because squaring back is what
+ *          a root IS; a root split over a sum gets the split spelled out and
+ *          the two values side by side, one of them as a decimal, because the
+ *          whole misconception is that they are "about the same size";
+ *        · a fractional count above a number  ->  the cadet's value raised by
+ *          the count on the bottom, which takes no root at all;
+ *        · a squared statement  ->  their value put back on the beam; or, when
+ *          every value they named holds, the part under the root and how many
+ *          values it says there are;
+ *        · a product of brackets, and a completed square  ->  their own
+ *          brackets multiplied back out, and the leftover printed;
+ *        · a division  ->  multiplied back, which needs no excluded value;
+ *        · a curve  ->  the rule read at an input: at zero, one step each side
+ *          of a claimed turn, or anywhere it beats a claimed greatest value;
+ *        · a list  ->  the step or the factor their number would need against
+ *          the one the list makes, both left unworked;
+ *        · a set of pairs  ->  the column their number was read from;
+ *        · a second line  ->  the marked reading put into their own rule, and
+ *          the two rates multiplied;
+ *        · a region  ->  the marked reading and the printed edge readings put
+ *          into the lean they wrote;
+ *        · a pair of rules  ->  the two tables' rates, which differ;
+ *        · a fitted line  ->  a reading they copied, two pairs whose rates
+ *          disagree, a gap worked out at a different row, or the total of the
+ *          squared gaps their own answer implies against the closest line's;
+ *        · a frequency table  ->  the row added up, and which heading their
+ *          reading sits under;
+ *        · a list that multiplies  ->  their factor or their start run forward
+ *          onto a printed reading.
  *
  *      Nothing is asserted that the rig has not just computed, and any probe
  *      it cannot compute is a probe it does not show. `tools/validate-items.mjs`
- *      pushes every tagged wrong value of every form through layer one and
- *      fails the build if any of them comes back with the prompt restated.
+ *      pushes every tagged wrong value of every Level 1 form through layer one,
+ *      and `tools/check-echo.mjs` does the same for EVERY node of EVERY unit in
+ *      three languages; both fail the build if one comes back with the prompt
+ *      restated. That gate exists because for a year they did: sixteen skills
+ *      answered every tagged slip by reading the question back.
  *
  *   2. **Every layer differs from the one above it.** The ladder is a real
  *      fading sequence — complete, partial, none, run backwards. A row can be
@@ -58,8 +93,19 @@
  * Everything a learner reads comes from `content/lang/items.*.js`, so the whole
  * ladder exists in EN, ES and PL.
  */
-import { evaluate, varsOf, solveLinear, parse, parseEquation, linearize, parseArrayCells } from './parser.js';
-import { R, str as rstr, texOf, fromString, eq as reqq, sub, add, isZero, toNum, isR } from './rational.js';
+import {
+  evaluate, varsOf, solveLinear, parse, parseEquation, linearize, parseArrayCells, parseArrayBlocks,
+  evalAst, evalSurd, answerValues, polyCoeffs, polyDegree, polyTex, solveQuadratic, splitTop,
+  radicandsOf,
+} from './parser.js';
+import {
+  R, str as rstr, texOf, fromString, eq as reqq, sub, add, mul, div, neg, pow as rpow,
+  isZero, toNum, isR, cmp as rcmp, sign as rsign, isSafe,
+} from './rational.js';
+import {
+  SR, sAdd, sSub, sMul, sPow, sEq, sCmp, sToNum, sTex, sIsRational, sIsZero, simplifySqrt,
+} from './surd.js';
+import { diagnose, padToTex } from './diagnose.js';
 import { makeT } from './strings.js';
 
 export const MAX_TIER = 4;
@@ -466,8 +512,8 @@ function leanProbe(item, raw, v, T) {
     const readOut = relationAt(math, v, outside);
     if (!inside || !beyond || !readIn || !readOut) return [];
     return [
-      { cls: 'rf-echo-probe', latex: `${beyond} \qquad ${readOut}`, why: T('echo.justOutsideTheBand', { v, t: outside }) },
-      { cls: 'rf-echo-probe verdict', latex: `${inside} \qquad ${readIn}`, why: T('echo.justInsideTheBand', { v, t: lo }) },
+      { cls: 'rf-echo-probe', latex: `${beyond} \\qquad ${readOut}`, why: T('echo.justOutsideTheBand', { v, t: outside }) },
+      { cls: 'rf-echo-probe verdict', latex: `${inside} \\qquad ${readIn}`, why: T('echo.justInsideTheBand', { v, t: lo }) },
     ];
   }
 
@@ -593,7 +639,13 @@ function systemProbe(item, raw, T) {
   const [vx, vy] = item.check.vars || ['x', 'y'];
   const want = item.check.want;
   let px = null, py = null;
-  const pair = /^\\left\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\\right\)$/.exec(raw);
+  // EITHER SPELLING OF THE BRACKETS.
+  //
+  // The bank writes a reading `\left(4, 3\right)`; a hand on the keypad writes
+  // `(4,3)`, because a backslash cannot be typed. Requiring the bank's spelling
+  // meant every pair a cadet actually entered fell past this probe and out the
+  // bottom of the echo. (see `padToTex`)
+  const pair = /^\s*(?:\\left)?\(\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:\\right)?\)\s*$/.exec(raw);
   if (pair) { px = R(Number(pair[1])); py = R(Number(pair[2])); }
   else {
     const val = fromString(raw);
@@ -838,6 +890,2041 @@ function ruleProbe(item, raw, T) {
   return [];
 }
 
+// ---------------------------------------------------------------------------
+// LEVEL 4 AND LEVEL 5 INSTRUMENTS.
+//
+// Everything above this line was written for a line: a beam that stays level,
+// a lean, a rule that climbs at one rate. Levels 4 and 5 introduced eight check
+// kinds that none of it reads — a root, a product of brackets, a squared
+// statement, a division, a fitted line, a frequency table, a list with a step,
+// a fractional count above a number — and for a year a cadet who missed one of
+// those was handed their own question back with the sentence "this is what the
+// rift is asking". Sixteen skills answered every tagged slip that way.
+//
+// The contract is unchanged and is the only thing that matters here: each probe
+// either COMPUTES the contradiction and returns it, or returns nothing. Nothing
+// is asserted. Nothing prints the value the live rift wants. And each probe is
+// aimed: the tag the learner's entry carries (`./diagnose.js`, which answers
+// only on evidence) selects the sentence, so a cadet who split a root over a
+// sum is not answered the way a cadet who left a square under the bar is.
+// ---------------------------------------------------------------------------
+
+/** Whitespace, and the brackets that are only ever typography, taken out. */
+const norm = (t) => String(t).replace(/\s+/g, '').replace(/\\left|\\right/g, '');
+
+/** Every exact value a written entry stands for. `[]` when it is not a value. */
+function entryValues(raw) {
+  try {
+    const out = answerValues(String(raw), null);
+    return out.length ? out : [];
+  } catch { return []; }
+}
+
+/** One exact value, or null. `\pm` and a list of roots both give up here. */
+function oneValue(raw) {
+  const vals = entryValues(raw);
+  return vals.length === 1 ? vals[0] : null;
+}
+
+/**
+ * Write an exact value in for a letter, in surd arithmetic, and check by
+ * evaluation that the notation still carries what it carried.
+ *
+ * `substituteVerified` is the same idea one field down: it evaluates in Q, so
+ * it cannot write `2\sqrt{2}` into anything. Level 4 hands roots to statements
+ * routinely, so the same guard is repeated here over Q(sqrt k).
+ */
+function putSurd(latex, v, val) {
+  let want;
+  try { want = evalSurd(parse(latex), { [v]: val }); } catch { return null; }
+  const bare = sTex(val);
+  const wrapped = `\\left(${bare}\\right)`;
+  const order = (sIsRational(val) && toNum(val.p) >= 0) ? [bare, wrapped] : [wrapped, bare];
+  for (const written of order) {
+    const out = substitute(latex, v, written);
+    try { if (sEq(evalSurd(parse(out), {}), want)) return out; } catch { /* try the next */ }
+  }
+  return null;
+}
+
+/** The two sides of a printed statement, or null. */
+function twoSides(src) {
+  const parts = String(src).split('=').map((p) => p.trim());
+  return parts.length === 2 && parts[0] && parts[1] ? parts : null;
+}
+
+/** A short decimal reading of an exact value, for the one place it helps. */
+function about(x, places = 1) {
+  const n = sToNum(x);
+  if (!Number.isFinite(n)) return null;
+  const s = n.toFixed(places);
+  return /^-?\d+(\.\d+)?$/.test(s) ? s : null;
+}
+
+/** Rows of a printed table, read off the notation the cadet is looking at. */
+function tableRows(item) {
+  const c = item.check || {};
+  if (Array.isArray(c.rows) && c.rows.length) {
+    return c.rows.map((row) => row.map((cell) => (String(cell).trim() === '?' ? null : Number(cell))));
+  }
+  let cells;
+  try { cells = parseArrayCells(String(item.latex)); } catch { return []; }
+  const out = [];
+  for (const row of cells) {
+    if (row.length !== 2) continue;
+    const pair = row.map((cell) => {
+      const t = String(cell).trim();
+      if (t === '?' || t === '\\square') return null;
+      try { const r = evaluate(t); return r.d === 1 ? r.n : toNum(r); } catch { return undefined; }
+    });
+    if (pair.some((x) => x === undefined)) continue;
+    out.push(pair);
+  }
+  return out;
+}
+
+/**
+ * A burned log, in the shape the probes below expect: rows of two, the burned
+ * cell written `?`, and the index of the row it sits in.
+ *
+ * The item's own descriptor wins when it has one. Otherwise the rows are read
+ * off the notation on screen, which is where a learner reads them.
+ */
+function tableSource(item) {
+  const c = item.check || {};
+  if (Array.isArray(c.rows) && c.rows.length) {
+    return { rows: c.rows, miss: c.missing, solveFor: c.solveFor };
+  }
+  let cells;
+  try { cells = parseArrayCells(String(item.latex)); } catch { return { rows: [], miss: -1 }; }
+  const rows = [];
+  for (const row of cells) {
+    if (row.length !== 2) continue;
+    const pair = row.map((cell) => {
+      const t = String(cell).trim();
+      if (t === '?' || t === '\\square') return '?';
+      try { const r = evaluate(t); return r.d === 1 ? r.n : null; } catch { return null; }
+    });
+    if (pair.some((x) => x === null)) continue;          // a column heading
+    rows.push(pair);
+  }
+  return { rows, miss: rows.findIndex((r) => r.includes('?')) };
+}
+
+/** Readings printed as exact pairs: a plot, a wide table, or a tall one. */
+function readingsShown(item) {
+  const c = item.check || {};
+  if (Array.isArray(item.figure?.points) && item.figure.points.length) {
+    return item.figure.points.map((p) => [R(p[0]), R(p[1])]);
+  }
+  let cells;
+  try { cells = parseArrayCells(String(item.latex)); } catch { return []; }
+  const num = (row) => {
+    const got = [];
+    for (const cell of row) { try { got.push(evaluate(cell)); } catch { /* a label */ } }
+    return got;
+  };
+  if (c.layout === 'rows') {
+    const rows = cells.map(num).filter((r) => r.length);
+    if (rows.length !== 2 || rows[0].length !== rows[1].length) return [];
+    return rows[0].map((x, i) => [x, rows[1][i]]);
+  }
+  const out = [];
+  for (const row of cells) {
+    const nums = num(row);
+    if (nums.length === 2) out.push(nums);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Roots.
+// ---------------------------------------------------------------------------
+/**
+ * A root, refused by the one test that defines it: square it back.
+ *
+ * Every slip this skill carries — a square left under the bar, half the
+ * radicand, a coefficient pulled under without being squared, a root split over
+ * a sum — is a claim that two different numbers are the same root, and squaring
+ * both settles it exactly, in whole numbers, with no decimal anywhere.
+ *
+ * The one place a decimal earns its keep is the split over a sum, because the
+ * whole misconception is that the two are "about the same size". They are not:
+ * the rig prints both, and the gap is the lesson.
+ */
+function radicalProbe(item, raw, tag, T) {
+  const src = String(item.check?.math || item.latex || '');
+  let theirs;
+  try { theirs = evalSurd(parse(src), {}); } catch { return []; }
+  let mine;
+  try { mine = evalSurd(parse(String(raw)), {}); } catch { mine = null; }
+  const rows = [];
+
+  // A root taken part by part over a sum. Only shown when the split really is
+  // what produced their number.
+  const node = (() => { try { return parse(src); } catch { return null; } })();
+  if (node && node.k === 'sqrt' && node.a && node.a.k === 'add') {
+    let a; let b;
+    try { a = evalAst(node.a.a, {}); b = evalAst(node.a.b, {}); } catch { a = null; }
+    if (a && b && a.d === 1 && b.d === 1 && a.n > 0 && b.n > 0) {
+      let split;
+      try { split = sAdd(evalSurd(parse(`\\sqrt{${a.n}}`), {}), evalSurd(parse(`\\sqrt{${b.n}}`), {})); } catch { split = null; }
+      if (split && mine && sEq(split, mine) && sIsRational(split)) {
+        const whole = add(a, b);
+        const dec = about(theirs);
+        if (dec) {
+          rows.push({
+            cls: 'rf-echo-probe',
+            latex: `\\sqrt{${a.n}} + \\sqrt{${b.n}} = ${sTex(split)}`,
+            why: T('echo.youSplitTheRoot'),
+          });
+          rows.push({
+            cls: 'rf-echo-probe verdict',
+            latex: `\\sqrt{${a.n} + ${b.n}} = \\sqrt{${rstr(whole)}} \\approx ${dec}`,
+            why: T('echo.addFirstThenRoot'),
+          });
+          return rows;
+        }
+      }
+    }
+  }
+
+  if (!mine) return [];
+  const mineSq = sPow(mine, 2);
+  const theirsSq = sPow(theirs, 2);
+
+  // The same square, the other sign. The bar names one value and it is the one
+  // that is not below zero, so the refusal is a comparison with zero.
+  if (sEq(mineSq, theirsSq) && sCmp(mine, SR(R(0))) < 0 && sCmp(theirs, SR(R(0))) >= 0) {
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `\\left(${String(raw).trim()}\\right)^{2} = ${sTex(mineSq)} = \\left(${src}\\right)^{2}`,
+        why: T('echo.bothSquareToTheSame'),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${String(raw).trim()} < 0`,
+        why: T('echo.aRootIsNeverBelowZero'),
+      },
+    ];
+  }
+
+  // Worth the same, and not finished: a square is still sitting under the bar.
+  if (sEq(mine, theirs)) return unsimplifiedRows(raw, T);
+
+  if (sEq(mineSq, theirsSq)) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `\\left(${String(raw).trim()}\\right)^{2} = ${sTex(mineSq)}`,
+      why: T('echo.squareYoursBack'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `\\left(${src}\\right)^{2} = ${sTex(theirsSq)}`,
+      why: T('echo.squaresDisagree', { got: sTex(mineSq), want: sTex(theirsSq) }),
+    },
+  ];
+}
+
+/**
+ * A value that is RIGHT and not finished, because a square is still under the
+ * bar.
+ *
+ * `\sqrt{8}` and `2\sqrt{2}` are the same number, so no substitution and no
+ * squaring can tell them apart — and a cadet who writes the first has made a
+ * real, named error all the same. The refusal is the factorisation, printed
+ * and left unworked: the largest square that divides the radicand, and the two
+ * roots it splits into. The last step stays the cadet's.
+ */
+function unsimplifiedRows(raw, T) {
+  // The radicands are read off the NOTATION rather than off a syntax tree: an
+  // answer to a squared statement arrives as "n = \pm \sqrt{8}", which names
+  // the unknown, holds a plus-or-minus and is not an expression at all.
+  const rads = (String(raw).match(/\\sqrt\{\s*(\d+)\s*\}/g) || [])
+    .map((t) => Number(/\d+/.exec(t)[0]));
+  for (const n of rads) {
+    if (!n || n < 4) continue;
+    let m; let k;
+    try { ({ m, k } = simplifySqrt(n)); } catch { continue; }
+    if (m <= 1) continue;
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `${n} = ${m * m} \\cdot ${k}`,
+        why: T('echo.squareFactorInside', { n }),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `\\sqrt{${n}} = \\sqrt{${m * m}} \\cdot \\sqrt{${k}}`,
+        why: T('echo.squareComesOutOfTheBar'),
+      },
+    ];
+  }
+  return [];
+}
+
+/**
+ * A fractional count above a number, refused WITHOUT TAKING A ROOT.
+ *
+ * The checker's own proof is used, because it is the honest one: raise the
+ * cadet's value to the count on the bottom and it has to come back to the base
+ * raised to the count on the top. Nothing here approximates and nothing here
+ * needs to know what the root is.
+ */
+function rationalExponentProbe(item, raw, tag, T) {
+  const src = String(item.check?.math || item.latex || '');
+  let node;
+  try { node = parse(src); } catch { return []; }
+  if (node.k !== 'pow') return [];
+  let base; let ex;
+  try { base = evalAst(node.a, {}); ex = evalAst(node.b, {}); } catch { return []; }
+  const q = ex.d; const p = ex.n;
+  if (!q) return [];
+  let target;
+  try { target = rpow(base, p); } catch { return []; }
+  const mine = oneValue(raw);
+  if (!mine) return [];
+  let back;
+  try { back = sPow(mine, q); } catch { return []; }
+  if (sEq(back, SR(target))) {
+    // It does come back, and it is still not the value the notation names: an
+    // even root is the reading that is not below zero, and there are two
+    // numbers that come back.
+    if (q % 2 === 0 && sCmp(mine, SR(R(0))) < 0) {
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: `\\left(${String(raw).trim()}\\right)^{${q}} = ${sTex(back)}`,
+          why: T('echo.yoursDoesComeBack', { q }),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${String(raw).trim()} < 0`,
+          why: T('echo.anEvenRootIsNotBelowZero'),
+        },
+      ];
+    }
+    return unsimplifiedRows(raw, T);
+  }
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `\\left(${String(raw).trim()}\\right)^{${q}} = ${sTex(back)}`,
+      why: T('echo.raiseYoursBack', { q }),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `${rstr(base)}^{${p}} = ${rstr(target)}`,
+      why: T('echo.powersDisagree', { got: sTex(back), want: rstr(target) }),
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Squared statements.
+// ---------------------------------------------------------------------------
+/**
+ * A squared statement, and a value handed to it.
+ *
+ * Three refusals, tried in order, and no fourth:
+ *
+ *   · a value the statement rejects  ->  both sides reweighed at that value;
+ *   · every named value holds, but too few were named  ->  the part under the
+ *     root, worked out from the printed coefficients, and its sign;
+ *   · no value at all could be read (a root of a negative number, handed in on
+ *     a statement that has no solution)  ->  the statement rewritten as a
+ *     square plus a number, which never reaches zero.
+ */
+function quadraticProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const v = c.variable;
+  const src = String(c.math || item.latex || '');
+  if (!v) return [];
+  const two = twoSides(src);
+  if (!two) return [];
+  let sol;
+  try { sol = solveQuadratic(src, v); } catch { return []; }
+  // The SAME value named twice is one value, not two. A cadet who writes
+  // "x = 3, x = 3" has named one root and believes it is the whole set, which
+  // is the count error below and not two correct values.
+  const vals = [];
+  for (const t of entryValues(raw)) if (!vals.some((u) => sEq(u, t))) vals.push(t);
+
+  // 1. Any value they named that the statement refuses.
+  for (const t of vals) {
+    let l; let r;
+    try { l = evalSurd(parse(two[0]), { [v]: t }); r = evalSurd(parse(two[1]), { [v]: t }); } catch { continue; }
+    if (sEq(l, r)) continue;
+    const shown = two.map((s) => (varsOf(s).includes(v) ? putSurd(s, v, t) : s));
+    if (shown.some((s) => !s)) continue;
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `${shown[0]} = ${shown[1]}`,
+        why: T('echo.substituteYours', { v, val: sTex(t) }),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${sTex(l)} \\ne ${sTex(r)}`,
+        why: T('echo.sidesDisagree'),
+      },
+    ];
+  }
+
+  // 2. Every value they named holds, and the SET is still wrong: too few
+  //    different values, or the same value written down twice.
+  const roots = Array.isArray(sol.roots) ? sol.roots.length : 0;
+  const written = entryValues(raw).length;
+  const tooFew = roots > vals.length;
+  const repeated = written > vals.length;
+  if (vals.length && (tooFew || repeated) && sol.disc && !isZero(sol.disc)) {
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `\\left(${rstr(sol.b)}\\right)^{2} - 4\\left(${rstr(sol.a)}\\right)\\left(${rstr(sol.c)}\\right) = ${rstr(sol.disc)}`,
+        why: T('echo.underTheRootIs'),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${rstr(sol.disc)} > 0`,
+        why: tooFew
+          ? T('echo.aboveZeroMeansTwo', { k: vals.length })
+          : T('echo.youWroteOneTwice', { k: written }),
+      },
+    ];
+  }
+
+  // 3. Nothing readable came in, and the statement has no real value at all.
+  if (sol.kind === 'noReal') {
+    const h = div(neg(sol.b), mul(R(2), sol.a));
+    const k = sub(sol.c, div(mul(sol.b, sol.b), mul(R(4), sol.a)));
+    if (isSafe(h) && isSafe(k)) {
+      const bracket = isZero(h) ? v : `\\left(${v} ${rsign(h) < 0 ? '+' : '-'} ${rstr(rsign(h) < 0 ? neg(h) : h)}\\right)`;
+      const lead = reqq(sol.a, R(1)) ? '' : `${rstr(sol.a)}`;
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: `${two[0]} = ${lead}${bracket}^{2} ${rsign(k) < 0 ? '-' : '+'} ${rstr(rsign(k) < 0 ? neg(k) : k)}`,
+          why: T('echo.rewriteAsASquare'),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${bracket}^{2} \\ge 0`,
+          why: T('echo.aSquareIsNeverBelowZero'),
+        },
+      ];
+    }
+  }
+  // Every value they named holds, and the count is right. What is left is a
+  // spelling: a square still sitting under the bar, or a formula stopped one
+  // move early with the plus-or-minus still standing in it.
+  const rows = unsimplifiedRows(raw, T);
+  if (rows.length) return rows;
+  return plusOrMinusRows(raw, T);
+}
+
+/**
+ * A quadratic formula stopped one move early: `\frac{7 \pm 1}{2}`.
+ *
+ * The value is right and the notation is not an answer — a plus-or-minus
+ * standing in one fraction is two numbers written once. Both readings are
+ * printed and DELIBERATELY LEFT UNWORKED, because working them out is the move
+ * that was skipped and is the whole of what is left to learn here.
+ */
+function plusOrMinusRows(raw, T) {
+  const body = String(raw).split('=').slice(-1)[0].trim();
+  if (!/\\pm/.test(body)) return [];
+  const plus = body.replace(/\\pm/, '+');
+  const minus = body.replace(/\\pm/, '-');
+  for (const side of [plus, minus]) {
+    try { evaluate(side, {}); } catch { return []; }
+  }
+  return [{
+    cls: 'rf-echo-probe verdict',
+    latex: `${plus} \\qquad ${minus}`,
+    why: T('echo.plusOrMinusIsTwoValues'),
+  }];
+}
+
+// ---------------------------------------------------------------------------
+// Products, quotients and completed squares — all one move: multiply back.
+// ---------------------------------------------------------------------------
+/** Coefficients, or null. Never throws at a caller. */
+function coeffsOf(src, v, maxDeg = 4) {
+  try { return polyCoeffs(String(src), v, maxDeg); } catch { return null; }
+}
+
+/** a - b, coefficient by coefficient. */
+function coeffDiff(a, b) {
+  const out = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) out.push(sub(a[i] || R(0), b[i] || R(0)));
+  return out;
+}
+
+/**
+ * A rewrite of a polynomial — a factorisation, a completed square — refused by
+ * multiplying it back out and printing what is left over.
+ *
+ * This is the answer to `sum-of-squares-factored` and to every one of its
+ * relatives. A cadet who writes `\left(x + 3\right)\left(x + 3\right)` for
+ * `x^{2} + 9` is not told they are wrong: they are shown their own brackets
+ * multiplied out, `x^{2} + 6x + 9`, and then the `6x` that is left over when
+ * the rift is taken away from it. The leftover IS the misconception, printed.
+ */
+function expandProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const v = c.variable;
+  const src = String(c.math || '');
+  if (!v || !src) return [];
+  const mine = coeffsOf(raw, v);
+  const theirs = coeffsOf(src, v);
+  if (!mine) return zerosNotFactorsRows(item, raw, src, v, T);
+  if (!theirs) return [];
+  const gap = coeffDiff(mine, theirs);
+  if (gap.every(isZero)) return [];
+  const opened = polyTex(mine, v);
+  // NOTHING TO MULTIPLY OUT IS A FACT ABOUT THE ENTRY, NOT ABOUT ITS SPELLING.
+  //
+  // This used to compare the multiplied-out line with the entry as a string,
+  // so `z^{2} + 9` was correctly left alone and the same value typed on the
+  // keypad as `z^2+9` was not: the cadet was told to "multiply your brackets
+  // out" over an entry that has no brackets in it. What decides it is whether
+  // there is a bracket to open at all.
+  if (!String(raw).includes('(')) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `${String(raw).trim()} = ${opened}`,
+      why: T('echo.multiplyYoursOut'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `\\left(${opened}\\right) - \\left(${src}\\right) = ${polyTex(gap, v)}`,
+      why: T('echo.theyDifferBy'),
+    },
+  ];
+}
+
+/**
+ * "-2, -3" handed to "write this as a product".
+ *
+ * The numbers are not nonsense: they are exactly the inputs where the rule
+ * reads zero, which is a real and well-attested confusion between a
+ * factorisation and the solutions it leads to. So they are taken seriously —
+ * both are put back into the printed rule and both come out zero — and the
+ * distinction is drawn where it actually sits: a product still holds the
+ * letter, and a pair of numbers does not.
+ */
+function zerosNotFactorsRows(item, raw, src, v, T) {
+  const vals = [];
+  for (const part of splitTop(String(raw), ',')) {
+    const t = fromString(String(part).trim());
+    if (t && !vals.some((u) => reqq(u, t))) vals.push(t);
+  }
+  if (!vals.length) return [];
+  const shown = [];
+  for (const t of vals) {
+    let got;
+    try { got = evaluate(src, { [v]: t }); } catch { return []; }
+    const put = substituteVerified(src, v, t);
+    if (!put) return [];
+    // NOT EVEN A ZERO. The bracket constants copied out with their signs left
+    // as they were printed — `(z + 2)(z + 3)` handed in as "2, 3" — are not the
+    // inputs where the rule reads zero either, and the rule says so at once.
+    if (!isZero(got)) {
+      return [
+        { cls: 'rf-echo-probe', latex: `${put} = ${rstr(got)}`, why: T('echo.readTheRuleAt', { v, t: rstr(t) }) },
+        { cls: 'rf-echo-probe verdict', latex: `${rstr(got)} \\ne 0`, why: T('echo.aListIsNotAProduct') },
+      ];
+    }
+    shown.push(`${put} = 0`);
+  }
+  if (shown.length < 2) {
+    return [{ cls: 'rf-echo-probe verdict', latex: shown[0], why: T('echo.aProductStillHasTheLetter') }];
+  }
+  return [
+    { cls: 'rf-echo-probe', latex: shown[0], why: T('echo.thoseAreTheZeros') },
+    { cls: 'rf-echo-probe verdict', latex: shown[1], why: T('echo.aProductStillHasTheLetter') },
+  ];
+}
+
+/**
+ * A division, refused the way a division is always refused: multiply back.
+ *
+ * The checker for this kind never divides either, for the same reason — no
+ * excluded value is ever needed — so the echo shows the cadet exactly the test
+ * the rig itself uses.
+ */
+function polyQuotientProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const v = c.variable;
+  if (!v || !c.dividend || !c.divisor) return [];
+  const wantRem = c.want === 'remainder';
+  const qSrc = wantRem ? String(c.quotient || '') : String(raw).trim();
+  const rSrc = wantRem ? String(raw).trim() : (c.remainder ? String(c.remainder) : null);
+  if (wantRem && !qSrc) return [];
+  const B = coeffsOf(c.divisor, v, 6);
+  const Q = coeffsOf(qSrc, v, 6);
+  const D = coeffsOf(c.dividend, v, 6);
+  const Rem = rSrc ? coeffsOf(rSrc, v, 6) : [R(0)];
+  if (!B || !Q || !D || !Rem) return [];
+  const product = [];
+  for (let i = 0; i < B.length; i++) {
+    for (let j = 0; j < Q.length; j++) product[i + j] = add(product[i + j] || R(0), mul(B[i], Q[j]));
+  }
+  for (let i = 0; i < Rem.length; i++) product[i] = add(product[i] || R(0), Rem[i]);
+  for (let i = 0; i < product.length; i++) product[i] = product[i] || R(0);
+  const gap = coeffDiff(product, D);
+  if (gap.every(isZero)) return [];
+  const back = `\\left(${c.divisor}\\right)\\left(${qSrc}\\right)${rSrc ? ` + \\left(${rSrc}\\right)` : ''}`;
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `${back} = ${polyTex(product, v)}`,
+      why: T('echo.multiplyBack'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `\\left(${polyTex(product, v)}\\right) - \\left(${c.dividend}\\right) = ${polyTex(gap, v)}`,
+      why: T('echo.theyDifferBy'),
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// The curve, read.
+// ---------------------------------------------------------------------------
+/** a, b, c of a printed rule of degree one or two, or null. */
+function ruleABC(src, v) {
+  const cs = coeffsOf(src, v, 2);
+  if (!cs) return null;
+  const deg = polyDegree(cs);
+  if (deg < 1 || deg > 2) return null;
+  return { a: cs[2] || R(0), b: cs[1] || R(0), c: cs[0] || R(0), quadratic: deg === 2 };
+}
+
+/** A printed rule, worked out at a whole input. */
+function ruleAt(src, v, t) {
+  try { return evaluate(src, { [v]: R(t) }); } catch { return null; }
+}
+
+/** An exact value, bracketed only where a bare minus would run into a sign. */
+const parR = (r) => (rsign(r) < 0 ? `\\left(${rstr(r)}\\right)` : rstr(r));
+
+/** The part under the root of `a v^{2} + b v + c = target`, printed and worked. */
+function underTheRoot(abc, target, T) {
+  const disc = sub(mul(abc.b, abc.b), mul(R(4), mul(abc.a, sub(abc.c, target))));
+  if (!isSafe(disc)) return null;
+  const tail = isZero(target) ? `\\left(${rstr(abc.c)}\\right)`
+    : `\\left(${rstr(abc.c)} - ${par(toNum(target))}\\right)`;
+  return {
+    disc,
+    row: {
+      cls: 'rf-echo-probe',
+      latex: `\\left(${rstr(abc.b)}\\right)^{2} - 4\\left(${rstr(abc.a)}\\right)${tail} = ${rstr(disc)}`,
+      why: T('echo.underTheRootIs'),
+    },
+  };
+}
+
+/**
+ * A named feature of a curve, refused by reading the rule itself.
+ *
+ * Each ask has one honest refusal, and every one of them is a READING rather
+ * than a rule about turning points:
+ *
+ *   · the reading at zero, against a claimed crossing;
+ *   · the readings one step each side of a claimed turn, which a real turn
+ *     makes equal and a wrong one does not;
+ *   · a reading that beats a claimed greatest or least value outright;
+ *   · a claimed zero, put back into the rule;
+ *   · and, where nothing else is available, the part under the root of
+ *     "the rule reads your value", which settles whether it ever does.
+ */
+function featuresProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const v = c.variable;
+  const src = String(c.math || '');
+  if (!v || !src) return [];
+  const abc = ruleABC(src, v);
+  if (!abc) return [];
+  const readingAt = (t) => {
+    const got = ruleAt(src, v, t);
+    if (!got) return null;
+    const put = substituteVerified(src, v, R(t));
+    return put ? { got, put } : null;
+  };
+  const say = (t, r) => ({
+    cls: 'rf-echo-probe',
+    latex: `${r.put} = ${rstr(r.got)}`,
+    why: T('echo.readTheRuleAt', { v, t }),
+  });
+
+  // The reading at zero. One substitution, and it is the whole question.
+  if (c.want === 'yIntercept') {
+    const val = fromString(String(raw).trim());
+    const r = readingAt(0);
+    if (val && r && !reqq(r.got, val)) {
+      return [say(0, r), {
+        cls: 'rf-echo-probe verdict',
+        latex: `${rstr(r.got)} \\ne ${rstr(val)}`,
+        why: T('echo.ruleReadsDifferently', { v, t: 0 }),
+      }];
+    }
+    return [];
+  }
+
+  // A claimed turn — as a pair, or as the line through it. Two tests, and the
+  // second is the definition of a turn: the rule reads the same one step
+  // either side of it.
+  if (c.want === 'vertex' || c.want === 'axis') {
+    let px = null; let py = null;
+    if (c.want === 'vertex') {
+      // Either spelling of the brackets — see the note on `pair` above.
+      const m = /^\s*(?:\\left)?\(\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:\\right)?\)\s*$/.exec(String(raw));
+      if (m) { px = Number(m[1]); py = Number(m[2]); }
+    } else {
+      const at = String(raw).indexOf('=');
+      const rhs = at >= 0 ? String(raw).slice(at + 1).trim() : String(raw).trim();
+      const val = fromString(rhs);
+      if (val && val.d === 1) px = val.n;
+    }
+    // A line through the turn is a statement about the INPUT. Written about the
+    // output it names a level line, and the rule reads other values.
+    if (c.want === 'axis') {
+      const at = String(raw).indexOf('=');
+      const lhs = at >= 0 ? String(raw).slice(0, at).trim() : '';
+      const claimed = fromString(at >= 0 ? String(raw).slice(at + 1).trim() : '');
+      if (lhs && lhs !== v && /^[a-zA-Z]$/.test(lhs) && claimed) {
+        for (let t = -12; t <= 12; t++) {
+          const r = readingAt(t);
+          if (!r || reqq(r.got, claimed)) continue;
+          return [say(t, r), {
+            cls: 'rf-echo-probe verdict',
+            latex: `${rstr(r.got)} \\ne ${rstr(claimed)}`,
+            why: T('echo.thatIsAboutTheOutput'),
+          }];
+        }
+      }
+    }
+    if (px === null || !Number.isInteger(px)) return [];
+    const here = readingAt(px);
+    if (py !== null && here && !reqq(here.got, R(py))) {
+      return [say(px, here), {
+        cls: 'rf-echo-probe verdict',
+        latex: `${rstr(here.got)} \\ne ${py}`,
+        why: T('echo.ruleReadsDifferently', { v, t: px }),
+      }];
+    }
+    const lo = readingAt(px - 1);
+    const hi = readingAt(px + 1);
+    if (lo && hi && !reqq(lo.got, hi.got)) {
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: `${lo.put} = ${rstr(lo.got)} \\qquad ${hi.put} = ${rstr(hi.got)}`,
+          why: T('echo.turnIsSymmetric'),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(lo.got)} \\ne ${rstr(hi.got)}`,
+          why: T('echo.notSymmetricHere', { v, t: px }),
+        },
+      ];
+    }
+    return [];
+  }
+
+  // A claimed greatest or least value, and a claimed band, are one question:
+  // does the rule ever read outside it?
+  if (c.want === 'extremeValue' || c.want === 'range') {
+    let bound = null; let above = null;
+    if (c.want === 'extremeValue') {
+      bound = fromString(String(raw).trim());
+      if (!bound) return [];
+      above = abc.a.n > 0;                 // a least value: readings sit above it
+    } else {
+      const { parts, rels } = relationsOf(String(raw));
+      if (rels.length !== 1) return [];
+      const side = parts[1] == null ? null : String(parts[1]).trim();
+      bound = side ? fromString(side) : null;
+      if (!bound) return [];
+      above = rels[0] === '\\ge' || rels[0] === '>';
+      // A band is a claim about the READINGS. Written about the input it shuts
+      // out inputs the rule reads perfectly well, and one of them says so.
+      const named = String(parts[0] || '').trim();
+      if (named === v && c.outputVariable && c.outputVariable !== v) {
+        // One step outside the band the cadet wrote, whatever it says. A sweep
+        // of small inputs can sit entirely inside a band, and then the probe
+        // finds nothing to say about a band that is plainly about the wrong
+        // letter.
+        const t = above ? Math.floor(toNum(bound)) - 1 : Math.ceil(toNum(bound)) + 1;
+        const r = Number.isFinite(t) ? readingAt(t) : null;
+        if (r) {
+          return [say(t, r), {
+            cls: 'rf-echo-probe verdict',
+            latex: `${t} ${above ? '<' : '>'} ${rstr(bound)}`,
+            why: T('echo.thatIsAboutTheInput'),
+          }];
+        }
+      }
+    }
+    // A GREATEST OR LEAST VALUE IS SETTLED BY THE PART UNDER THE ROOT.
+    //
+    // A sweep of inputs can miss: a rule that turns at twenty is beaten by no
+    // reading between minus fourteen and fourteen, and the one input that
+    // would settle it is the one whose reading IS the answer. So the claim is
+    // asked the other way round — how many inputs read the cadet's value —
+    // and the answer to that never names an input at all. Two means the rule
+    // passes straight through it, so it is neither the greatest nor the least.
+    if (c.want === 'extremeValue' && abc.quadratic) {
+      const u = underTheRoot(abc, bound, T);
+      if (u && !isZero(u.disc)) {
+        const over = rsign(u.disc) > 0;
+        return [u.row, {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(u.disc)} ${over ? '>' : '<'} 0`,
+          why: T(over ? 'echo.reachedTwiceNotExtreme' : 'echo.neverReachesIt', { val: rstr(bound) }),
+        }];
+      }
+    }
+    // A straight rule has a band only on a stated closed interval, so the
+    // sweep must not step outside the interval the item printed.
+    const span = Array.isArray(c.interval) && c.interval.length === 2
+      ? [Math.ceil(Number(c.interval[0])), Math.floor(Number(c.interval[1]))]
+      : [-14, 14];
+    for (let t = span[0]; t <= span[1]; t++) {
+      const r = readingAt(t);
+      if (!r) continue;
+      const outside = above ? rcmp(r.got, bound) < 0 : rcmp(r.got, bound) > 0;
+      if (!outside) continue;
+      return [say(t, r), {
+        cls: 'rf-echo-probe verdict',
+        latex: `${rstr(r.got)} ${above ? '<' : '>'} ${rstr(bound)}`,
+        why: T('echo.readingBeatsYourClaim', { got: rstr(r.got), val: rstr(bound) }),
+      }];
+    }
+    // Never read outside it. Then the question is whether it is read AT ALL.
+    if (abc.quadratic) {
+      const u = underTheRoot(abc, bound, T);
+      if (u && rsign(u.disc) < 0) {
+        return [u.row, {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(u.disc)} < 0`,
+          why: T('echo.neverReachesIt', { val: rstr(bound) }),
+        }];
+      }
+    }
+    return [];
+  }
+
+  // A claimed zero, put back into the rule.
+  if (c.want === 'zeros') {
+    const named = [];
+    for (const t of entryValues(raw)) if (!named.some((u) => sEq(u, t))) named.push(t);
+    for (const t of named) {
+      let got;
+      try { got = evalSurd(parse(src), { [v]: t }); } catch { continue; }
+      if (sIsZero(got)) continue;
+      const put = putSurd(src, v, t);
+      if (!put) continue;
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: `${put} = ${sTex(got)}`,
+          why: T('echo.readTheRuleAt', { v, t: sTex(t) }),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${sTex(got)} \\ne 0`,
+          why: T('echo.notAZeroThere', { v, t: sTex(t) }),
+        },
+      ];
+    }
+    if (abc.quadratic) {
+      const u = underTheRoot(abc, R(0), T);
+      // Nothing readable came in, and the rule never reads zero.
+      if (u && rsign(u.disc) < 0) {
+        return [u.row, {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(u.disc)} < 0`,
+          why: T('echo.neverReachesIt', { val: '0' }),
+        }];
+      }
+      // Every crossing they named is a real crossing, and they named too few.
+      if (u && rsign(u.disc) > 0 && named.length === 1) {
+        return [u.row, {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(u.disc)} > 0`,
+          why: T('echo.aboveZeroMeansTwo', { k: named.length }),
+        }];
+      }
+    }
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// Lists with a step, and lists with a factor.
+// ---------------------------------------------------------------------------
+/** The step or the factor a printed list moves by, in exact arithmetic. */
+function listMove(rows) {
+  const clean = rows.filter((r) => r[0] !== null && r[1] !== null).map((r) => [R(r[0]), R(r[1])]);
+  if (clean.length < 3) return null;
+  for (let i = 1; i < clean.length; i++) if (!reqq(sub(clean[i][0], clean[i - 1][0]), R(1))) return null;
+  const last = clean[clean.length - 1];
+  const prev = clean[clean.length - 2];
+  const step = sub(clean[1][1], clean[0][1]);
+  if (!isZero(step) && clean.every((r, i) => i === 0 || reqq(sub(r[1], clean[i - 1][1]), step))) {
+    return {
+      kind: 'add',
+      step,
+      last,
+      tex: `\\frac{${rstr(last[1])} - ${parR(prev[1])}}{${rstr(last[0])} - ${parR(prev[0])}}`,
+    };
+  }
+  if (clean.some((r) => isZero(r[1]))) return null;
+  const q = div(clean[1][1], clean[0][1]);
+  if (isZero(q) || reqq(q, R(1))) return null;
+  for (let i = 1; i < clean.length; i++) if (!reqq(div(clean[i][1], clean[i - 1][1]), q)) return null;
+  return { kind: 'mul', factor: q, last, tex: `\\frac{${rstr(last[1])}}{${parR(prev[1])}}` };
+}
+
+/** The two printed statements of a recursion, read back as a first term and a move. */
+function recursionMove(statements) {
+  const stmts = (statements || []).map((s) => norm(s));
+  const start = stmts.map((s) => /\(1\)=(-?\d+)/.exec(s)).find(Boolean);
+  if (!start) return null;
+  const anchor = [R(1), R(Number(start[1]))];
+  const plus = stmts.map((s) => /-1\)([+-])(\d+)$/.exec(s)).find(Boolean);
+  if (plus) {
+    const step = R((plus[1] === '-' ? -1 : 1) * Number(plus[2]));
+    return { kind: 'add', step, last: anchor, tex: rstr(step) };
+  }
+  const times = stmts.map((s) => /=(-?\d+)\\cdot/.exec(s)).find(Boolean);
+  if (times) {
+    const factor = R(Number(times[1]));
+    return { kind: 'mul', factor, last: anchor, tex: rstr(factor) };
+  }
+  return null;
+}
+
+/**
+ * A term of a printed list, refused by the move the list itself makes.
+ *
+ * Both sides are left UNWORKED, exactly as the log and the chart do above: the
+ * arithmetic that settles it is the arithmetic worth doing, and handing over
+ * the total would hand over the test.
+ */
+function sequenceProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const v = c.variable || 'n';
+
+  // A rule written for the whole list: run it at a position the list prints.
+  if (c.form === 'explicit') {
+    const rows = tableRows(item).filter((r) => r[0] !== null && r[1] !== null);
+    // A RULE THAT NAMES THE VALUE BEFORE IT IS NOT AN EXPLICIT RULE.
+    //
+    // `f\left(n-1\right) + 4` cannot be worked out at any position, because
+    // working it out needs the position before, and before position one there
+    // is nothing printed. That is the misconception, and it is shown rather
+    // than named: the rule written at the first position, and the line the
+    // list actually starts on.
+    let stray = [];
+    try { stray = varsOf(String(raw)).filter((name) => name !== v); } catch { stray = []; }
+    if (stray.length && rows.length) {
+      const put = substitute(String(raw), v, String(rows[0][0]));
+      return [
+        { cls: 'rf-echo-probe', latex: put, why: T('echo.yourRuleAtPosition', { t: rows[0][0] }) },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: arrow(R(rows[0][0]), R(rows[0][1])),
+          why: T('echo.needsTheOneBefore', { t: rows[0][0] }),
+        },
+      ];
+    }
+    for (const [pos, val] of rows) {
+      let got;
+      try { got = evaluate(String(raw), { [v]: R(pos) }); } catch { return []; }
+      if (reqq(got, R(val))) continue;
+      const put = substituteVerified(String(raw), v, R(pos));
+      if (!put) continue;
+      return [
+        { cls: 'rf-echo-probe', latex: `${put} = ${rstr(got)}`, why: T('echo.yourRuleAtPosition', { t: pos }) },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(got)} \\ne ${val}`,
+          why: T('echo.listReadsThere', { t: pos, y: val }),
+        },
+      ];
+    }
+    return [];
+  }
+
+  const at = Number(c.at);
+  const val = fromString(String(raw).trim());
+  if (!val || !Number.isInteger(at)) return [];
+  const move = c.form === 'recursive' ? recursionMove(c.statements) : listMove(tableRows(item));
+  if (!move) return [];
+  const [pos0, val0] = move.last;
+  const gap = at - toNum(pos0);
+  if (gap <= 0) return [];
+
+  if (move.kind === 'add') {
+    const implied = div(sub(val, val0), R(gap));
+    if (reqq(implied, move.step)) return [];
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `\\frac{${rstr(val)} - ${parR(val0)}}{${at} - ${parR(pos0)}}`,
+        why: T('echo.stepFromYourValue'),
+      },
+      { cls: 'rf-echo-probe verdict', latex: move.tex, why: T('echo.stepTheListMakes') },
+    ];
+  }
+  if (isZero(val0)) return [];
+  const implied = div(val, val0);
+  let want;
+  try { want = rpow(move.factor, gap); } catch { return []; }
+  if (reqq(implied, want)) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `\\frac{${rstr(val)}}{${parR(val0)}}`,
+      why: T('echo.factorFromYourValue'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `\\left(${move.tex}\\right)^{${gap}}`,
+      why: T('echo.factorTheListMakes', { k: gap }),
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// A set of pairs, and whether one input carries two readings.
+// ---------------------------------------------------------------------------
+/** `6 \to 4`, the one spelling this module uses for a reading. */
+const arrow = (x, y) => `${rstr(x)} \\;\\to\\; ${rstr(y)}`;
+
+/**
+ * The input that breaks a relation, refused by the column it was read from.
+ *
+ * Three shapes of wrong answer, and each gets the rows it deserves: an input
+ * that appears once carries one reading and breaks nothing; a number read off
+ * the output column is not an input at all; and an input that appears twice
+ * with the SAME reading is a repeat, not a break.
+ */
+function relationPairsProbe(item, raw, tag, T) {
+  if ((item.check || {}).want !== 'breakingInput') return [];
+  const pairs = readingsShown(item);
+  if (pairs.length < 3) return [];
+  const val = fromString(String(raw).trim());
+  if (!val) return [];
+  const mine = pairs.filter(([x]) => reqq(x, val));
+  if (mine.length >= 2) {
+    if (new Set(mine.map(([, y]) => rstr(y))).size > 1) return [];
+    return [{
+      cls: 'rf-echo-probe verdict',
+      latex: mine.map(([x, y]) => arrow(x, y)).join(' \\qquad '),
+      why: T('echo.sameReadingTwice', { t: rstr(val) }),
+    }];
+  }
+  if (mine.length === 1) {
+    return [{
+      cls: 'rf-echo-probe verdict',
+      latex: arrow(mine[0][0], mine[0][1]),
+      why: T('echo.yourInputOnce', { t: rstr(val) }),
+    }];
+  }
+  const asOutput = pairs.filter(([, y]) => reqq(y, val));
+  if (asOutput.length) {
+    return [{
+      cls: 'rf-echo-probe verdict',
+      latex: asOutput.map(([x, y]) => arrow(x, y)).join(' \\qquad '),
+      why: T('echo.yoursIsAnOutput', { t: rstr(val) }),
+    }];
+  }
+  return [{
+    cls: 'rf-echo-probe verdict',
+    latex: pairs.map(([x]) => rstr(x)).join(' \\quad '),
+    why: T('echo.notAnInputAtAll', { t: rstr(val) }),
+  }];
+}
+
+// ---------------------------------------------------------------------------
+// A second line, beside a printed one.
+// ---------------------------------------------------------------------------
+/**
+ * The rate of a printed straight rule in TWO letters. `null` when upright.
+ *
+ * `linearize()` cannot read this: it throws on any letter that is not the one
+ * it was asked about, so on `y = 3x + 5` it refuses both readings. The rule is
+ * probed as a function of two readings instead, and confirmed at a third point
+ * so that nothing above degree one can hide inside a bracket.
+ */
+function rateOfLine(src, vx, vy) {
+  const two = twoSides(String(src));
+  if (!two) return null;
+  const f = (x, y) => {
+    const env = { [vx]: R(x), [vy]: R(y) };
+    return sub(evaluate(two[0], env), evaluate(two[1], env));
+  };
+  let a; let b; let c0;
+  try {
+    c0 = f(0, 0);
+    a = sub(f(1, 0), c0);
+    b = sub(f(0, 1), c0);
+    const want = add(add(c0, mul(a, R(2))), mul(b, R(3)));
+    if (!reqq(f(2, 3), want)) return null;
+  } catch { return null; }
+  if (isZero(b)) return null;
+  return neg(div(a, b));
+}
+
+/** `a x + b y = c` read off a printed rule in two letters, or null. */
+function lineCoeffs(src, vx, vy) {
+  const two = twoSides(String(src));
+  if (!two) return null;
+  const f = (x, y) => {
+    const env = { [vx]: R(x), [vy]: R(y) };
+    return sub(evaluate(two[0], env), evaluate(two[1], env));
+  };
+  try {
+    const c0 = f(0, 0);
+    const a = sub(f(1, 0), c0);
+    const b = sub(f(0, 1), c0);
+    if (!reqq(f(2, 3), add(add(c0, mul(a, R(2))), mul(b, R(3))))) return null;
+    return { a, b, c: neg(c0) };
+  } catch { return null; }
+}
+
+const gcdInt = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) { const t = a % b; a = b; b = t; } return a || 1; };
+
+/**
+ * The one shape error this family carries that is not a wrong line: a rule
+ * that names the right line and still holds a fraction where the ask wants
+ * whole numbers.
+ *
+ * There is real arithmetic to show, so it is shown: the number every part has
+ * to be multiplied by, and what the first part becomes. Only the first, so the
+ * cadet does the rest.
+ */
+function wholeNumbersRows(raw, vx, vy, T) {
+  const co = lineCoeffs(raw, vx, vy);
+  if (!co) return [];
+  let den = 1;
+  for (const q of [co.a, co.b, co.c]) den = (den * q.d) / gcdInt(den, q.d);
+  if (den === 1 || den > 400) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `${texOf(co.a)} \\quad ${texOf(co.b)} \\quad ${texOf(co.c)}`,
+      why: T('echo.yourPartsHaveFractions'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `${den} \\cdot \\left(${texOf(co.a)}\\right) = ${rstr(mul(R(den), co.a))}`,
+      why: T('echo.clearTheFractions', { d: den }),
+    },
+  ];
+}
+
+/**
+ * Two readings of a printed straight rule, which is how "this line is not
+ * upright" is shown rather than said: an upright line reads at ONE input, and
+ * a rule that answers at two different inputs is not one.
+ */
+function twoReadings(src, vx, vy, T, key) {
+  const co = lineCoeffs(src, vx, vy);
+  if (!co || isZero(co.b)) return [];
+  const at = (x) => div(sub(co.c, mul(co.a, R(x))), co.b);
+  try {
+    return [{
+      cls: 'rf-echo-probe verdict',
+      latex: `\\left(0, ${texOf(at(0))}\\right) \\quad \\left(1, ${texOf(at(1))}\\right)`,
+      why: T(key),
+    }];
+  } catch { return []; }
+}
+
+/** The two rates, multiplied, against the minus one a right angle needs. */
+function rightAngleRows(mine, given, T) {
+  const prod = mul(mine, given);
+  if (reqq(prod, R(-1))) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `\\left(${texOf(mine)}\\right)\\left(${texOf(given)}\\right) = ${texOf(prod)}`,
+      why: T('echo.ratesMultiply'),
+    },
+    { cls: 'rf-echo-probe verdict', latex: `${texOf(prod)} \\ne -1`, why: T('echo.yourRatesGive', { got: rstr(prod) }) },
+  ];
+}
+
+/** The rate a line beside a printed one has to carry. */
+function sameRateRows(mine, given, T) {
+  if (reqq(mine, given)) return [];
+  return [
+    { cls: 'rf-echo-probe', latex: `${texOf(given)}`, why: T('echo.parallelRatesMatch') },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `${texOf(mine)} \\ne ${texOf(given)}`,
+      why: T('echo.yourRateDiffers', { want: rstr(given), got: rstr(mine) }),
+    },
+  ];
+}
+
+/**
+ * A line written beside another one, refused by the reading it must pass
+ * through and by the rate it must carry.
+ *
+ * Two facts, and both are arithmetic a cadet can do in their head: the marked
+ * reading written into the rule they wrote, and the two rates multiplied —
+ * which comes to minus one for a right angle, and to nothing at all for two
+ * lines that never meet, because those two rates are simply the same number.
+ */
+function relatedLineProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const vx = c.vars?.[0] || 'x';
+  const vy = c.vars?.[1] || 'y';
+  const given = rateOfLine(c.math, vx, vy);
+  const [x0, y0] = c.point || [];
+  const right = c.relation === 'perpendicular';
+
+  // A rate on its own.
+  if (c.want === 'slope') {
+    const mine = fromString(String(raw).trim());
+    if (!mine) return [];
+    if (given === null) {
+      // The printed line stands upright. A line at a right angle to it is
+      // level, and a level line has rate zero.
+      if (right && !isZero(mine)) {
+        return [
+          { cls: 'rf-echo-probe', latex: `${texOf(mine)} \\ne 0`, why: T('echo.rightAngleToUpright') },
+        ];
+      }
+      return [];
+    }
+    return right ? rightAngleRows(mine, given, T) : sameRateRows(mine, given, T);
+  }
+
+  // A whole rule. First: does it pass through the reading it was written from?
+  if (x0 != null && y0 != null && String(raw).includes('=')) {
+    const two = twoSides(String(raw));
+    if (two) {
+      const env = { [vx]: R(Number(x0)), [vy]: R(Number(y0)) };
+      let l; let r;
+      try { l = evaluate(two[0], env); r = evaluate(two[1], env); } catch { l = null; }
+      if (l && r && !reqq(l, r)) {
+        const shown = putBoth(String(raw), vx, vy, env[vx], env[vy]);
+        return [
+          {
+            cls: 'rf-echo-probe',
+            latex: shown || String(raw).trim(),
+            why: T('echo.throughThePoint', { x: Number(x0), y: Number(y0) }),
+          },
+          { cls: 'rf-echo-probe verdict', latex: `${rstr(l)} \\ne ${rstr(r)}`, why: T('echo.missesThePoint') },
+        ];
+      }
+    }
+  }
+  // Then: the rate.
+  const mine = rateOfLine(String(raw), vx, vy);
+  // Their line stands upright and the printed one does not. The printed line
+  // answers at two different inputs, and that is shown, not asserted.
+  if (mine === null) {
+    if (given === null) return [];
+    return twoReadings(String(c.math), vx, vy, T, 'echo.printedLineIsNotUpright');
+  }
+  // The printed line stands upright and theirs does not.
+  if (given === null) {
+    if (right && !isZero(mine)) {
+      return [{ cls: 'rf-echo-probe', latex: `${texOf(mine)} \\ne 0`, why: T('echo.rightAngleToUpright') }];
+    }
+    if (!right) return twoReadings(String(raw), vx, vy, T, 'echo.parallelToUprightIsUpright');
+    return [];
+  }
+  const rows = right ? rightAngleRows(mine, given, T) : sameRateRows(mine, given, T);
+  if (rows.length) return rows;
+  // The right line, spelled a way the ask does not accept.
+  if (c.form === 'standard') return wholeNumbersRows(String(raw), vx, vy, T);
+  if (c.form === 'pointSlope' && x0 != null && y0 != null) {
+    return namedReadingRows(String(raw), vx, vy, R(Number(x0)), R(Number(y0)), T);
+  }
+  return [];
+}
+
+/**
+ * The reading a point-slope form NAMES, read back out of the cadet's own
+ * notation.
+ *
+ * `y - 3 = -\left(x + 7\right)` draws exactly the line the rift wants, so no
+ * substitution and no rate can argue with it — and it is still the wrong
+ * answer, because this form is a way of writing a reading down and the reading
+ * it writes down is the marked one with its two numbers swapped and their signs
+ * kept. So the probe reads the pair back off the two sides: the value that
+ * empties the left, and the value that empties the right.
+ */
+function namedReadingRows(raw, vx, vy, x0, y0, T) {
+  const two = twoSides(raw);
+  if (!two) return [];
+  let px; let py;
+  try {
+    if (varsOf(two[0]).join('') !== vy || varsOf(two[1]).join('') !== vx) return [];
+    const ly = solveLinear(`${two[0]} = 0`, vy);
+    const lx = solveLinear(`${two[1]} = 0`, vx);
+    if (ly.kind !== 'unique' || lx.kind !== 'unique') return [];
+    py = ly.value; px = lx.value;
+  } catch { return []; }
+  if (reqq(px, x0) && reqq(py, y0)) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: `\\left(${texOf(px)}, ${texOf(py)}\\right)`,
+      why: T('echo.yourFormNamesThisReading'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `\\left(${texOf(px)}, ${texOf(py)}\\right) \\ne \\left(${texOf(x0)}, ${texOf(y0)}\\right)`,
+      why: T('echo.notTheMarkedReading'),
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// A lean in two letters, with no shading anywhere.
+// ---------------------------------------------------------------------------
+/** Is a two-letter statement true at this reading? `null` when unreadable. */
+function holdsAt2(src, env) {
+  const { parts, rels } = relationsOf(String(src));
+  if (!rels.length) {
+    const two = twoSides(String(src));
+    if (!two) return null;
+    try { return reqq(evaluate(two[0], env), evaluate(two[1], env)); } catch { return null; }
+  }
+  let vals;
+  try { vals = parts.map((p) => evaluate(p, env)); } catch { return null; }
+  for (let i = 0; i < rels.length; i++) {
+    const d = toNum(sub(vals[i], vals[i + 1]));
+    const ok = rels[i] === '<' ? d < 0 : rels[i] === '>' ? d > 0 : rels[i] === '\\le' ? d <= 0 : d >= 0;
+    if (!ok) return false;
+  }
+  return true;
+}
+
+/** A two-letter statement with both readings written in, verified part by part. */
+function putBoth(src, vx, vy, x, y) {
+  const { parts, rels } = relationsOf(String(src));
+  const bodies = rels.length ? parts : (twoSides(String(src)) || []);
+  if (!bodies.length) return null;
+  const put = bodies.map((p) => {
+    let out = String(p).trim();
+    for (const [name, val] of [[vx, x], [vy, y]]) {
+      if (!varsOf(out).includes(name)) continue;
+      const next = substituteVerified(out, name, val, { [name === vx ? vy : vx]: name === vx ? y : x });
+      if (!next) return null;
+      out = next;
+    }
+    return out;
+  });
+  if (put.some((p) => !p)) return null;
+  if (!rels.length) return `${put[0]} = ${put[1]}`;
+  let out = put[0];
+  for (let i = 0; i < rels.length; i++) out += ` ${rels[i]} ${put[i + 1]}`;
+  return out;
+}
+
+/** The same statement, worked out part by part: "7 < 4". */
+function readAt2(src, env) {
+  const { parts, rels } = relationsOf(String(src));
+  const bodies = rels.length ? parts : (twoSides(String(src)) || []);
+  if (!bodies.length) return null;
+  let vals;
+  try { vals = bodies.map((p) => evaluate(p, env)); } catch { return null; }
+  let out = rstr(vals[0]);
+  const joins = rels.length ? rels : ['='];
+  for (let i = 0; i < joins.length; i++) out += ` ${joins[i]} ${rstr(vals[i + 1])}`;
+  return out;
+}
+
+/**
+ * A lean over a region, refused by the reading the item itself marks.
+ *
+ * The item says of exactly two readings whether they belong to the region — one
+ * ON the boundary and one off it. Those two statements are the whole of the
+ * evidence, so they are the whole of the refusal: put the reading into the lean
+ * the cadet wrote, work it out, and see whether it agrees with what the card
+ * said about that reading.
+ */
+function halfPlaneProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const vx = c.vars?.[0] || 'x';
+  const vy = c.vars?.[1] || 'y';
+  let cells;
+  try { cells = parseArrayCells(String(item.latex)); } catch { return []; }
+  let test = null; let edge = null;
+  const boundary = [];
+  /* WHICH MARKED READING IS THE BOUNDARY ONE IS GEOMETRY, NOT VOCABULARY.
+     These cards used to carry four glyphs the card never defined — `+` in, `-`
+     out, a filled circle included, an open circle excluded — and the role of a
+     row was read off which glyph it was. They now carry ONE statement, `\in R`
+     or `\notin R`, in both roles, so the role is decided the way a learner
+     decides it: the readings that carry no statement are the ones that fit a
+     straight line, and the marked reading that lands on that line is the
+     boundary one. The four old glyphs are still read — `tools/check-solver.mjs`
+     still plants them — so a checker that once accepted them keeps doing so. */
+  const marks = [];
+  for (const row of cells) {
+    const nums = [];
+    for (const cell of row) { try { nums.push(evaluate(cell)); } catch { /* a label, or a mark */ } }
+    if (nums.length !== 2) continue;
+    let say = null; let role = null;
+    for (const cell of row) {
+      const t = String(cell).replace(/\s+/g, '');
+      if (t === '+') { say = true; role = 'test'; break; }
+      if (t === '-') { say = false; role = 'test'; break; }
+      if (t === '\\bullet') { say = true; role = 'edge'; break; }
+      if (t === '\\circ') { say = false; role = 'edge'; break; }
+      if (t === '\\inR') { say = true; break; }
+      if (t === '\\notinR') { say = false; break; }
+    }
+    if (say === null) { boundary.push(nums); continue; }
+    if (role === 'test') { test = { at: nums, want: say }; continue; }
+    if (role === 'edge') { edge = { at: nums, want: say }; boundary.push(nums); continue; }
+    marks.push({ at: nums, want: say });
+  }
+  if (marks.length === 2 && boundary.length >= 2) {
+    let fit = null;
+    for (let i = 1; i < boundary.length && !fit; i++) {
+      if (reqq(boundary[i][0], boundary[0][0])) continue;
+      const m = div(sub(boundary[i][1], boundary[0][1]), sub(boundary[i][0], boundary[0][0]));
+      fit = { m, b: sub(boundary[0][1], mul(m, boundary[0][0])) };
+    }
+    if (fit) {
+      for (const k of marks) {
+        const on = reqq(k.at[1], add(mul(fit.m, k.at[0]), fit.b));
+        if (on && !edge) { edge = k; boundary.push(k.at); } else if (!on && !test) test = k;
+      }
+    }
+  }
+  const isLean = relationsOf(String(raw)).rels.length > 0;
+
+  // FIRST, THE EDGE ITSELF. Every unmarked reading in the table sits ON the
+  // boundary, so the two sides of the cadet's own lean have to come out equal
+  // at each of them. A rate that was flipped, or a number moved to the wrong
+  // side, breaks that at the first reading and never touches the marks at all.
+  const { parts, rels } = relationsOf(String(raw));
+  const bodies = rels.length ? parts : (twoSides(String(raw)) || []);
+  if (bodies.length === 2) {
+    for (const [x, y] of boundary) {
+      const env = { [vx]: x, [vy]: y };
+      let l; let r;
+      try { l = evaluate(bodies[0], env); r = evaluate(bodies[1], env); } catch { continue; }
+      if (reqq(l, r)) continue;
+      const shown = putBoth(String(raw), vx, vy, x, y);
+      if (!shown) continue;
+      return [
+        { cls: 'rf-echo-probe', latex: shown, why: T('echo.putAnEdgeReading', { x: rstr(x), y: rstr(y) }) },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(l)} \\ne ${rstr(r)}`,
+          why: T('echo.edgeDoesNotRunThrough'),
+        },
+      ];
+    }
+  }
+  for (const probe of [test, edge]) {
+    if (!probe) continue;
+    const [x, y] = probe.at;
+    const env = { [vx]: x, [vy]: y };
+    const holds = holdsAt2(String(raw), env);
+    if (holds === null) continue;
+    // A rule with an equals sign names a line, not a region. It is refused by
+    // any marked reading it does not run through.
+    if (!isLean && holds) continue;
+    if (isLean && holds === probe.want) continue;
+    const shown = putBoth(String(raw), vx, vy, x, y);
+    const read = readAt2(String(raw), env);
+    if (!shown || !read) continue;
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: shown,
+        why: T(probe === test ? 'echo.putTheMarkedReading' : 'echo.putTheBoundaryReading', { x: rstr(x), y: rstr(y) }),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: read,
+        why: T(!isLean ? 'echo.thatIsALineNotARegion' : holds ? 'echo.yourLeanLetsItIn' : 'echo.yourLeanShutsItOut'),
+      },
+    ];
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// Two rules, written from two sets of readings.
+// ---------------------------------------------------------------------------
+/**
+ * A pair of rules, refused by the readings they were written from.
+ *
+ * A rule that does not run through its own table is refused by one reading. A
+ * PAIR that is really one rule, or a pair that is really a crossing point, is
+ * refused by the same input read in both tables: the two answers differ, so no
+ * single rule and no single reading can describe them both.
+ */
+function systemWriteProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const vx = c.vars?.[0] || 'x';
+  const vy = c.vars?.[1] || 'y';
+  let blocks;
+  try { blocks = parseArrayBlocks(String(item.latex)); } catch { return []; }
+  if (blocks.length !== 2) return [];
+  const tableOf = (cells) => {
+    const out = [];
+    for (const row of cells) {
+      const nums = [];
+      for (const cell of row) { try { nums.push(evaluate(cell)); } catch { /* a label */ } }
+      if (nums.length === 2) out.push(nums);
+    }
+    return out;
+  };
+  const tables = blocks.map(tableOf);
+  if (tables.some((t) => t.length < 2)) return [];
+  const written = splitTop(String(raw), ',').map((t) => t.trim()).filter(Boolean);
+  const rules = written.filter((w) => w.includes('='));
+
+  // Every rule they wrote has to run through one of the two tables.
+  for (const rule of rules) {
+    const two = twoSides(rule);
+    if (!two) continue;
+    const misses = tables.map((pts) => pts.filter(([x, y]) => {
+      const holds = holdsAt2(rule, { [vx]: x, [vy]: y });
+      return holds === false;
+    }).length);
+    if (Math.min(...misses) === 0) continue;          // it fits one table exactly
+    const table = tables[misses[0] <= misses[1] ? 0 : 1];
+    for (const [x, y] of table) {
+      if (holdsAt2(rule, { [vx]: x, [vy]: y }) !== false) continue;
+      const shown = putBoth(rule, vx, vy, x, y);
+      const read = readAt2(rule, { [vx]: x, [vy]: y });
+      if (!shown || !read) continue;
+      return [
+        { cls: 'rf-echo-probe', latex: shown, why: T('echo.runYourRuleOnTheTable', { t: rstr(x) }) },
+        { cls: 'rf-echo-probe verdict', latex: read, why: T('echo.tableDisagrees', { t: rstr(x), y: rstr(y) }) },
+      ];
+    }
+  }
+
+  // One rule where two were asked for, or a crossing where rules were asked
+  // for. The two tables climb at two different rates, and one rule has one
+  // rate. Both fractions are left unworked, as everywhere else in this module.
+  const rateOf = (pts) => {
+    const [A, B] = pts;
+    if (!A || !B || reqq(A[0], B[0])) return null;
+    return { tex: `\\frac{${rstr(B[1])} - ${parR(A[1])}}{${rstr(B[0])} - ${parR(A[0])}}`, q: div(sub(B[1], A[1]), sub(B[0], A[0])) };
+  };
+  const r0 = rateOf(tables[0]);
+  const r1 = rateOf(tables[1]);
+  if (r0 && r1 && !reqq(r0.q, r1.q)) {
+    return [
+      { cls: 'rf-echo-probe', latex: r0.tex, why: T('echo.rateOfEachTable') },
+      { cls: 'rf-echo-probe verdict', latex: r1.tex, why: T('echo.twoRatesTwoRules') },
+    ];
+  }
+  for (const [x, y] of tables[0]) {
+    const other = tables[1].find(([x2]) => reqq(x2, x));
+    if (!other || reqq(other[1], y)) continue;
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `${arrow(x, y)} \\qquad ${arrow(other[0], other[1])}`,
+        why: T('echo.sameInputTwoTables', { t: rstr(x) }),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${rstr(y)} \\ne ${rstr(other[1])}`,
+        why: T('echo.twoTablesTwoRules'),
+      },
+    ];
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// The closest line through a cloud of readings.
+// ---------------------------------------------------------------------------
+/** The sums an exact least-squares fit is built from, or null. */
+function fitOf(pts) {
+  if (pts.length < 3) return null;
+  const n = R(pts.length);
+  let sx = R(0); let sy = R(0);
+  for (const [x, y] of pts) { sx = add(sx, x); sy = add(sy, y); }
+  const xbar = div(sx, n); const ybar = div(sy, n);
+  let sxx = R(0); let sxy = R(0);
+  for (const [x, y] of pts) {
+    const dx = sub(x, xbar); const dy = sub(y, ybar);
+    sxx = add(sxx, mul(dx, dx));
+    sxy = add(sxy, mul(dx, dy));
+  }
+  if (isZero(sxx)) return null;
+  const m = div(sxy, sxx);
+  const b = sub(ybar, mul(m, xbar));
+  for (const q of [xbar, ybar, m, b]) if (!isSafe(q)) return null;
+  return { xbar, ybar, m, b, at: (x) => add(mul(m, x), b) };
+}
+
+/** The total of the squared gaps a straight rule leaves on a set of readings. */
+function squaredGaps(pts, m, b) {
+  let total = R(0);
+  for (const [x, y] of pts) {
+    const g = sub(y, add(mul(m, x), b));
+    total = add(total, mul(g, g));
+    if (!isSafe(total)) return null;
+  }
+  return total;
+}
+
+/**
+ * The closest line through a cloud, refused four ways — and never by printing
+ * the rate the rift wants.
+ *
+ *   · a number that is simply one of the printed readings  ->  the reading it
+ *     was copied from, and the input it belongs to;
+ *   · a rate taken off one pair  ->  two pairs, side by side, that disagree,
+ *     which is why no one pair fixes anything;
+ *   · a gap taken the wrong way round  ->  the same gap worked out at a
+ *     DIFFERENT row, so the order is shown without the asked value being said;
+ *   · anything else  ->  the total of the squared gaps the cadet's own answer
+ *     implies, against the total the closest line leaves. The closest line is
+ *     the one with the smallest total; that is what "closest" means, and the
+ *     two totals name no rate at all.
+ */
+function regressionProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  if (c.model === 'quadratic') return curvedFitProbe(item, raw, tag, T);
+  const pts = readingsShown(item);
+  const fit = fitOf(pts);
+  if (!fit) return [];
+  const val = fromString(String(raw).trim());
+
+  // Their number is a reading off the table, handed in as a prediction.
+  if (val && ['predict', 'intercept', 'slope'].includes(c.want)) {
+    const hit = pts.find(([, y]) => reqq(y, val));
+    if (hit && (c.want !== 'predict' || !reqq(hit[0], R(Number(c.at))))) {
+      const asked = c.want === 'predict' ? rstr(R(Number(c.at))) : '0';
+      return [
+        { cls: 'rf-echo-probe', latex: arrow(hit[0], hit[1]), why: T('echo.thatIsAReading', { t: rstr(hit[0]) }) },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(hit[0])} \\ne ${asked}`,
+          why: T('echo.notTheAskedInput', { k: asked }),
+        },
+      ];
+    }
+  }
+
+  // A gap taken the wrong way round, or off the wrong row. The order is shown
+  // at a row the question did not ask about, so nothing about the asked row is
+  // given away.
+  if (c.want === 'residual') {
+    const asked = R(Number(c.at));
+    // THEIR NUMBER IS A GAP — AT THE WRONG ROW.
+    //
+    // That is a named error of its own, and the honest answer is to agree with
+    // the arithmetic and disagree with the row: the gap they worked out, worked
+    // out again in full, beside the input the question actually named.
+    if (val) {
+      const hit = pts.find(([x, y]) => !reqq(x, asked) && reqq(sub(y, fit.at(x)), val));
+      if (hit) {
+        return [
+          {
+            cls: 'rf-echo-probe',
+            latex: `${rstr(hit[1])} - ${parR(fit.at(hit[0]))} = ${rstr(val)}`,
+            why: T('echo.thatGapIsAtAnotherRow', { t: rstr(hit[0]) }),
+          },
+          {
+            cls: 'rf-echo-probe verdict',
+            latex: `${rstr(hit[0])} \\ne ${rstr(asked)}`,
+            why: T('echo.notTheAskedRow', { k: rstr(asked) }),
+          },
+        ];
+      }
+    }
+    for (const [x, y] of pts) {
+      if (reqq(x, asked)) continue;
+      const line = fit.at(x);
+      const gap = sub(y, line);
+      if (isZero(gap) || reqq(gap, val || R(0))) continue;
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: `${rstr(y)} - ${parR(line)} = ${rstr(gap)}`,
+          why: T('echo.gapAtAnotherRow', { t: rstr(x) }),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(gap)} ${rsign(gap) < 0 ? '<' : '>'} 0`,
+          why: T(rsign(gap) < 0 ? 'echo.gapBelowMeansUnder' : 'echo.gapAboveMeansOver', { t: rstr(x) }),
+        },
+      ];
+    }
+  }
+
+  // The rate a single pair gives, twice, disagreeing with itself.
+  if (['slope', 'intercept', 'predict'].includes(c.want) || tag === 'rate-from-one-pair' || tag === 'first-and-last-joined') {
+    const rate = (A, B) => (reqq(A[0], B[0]) ? null
+      : { tex: `\\frac{${rstr(B[1])} - ${parR(A[1])}}{${rstr(B[0])} - ${parR(A[0])}}`, q: div(sub(B[1], A[1]), sub(B[0], A[0])) });
+    const first = rate(pts[0], pts[1]);
+    const other = pts.slice(2).map((p, i) => rate(pts[i + 1], p)).find((r) => r && !reqq(r.q, first ? first.q : R(0)));
+    if (first && other) {
+      return [
+        { cls: 'rf-echo-probe', latex: first.tex, why: T('echo.rateBetweenTwoReadings') },
+        { cls: 'rf-echo-probe verdict', latex: other.tex, why: T('echo.ratesDoNotAgree') },
+      ];
+    }
+  }
+
+  // Last: the total of the squared gaps, theirs against the closest line's.
+  if (!val) return [];
+  let m = null;
+  if (c.want === 'slope') m = val;
+  else if (c.want === 'intercept') m = isZero(fit.xbar) ? null : div(sub(fit.ybar, val), fit.xbar);
+  else if (c.want === 'predict') {
+    const at = R(Number(c.at));
+    m = reqq(at, fit.xbar) ? null : div(sub(val, fit.ybar), sub(at, fit.xbar));
+  } else if (c.want === 'residual') {
+    const at = R(Number(c.at));
+    const seen = pts.find(([x]) => reqq(x, at));
+    if (seen && !reqq(at, fit.xbar)) m = div(sub(sub(seen[1], val), fit.ybar), sub(at, fit.xbar));
+  }
+  if (!m || !isSafe(m) || reqq(m, fit.m)) return [];
+  const b = sub(fit.ybar, mul(m, fit.xbar));
+  const mine = squaredGaps(pts, m, b);
+  const best = squaredGaps(pts, fit.m, fit.b);
+  if (!mine || !best || rcmp(mine, best) <= 0) return [];
+  return [
+    { cls: 'rf-echo-probe', latex: `${rstr(mine)}`, why: T('echo.squaredGapsOfYours') },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: `${rstr(best)} < ${rstr(mine)}`,
+      why: T('echo.closestLineIsSmaller'),
+    },
+  ];
+}
+
+/**
+ * A curved set of readings, and a number handed to it.
+ *
+ * There is no rate to argue about, because there is no one rate: that is the
+ * whole point of the shape. So the probe prints the steps between the printed
+ * readings, and then the steps BETWEEN THE STEPS, which for a curve of this
+ * family are all the same number. A cadet who carried one rate forward sees
+ * their assumption come apart on the first line, and the second line is the
+ * pattern that actually governs the log.
+ *
+ * Where the cadet's number is simply a reading off the table, that is said
+ * instead, because it is the more exact thing to say.
+ */
+function curvedFitProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const pts = readingsShown(item);
+  if (pts.length < 4) return [];
+  const val = fromString(String(raw).trim());
+  if (val) {
+    const hit = pts.find(([, y]) => reqq(y, val));
+    if (hit && !reqq(hit[0], R(Number(c.at)))) {
+      return [
+        { cls: 'rf-echo-probe', latex: arrow(hit[0], hit[1]), why: T('echo.thatIsAReading', { t: rstr(hit[0]) }) },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(hit[0])} \\ne ${rstr(R(Number(c.at)))}`,
+          why: T('echo.notTheAskedInput', { k: rstr(R(Number(c.at))) }),
+        },
+      ];
+    }
+  }
+  for (let i = 1; i < pts.length; i++) if (!reqq(sub(pts[i][0], pts[i - 1][0]), R(1))) return [];
+  const first = [];
+  for (let i = 1; i < pts.length; i++) first.push(sub(pts[i][1], pts[i - 1][1]));
+  if (first.length < 3) return [];
+  const second = [];
+  for (let i = 1; i < first.length; i++) second.push(sub(first[i], first[i - 1]));
+  if (!second.every((d) => reqq(d, second[0])) || isZero(second[0])) return [];
+  if (first.every((d) => reqq(d, first[0]))) return [];
+  return [
+    {
+      cls: 'rf-echo-probe',
+      latex: first.map((d) => rstr(d)).join(' \\quad '),
+      why: T('echo.stepsBetweenReadings'),
+    },
+    {
+      cls: 'rf-echo-probe verdict',
+      latex: second.map((d) => rstr(d)).join(' \\quad '),
+      why: T('echo.stepsOfTheStepsAreEqual'),
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// A two-way table of counts.
+// ---------------------------------------------------------------------------
+/**
+ * A frequency, refused by the table's own totals.
+ *
+ * Three refusals, all read straight off the printed counts:
+ *
+ *   · a frequency above one, which no part of a whole can be;
+ *   · a bottom number that is a DIFFERENT total from the one this ask names,
+ *     shown by adding the row up;
+ *   · a top number that is not a reading of the named row at all.
+ */
+/**
+ * `\boxed{S}` -> `S`. A card that MARKS the row and the column its question is
+ * about draws the mark round the heading, and that heading is then read out
+ * loud in a sentence — "the reading under {h}" — where a control sequence is
+ * not a heading, it is raw notation printed at a learner. The mark comes off
+ * before the letter is spoken; on an unmarked table this changes nothing.
+ */
+const bareHeading = (t) => String(t).trim()
+  .replace(/^\\(?:boxed|fbox|underline|mathbf|bm)\{([^{}]*)\}$/, '$1').trim();
+
+function twoWayTableProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  let cells;
+  try { cells = parseArrayCells(String(item.latex)); } catch { return []; }
+  const grid = [];
+  let heads = [];
+  for (const row of cells) {
+    const nums = [];
+    for (const cell of row) { try { nums.push(evaluate(cell)); } catch { /* a label */ } }
+    if (nums.length) { grid.push(nums); continue; }
+    // The row of column headings. It is what lets the probe say WHICH reading
+    // the cadet took, in the table's own letters, without naming the one the
+    // question wants.
+    if (!heads.length) heads = row.map(bareHeading).filter((t) => t && t !== '{}');
+  }
+  if (grid.length < 2) return [];
+  const width = grid[0].length;
+  if (!grid.every((row) => row.length === width) || width < 2) return [];
+  const bodyRows = grid.length - 1;
+  const bodyCols = width - 1;
+  const val = fromString(String(raw).trim());
+  if (!val) return [];
+
+  // A part of a whole is never bigger than the whole.
+  if (!c.asPercent && rcmp(val, R(1)) > 0) {
+    return [
+      { cls: 'rf-echo-probe', latex: `${texOf(val)} > 1`, why: T('echo.yoursIsAboveOne') },
+      { cls: 'rf-echo-probe verdict', latex: `0 \\le \\frac{${grid[0][0].n}}{${grid[bodyRows][bodyCols].n}} \\le 1`, why: T('echo.aPartIsNeverBigger') },
+    ];
+  }
+
+  const ri = Number(c.row); const ci = Number(c.col);
+  const rowOk = Number.isInteger(ri) && ri >= 0 && ri < bodyRows;
+  const colOk = Number.isInteger(ci) && ci >= 0 && ci < bodyCols;
+  const whole = c.want === 'conditionalRow' && rowOk ? { at: grid[ri][bodyCols], key: 'echo.rowAddsTo', parts: grid[ri].slice(0, bodyCols) }
+    : c.want === 'conditionalCol' && colOk ? { at: grid[bodyRows][ci], key: 'echo.columnAddsTo', parts: grid.slice(0, bodyRows).map((r) => r[ci]) }
+      : { at: grid[bodyRows][bodyCols], key: 'echo.wholeTableAddsTo', parts: grid.slice(0, bodyRows).map((r) => r[bodyCols]) };
+  if (!whole.at || !whole.parts.length || whole.parts.some((p) => !p)) return [];
+  let sum = R(0);
+  for (const p of whole.parts) sum = add(sum, p);
+  if (!reqq(sum, whole.at)) return [];
+
+  // The bottom of their fraction is not the whole this ask is about.
+  if (val.d !== 1 && !reqq(R(val.d), whole.at)) {
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `${whole.parts.map((p) => rstr(p)).join(' + ')} = ${rstr(sum)}`,
+        why: T(whole.key),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${val.d} \\ne ${rstr(sum)}`,
+        why: T('echo.thatIsADifferentWhole', { got: val.d, want: rstr(sum) }),
+      },
+    ];
+  }
+
+  // The top of their fraction, read back off the whole this ask names.
+  const top = mul(val, whole.at);
+  const cellsOfInterest = (c.want === 'conditionalRow' || c.want === 'joint') && rowOk ? grid[ri].slice(0, bodyCols)
+    : c.want === 'conditionalCol' && colOk ? grid.slice(0, bodyRows).map((r) => r[ci])
+      : null;
+
+  // THE RIGHT ROW, THE WRONG READING IN IT.
+  //
+  // Their top number IS one of the readings the question is about — just not
+  // the one under the heading it names. There is no contradiction to compute
+  // here, because their fraction is a true frequency of a different question,
+  // so the probe does the only honest thing: it prints the row back with its
+  // headings, and says which heading their reading sits under. Every numeral
+  // in those two lines is already on the cadet's screen.
+  const wantedIndex = c.want === 'conditionalCol' ? ri : ci;
+  if (cellsOfInterest && heads.length >= cellsOfInterest.length) {
+    const at = cellsOfInterest.findIndex((p) => reqq(top, p));
+    if (at >= 0 && at !== wantedIndex && heads[at]) {
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: cellsOfInterest.map((p, i) => `${heads[i] || '?'} \\;\\to\\; ${rstr(p)}`).join(' \\qquad '),
+          why: T(c.want === 'conditionalCol' ? 'echo.readingsOfThatColumn' : 'echo.readingsOfThatRow'),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${heads[at]} \\;\\to\\; ${rstr(top)}`,
+          why: T('echo.yourReadingIsUnder', { h: heads[at] }),
+        },
+      ];
+    }
+  }
+  if (cellsOfInterest && !cellsOfInterest.some((p) => reqq(top, p))) {
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: cellsOfInterest.map((p) => rstr(p)).join(' \\quad '),
+        why: T(c.want === 'conditionalCol' ? 'echo.readingsOfThatColumn' : 'echo.readingsOfThatRow'),
+      },
+      {
+        cls: 'rf-echo-probe verdict',
+        latex: `${texOf(val)} \\cdot ${rstr(whole.at)} = ${texOf(top)}`,
+        why: T('echo.notAReadingOfThatRow'),
+      },
+    ];
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
+// A list that multiplies.
+// ---------------------------------------------------------------------------
+/**
+ * A growth factor, a starting amount, a percentage or a whole rule, refused by
+ * running it at the readings the item prints.
+ *
+ * Nothing here divides one reading by another and prints the answer: the
+ * cadet's own number is run FORWARD onto a printed reading, and the reading
+ * refuses it.
+ */
+function exponentialFitProbe(item, raw, tag, T) {
+  const c = item.check || {};
+  const v = c.variable || 'x';
+
+  // Two printed rules, and the position where the first passes the second.
+  if (c.form === 'overtake') {
+    const [ruleA, ruleB] = c.rules || [];
+    const val = fromString(String(raw).trim());
+    if (!ruleA || !ruleB || !val || val.d !== 1) return [];
+    for (const n of [val.n, val.n - 1]) {
+      let A; let B;
+      try { A = evaluate(ruleA, { [v]: R(n) }); B = evaluate(ruleB, { [v]: R(n) }); } catch { continue; }
+      const leads = rcmp(A, B) > 0;
+      if (leads === (n === val.n)) continue;
+      return [
+        {
+          cls: 'rf-echo-probe',
+          latex: `${rstr(A)} \\qquad ${rstr(B)}`,
+          why: T('echo.bothRulesAt', { v, t: n }),
+        },
+        {
+          cls: 'rf-echo-probe verdict',
+          latex: `${rstr(A)} ${leads ? '>' : '\\le'} ${rstr(B)}`,
+          why: T(leads ? 'echo.alreadyAheadThere' : 'echo.notAheadYet', { v, t: n }),
+        },
+      ];
+    }
+    return [];
+  }
+
+  const pts = readingsShown(item);
+  if (pts.length < 2) return [];
+  const [x0, y0] = pts[0];
+  const [x1, y1] = pts[1];
+  if (isZero(y0)) return [];
+
+  // A whole rule: run it at a printed input.
+  if (c.form === 'fit') {
+    for (const [x, y] of pts) {
+      if (x.d !== 1) continue;
+      let got;
+      try { got = evaluate(String(raw), { [v]: x }); } catch { return []; }
+      if (reqq(got, y)) continue;
+      const put = substituteVerified(String(raw), v, x);
+      if (!put) continue;
+      return [
+        { cls: 'rf-echo-probe', latex: `${put} = ${rstr(got)}`, why: T('echo.yourRuleAtPosition', { t: rstr(x) }) },
+        { cls: 'rf-echo-probe verdict', latex: `${rstr(got)} \\ne ${rstr(y)}`, why: T('echo.listReadsThere', { t: rstr(x), y: rstr(y) }) },
+      ];
+    }
+    return [];
+  }
+
+  const val = fromString(String(raw).trim());
+  if (!val) return [];
+  // A factor, or a percentage, is checked forward across ONE printed step.
+  if (c.form === 'factor' || c.form === 'percent') {
+    const f = c.form === 'factor' ? val : add(R(1), div(val, R(100)));
+    const got = mul(y0, f);
+    if (reqq(got, y1)) return [];
+    const shown = c.form === 'factor'
+      ? `${rstr(y0)} \\cdot ${parR(f)} = ${texOf(got)}`
+      : `${rstr(y0)} \\cdot \\left(1 + \\frac{${texOf(val)}}{100}\\right) = ${texOf(got)}`;
+    return [
+      { cls: 'rf-echo-probe', latex: shown, why: T('echo.multiplyByYourFactor') },
+      { cls: 'rf-echo-probe verdict', latex: `${texOf(got)} \\ne ${rstr(y1)}`, why: T('echo.nextReadingIs', { y: rstr(y1) }) },
+    ];
+  }
+  // A starting amount, run forward to the first printed reading.
+  if (c.form === 'start') {
+    if (x0.d !== 1 || x0.n < 0 || x0.n > 12) return [];
+    const ratio = div(y1, y0);
+    if (isZero(ratio)) return [];
+    let got;
+    try { got = mul(val, rpow(ratio, x0.n)); } catch { return []; }
+    if (!isSafe(got) || reqq(got, y0)) return [];
+    return [
+      {
+        cls: 'rf-echo-probe',
+        latex: `${texOf(val)} \\cdot \\left(\\frac{${rstr(y1)}}{${parR(y0)}}\\right)^{${x0.n}} = ${texOf(got)}`,
+        why: T('echo.runYourStartForward', { t: rstr(x0) }),
+      },
+      { cls: 'rf-echo-probe verdict', latex: `${texOf(got)} \\ne ${rstr(y0)}`, why: T('echo.firstReadingIs', { y: rstr(y0) }) },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Which probe reads which check kind.
+ *
+ * A kind with no entry here is a kind whose slips are answered by the older
+ * probes below — and a kind that is in neither place is the defect this table
+ * was written to end, so `tools/check-echo.mjs` walks every node of every unit
+ * and fails on any tagged wrong answer that comes back with the prompt
+ * restated.
+ */
+const KIND_PROBES = {
+  radical: radicalProbe,
+  rationalExponent: rationalExponentProbe,
+  quadratic: quadraticProbe,
+  factored: expandProbe,
+  vertexForm: expandProbe,
+  polyQuotient: polyQuotientProbe,
+  features: featuresProbe,
+  sequence: sequenceProbe,
+  relationPairs: relationPairsProbe,
+  relatedLine: relatedLineProbe,
+  halfPlane: halfPlaneProbe,
+  systemWrite: systemWriteProbe,
+  regression: regressionProbe,
+  twoWayTable: twoWayTableProbe,
+  exponentialFit: exponentialFitProbe,
+};
+
 /**
  * Build a counterexample from what the cadet actually entered.
  *
@@ -847,12 +2934,34 @@ function ruleProbe(item, raw, T) {
  * @returns {Array<{cls:string, latex:string, why:string}>}
  */
 export function counterexample(item, entry, T) {
-  const raw = entry == null ? '' : String(entry).trim();
+  const raw = padToTex(entry == null ? '' : String(entry).trim());
   if (!raw) return [];
   const v = varOf(item);
   const kind = item.check?.kind;
+  // WHICH SLIP THIS IS, ON EVIDENCE ONLY.
+  //
+  // `./diagnose.js` answers with a misconception only when the entry is one of
+  // the values this item's generator computed for it, or a structural
+  // certainty. Everywhere else it answers null, and a probe that is handed null
+  // simply does not use it. Nothing here ever guesses at a learner's mind: the
+  // tag chooses BETWEEN computed refusals, it never manufactures one.
+  let tag = null;
+  try { tag = diagnose(item, raw); } catch { tag = null; }
 
   try {
+    // --- LEVELS 4 AND 5 ----------------------------------------------------
+    //
+    // Eight kinds arrived with roots, brackets, curves, lists, regions and
+    // fitted lines, and none of the probes below reads any of them. Each of
+    // these computes the contradiction from the notation on the cadet's own
+    // screen and their own entry, or returns nothing and lets the older probes
+    // have their turn.
+    const aimed = KIND_PROBES[kind];
+    if (aimed) {
+      const rows = aimed(item, raw, tag, T);
+      if (rows.length) return rows;
+    }
+
     // --- LEVEL 2: one number the two statements disagree about -------------
     //
     // A lean is a claim about a *set*, so the honest refusal is a member of
@@ -898,28 +3007,50 @@ export function counterexample(item, entry, T) {
     if (kind === 'solve' && v && sides(item.latex)) {
       let shape = null;
       try { shape = solveLinear(item.latex, v).kind; } catch { shape = null; }
-      if (shape === 'none' || shape === 'all') {
+      /* THE THIRD SHAPE, AND WHY IT BELONGS HERE.
+         A card that asks which reading of a statement is true has three
+         answers, not two: no value works, every value does, and EXACTLY ONE
+         does. The third one used to be unreachable — `both-sides` only ever
+         wrote identities and contradictions — and when it became reachable
+         this branch had nothing for it and the echo fell through to reprinting
+         the prompt with "this is what the rift is asking", which is the one
+         failure this whole module exists to prevent. `tools/validate-items.mjs`
+         caught it on the first run: 93 items, all of them here.
+         The instrument does not change. Two substitutions make a unique
+         solution visible in exactly the way they make an identity visible —
+         one number holds it, the next one does not — and two substitutions is
+         still a thing a cadet can do for themselves for ever after. */
+      const one = shape === 'unique' ? (() => { try { return solveLinear(item.latex, v).value; } catch { return null; } })() : null;
+      if (shape === 'none' || shape === 'all' || (shape === 'unique' && one && one.d === 1)) {
         const eq = sides(item.latex);
         const trials = [];
-        for (const t of [2, 5, 3, 4, 7]) {
+        // For a unique solution the FIRST number tried is the one that works,
+        // and the second is any other; for the other two shapes any two do.
+        const probe = shape === 'unique' ? [one.n, one.n + 1, one.n + 2, one.n - 1] : [2, 5, 3, 4, 7];
+        for (const t of probe) {
           if (trials.length === 2) break;
           const put = eq.map((s) => substituteVerified(s, v, R(t)));
           if (!put.every(Boolean)) continue;
           let got;
           try { got = eq.map((s) => evaluate(s, { [v]: R(t) })); } catch { continue; }
-          trials.push({ t, tex: `${rstr(got[0])} ${shape === 'none' ? '\\ne' : '='} ${rstr(got[1])}`, put });
+          const holds = shape === 'all' || (shape === 'unique' && trials.length === 0);
+          trials.push({ t, tex: `${rstr(got[0])} ${holds ? '=' : '\\ne'} ${rstr(got[1])}`, put, holds });
         }
         if (trials.length === 2) {
           return [
             {
               cls: 'rf-echo-probe',
-              latex: `${trials[0].put[0]} \\;\\;${shape === 'none' ? '\\ne' : '='}\\;\\; ${trials[0].put[1]}`,
+              latex: `${trials[0].put[0]} \\;\\;${trials[0].holds ? '=' : '\\ne'}\\;\\; ${trials[0].put[1]}`,
               why: T(shape === 'none' ? 'echo.tryOneNumber' : 'echo.tryOneNumberHolds', { v, t: trials[0].t }),
             },
             {
               cls: 'rf-echo-probe verdict',
               latex: `${trials[1].tex} \\qquad \\left(${v} = ${trials[1].t}\\right)`,
-              why: T(shape === 'none' ? 'echo.gapNeverCloses' : 'echo.holdsEverywhere'),
+              // Both of these sentences are written about the unknown by name,
+              // and for as long as this call passed no name a cadet read the
+              // literal characters "${v}$" on the card.
+              why: T(shape === 'none' ? 'echo.gapNeverCloses'
+                : shape === 'all' ? 'echo.holdsEverywhere' : 'echo.onlyThisOneHolds', { v, t: trials[0].t }),
             },
           ];
         }
@@ -1124,15 +3255,27 @@ export function counterexample(item, entry, T) {
     // the rate between each surviving pair of rows, and the rate their number
     // would imply, as unevaluated fractions — deliberately unevaluated, because
     // the arithmetic that settles it is the arithmetic worth doing.
-    if (kind === 'table' && Array.isArray(item.check.rows)) {
+    if (kind === 'table') {
       const val = fromString(raw);
-      const src = item.check.rows;
-      const miss = item.check.missing;
+      // A LOG IS READ OFF THE SCREEN WHEN NOTHING ELSE DESCRIBES IT.
+      //
+      // Level 1 tables hand the verifier their own rows. Level 3 tables do not:
+      // their descriptor is `{ kind: 'table' }` and nothing else, so this whole
+      // branch used to be skipped and three skills — function notation, domain
+      // and range, and telling a list that adds from a list that multiplies —
+      // answered a quarter of their tagged slips by reprinting the question.
+      // The rows are printed on the card, which is the better source anyway:
+      // what the probe argues about is then provably what the cadet is looking
+      // at, and not a private copy of it.
+      const read = tableSource(item);
+      const src = read.rows;
+      const miss = read.miss;
+      if (!src.length || miss < 0) return [];
       // Which cell burned. A descriptor may say so outright; a table that hands
       // the verifier a "?" in the input column has already said so, and reading
       // it off the rows is what stops an input-gap table from falling through
       // every probe below and being answered with the question restated.
-      const solvingForX = item.check.solveFor === 'x' || String(src[miss]?.[0]) === '?';
+      const solvingForX = read.solveFor === 'x' || String(src[miss]?.[0]) === '?';
       const known = src.filter((row, i) => i !== miss && row.every((cell) => cell !== '?')).map((row) => [Number(row[0]), Number(row[1])]);
 
       // The rule is written at the head of the column, in full, where the cadet

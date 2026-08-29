@@ -26,6 +26,7 @@
  *   come back null instead of coming back flattering.
  */
 import { t, num, getLocale } from '../i18n/index.js';
+import { alignmentOf } from '../content/standards.js';
 
 /**
  * A duration a teenager reads without decoding, and a teacher reads without
@@ -69,7 +70,7 @@ const REPS = ['symbolic', 'context', 'verbal', 'table', 'graph'];
  * `depthOf` is injected rather than imported so this module never has to know
  * how the two standards frameworks store their coverage depth.
  */
-export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf, coverage }) {
+export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf, coverage, levelName }) {
   const total = graph.nodes.length;
   const held = graph.nodes.filter((n) => mastery.get(n.id).mastered).length;
   const trust = tracker.trust();
@@ -127,8 +128,17 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
       probes: { hit: probes.hit, miss: probes.miss },
       reps: REPS.filter((r) => (s.repsCorrect[r] || 0) > 0),
       slip: mastery.topMisconception(n.id),
-      ccss: (n.standards || []).map((x) => ({ code: x.code, depth: depthOf('ccss', n.id, x.code) })),
-      teks: (n.teks || []).map((x) => ({ code: x.code, citation: x.citation, depth: x.depth })),
+      // ONE READER FOR BOTH GRAPH SHAPES, AND THIS COLUMN WAS EMPTY WITHOUT IT.
+      //
+      // These two lines read `n.standards` and `n.teks` — the field names
+      // Algebra I Level 1 happens to use. Every unit after it aligns through
+      // the unified `alignment` array, so on Levels 2 to 5 both reads returned
+      // nothing and the STANDARDS column of the printed teacher record was
+      // blank on every line: 14 of 14 on Level 2, 11 of 11 on Level 3, 14 of 14
+      // on Level 4, and 0 of 10 on Level 1, which is exactly the shape of a
+      // reader that only knows one shape. `alignmentOf` is the reader the
+      // content gate already uses and it answers for both.
+      ...codesOf(n, depthOf),
     };
   });
 
@@ -137,7 +147,15 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
     v: RECORD_VERSION,
     generatedAt: new Date().toISOString(),
     locale: getLocale(),
-    level: { id: graph.id, title: graph.title, frameworks: graph.frameworks || [] },
+    level: {
+      id: graph.id,
+      // The machine field: the graph's own English name, for a file a tool
+      // reads. `name` is what a person reads, and it is translated.
+      title: graph.title,
+      name: levelName || null,
+      units: graph.composedFrom || (graph.unit ? [graph.unit] : []),
+      frameworks: graph.frameworks || [],
+    },
     framework: cov?.framework || null,
     standards: cov
       ? {
@@ -153,6 +171,10 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
           lines: r.lines.map((l) => ({ id: l.id, title: t('skills.' + l.id), depth: l.depth, state: l.state })),
           formsMet: r.formsMet,
           formsDeclared: r.formsDeclared,
+          // Named per expectation, or counted at the line. A filed document has
+          // to carry the difference: `3 of 5` means two different things under
+          // the two, and only one of them can reach `indirect`.
+          basis: r.basis,
           answers: r.answers,
           unaided: r.unaided,
           thin: r.thin,
@@ -192,6 +214,26 @@ export function buildRecord({ mastery, graph, tracker, learner, stateOf, depthOf
 }
 
 const round = (x, n) => (x == null ? null : Number(x.toFixed(n)));
+
+/**
+ * One line's citations, split by framework, whatever shape the graph uses.
+ *
+ * The depth on the row is resolved through `depthOf`, which reads the standards
+ * map, so a line and the coverage table underneath it can never print different
+ * depths for the same code.
+ */
+function codesOf(n, depthOf) {
+  const ccss = [];
+  const teks = [];
+  for (const a of alignmentOf(n)) {
+    if (a.framework === 'TEKS') {
+      teks.push({ code: a.code, citation: a.citation || null, depth: depthOf('teks', n.id, a.code) || a.depth || null });
+    } else {
+      ccss.push({ code: a.code, depth: depthOf('ccss', n.id, a.code) || a.depth || null });
+    }
+  }
+  return { ccss, teks };
+}
 
 /**
  * The record as a spreadsheet. One row per skill, every row carrying the

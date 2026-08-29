@@ -36,6 +36,17 @@
  * gate.
  *
  * PROSE LIVES UNDER content/lang. Not in this file, and nowhere in src/.
+ *
+ * WHAT A DRESSED FORM OWES THE SCHEDULER. Every form that draws a situation
+ * declares `sceneKeys` — the ctx keys of its own deck. That is not decoration:
+ * four mechanisms in `src/learn/mastery.js` read it, and every one of them was
+ * reading an empty list for this whole unit because a pack's decks are not in
+ * the engine's `DECK_SCENES` table. Measured, that cost the proving run its
+ * transfer test (18.6% of claim-bearing runs held an unpractised form or world
+ * against Level 1's 95.2%) and left `proseThin()` unable to find a form that
+ * carries prose. Both are back on, and the decks are wide enough to feed them:
+ * 34 situations became 242, so a 45-item sitting deals 31 distinct ones and
+ * repeats none — the figure `npm run check:scenes` measures.
  */
 import { kit } from '../../learn/generators.js';
 import en from '../../../content/lang/packs/algebra1-l2.en.js';
@@ -83,6 +94,34 @@ const LIMITS = [
   { ctx: 'l2.ctx.kiln', set: 'l2.ask.setKiln', least: 'l2.ask.leastKiln', most: 'l2.ask.mostKiln' },
   { ctx: 'l2.ctx.tether', set: 'l2.ask.setTether', least: 'l2.ask.leastTether', most: 'l2.ask.mostTether' },
   { ctx: 'l2.ctx.thruster', set: 'l2.ask.setThruster', least: 'l2.ask.leastThruster', most: 'l2.ask.mostThruster' },
+  // The five above name their own question, because the sentence reads better
+  // when it does. The rest share the three general ones — a deck cannot pay
+  // for three bespoke questions per world in three languages, and a wide deck
+  // is what the proving run needs. See the header of this file.
+  { ctx: 'l2.ctx.limCrane', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limPress', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limPump', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limFilter', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limWeld', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limBrake', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limDrone', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limCoolant', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limDeck', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limSluice', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limForge', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limSpar', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limLadder', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limVent', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limChain', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limSolar', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limKettle', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limScaffold', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limBeacon', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limHatch', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limMill', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limRelay', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limStill', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
+  { ctx: 'l2.ctx.limGrapple', set: 'l2.ask.whichStatement', least: 'l2.ask.leastWhole', most: 'l2.ask.mostWhole' },
 ];
 /** A machine that will only run inside a band. */
 const BANDS = [
@@ -90,6 +129,26 @@ const BANDS = [
   { ctx: 'l2.ctx.bandHold', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
   { ctx: 'l2.ctx.bandSeed', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
   { ctx: 'l2.ctx.bandTrack', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandKiln2', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandPress', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandVat', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandRotor', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandTank', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandLamp', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandWeld', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandLift', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandBrine', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandRelay', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandGlider', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandForge', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandPump', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandCell', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandNet', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandOven', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandMast', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandFilter', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandCoil', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
+  { ctx: 'l2.ctx.bandStore', set: 'l2.ask.setBand', count: 'l2.ask.countBand' },
 ];
 /** Two quantities that keep the same ratio. */
 const RATIOS = [
@@ -98,6 +157,49 @@ const RATIOS = [
   { ctx: 'l2.ctx.alloy', ask: 'l2.ask.alloyHowMuch' },
   { ctx: 'l2.ctx.feed', ask: 'l2.ask.feedHowMany' },
   { ctx: 'l2.ctx.dye', ask: 'l2.ask.dyeHowMuch' },
+  { ctx: 'l2.ctx.ratioMortar', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioBrass', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioInk', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioGlaze', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioBrine', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioSolder', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioMap', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioModel', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioFeedMix', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioFuelMix', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioConcrete', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioTea', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioCrew', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioSoil', ask: 'l2.ask.sameRatioAmount' },
+  { ctx: 'l2.ctx.ratioPaint', ask: 'l2.ask.sameRatioAmount' },
+];
+/**
+ * The situations `rp-model` states its numbers in.
+ *
+ * A modelling item shows no notation — the whole question is which pair of
+ * ratios states the situation — so the three known amounts have to be IN the
+ * situation. Every sentence here carries them, and `noDisplay` on the form
+ * says out loud that there is nothing else to show. Before this, the card was
+ * four empty boxes over a sentence with no numbers in it, and one display
+ * carried forty-four different accepted answers.
+ */
+const MODELS = [
+  { ctx: 'l2.ctx.modelResin' },
+  { ctx: 'l2.ctx.modelLime' },
+  { ctx: 'l2.ctx.modelCopper' },
+  { ctx: 'l2.ctx.modelPigment' },
+  { ctx: 'l2.ctx.modelGrain' },
+  { ctx: 'l2.ctx.modelCement' },
+  { ctx: 'l2.ctx.modelSalt' },
+  { ctx: 'l2.ctx.modelOats' },
+  { ctx: 'l2.ctx.modelSpirit' },
+  { ctx: 'l2.ctx.modelAsh' },
+  { ctx: 'l2.ctx.modelPeat' },
+  { ctx: 'l2.ctx.modelSilver' },
+  { ctx: 'l2.ctx.modelLeaf' },
+  { ctx: 'l2.ctx.modelColour' },
+  { ctx: 'l2.ctx.modelCadet' },
+  { ctx: 'l2.ctx.modelWax' },
 ];
 /** Something that changes at a steady rate, read twice. */
 const RATES = [
@@ -106,6 +208,26 @@ const RATES = [
   { ctx: 'l2.ctx.rateTank', ask: 'l2.ask.ratePerStep' },
   { ctx: 'l2.ctx.rateSled', ask: 'l2.ask.ratePerStep' },
   { ctx: 'l2.ctx.rateKiln', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateLift', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateDrill', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateSnow', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateStore', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateBuoy', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateCharge', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateTide', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateSpool', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateGlacier', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateSilo', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateCandle', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateRust', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateBelt', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateSap', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateDust', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateWell', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateCable', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateSaw', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateVault', ask: 'l2.ask.ratePerStep' },
+  { ctx: 'l2.ctx.rateWax', ask: 'l2.ask.ratePerStep' },
 ];
 /** A rule to be written down, or drawn. */
 const RULES = [
@@ -113,37 +235,208 @@ const RULES = [
   { ctx: 'l2.ctx.ruleDrift', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
   { ctx: 'l2.ctx.ruleStack', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
   { ctx: 'l2.ctx.ruleBrine', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleCrane', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleSilo', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleDrill', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleCredit', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleReef', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleSnowline', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleSpoil', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleSail', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleWard', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleTrench', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleKilnRule', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleOrchard', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleRoad', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleWater', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleFleet', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleMast', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleArchive', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleGlass', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleWall', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
+  { ctx: 'l2.ctx.ruleFund', write: 'l2.ask.writeRule', draw: 'l2.ask.drawRule' },
 ];
-/**
- * The framings the single-situation skills rotate through.
- *
- * These five nodes each dressed their contextual form in ONE hardcoded world,
- * so `item.scene` was empty and the gate had no situation to withhold. A deck
- * of one is worse than none — `generate` refuses a framing the learner has
- * already worked inside, and with nothing to rotate to it would burn its whole
- * retry budget — so each of them gets a second world, and both go through
- * `scene`.
- */
+/** Two groupings packed the same way. */
 const HOLDS = [
   { ctx: 'l2.ctx.twoHolds', ask: 'l2.ask.holdMass' },
   { ctx: 'l2.ctx.twoBays', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdPallets', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdCrates', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdTanks', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdBays', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdRacks', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdSpools', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdKilns', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdBins', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdWings', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdSleds', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdVats', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdBeds', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdBanks', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdHoppers', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdChests', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdRolls', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdCarts', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdWells', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdRuns', ask: 'l2.ask.holdMass' },
+  { ctx: 'l2.ctx.holdLofts', ask: 'l2.ask.holdMass' },
 ];
+/**
+ * Spare stock added to a run, and the whole lot then split into equal parts.
+ *
+ * The situation used to read "a crew shares one delivery into equal loads"
+ * and the question read "find $v$, the size of one load" — over
+ * `(v + b)/k = c`, where one load is `c` and is already printed. The letter
+ * the learner is sent after is what the run STARTED with, so that is what the
+ * sentence says now.
+ */
 const SHARES = [
-  { ctx: 'l2.ctx.shareOut', ask: 'l2.ask.oneLoad' },
-  { ctx: 'l2.ctx.splitRun', ask: 'l2.ask.oneLoad' },
+  { ctx: 'l2.ctx.shareRun', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareCable', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareWater', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareOre', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareSeed', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareFuel', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareRope', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareGrain', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareSalt', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareWax', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareCanvas', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareDose', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareCharge', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.sharePaint', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareIce', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareTape', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareClay', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareTimber', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareThread', ask: 'l2.ask.startAmount' },
+  { ctx: 'l2.ctx.shareSand', ask: 'l2.ask.startAmount' },
 ];
+/** A log that obeys a rule nobody wrote down. */
 const GAUGES = [
   { ctx: 'l2.ctx.gauge' },
-  { ctx: 'l2.ctx.stockpile' },
+  { ctx: 'l2.ctx.gaugeLog' },
+  { ctx: 'l2.ctx.gaugeDial' },
+  { ctx: 'l2.ctx.gaugeTide' },
+  { ctx: 'l2.ctx.gaugeFuel' },
+  { ctx: 'l2.ctx.gaugeDepth' },
+  { ctx: 'l2.ctx.gaugeHeat' },
+  { ctx: 'l2.ctx.gaugeYield' },
+  { ctx: 'l2.ctx.gaugeSalt' },
+  { ctx: 'l2.ctx.gaugeWind' },
+  { ctx: 'l2.ctx.gaugeSpin' },
+  { ctx: 'l2.ctx.gaugeDose' },
+  { ctx: 'l2.ctx.gaugeLoad' },
+  { ctx: 'l2.ctx.gaugePower' },
+  { ctx: 'l2.ctx.gaugeFrost' },
+  { ctx: 'l2.ctx.gaugeSpool' },
+  { ctx: 'l2.ctx.gaugeStock' },
+  { ctx: 'l2.ctx.gaugeSignal' },
+  { ctx: 'l2.ctx.gaugeGrain' },
+  { ctx: 'l2.ctx.gaugeAir' },
+  { ctx: 'l2.ctx.gaugeSpeed' },
+  { ctx: 'l2.ctx.gaugeIce' },
+  { ctx: 'l2.ctx.gaugeWater' },
+  { ctx: 'l2.ctx.gaugeTally' },
+  { ctx: 'l2.ctx.gaugeRelay' },
 ];
 
-/** Two conditions that hold at once. */
+/**
+ * Two conditions that hold at once.
+ *
+ * EVERY SENTENCE HERE BINDS ITS LETTERS. `x = 5` and `y = 2` are both on the
+ * card of a system item, so a situation that names two things and never says
+ * which letter counts which leaves the learner to guess which number the
+ * question wants. The first four name their own question as well; the rest
+ * use the two general ones.
+ */
 const PAIRS = [
   { ctx: 'l2.ctx.pairCrates', x: 'l2.ask.pairHowManyLight', y: 'l2.ask.pairHowManyHeavy' },
   { ctx: 'l2.ctx.pairTickets', x: 'l2.ask.pairHowManyCadet', y: 'l2.ask.pairHowManyCrew' },
   { ctx: 'l2.ctx.pairAlloys', x: 'l2.ask.pairHowManyTin', y: 'l2.ask.pairHowManyLead' },
   { ctx: 'l2.ctx.pairRuns', x: 'l2.ask.pairHowManyShort', y: 'l2.ask.pairHowManyLong' },
+  { ctx: 'l2.ctx.pairSacks', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairLamps', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairPanes', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairSeeds', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairDrums', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairPlates', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairCores', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairSleds', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairSpools', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairCans', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairBricks', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairFlares', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairRolls', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairCells', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairDoses', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairBuoys', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairStakes', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairKilns', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairSpars', x: 'l2.ask.findX', y: 'l2.ask.findY' },
+  { ctx: 'l2.ctx.pairPumps', x: 'l2.ask.findX', y: 'l2.ask.findY' },
 ];
+
+/**
+ * The ctx keys of one deck, for a form to declare as its `sceneKeys`.
+ *
+ * WHY A FORM HAS TO SAY THIS OUT LOUD. `sceneKeys` is how the scheduler asks
+ * "is there a world in this form the learner has never worked inside?" without
+ * generating an item to find out — and it is read in four places: the proving
+ * run's novelty test, the sounding's, and the two `proseThin()` rules that
+ * pull a dressed form to the front when the last two items carried no prose.
+ * A core-bank form gets it from `scenes: '<deck>'`, which resolves through
+ * `DECK_SCENES` — a table of the ENGINE's decks, which a pack's decks are not
+ * in. So every dressed form in this pack declared no scene keys at all, all
+ * four mechanisms read an empty list, and the gate could only ever be a
+ * transfer test by serving a form the learner had never practised. Measured:
+ * 18.6% of Level 2's claim-bearing runs held an unpractised form or world
+ * against Level 1's 95.2%.
+ */
+/**
+ * TWO READINGS, BOTH PRINTED.
+ *
+ * `rft-dispute` and `im-dispute` used to read "Which cadet read $y$ correctly?"
+ * over a card that named neither cadet's answer. `check:determinate` measures
+ * exactly that — a stem that asks which of several answers is right while the
+ * card names none of them — and found 1,449 of them on the shipped route.
+ * Level 1's four disputes have always done it honestly: the situation prints
+ * BOTH readings, so "which reading is the true one" has something to point at.
+ * These do now too, and the question is the core bank's own `ask.whichIsRight`.
+ */
+const DISPUTES = [
+  { ctx: 'l2.ctx.dispChalk' },
+  { ctx: 'l2.ctx.dispLog' },
+  { ctx: 'l2.ctx.dispRadio' },
+  { ctx: 'l2.ctx.dispSlate' },
+  { ctx: 'l2.ctx.dispWatch' },
+  { ctx: 'l2.ctx.dispQuarrel' },
+  { ctx: 'l2.ctx.dispAudit' },
+  { ctx: 'l2.ctx.dispWager' },
+  { ctx: 'l2.ctx.dispBridge' },
+  { ctx: 'l2.ctx.dispPost' },
+  { ctx: 'l2.ctx.dispDrill' },
+  { ctx: 'l2.ctx.dispInk' },
+];
+
+/**
+ * THE FRAMINGS THAT DO NOT PROMISE ONE OF THE TWO IS RIGHT.
+ *
+ * `quoteReadings` draws the two readings a dispute quotes out of the ones the
+ * card really shows, so on a four-option card the key is one of them half the
+ * time and on a free keypad it is never one of them. Ten of the twelve
+ * framings above stay true either way — "One cadet chalks A. Another chalks
+ * B." is a report, and "Two cadets cannot both be right" is still a fact when
+ * neither of them is. Two of them are not reports but PROMISES:
+ * `dispAudit` ("The audit takes one reading: A or B") and `dispTags` ("The rig
+ * accepts exactly one") both assert that one of the two quoted readings is the
+ * one to file, and that is a sentence the card can no longer keep. They are
+ * left out of the two dispute forms and stay available to anything that really
+ * does put the answer in the sentence.
+ */
+const DISPUTES_OPEN = DISPUTES.filter((e) => !/dispAudit|dispTags/.test(e.ctx));
+
+const KEYS = (deck) => deck.map((e) => (typeof e === 'string' ? e : e.ctx));
 
 // ===========================================================================
 // inequality-one-step  —  x + b REL c   and   ax REL c
@@ -228,10 +521,10 @@ const inequalityOneStep = [
       const v = pick(r, VARS);
       const up = r() < 0.5;
       const rel = up ? pick(r, ['>', '\\ge']) : pick(r, ['<', '\\le']);
-      const a = int(r, 2, 2 + 2 * d);
+      const a = int(r, 2, 2 + 3 * d);
       // A boundary that is NOT whole is the whole point: the first reading that
       // works is a second thought, not a copy of the line above.
-      const c = a * int(r, 1, 2 + 2 * d) + int(r, 1, a - 1);
+      const c = a * int(r, 1, 2 + 3 * d) + int(r, 1, a - 1);
       if (c % a === 0) throw new Error('retry: a whole boundary hides the last step');
       if (!distinct(a, c)) throw new Error('retry: repeated number');
       const q = c / a;
@@ -262,12 +555,13 @@ const inequalityOneStep = [
   },
   {
     id: 'i1-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(LIMITS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, LIMITS);
       const v = pick(r, VARS);
       const rel = pick(r, RELS);
-      const a = int(r, 2, 2 + 2 * d);
-      const x = int(r, 2, 3 + 2 * d);
+      const a = int(r, 2, 2 + 3 * d);
+      const x = int(r, 2, 3 + 3 * d);
       const c = a * x;
       if (!distinct(a, c, x)) throw new Error('retry: repeated number');
       const math = `${co(a, v)} ${rel} ${c}`;
@@ -411,14 +705,15 @@ const inequalityTwoStep = [
     // The question a real limit actually asks: not "which statement", but
     // "what is the most I can load?".
     id: 'i2-limit', rep: 'context', dMin: 2, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(LIMITS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, LIMITS);
       const v = pick(r, VARS);
       const up = r() < 0.5;
       const rel = up ? pick(r, ['>', '\\ge']) : pick(r, ['<', '\\le']);
-      const a = int(r, 2, 3 + d);
-      const b = int(r, 2, 5 + d);
-      const c = a * int(r, 2, 3 + d) + int(r, 1, a - 1) + b;
+      const a = int(r, 2, 2 + 2 * d);
+      const b = int(r, 2, 4 + 2 * d);
+      const c = a * int(r, 2, 2 + 2 * d) + int(r, 1, a - 1) + b;
       if ((c - b) % a === 0) throw new Error('retry: a whole boundary hides the last step');
       if (!distinct(a, b, c)) throw new Error('retry: repeated number');
       const q = (c - b) / a;
@@ -449,13 +744,14 @@ const inequalityTwoStep = [
   },
   {
     id: 'i2-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(LIMITS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, LIMITS);
       const v = pick(r, VARS);
       const rel = pick(r, RELS);
-      const a = int(r, 2, 3 + d);
-      const b = int(r, 2, 5 + d);
-      const x = int(r, 2, 4 + d);
+      const a = int(r, 2, 2 + 2 * d);
+      const b = int(r, 2, 4 + 2 * d);
+      const x = int(r, 2, 3 + 2 * d);
       const c = a * x + b;
       if (!distinct(a, b, c, x)) throw new Error('retry: repeated number');
       const math = `${lin(a, v, b)} ${rel} ${c}`;
@@ -492,10 +788,10 @@ const inequalityMultiStep = [
     build({ r, d, T }) {
       const v = pick(r, VARS);
       const rel = pick(r, RELS);
-      const a = d >= 3 ? Bcoef(r, d) : int(r, 2, 3 + d);
+      const a = d >= 3 ? nzc(r, -(1 + d), 1 + d) : int(r, 2, 2 + d);
       if (Math.abs(a) < 2) throw new Error('retry: an empty factor');
-      const b = Bkonst(r, d);
-      const x = Broot(r, d);
+      const b = d >= 2 ? nz(r, -(2 + d), 2 + d) : int(r, 1, 5);
+      const x = d >= 3 ? nz(r, -(1 + d), 1 + d) : int(r, 1, 2 + d);
       const c = a * (x + b);
       if (!distinct(a, b, c, x)) throw new Error('retry: repeated number');
       const out = a < 0 ? FLIP[rel] : rel;
@@ -528,8 +824,8 @@ const inequalityMultiStep = [
     build({ r, d, T }) {
       const v = pick(r, VARS);
       const rel = pick(r, RELS);
-      const a = int(r, 2, 4 + d);
-      const cc = d >= 3 ? nzc(r, -(4 + d), a - 1) : int(r, 1, a - 1);
+      const a = int(r, 2, 3 + d);
+      const cc = d >= 3 ? nzc(r, -(3 + d), a - 1) : int(r, 1, a - 1);
       if (cc === a || Math.abs(cc) < 1) throw new Error('retry: the unknown cancels');
       const gap = a - cc;
       const b = Bkonst(r, d);
@@ -601,7 +897,8 @@ const inequalityMultiStep = [
   },
   {
     id: 'im-dispute', rep: 'verbal', dMin: 3, dMax: 5, distinctNums: true,
-    build({ r, d, T }) {
+    sceneKeys: KEYS(DISPUTES_OPEN),
+    build({ r, d, T, sr }) {
       const v = pick(r, VARS);
       const rel = pick(r, ['>', '<']);
       const a = -Math.abs(nzc(r, 2, 3 + d));
@@ -610,9 +907,17 @@ const inequalityMultiStep = [
       const c = a * x + b;
       if (!distinct(a, b, c, x)) throw new Error('retry: repeated number');
       const out = FLIP[rel];
+      const sc = scene(sr, DISPUTES_OPEN);
       const math = `${lin(a, v, b)} ${rel} ${c}`;
       return {
-        stem: `${T('l2.ctx.disputeLean')} ${T('l2.ask.whichCadetIsRight', { v })}`,
+        // TWO OF THE FOUR READINGS ON THE CARD ARE QUOTED IN THE SENTENCE, AND
+        // WHICH TWO IS NOT DECIDED HERE. It used to be `{ a: the answer, b: the
+        // first distractor }`, and every one of the twelve framings prints
+        // `{a}` first, so "take the reading the sentence names first" was right
+        // 100% of the time. `quoteReadings` draws them out of the four the card
+        // will actually show, once `balanceShape` has chosen them.
+        quote: { ctx: sc.ctx, ask: 'ask.whichIsRight' },
+        stem: `${T(sc.ctx, { a: st(v, out, x), b: st(v, rel, x) })} ${T('ask.whichIsRight')}`,
         latex: asks(math),
         type: 'expression',
         answer: st(v, out, x),
@@ -640,12 +945,12 @@ const inequalityMultiStep = [
 // ===========================================================================
 function drawBandLean(r, d, { forceNeg = false } = {}) {
   const v = pick(r, VARS);
-  const lo = Broot(r, d);
-  const width = int(r, 2, 3 + d);
+  const lo = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 1, 3 + d);
+  const width = int(r, 2, 2 + 2 * d);
   const hi = lo + width;
-  const a = forceNeg ? -Math.abs(nzc(r, 2, 2 + d)) : (d >= 4 ? Bcoef(r, d) : int(r, 2, 2 + d));
+  const a = forceNeg ? -Math.abs(nzc(r, 2, 2 + d)) : (d >= 4 ? nzc(r, -(2 + d), 2 + d) : int(r, 2, 2 + d));
   if (Math.abs(a) < 2) throw new Error('retry: nothing to divide by');
-  const b = Bkonst(r, d);
+  const b = d >= 2 ? nz(r, -(3 + 2 * d), 3 + 2 * d) : int(r, 1, 6);
   const l = pick(r, ['<', '\\le']);
   const u = pick(r, ['<', '\\le']);
   // Written left to right, the smaller end always comes first, so a negative
@@ -705,9 +1010,21 @@ const compoundInequality = [
           { latex: `${s.p - s.b} ${mid} ${co(s.a, s.v)} ${midU} ${s.q - s.b}`, why: T(s.b > 0 ? 'l2.why.takeOffEveryPart' : 'l2.why.addToEveryPart', { n: Math.abs(s.b) }) },
           { latex: s.answer, why: T('l2.why.divideByNegativeTurnsBoth', { a: s.a }) },
         ],
+        // FOUR READINGS, NOT THREE.
+        //
+        // `band-reversed` here is `hi <= v <= lo` — the band written without
+        // turning it, which is the error this form exists to surface, and as
+        // written it is the empty set. `flip-not-needed` used to sit beside it
+        // as `lo >= v >= hi`: the SAME two conditions read right to left, so
+        // the same empty set, printed twice. A cadet offered four options was
+        // choosing between three, and the two empties are indistinguishable
+        // even to a cadet who knows exactly what is wrong with them. It is
+        // replaced by the second boundary slip — the closed end read as open
+        // at the top rather than at the bottom — which `cd-band` already
+        // offers and which is a band a learner really writes.
         distractors: [
           { v: `${s.hi} ${s.loRel} ${s.v} ${s.upRel} ${s.lo}`, m: 'band-reversed' },
-          { v: `${s.lo} ${FLIP[s.loRel]} ${s.v} ${FLIP[s.upRel]} ${s.hi}`, m: 'flip-not-needed' },
+          { v: `${s.lo} ${s.loRel} ${s.v} ${EDGE[s.upRel]} ${s.hi}`, m: 'boundary-slip' },
           { v: `${s.lo} ${EDGE[s.loRel]} ${s.v} ${s.upRel} ${s.hi}`, m: 'boundary-slip' },
           { v: `${-s.hi} ${s.loRel} ${s.v} ${s.upRel} ${-s.lo}`, m: 'sign-slip' },
           { v: `${s.lo + 1} ${s.loRel} ${s.v} ${s.upRel} ${s.hi}`, m: 'arith-slip' },
@@ -749,13 +1066,14 @@ const compoundInequality = [
   },
   {
     id: 'cd-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(BANDS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, BANDS);
       const v = pick(r, VARS);
-      const lo = int(r, 2, 4 + d);
-      const hi = lo + int(r, 2, 3 + d);
-      const a = int(r, 2, 2 + d);
-      const b = int(r, 1, 4 + d);
+      const lo = int(r, 2, 4 + 2 * d);
+      const hi = lo + int(r, 2, 3 + 2 * d);
+      const a = int(r, 2, 2 + 2 * d);
+      const b = int(r, 1, 4 + 2 * d);
       const l = pick(r, ['<', '\\le']);
       const u = pick(r, ['<', '\\le']);
       const p = a * lo + b;
@@ -796,7 +1114,7 @@ const compoundInequality = [
  */
 const FORMULAS = [
   {
-    d: 1, math: 'A = bh', v: 'h', vars: ['A', 'b'], answer: '\\frac{A}{b}', name: 'l2.name.area',
+    d: 1, math: 'A = bh', v: 'h', vars: ['A', 'b'], answer: '\\frac{A}{b}', ctx: 'l2.ctx.fArea',
     steps: [{ l: '\\frac{A}{b} = h', w: 'l2.why.divideBothByLetter' }, { l: 'h = \\frac{A}{b}', w: 'l2.why.readItRoundTheOtherWay' }],
     wrong: [
       { v: '\\frac{b}{A}', m: 'div-direction' }, { v: 'A b', m: 'same-op-both' },
@@ -805,7 +1123,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 1, math: 'd = rt', v: 't', vars: ['d', 'r'], answer: '\\frac{d}{r}', name: 'l2.name.distance',
+    d: 1, math: 'd = rt', v: 't', vars: ['d', 'r'], answer: '\\frac{d}{r}', ctx: 'l2.ctx.fDistance',
     steps: [{ l: '\\frac{d}{r} = t', w: 'l2.why.divideBothByLetter' }, { l: 't = \\frac{d}{r}', w: 'l2.why.readItRoundTheOtherWay' }],
     wrong: [
       { v: '\\frac{r}{d}', m: 'div-direction' }, { v: 'd r', m: 'same-op-both' },
@@ -814,7 +1132,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 2, math: 'F = ma', v: 'a', vars: ['F', 'm'], answer: '\\frac{F}{m}', name: 'l2.name.force',
+    d: 2, math: 'F = ma', v: 'a', vars: ['F', 'm'], answer: '\\frac{F}{m}', ctx: 'l2.ctx.fForce',
     steps: [{ l: '\\frac{F}{m} = a', w: 'l2.why.divideBothByLetter' }, { l: 'a = \\frac{F}{m}', w: 'l2.why.readItRoundTheOtherWay' }],
     wrong: [
       { v: '\\frac{m}{F}', m: 'div-direction' }, { v: 'F m', m: 'same-op-both' },
@@ -823,7 +1141,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 2, math: 'A = \\frac{bh}{2}', v: 'h', vars: ['A', 'b'], answer: '\\frac{2A}{b}', name: 'l2.name.triangle',
+    d: 2, math: 'A = \\frac{bh}{2}', v: 'h', vars: ['A', 'b'], answer: '\\frac{2A}{b}', ctx: 'l2.ctx.fTriangle',
     steps: [
       { l: '2A = bh', w: 'l2.why.clearTheBarFirst' },
       { l: '\\frac{2A}{b} = h', w: 'l2.why.divideBothByLetter' },
@@ -836,7 +1154,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 3, math: 'P = 2l + 2w', v: 'w', vars: ['P', 'l'], answer: '\\frac{P - 2l}{2}', name: 'l2.name.perimeter',
+    d: 3, math: 'P = 2l + 2w', v: 'w', vars: ['P', 'l'], answer: '\\frac{P - 2l}{2}', ctx: 'l2.ctx.fPerimeter',
     steps: [
       { l: 'P - 2l = 2w', w: 'l2.why.moveTheOtherTermFirst' },
       { l: '\\frac{P - 2l}{2} = w', w: 'l2.why.divideBothByNumber' },
@@ -849,7 +1167,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 3, math: 'y = mx + b', v: 'x', vars: ['y', 'm', 'b'], answer: '\\frac{y - b}{m}', name: 'l2.name.line',
+    d: 3, math: 'y = mx + b', v: 'x', vars: ['y', 'm', 'b'], answer: '\\frac{y - b}{m}', ctx: 'l2.ctx.fLine',
     steps: [
       { l: 'y - b = mx', w: 'l2.why.moveTheOtherTermFirst' },
       { l: '\\frac{y - b}{m} = x', w: 'l2.why.divideBothByLetter' },
@@ -862,7 +1180,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 4, math: 'ax + by = c', v: 'y', vars: ['a', 'x', 'c', 'b'], answer: '\\frac{c - ax}{b}', name: 'l2.name.standard',
+    d: 4, math: 'ax + by = c', v: 'y', vars: ['a', 'x', 'c', 'b'], answer: '\\frac{c - ax}{b}', ctx: 'l2.ctx.fStandard',
     steps: [
       { l: 'ax + by - ax = c - ax', w: 'l2.why.moveTheOtherTermFirst' },
       { l: 'by = c - ax', w: 'why.whatIsLeft' },
@@ -875,7 +1193,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 4, math: 'S = \\frac{a + b}{2}', v: 'b', vars: ['S', 'a'], answer: '2S - a', name: 'l2.name.mean',
+    d: 4, math: 'S = \\frac{a + b}{2}', v: 'b', vars: ['S', 'a'], answer: '2S - a', ctx: 'l2.ctx.fMean',
     steps: [
       { l: '2S = a + b', w: 'l2.why.clearTheBarFirst' },
       { l: '2S - a = b', w: 'l2.why.moveTheOtherTermFirst' },
@@ -888,7 +1206,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 5, math: 'T = a + (n - 1)d', v: 'n', vars: ['T', 'a', 'd'], answer: '\\frac{T - a}{d} + 1', name: 'l2.name.term',
+    d: 5, math: 'T = a + (n - 1)d', v: 'n', vars: ['T', 'a', 'd'], answer: '\\frac{T - a}{d} + 1', ctx: 'l2.ctx.fTerm',
     steps: [
       { l: 'T - a = (n - 1)d', w: 'l2.why.moveTheOtherTermFirst' },
       { l: '\\frac{T - a}{d} = n - 1', w: 'l2.why.divideBothByLetter' },
@@ -901,7 +1219,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 5, math: 'F = \\frac{9C}{5} + 32', v: 'C', vars: ['F'], answer: '\\frac{5\\left(F - 32\\right)}{9}', name: 'l2.name.degrees',
+    d: 5, math: 'F = \\frac{9C}{5} + 32', v: 'C', vars: ['F'], answer: '\\frac{5\\left(F - 32\\right)}{9}', ctx: 'l2.ctx.fDegrees',
     steps: [
       { l: 'F - 32 = \\frac{9C}{5}', w: 'l2.why.moveTheOtherTermFirst' },
       { l: '5\\left(F - 32\\right) = 9C', w: 'l2.why.clearTheBarFirst' },
@@ -917,7 +1235,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 5, math: 'I = Prt', v: 'r', vars: ['I', 'P', 't'], answer: '\\frac{I}{Pt}', name: 'l2.name.interest',
+    d: 5, math: 'I = Prt', v: 'r', vars: ['I', 'P', 't'], answer: '\\frac{I}{Pt}', ctx: 'l2.ctx.fInterest',
     steps: [
       { l: '\\frac{I}{P} = rt', w: 'l2.why.divideBothByLetter' },
       { l: '\\frac{I}{Pt} = r', w: 'l2.why.divideBothByLetter' },
@@ -933,7 +1251,7 @@ const FORMULAS = [
     ],
   },
   {
-    d: 5, math: 'V = \\frac{Bh}{3}', v: 'B', vars: ['V', 'h'], answer: '\\frac{3V}{h}', name: 'l2.name.cone',
+    d: 5, math: 'V = \\frac{Bh}{3}', v: 'B', vars: ['V', 'h'], answer: '\\frac{3V}{h}', ctx: 'l2.ctx.fCone',
     steps: [
       { l: '3V = Bh', w: 'l2.why.clearTheBarFirst' },
       { l: '\\frac{3V}{h} = B', w: 'l2.why.divideBothByLetter' },
@@ -943,6 +1261,131 @@ const FORMULAS = [
       { v: '\\frac{V}{3h}', m: 'divide-not-multiply' }, { v: '\\frac{V}{h}', m: 'partial-rule' },
       { v: '\\frac{3h}{V}', m: 'div-direction' }, { v: '3V h', m: 'same-op-both' },
       { v: '\\frac{h}{3V}', m: 'div-direction' }, { v: '3V - h', m: 'same-op-both' },
+    ],
+  },
+  // ---------------------------------------------------------------------
+  // TEN MORE, AND WHY.
+  //
+  // `le-context` draws its situation from this catalogue, and the pool at one
+  // band is the formulas filed at that band and the one below it. Twelve
+  // formulas meant a pool of TWO at band 1 and FOUR at bands 2-4, and
+  // `tools/scene-audit.mjs` measured the result: `l2.ctx.fStandard` twice
+  // inside one 45-item sitting, which is the same repeated sentence this whole
+  // deck exists to stop. Ten more, spread over the five bands, take the
+  // narrowest pool from two to four and the widest from six to ten.
+  // ---------------------------------------------------------------------
+  {
+    d: 1, math: 'P = 4s', v: 's', vars: ['P'], answer: '\\frac{P}{4}', ctx: 'l2.ctx.fSquare',
+    steps: [{ l: '\\frac{P}{4} = s', w: 'l2.why.divideBothByNumber' }, { l: 's = \\frac{P}{4}', w: 'l2.why.readItRoundTheOtherWay' }],
+    wrong: [
+      { v: '\\frac{4}{P}', m: 'div-direction' }, { v: '4P', m: 'same-op-both' },
+      { v: 'P - 4', m: 'same-op-both' }, { v: '\\frac{P}{2}', m: 'arith-slip' },
+      { v: '\\frac{P}{4} + 4', m: 'partial-rule' }, { v: 'P + 4', m: 'sign-on-constant' },
+    ],
+  },
+  {
+    d: 1, math: 'M = dV', v: 'V', vars: ['M', 'd'], answer: '\\frac{M}{d}', ctx: 'l2.ctx.fDensity',
+    steps: [{ l: '\\frac{M}{d} = V', w: 'l2.why.divideBothByLetter' }, { l: 'V = \\frac{M}{d}', w: 'l2.why.readItRoundTheOtherWay' }],
+    wrong: [
+      { v: '\\frac{d}{M}', m: 'div-direction' }, { v: 'M d', m: 'same-op-both' },
+      { v: 'M - d', m: 'same-op-both' }, { v: 'd - M', m: 'div-direction' },
+      { v: '\\frac{M}{d} + d', m: 'partial-rule' }, { v: '\\frac{M d}{2}', m: 'partial-rule' },
+    ],
+  },
+  {
+    d: 2, math: 'C = np', v: 'n', vars: ['C', 'p'], answer: '\\frac{C}{p}', ctx: 'l2.ctx.fCost',
+    steps: [{ l: '\\frac{C}{p} = n', w: 'l2.why.divideBothByLetter' }, { l: 'n = \\frac{C}{p}', w: 'l2.why.readItRoundTheOtherWay' }],
+    wrong: [
+      { v: '\\frac{p}{C}', m: 'div-direction' }, { v: 'C p', m: 'same-op-both' },
+      { v: 'C - p', m: 'same-op-both' }, { v: 'p - C', m: 'div-direction' },
+      { v: '\\frac{C}{p} - p', m: 'partial-rule' }, { v: '\\frac{C + p}{p}', m: 'partial-rule' },
+    ],
+  },
+  {
+    d: 2, math: 'V = lwh', v: 'h', vars: ['V', 'l', 'w'], answer: '\\frac{V}{lw}', ctx: 'l2.ctx.fBox',
+    steps: [{ l: '\\frac{V}{lw} = h', w: 'l2.why.divideBothByLetter' }, { l: 'h = \\frac{V}{lw}', w: 'l2.why.readItRoundTheOtherWay' }],
+    wrong: [
+      { v: '\\frac{lw}{V}', m: 'div-direction' }, { v: '\\frac{V}{l}', m: 'partial-rule' },
+      { v: '\\frac{V}{w}', m: 'partial-rule' }, { v: 'V l w', m: 'same-op-both' },
+      { v: 'V - lw', m: 'same-op-both' }, { v: '\\frac{V}{l + w}', m: 'divide-not-multiply' },
+    ],
+  },
+  {
+    d: 3, math: 'P = a + b + c', v: 'c', vars: ['P', 'a', 'b'], answer: 'P - a - b', ctx: 'l2.ctx.fTriFrame',
+    steps: [
+      { l: 'P - a = b + c', w: 'l2.why.moveTheOtherTermFirst' },
+      { l: 'P - a - b = c', w: 'l2.why.moveTheOtherTermFirst' },
+      { l: 'c = P - a - b', w: 'l2.why.readItRoundTheOtherWay' },
+    ],
+    wrong: [
+      { v: 'P + a + b', m: 'sign-on-constant' }, { v: 'P - a + b', m: 'sign-slip' },
+      { v: 'a + b - P', m: 'sign-slip' }, { v: '\\frac{P}{a + b}', m: 'div-direction' },
+      { v: 'P - a', m: 'partial-rule' }, { v: 'P - b', m: 'partial-rule' },
+    ],
+  },
+  {
+    d: 3, math: 'v = u + at', v: 't', vars: ['v', 'u', 'a'], answer: '\\frac{v - u}{a}', ctx: 'l2.ctx.fSpeedUp',
+    steps: [
+      { l: 'v - u = at', w: 'l2.why.moveTheOtherTermFirst' },
+      { l: '\\frac{v - u}{a} = t', w: 'l2.why.divideBothByLetter' },
+      { l: 't = \\frac{v - u}{a}', w: 'l2.why.readItRoundTheOtherWay' },
+    ],
+    wrong: [
+      { v: '\\frac{v + u}{a}', m: 'sign-on-constant' }, { v: '\\frac{u - v}{a}', m: 'sign-slip' },
+      { v: '\\frac{v}{a} - u', m: 'partial-rule' }, { v: 'v - u - a', m: 'same-op-both' },
+      { v: '\\frac{a}{v - u}', m: 'div-direction' }, { v: '\\frac{v - u}{u}', m: 'partial-rule' },
+    ],
+  },
+  {
+    d: 4, math: 'A = \\frac{h\\left(a + b\\right)}{2}', v: 'a', vars: ['A', 'h', 'b'], answer: '\\frac{2A}{h} - b', ctx: 'l2.ctx.fTrapezoid',
+    steps: [
+      { l: '2A = h\\left(a + b\\right)', w: 'l2.why.clearTheBarFirst' },
+      { l: '\\frac{2A}{h} = a + b', w: 'l2.why.divideBothByLetter' },
+      { l: 'a = \\frac{2A}{h} - b', w: 'l2.why.moveTheOtherTermFirst' },
+    ],
+    wrong: [
+      { v: '\\frac{2A}{h} + b', m: 'sign-on-constant' }, { v: '\\frac{A}{2h} - b', m: 'divide-not-multiply' },
+      { v: '\\frac{2A}{h}', m: 'partial-rule' }, { v: '\\frac{2A}{h b}', m: 'div-direction' },
+      { v: 'b - \\frac{2A}{h}', m: 'sign-slip' }, { v: '2A - h - b', m: 'same-op-both' },
+    ],
+  },
+  {
+    d: 4, math: 'N = \\frac{a + b + c}{3}', v: 'c', vars: ['N', 'a', 'b'], answer: '3N - a - b', ctx: 'l2.ctx.fThreeMean',
+    steps: [
+      { l: '3N = a + b + c', w: 'l2.why.clearTheBarFirst' },
+      { l: '3N - a = b + c', w: 'l2.why.moveTheOtherTermFirst' },
+      { l: 'c = 3N - a - b', w: 'l2.why.moveTheOtherTermFirst' },
+    ],
+    wrong: [
+      { v: '\\frac{N}{3} - a - b', m: 'divide-not-multiply' }, { v: '3N + a + b', m: 'sign-on-constant' },
+      { v: '3N - a', m: 'partial-rule' }, { v: 'N - a - b', m: 'partial-rule' },
+      { v: 'a + b - 3N', m: 'sign-slip' }, { v: '\\frac{3N}{a + b}', m: 'div-direction' },
+    ],
+  },
+  {
+    d: 5, math: 'A = P + Prt', v: 't', vars: ['A', 'P', 'r'], answer: '\\frac{A - P}{Pr}', ctx: 'l2.ctx.fBalance',
+    steps: [
+      { l: 'A - P = Prt', w: 'l2.why.moveTheOtherTermFirst' },
+      { l: '\\frac{A - P}{P} = rt', w: 'l2.why.divideBothByLetter' },
+      { l: 't = \\frac{A - P}{Pr}', w: 'l2.why.divideBothByLetter' },
+    ],
+    wrong: [
+      { v: '\\frac{A + P}{Pr}', m: 'sign-on-constant' }, { v: '\\frac{Pr}{A - P}', m: 'div-direction' },
+      { v: '\\frac{A - P}{P}', m: 'partial-rule' }, { v: '\\frac{A}{Pr} - P', m: 'partial-rule' },
+      { v: '\\frac{P - A}{Pr}', m: 'sign-slip' }, { v: 'A - P - Pr', m: 'same-op-both' },
+    ],
+  },
+  {
+    d: 5, math: 'S = \\frac{n\\left(a + L\\right)}{2}', v: 'L', vars: ['S', 'n', 'a'], answer: '\\frac{2S}{n} - a', ctx: 'l2.ctx.fLadderSum',
+    steps: [
+      { l: '2S = n\\left(a + L\\right)', w: 'l2.why.clearTheBarFirst' },
+      { l: '\\frac{2S}{n} = a + L', w: 'l2.why.divideBothByLetter' },
+      { l: 'L = \\frac{2S}{n} - a', w: 'l2.why.moveTheOtherTermFirst' },
+    ],
+    wrong: [
+      { v: '\\frac{2S}{n} + a', m: 'sign-on-constant' }, { v: '\\frac{S}{2n} - a', m: 'divide-not-multiply' },
+      { v: '\\frac{2S}{n}', m: 'partial-rule' }, { v: '\\frac{2S}{n a}', m: 'div-direction' },
+      { v: 'a - \\frac{2S}{n}', m: 'sign-slip' }, { v: '2S - n - a', m: 'same-op-both' },
     ],
   },
 ];
@@ -970,12 +1413,17 @@ const literalEquations = [
   },
   {
     id: 'le-context', rep: 'context', dMin: 1, dMax: 5,
-    build({ r, d, T }) {
+    sceneKeys: KEYS(FORMULAS),
+    build({ r, d, T, sr }) {
       const pool = FORMULAS.filter((f) => f.d <= d && f.d >= d - 1);
-      const f = pick(r, pool.length ? pool : FORMULAS.filter((x) => x.d <= d));
+      // Through `scene`, not `pick`: each named formula IS a situation, and the
+      // catalogue is the deck. Drawn with `pick` the item came back with
+      // `item.scene` empty, so a run could be handed the hull plate three times
+      // and the gate had nothing to withhold.
+      const f = scene(sr, pool.length ? pool : FORMULAS.filter((x) => x.d <= d));
       if (!f) throw new Error('retry: no formula at this band');
       return {
-        stem: `${T(f.name)} ${T('l2.ask.turnItRound', { v: f.v })}`,
+        stem: `${T(f.ctx)} ${T('l2.ask.turnItRound', { v: f.v })}`,
         latex: literalPrompt(f),
         type: 'expression',
         answer: f.answer,
@@ -990,8 +1438,8 @@ const literalEquations = [
     build({ r, d, T }) {
       // A literal equation with numbers in it: the same act, at the magnitudes
       // the band promises, so the ladder is measured and not asserted.
-      const a = d >= 3 ? Bcoef(r, d) : int(r, 2, 5 + 2 * d);
-      const b = Bkonst(r, d);
+      const a = d >= 3 ? Bcoef(r, d) : int(r, 2, 5 + 3 * d);
+      const b = d >= 3 ? nz(r, -(8 + 8 * d), 8 + 8 * d) : int(r, 2, 6 + 4 * d);
       if (Math.abs(a) < 2 || !distinct(a, b)) throw new Error('retry: repeated number');
       const math = `y = ${lin(a, 'x', 0)} ${sg(b)}`;
       const answer = `\\frac{y ${sg(-b)}}{${a}}`;
@@ -1020,8 +1468,8 @@ const literalEquations = [
     id: 'le-share', rep: 'symbolic', dMin: 2, dMax: 5, distinctNums: true,
     build({ r, d, T }) {
       // A bar over a sum: the move that has to happen first, in letters.
-      const k = int(r, 2, 2 + 2 * d);
-      const a = int(r, 2, 4 + 3 * d);
+      const k = int(r, 2, 2 + 3 * d);
+      const a = int(r, 2, 4 + 5 * d);
       if (!distinct(k, a)) throw new Error('retry: repeated number');
       const math = `\\frac{P ${sg(-a)}}{${k}} = Q`;
       const answer = `${k}Q + ${a}`;
@@ -1088,8 +1536,8 @@ const literalEquations = [
 /** A proportion with a whole-number answer, with the gap in any of four slots. */
 function drawProportion(r, d, slot) {
   const k = int(r, 2, 2 + 2 * d);      // the scale between the two ratios
-  const a = int(r, 2, 4 + 2 * d);
-  const b = int(r, 2, 4 + 2 * d);
+  const a = int(r, 2, 4 + 3 * d);
+  const b = int(r, 2, 4 + 3 * d);
   if (a === b) throw new Error('retry: a ratio of one is not a ratio');
   const c = a * k;
   const e = b * k;
@@ -1165,6 +1613,7 @@ const ratioProportion = [
   },
   {
     id: 'rp-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(RATIOS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, RATIOS);
       const p = drawProportion(r, d, 3);
@@ -1192,17 +1641,38 @@ const ratioProportion = [
     },
   },
   {
+    /**
+     * WHICH PAIR OF RATIOS STATES THIS? — with the amounts on the card.
+     *
+     * This form used to print the constant string
+     * `\\frac{\\square}{\\square} = \\frac{\\square}{\\square}` over a situation
+     * that named no numbers, and keep `a`, `b` and `e` in `answer` and
+     * `distractors` where the learner could not reach them. `check:determinate`
+     * measured the result across 167,760 sampled items: fifteen distinct
+     * (locale, sentence, notation) displays carrying 148 different accepted
+     * answers, 525 items affected, and it was the ONLY finding in the whole
+     * five-unit run. A learner shown four empty boxes is picking, not modelling.
+     *
+     * So the amounts move into the situation, which is where a modelling
+     * question's quantities belong, and the form DECLARES that it has nothing
+     * else to show (`noDisplay`) rather than inventing a display. That is the
+     * same repair `lt-perimeter` and `ee-context` already carry in the core
+     * bank. `demandOf` reads the mathematics out of the stem for exactly this
+     * case, so the difficulty ladder is unaffected.
+     */
     id: 'rp-model', rep: 'verbal', dMin: 2, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(MODELS),
     build({ r, d, T, sr }) {
-      const sc = scene(sr, RATIOS);
+      const sc = scene(sr, MODELS);
       // The unknown stands in a numerator, because the rig re-solves whichever
       // statement the cadet chooses and a letter under a bar is a different
       // question from the one this form is asking.
       const p = drawProportion(r, d, 2);
       const ans = `\\frac{${p.a}}{${p.b}} = \\frac{x}{${p.e}}`;
       return {
-        stem: `${T(sc.ctx)} ${T('l2.ask.whichProportion')}`,
-        latex: '\\frac{\\square}{\\square} = \\frac{\\square}{\\square}',
+        stem: `${T(sc.ctx, { a: p.a, b: p.b, e: p.e })} ${T('l2.ask.whichProportion')}`,
+        latex: null,
+        noDisplay: true,
         type: 'expression',
         answer: ans,
         check: { kind: 'equationChoice', variable: 'x', expect: String(p.x) },
@@ -1210,12 +1680,19 @@ const ratioProportion = [
           { latex: `\\frac{${p.a}}{${p.b}}`, why: T('l2.why.firstPairIsTheRatio') },
           { latex: ans, why: T('l2.why.secondPairMatchesIt') },
         ],
+        // `\\frac{e}{b} = \\frac{x}{a}` is NOT here any more. It is the scale
+        // factor written the other way round, so it solves to the same `x` as
+        // the key: a second correct answer wearing a misconception tag.
+        // `finalize` was already dropping it — every equationChoice option that
+        // re-solves to `expect` is refused — so it never reached a learner, but
+        // it was occupying a slot that a real error should have.
         distractors: [
           { v: `\\frac{${p.b}}{${p.a}} = \\frac{x}{${p.e}}`, m: 'div-direction' },
           { v: `\\frac{${p.a}}{${p.e}} = \\frac{x}{${p.b}}`, m: 'swapped-roles' },
-          { v: `\\frac{${p.e}}{${p.b}} = \\frac{x}{${p.a}}`, m: 'swapped-roles' },
+          { v: `\\frac{${p.a}}{${p.b}} = \\frac{${p.e}}{x}`, m: 'inverted-second' },
           { v: `\\frac{${p.a}}{${p.b}} = \\frac{x}{${p.e + 1}}`, m: 'arith-slip' },
           { v: `\\frac{${p.b}}{${p.e}} = \\frac{x}{${p.a}}`, m: 'swapped-roles' },
+          { v: `\\frac{${p.a}}{${p.b}} = \\frac{x}{${p.a + p.b}}`, m: 'add-not-multiply' },
         ],
       };
     },
@@ -1226,13 +1703,18 @@ const ratioProportion = [
 // slope-rate  —  rise over run
 // ===========================================================================
 /** Two readings on one straight rule, with the rate the band asks for. */
-function drawRate(r, d, { whole = false } = {}) {
-  const run = whole ? 1 : int(r, 1, 1 + d);
-  const rise = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 1, 3 + 3 * d);
+function drawRate(r, d, { whole = false, tabled = false } = {}) {
+  // `tabled` — a table prints four rows of the rule, so the largest number on
+  // the card is three steps further along than it is for a pair of readings,
+  // and `sr-table` measured a point and a half above every other form of this
+  // skill because of it. The rule it draws is the same rule; only the reach of
+  // the printed rows comes down.
+  const run = whole ? 1 : int(r, 1, 1 + (tabled ? 1 : 2) * d);
+  const rise = d >= 3 ? nz(r, -(2 + (tabled ? 2 : 4) * d), 2 + (tabled ? 2 : 4) * d) : int(r, 1, 3 + (tabled ? 2 : 4) * d);
   if (rise === 0) throw new Error('retry: a flat rule teaches nothing here');
   if (!whole && d >= 4 && rise % run === 0 && r() < 0.6) throw new Error('retry: draw a rate that is not whole');
-  const x1 = d >= 3 ? int(r, -4 - d, 4 + d) : int(r, 0, 4 + 2 * d);
-  const b0 = d >= 3 ? nz(r, -(4 + 2 * d), 4 + 2 * d) : int(r, 0, 5 + 3 * d);
+  const x1 = d >= 3 ? int(r, -4 - 2 * d, 4 + 2 * d) : int(r, 0, 4 + 3 * d);
+  const b0 = d >= 3 ? nz(r, -(4 + 4 * d), 4 + 4 * d) : int(r, 0, 5 + 4 * d);
   const x2 = x1 + run;
   const y1 = b0;
   const y2 = b0 + rise;
@@ -1270,7 +1752,7 @@ const slopeRate = [
   {
     id: 'sr-table', rep: 'table', dMin: 1, dMax: 5,
     build({ r, d, T }) {
-      const p = drawRate(r, d);
+      const p = drawRate(r, d, { tabled: true });
       const rows = [0, 1, 2, 3].map((i) => [p.x1 + i * p.run, p.y1 + i * p.rise]);
       return {
         stem: T('l2.ask.rateFromTable'),
@@ -1335,9 +1817,9 @@ const slopeRate = [
     // form explicitly, and it is the first time the rate is not simply visible.
     id: 'sr-standard', rep: 'symbolic', dMin: 3, dMax: 5,
     build({ r, d, T }) {
-      const a = nzc(r, 2, 4 + 3 * d);
-      const b = nzc(r, 2, 4 + 2 * d);
-      const c = nz(r, -(8 + 6 * d), 8 + 6 * d);
+      const a = nzc(r, 2, 2 + 2 * d);
+      const b = nzc(r, 2, 2 + 2 * d);
+      const c = nz(r, -(4 + 4 * d), 4 + 4 * d);
       if (!distinct(a, b, c)) throw new Error('retry: repeated number');
       const math = `${lin(a, 'x', 0)} ${signedTerm(b, 'y')} = ${c}`;
       return {
@@ -1365,12 +1847,13 @@ const slopeRate = [
   },
   {
     id: 'sr-context', rep: 'context', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(RATES),
     build({ r, d, T, sr }) {
       const sc = scene(sr, RATES);
-      const run = int(r, 2, 2 + d);
-      const rise = int(r, 2, 3 + 2 * d);
-      const x1 = int(r, 0, 3 + d);
-      const y1 = int(r, 1, 5 + 2 * d);
+      const run = int(r, 2, 2 + 2 * d);
+      const rise = int(r, 2, 3 + 4 * d);
+      const x1 = int(r, 0, 3 + 2 * d);
+      const y1 = int(r, 1, 5 + 4 * d);
       const x2 = x1 + run;
       const y2 = y1 + rise;
       if (!distinct(x1, y1, x2, y2)) throw new Error('retry: repeated number');
@@ -1409,10 +1892,15 @@ const slopeRate = [
  * a band-1 trace climbs one or two and starts above it. `validate-courses`
  * measures the result, so these numbers are checked rather than claimed.
  */
-const MSPAN = [3, 4, 4, 5, 6];
-const BSPAN = [6, 9, 11, 14, 18];
+// Band 5 used to climb six for one from eighteen below the axis, and the two
+// skills built on this draw measured 6.83 and 6.94 at band 5 — the two easiest
+// gates in the level, in a unit whose hardest gate measured 9.70. A learner
+// cleared them in about fifty items and left holding 0.78. The rate and the
+// start both reach further now, and the chart with them.
+const MSPAN = [3, 4, 6, 8, 10];
+const BSPAN = [6, 11, 17, 24, 32];
 /** How far the chart reaches at each band. A wider sky holds a steeper trace. */
-const CHART = [8, 11, 14, 17, 20];
+const CHART = [8, 13, 19, 26, 34];
 function drawChartLine(r, d) {
   const lim = CHART[d - 1];
   const ms = MSPAN[d - 1];
@@ -1450,6 +1938,7 @@ const graphLinear = [
         steps: [
           { latex: `\\frac{${g.pts[1][1]} - ${g.pts[0][1]}}{${g.pts[1][0]} - ${g.pts[0][0]}} = ${g.m}`, why: T('l2.why.riseOverRun') },
           { latex: `${g.pts[0][1]} - ${g.m} \\cdot \\left(${g.pts[0][0]}\\right) = ${g.b}`, why: T('l2.why.backToTheAxis') },
+          { latex: `y = ${lineTex(g.m, g.b)}`, why: T('l2.why.startIsTheAxis') },
         ],
         distractors: [
           { v: `y = ${lineTex(-g.m, g.b)}`, m: 'sign-slip' },
@@ -1482,6 +1971,7 @@ const graphLinear = [
         steps: [
           { latex: `\\frac{${rows[1][1]} - ${rows[0][1]}}{${rows[1][0]} - ${rows[0][0]}} = ${g.m}`, why: T('l2.why.oneStepDownTheTable') },
           { latex: `${rows[0][1]} - ${g.m} \\cdot \\left(${rows[0][0]}\\right) = ${g.b}`, why: T('l2.why.backToTheAxis') },
+          { latex: `y = ${lineTex(g.m, g.b)}`, why: T('l2.why.startIsTheAxis') },
         ],
         distractors: [
           { v: `y = ${lineTex(-g.m, g.b)}`, m: 'sign-slip' },
@@ -1498,7 +1988,7 @@ const graphLinear = [
     id: 'gl-read', rep: 'graph', dMin: 1, dMax: 5,
     build({ r, d, T }) {
       const g = drawChartLine(r, d);
-      const at = g.pts[0][0] + int(r, 1, 3);
+      const at = g.pts[0][0] + int(r, 1, 1 + d);
       const y = g.m * at + g.b;
       if (Math.abs(y) > g.lim - 1) throw new Error('retry: off chart');
       return {
@@ -1529,7 +2019,7 @@ const graphLinear = [
     id: 'gl-cross', rep: 'graph', dMin: 2, dMax: 5,
     build({ r, d, T }) {
       const g = drawChartLine(r, d);
-      const x = g.pts[0][0] + int(r, 1, 4);
+      const x = g.pts[0][0] + int(r, 1, 1 + d);
       const target = g.m * x + g.b;
       if (Math.abs(target) > g.lim - 1 || Math.abs(x) > g.lim - 1) throw new Error('retry: off chart');
       return {
@@ -1597,10 +2087,11 @@ const graphLinear = [
   },
   {
     id: 'gl-context', rep: 'context', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(RULES),
     build({ r, d, T, sr }) {
       const sc = scene(sr, RULES);
       const lim = CHART[d - 1];
-      const m = int(r, 2, 2 + 2 * d);
+      const m = int(r, 2, MSPAN[d - 1] + d);
       const b = int(r, 2, Math.max(3, lim - 3));
       const pts = [[0, b], [1, m + b]];
       if (Math.abs(pts[1][1]) > lim - 1) throw new Error('retry: off chart');
@@ -1660,6 +2151,7 @@ const writeLinear = [
         steps: [
           { latex: `\\frac{${g.pts[1][1]} - ${g.pts[0][1]}}{${g.pts[1][0]} - ${g.pts[0][0]}} = ${g.m}`, why: T('l2.why.riseOverRun') },
           { latex: `${g.pts[0][1]} - ${g.m} \\cdot \\left(${g.pts[0][0]}\\right) = ${g.b}`, why: T('l2.why.backToTheAxis') },
+          { latex: `y = ${lineTex(g.m, g.b)}`, why: T('l2.why.startIsTheAxis') },
         ],
         distractors: ruleWrong(g.m, g.b),
       };
@@ -1683,6 +2175,7 @@ const writeLinear = [
         steps: [
           { latex: `\\frac{${rows[1][1]} - ${rows[0][1]}}{${rows[1][0]} - ${rows[0][0]}} = ${g.m}`, why: T('l2.why.oneStepDownTheTable') },
           { latex: `${rows[0][1]} - ${g.m} \\cdot \\left(${rows[0][0]}\\right) = ${g.b}`, why: T('l2.why.backToTheAxis') },
+          { latex: `y = ${lineTex(g.m, g.b)}`, why: T('l2.why.startIsTheAxis') },
         ],
         distractors: ruleWrong(g.m, g.b),
       };
@@ -1702,6 +2195,7 @@ const writeLinear = [
         steps: [
           { latex: `\\frac{${g.pts[1][1]} - ${g.pts[0][1]}}{${g.pts[1][0]} - ${g.pts[0][0]}} = ${g.m}`, why: T('l2.why.riseOverRun') },
           { latex: `${g.pts[0][1]} - ${g.m} \\cdot \\left(${g.pts[0][0]}\\right) = ${g.b}`, why: T('l2.why.backToTheAxis') },
+          { latex: `y = ${lineTex(g.m, g.b)}`, why: T('l2.why.startIsTheAxis') },
         ],
         distractors: ruleWrong(g.m, g.b),
       };
@@ -1713,9 +2207,9 @@ const writeLinear = [
     // learner needs before any of the graphing work is usable.
     id: 'wl-standard', rep: 'symbolic', dMin: 3, dMax: 5,
     build({ r, d, T }) {
-      const b = nzc(r, 2, 3 + d);
-      const m = nz(r, -(2 + d), 2 + d);
-      const k = nz(r, -(4 + 2 * d), 4 + 2 * d);
+      const b = nzc(r, 2, 2 + d);
+      const m = nz(r, -(1 + d), 1 + d);
+      const k = nz(r, -(3 + d), 3 + d);
       if (m === 0 || k === 0) throw new Error('retry: a flat trace');
       const a = -m * b;
       const c = k * b;
@@ -1744,6 +2238,7 @@ const writeLinear = [
   },
   {
     id: 'wl-context', rep: 'context', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(RULES),
     build({ r, d, T, sr }) {
       const sc = scene(sr, RULES);
       const m = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 2, 2 + 2 * d);
@@ -1759,6 +2254,7 @@ const writeLinear = [
         steps: [
           { latex: `${pts[1][1]} - ${pts[0][1]} = ${m}`, why: T('l2.why.oneStepIsTheRate') },
           { latex: `${pts[0][1]} = ${b}`, why: T('l2.why.startIsTheAxis') },
+          { latex: `y = ${lineTex(m, b)}`, why: T('l2.why.writeTheRuleDown') },
         ],
         distractors: ruleWrong(m, b),
       };
@@ -1769,15 +2265,46 @@ const writeLinear = [
 // ===========================================================================
 // system-substitution  —  one letter already alone
 // ===========================================================================
-/** A pair of statements meeting at whole numbers, the first already solved for y. */
+/**
+ * A pair of statements meeting at whole numbers, the first already solved for y.
+ *
+ * FIVE RUNGS, NOT ONE SETTING MEASURED FIVE TIMES.
+ *
+ * This draw used to run 8.20 8.55 8.59 8.95 9.22 across the five bands — a span
+ * of 14.6%, under the 15% floor, with band 3 asking 0.5% more than band 2.
+ * `check:courses` named both, and it was right: adaptivity was moving a learner
+ * between five settings that are one setting. It came from starting high and
+ * having nowhere to go — band 1 already drew a negative constant, a two-digit
+ * total and a signed rate, because everything a system needs is expensive
+ * (two unknowns to hold, three worked lines, a bracketed substitution) before
+ * a single digit is chosen.
+ *
+ * So the sign enters ONE PART AT A TIME and the magnitudes climb underneath it:
+ *
+ *   band 1-2  every number positive. Meeting two statements at one point is
+ *             enough new work on its own.
+ *   band 3    the constant may be negative — the first sign to carry, and it
+ *             is carried through one substitution.
+ *   band 4    the rate and the second coefficient may be negative too.
+ *   band 5    the meeting point itself may sit behind either axis.
+ *
+ * `b` is now DRAWN and `y` derived from it, rather than the other way round,
+ * because that is the only way a band can promise the constant's sign. The
+ * measured ladder is printed by `tools/simulate.mjs` and gated by
+ * `tools/critic/ladder.mjs`; neither is asserted here.
+ */
+const SS_X = [3, 4, 5, 6, 7];
+const SS_M = [3, 4, 4, 5, 5];
+const SS_A = [4, 4, 5, 5, 6];
+const SS_B = [4, 6, 7, 8, 10];
 function drawSubSystem(r, d) {
-  const x = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + 2 * d);
-  const y = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 3 + 2 * d);
-  const m = d >= 3 ? nzc(r, -(2 + d), 2 + d) : int(r, 2, 2 + d);
-  const b = y - m * x;
-  const a = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + 2 * d);
+  const x = d >= 5 ? nz(r, -SS_X[d - 1], SS_X[d - 1]) : int(r, 1, SS_X[d - 1]);
+  const m = d >= 4 ? nzc(r, -SS_M[d - 1], SS_M[d - 1]) : int(r, 2, SS_M[d - 1]);
+  const b = d >= 3 ? nz(r, -SS_B[d - 1], SS_B[d - 1]) : int(r, 1, SS_B[d - 1]);
+  const a = d >= 4 ? nzc(r, -SS_A[d - 1], SS_A[d - 1]) : int(r, 2, SS_A[d - 1]);
+  const y = m * x + b;
   const c = a * x + y;
-  if (b === 0 || !distinct(a, b, c, m)) throw new Error('retry: repeated number');
+  if (b === 0 || y === 0 || !distinct(a, b, c, m)) throw new Error('retry: repeated number');
   const e1 = `y = ${lin(m, 'x', b)}`;
   const e2 = `${lin(a, 'x', 0)} + y = ${c}`;
   return { x, y, m, b, a, c, e1, e2, latex: `\\begin{cases} ${e1} \\\\ ${e2} \\end{cases}` };
@@ -1866,15 +2393,20 @@ const systemSubstitution = [
   },
   {
     id: 'ss-context', rep: 'context', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(PAIRS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, PAIRS);
-      const x = int(r, 2, 4 + d);
-      const y = int(r, 2, 4 + d);
-      const m = int(r, 2, 2 + d);
-      const b = y - m * x;
-      const a = int(r, 2, 3 + d);
+      // Counts of real things, so `x` and `y` stay positive at every band; the
+      // rungs are the size of the totals and the sign of the CONSTANT, which is
+      // a coefficient in the statement rather than a count of anything. Same
+      // shape as `drawSubSystem` above, and for the same reason.
+      const x = int(r, 2, SS_X[d - 1]);
+      const m = int(r, 2, SS_M[d - 1]);
+      const b = d >= 3 ? nz(r, -SS_B[d - 1], SS_B[d - 1]) : int(r, 1, SS_B[d - 1]);
+      const y = m * x + b;
+      const a = int(r, 2, SS_A[d - 1]);
       const c = a * x + y;
-      if (b === 0 || !distinct(a, b, c, m, x, y)) throw new Error('retry: repeated number');
+      if (y < 2 || b === 0 || x === y || !distinct(a, b, c, m)) throw new Error('retry: repeated number');
       const e1 = `y = ${lin(m, 'x', b)}`;
       const e2 = `${lin(a, 'x', 0)} + y = ${c}`;
       return {
@@ -1913,13 +2445,26 @@ const systemSubstitution = [
 // barely any digits left to print. An item with no analogue falls back on the
 // learner's own trace, which is the one trace that contains the live answer —
 // so a narrow pool is not a gentler question, it is a leaking echo.
+// The bands, spelled out. Elimination measured 8.20 at band 1 — the hardest
+// opening in the level and harder than most other skills' band 5 — because
+// every draw was already two digits wide before the mathematics started. The
+// four totals a learner has to hold are what makes this expensive; the digits
+// inside them are what the ladder is allowed to move, so they start small and
+// the sign enters at band 4 rather than band 3.
+const EL_X = [4, 5, 6, 6, 10];
+const EL_A = [4, 5, 5, 6, 10];
+const EL_B = [4, 5, 6, 6, 8];
 function drawElimSystem(r, d, { scaled = false } = {}) {
-  const x = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 4 + 2 * d);
-  const y = d >= 3 ? nz(r, -(3 + d), 4 + d) : int(r, 1, 4 + 2 * d);
-  const a1 = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + 2 * d);
-  const a2 = d >= 3 ? nzc(r, -(3 + d), 3 + d) : int(r, 2, 3 + 2 * d);
-  const b1 = nzc(r, 2, 2 + 2 * d);
-  const k = scaled ? int(r, 2, 2 + d) : 1;
+  const x = d >= 4 ? nz(r, -EL_X[d - 1], EL_X[d - 1]) : int(r, 1, EL_X[d - 1]);
+  const y = d >= 4 ? nz(r, -EL_X[d - 1], EL_X[d - 1]) : int(r, 1, EL_X[d - 1]);
+  const a1 = d >= 4 ? nzc(r, -EL_A[d - 1], EL_A[d - 1]) : int(r, 2, EL_A[d - 1]);
+  const a2 = d >= 4 ? nzc(r, -EL_A[d - 1], EL_A[d - 1]) : int(r, 2, EL_A[d - 1]);
+  // A scaled pair multiplies one whole statement, so its second coefficient is
+  // `b1 * k` and its second total grows with the product. The smaller `b1` and
+  // the capped `k` are what keep `se-scale` from standing a point and a half
+  // above every other form in the level.
+  const b1 = nzc(r, 2, scaled ? Math.max(2, EL_B[d - 1] - 2) : EL_B[d - 1]);
+  const k = scaled ? int(r, 2, 3) : 1;
   const b2 = -b1 * k;
   if (a1 * b2 - a2 * b1 === 0) throw new Error('retry: the traces never meet');
   if (!distinct(a1, a2, b1, k)) throw new Error('retry: repeated number');
@@ -2013,13 +2558,15 @@ const systemElimination = [
   },
   {
     id: 'se-context', rep: 'context', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(PAIRS),
     build({ r, d, T, sr }) {
       const sc = scene(sr, PAIRS);
-      const x = int(r, 2, 4 + d);
-      const y = int(r, 2, 4 + d);
-      const a1 = int(r, 2, 3 + d);
-      const a2 = int(r, 2, 3 + d);
-      const b1 = int(r, 2, 2 + d);
+      // Counts again, so nothing here goes negative; the rungs are magnitude.
+      const x = int(r, 2, EL_X[d - 1]);
+      const y = int(r, 2, EL_X[d - 1]);
+      const a1 = int(r, 2, EL_A[d - 1]);
+      const a2 = int(r, 2, EL_A[d - 1]);
+      const b1 = int(r, 2, EL_B[d - 1]);
       const b2 = -b1;
       if (a1 * b2 - a2 * b1 === 0) throw new Error('retry: the traces never meet');
       if (!distinct(a1, a2, b1) || x === y) throw new Error('retry: repeated number');
@@ -2060,13 +2607,18 @@ const systemElimination = [
  * `a` and `c` must differ, or the letters cancel and the statement is either
  * always true or never true — a different skill, and one Level 1 already owns.
  */
-function drawBrackets(r, d, { negOutside = false } = {}) {
+// `positive` — a hold cannot carry a negative mass, so the contextual form used
+// to draw from the signed pool and throw away every draw that came back
+// negative. With the magnitudes brought down that pool got thin enough to
+// exhaust a 120-seed budget at band 3, so it draws positives directly instead,
+// over a range wide enough to keep `e` landing on a whole number.
+function drawBrackets(r, d, { negOutside = false, positive = false } = {}) {
   const v = pick(r, VARS);
-  const x = Broot(r, d);
-  const a = negOutside ? -Math.abs(nzc(r, 2, 3 + d)) : nzc(r, 2, 3 + d);
-  let c = nzc(r, 2, 3 + d);
+  const x = positive ? int(r, 1, 4 + 2 * d) : (d >= 3 ? nz(r, -(2 + d), 2 + d) : int(r, 1, 3 + d));
+  const a = negOutside ? -Math.abs(nzc(r, 2, 2 + d)) : (positive ? int(r, 2, 3 + d) : nzc(r, 2, 2 + d));
+  let c = positive ? int(r, 2, 3 + d) : nzc(r, 2, 2 + d);
   if (a === c) c = Math.abs(a) >= 9 ? 2 : Math.abs(a) + 1;
-  const b = Bkonst(r, d);
+  const b = positive ? int(r, 1, 5 + 2 * d) : (d >= 2 ? nz(r, -(3 + 2 * d), 3 + 2 * d) : int(r, 1, 6));
   // The right-hand bracket's constant is forced, so the solution is the whole
   // number drawn above rather than whatever the arithmetic happens to give.
   //   a(x + b) = c(x + e)  =>  e = ((a - c)x + ab) / c
@@ -2143,9 +2695,10 @@ const bracketBothSides = [
   },
   {
     id: 'bbs-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(HOLDS),
     build({ r, d, T, sr }) {
-      const { v, x, a, b, c, e } = drawBrackets(r, d);
-      if (a < 0 || c < 0 || b < 0 || e < 0 || x < 0) throw new Error('retry: a hold cannot carry a negative mass');
+      const { v, x, a, b, c, e } = drawBrackets(r, d, { positive: true });
+      if (e < 0) throw new Error('retry: a hold cannot carry a negative mass');
       const eqn = `${paren(a, lin(1, v, b))} = ${paren(c, lin(1, v, e))}`;
       const sc = scene(sr, HOLDS);
       return {
@@ -2220,8 +2773,8 @@ const fractionSolve = [
     id: 'fs-bar', rep: 'symbolic', dMin: 1, dMax: 5, distinctNums: true,
     build({ r, d, T }) {
       const v = pick(r, VARS);
-      const k = int(r, 2, 2 + d);
-      const c = d >= 3 ? nz(r, -(3 + d), 3 + d) : int(r, 2, 3 + d);
+      const k = int(r, 2, 1 + 2 * d);
+      const c = d >= 3 ? nz(r, -(2 + 2 * d), 2 + 2 * d) : int(r, 2, 2 + 2 * d);
       const b = Bkonst(r, d);
       const x = c * k - b;
       if (x === 0) throw new Error('retry: a zero answer hides the last step');
@@ -2285,11 +2838,12 @@ const fractionSolve = [
   },
   {
     id: 'fs-context', rep: 'context', dMin: 1, dMax: 5, distinctNums: true,
+    sceneKeys: KEYS(SHARES),
     build({ r, d, T, sr }) {
       const v = pick(r, VARS);
-      const k = int(r, 2, 2 + d);
-      const c = int(r, 2, 4 + d);
-      const b = int(r, 2, 4 + d);
+      const k = int(r, 2, 1 + 2 * d);
+      const c = int(r, 2, 3 + 2 * d);
+      const b = int(r, 2, 3 + 2 * d);
       const x = c * k - b;
       if (x <= 0) throw new Error('retry: a delivery cannot be negative');
       if (!distinct(k, b, c, x)) throw new Error('retry: repeated number');
@@ -2359,10 +2913,10 @@ const fractionSolve = [
 // ---------------------------------------------------------------------------
 /** Four rows of one linear rule, with even steps and no rule written down. */
 function drawTable(r, d) {
-  const rate = nzc(r, 2, 1 + 2 * d) * (d >= 3 && r() < 0.4 ? -1 : 1);
-  const base = d >= 3 ? nz(r, -(4 + 4 * d), 4 + 4 * d) : int(r, 1, 6 + 3 * d);
+  const rate = nzc(r, 2, Math.max(2, d)) * (d >= 3 && r() < 0.4 ? -1 : 1);
+  const base = d >= 3 ? nz(r, -(1 + d), 1 + d) : int(r, 1, 2 + d);
   const step = int(r, 1, Math.max(1, d - 1));
-  const start = d >= 3 ? int(r, -3 - d, 3 + d) : int(r, 1, 3 + 2 * d);
+  const start = d >= 3 ? int(r, -2 - d, 2 + d) : int(r, 1, 2 + d);
   const rows = [0, 1, 2, 3].map((i) => {
     const x = start + i * step;
     return [x, rate * x + base];
@@ -2375,6 +2929,7 @@ function drawTable(r, d) {
 const ruleFromTable = [
   {
     id: 'rft-output', rep: 'table', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(GAUGES),
     build({ r, d, T, sr }) {
       const { rows, missing, rate, base } = drawTable(r, d);
       const ans = rows[missing][1];
@@ -2405,6 +2960,7 @@ const ruleFromTable = [
   },
   {
     id: 'rft-input', rep: 'table', dMin: 2, dMax: 5,
+    sceneKeys: KEYS(GAUGES),
     build({ r, d, T, sr }) {
       const { rows, missing, rate } = drawTable(r, d);
       const ans = rows[missing][0];
@@ -2435,6 +2991,7 @@ const ruleFromTable = [
   },
   {
     id: 'rft-context', rep: 'context', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(GAUGES),
     build({ r, d, T, sr }) {
       const { rows, missing, rate, base } = drawTable(r, d);
       if (rate < 0 || base < 0) throw new Error('retry: a stockpile does not run backwards here');
@@ -2469,13 +3026,25 @@ const ruleFromTable = [
     // rate. It is the form the gate can reach for when every table form has
     // already been practised.
     id: 'rft-dispute', rep: 'verbal', dMin: 1, dMax: 5,
+    sceneKeys: KEYS(DISPUTES_OPEN),
     build({ r, d, T, sr }) {
       const { rows, missing, rate, base } = drawTable(r, d);
       const ans = rows[missing][1];
       const prev = rows[missing - 1];
       const next = rows[Math.min(3, missing + 1)];
+      const sc = scene(sr, DISPUTES_OPEN);
+      // THIS ONE LANDS ON A FREE KEYPAD, so the two readings the sentence
+      // quotes are two that are NEVER right. It used to quote the answer
+      // itself beside the row above the gap, and every framing prints the
+      // answer first: a cadet who typed the first number in the sentence
+      // sealed 171 route cards with no mathematics at all, on a surface that
+      // has no option set for a guess to be spread over. `quoteReadings` draws
+      // both out of the wrong readings this form already catalogues, and out
+      // of the ones the narrowed field will not show. The ask changes with it:
+      // "which reading is the true one" is not a question a keypad asks.
       return {
-        stem: `${T(scene(sr, GAUGES).ctx)} ${T('l2.ask.whichCadetIsRight', { v: 'y' })}`,
+        quote: { ctx: sc.ctx, ask: 'l2.ask.missingWatch' },
+        stem: `${T(sc.ctx, { a: ans, b: prev[1] })} ${T('ask.whichIsRight')}`,
         latex: arrayTex('x', 'y', rows, missing),
         type: 'numeric',
         answer: String(ans),

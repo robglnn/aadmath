@@ -27,6 +27,21 @@
      down until the tallest item on the surface fits the window, so the surface
      gets denser instead of growing a scrollbar. */
   --rf-u: 1;
+  /* THE WIDTH OF THE INSTRUMENT — AND THE FLOOR UNDER THE QUESTION.
+
+     One number for how wide the thing a cadet ANSWERS with is allowed to be:
+     the keypad, the narrowed field, the readings. It rides the unit like every
+     other physical dimension in the rig, which is the whole point — it used to
+     be a bare `max-width: 366px` on `.rf-pad`, and a bare number is a number
+     the fit pass cannot spend. So on a laptop the rig would cut itself to
+     u = 0.73 to fit, the chart would come down to 306 px with it, and the
+     keypad would sit at its full 366 beside it: THE COORDINATE CHART, WHICH IS
+     THE QUESTION, RENDERED 17% NARROWER THAN THE KEYPAD ANSWERING IT (19% on a
+     phone). Both now come off the same unit, and `.rf-fig.grid` takes this as
+     a FLOOR, so the question can never again be the smaller of the two things
+     on the glass. `tools/critic/thumb.mjs` measures the ratio in the real
+     panel at every phone size, in all three languages. */
+  --rf-instr: calc(366px * var(--rf-u));
   /* Clearance for the torn lips. The tear's teeth are a fixed fraction of the
      plate, and the plate is a fraction of the window, so the clearance is too —
      a fixed rem either eats a phone or leaves a band of nothing on a desktop.
@@ -417,7 +432,26 @@
    that one box was the whole difference between the surface fitting and the
    instrument being told to stand down. */
 .rf-fig svg { width: calc(min(300px, 72vw) * var(--rf-u)); height: auto; display: block; }
-.rf-fig.grid svg { width: calc(min(262px, 62vw) * var(--rf-u)); }
+/* A COORDINATE CHART IS NOT A DIAGRAM BESIDE THE QUESTION, IT IS THE QUESTION.
+   262px of it on a 1600x900 laptop drew at 221 CSS px under a keypad three
+   hundred wide, with a grid square of four pixels: the mathematics was the
+   smallest thing on the screen and its squares were too fine to count. The two
+   caps are the room the panel actually has rather than one fixed number — the
+   viewport's own height, so a short window still gets a chart it can hold, and
+   its width, so a phone gets the width it has. `tools/check-figures.mjs
+   --charts` measures a grid square in the real panel at every viewport
+   `check:layout` covers, in all three locales. */
+/* …and it is never narrower than the instrument that answers it. `--rf-instr`
+   is the keypad's own width, so `max()` here is the floor and the three caps
+   are the room: the chart takes whatever the window will give it and, below
+   that, whatever the keypad takes. Because both sides of the comparison ride
+   `--rf-u`, the fit pass can still cut the whole rig down and the RATIO holds
+   at every unit it lands on — which a fixed 366 px keypad could not do. */
+.rf-fig.grid {
+  width: 100%; margin-inline: auto;
+  max-width: max(var(--rf-instr), min(calc(420px * var(--rf-u)), 76vw, 46vh));
+}
+.rf-fig.grid svg { width: 100%; height: auto; }
 .rf-fig .gl { stroke: rgba(126, 190, 255, .14); stroke-width: 1; fill: none; }
 .rf-fig .ax { stroke: rgba(126, 190, 255, .5); stroke-width: 1.2; fill: none; }
 .rf-fig .ln { stroke-width: 2.4; fill: none; filter: drop-shadow(0 0 7px currentColor); }
@@ -792,7 +826,7 @@
 /* ================================================== modality: the keypad ==
    The value is charged into a socket, glyph by glyph, on keys with travel.
    ======================================================================== */
-.rf-pad { width: 100%; max-width: 366px; margin: 0 auto; display: flex; flex-direction: column; gap: calc(.48rem * var(--rf-u)); }
+.rf-pad { width: 100%; max-width: var(--rf-instr); margin: 0 auto; display: flex; flex-direction: column; gap: calc(.48rem * var(--rf-u)); }
 .rift.narrowed .rf-pad { display: none; }
 
 .rf-socket {
@@ -837,6 +871,12 @@
   text-shadow: 0 0 26px rgba(53, 217, 255, .8);
   overflow: clip; overflow-clip-margin: .5em; white-space: nowrap;
 }
+/* Some keys are long — `5(17n^2 + 13n + 21)` is fifteen glyphs — and the
+   socket does not scroll, so it steps its own type down instead of cropping
+   what the cadet has just typed into it. */
+.rf-socket .val.long { font-size: calc(clamp(1.3rem, 2.7vw, 1.75rem) * var(--rf-u)); }
+.rf-socket .val.longer { font-size: calc(clamp(1.05rem, 2.1vw, 1.4rem) * var(--rf-u)); }
+.rf-socket .val.longest { font-size: calc(clamp(.85rem, 1.7vw, 1.12rem) * var(--rf-u)); }
 .rf-socket .val.empty {
   color: rgba(53, 217, 255, .62); text-shadow: 0 0 20px rgba(53, 217, 255, .5);
   font-size: calc(clamp(2.1rem, 4.4vw, 2.7rem) * var(--rf-u));
@@ -858,7 +898,13 @@
   30%, 50%, 70% { translate: -7px 0; } 40%, 60% { translate: 7px 0; }
 }
 
-.rf-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(.36rem * var(--rf-u)); width: 100%; }
+/* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, so a
+   column whose widest cap carries a WORD — CLEAR is BORRAR in Spanish and
+   WYCZYŚĆ in Polish — takes its min-content width first and the three digit
+   columns divide what is left: 40.8 px keys in Polish beside a 56.9 px CLEAR,
+   under the 44 px floor a thumb needs, in two of the three languages and not
+   in English. Equal columns, in every language. */
+.rf-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(.36rem * var(--rf-u)); width: 100%; }
 /* Keycaps machined out of the same broken plate: sheared corners, a warm rim
    where the tear's light lands on the top face, cold metal below it. */
 .rf-key {
@@ -887,6 +933,27 @@
   box-shadow: inset 0 2px 7px rgba(0, 0, 0, .6), inset 0 0 18px rgba(53, 217, 255, .5);
 }
 .rf-key.widest { grid-column: span 4; }
+.rf-key.wide3 { grid-column: span 3; }
+.rf-key.wide2 { grid-column: span 2; }
+/* CLEAR is a way out, not a verb the cadet is being pushed towards: it reads
+   as a label rather than a glyph, and it goes dark when there is nothing in
+   the socket for it to do. */
+/* AND IT IS A WORD, SO IT IS A DIFFERENT LENGTH IN EVERY LANGUAGE.
+   CLEAR is 5 letters, BORRAR is 6, WYCZYSC is 7 — and at `.56rem` with
+   `.14em` of tracking the Polish one measured 57 px of text in a 52 px key on
+   a 390x844 phone, 51 in 46 sideways and 51 in 46 on a short frame. `.rf-key`
+   clips, so a Polish student's CLEAR key read WYCZYS with the last letter cut
+   off, in every phone frame, and English and Spanish were fine. Tracking is
+   what a seven-letter word cannot afford: at `.06em` and `.52rem` the same
+   word measures 48 px in the same 52 px key, in all three languages, and
+   `npm run check:touch` measures `scrollWidth` against `clientWidth` on every
+   control on this card and plants a stretched label to prove it can refuse
+   one. */
+.rf-key.wipe {
+  font-family: var(--rf-mono); font-size: calc(.52rem * var(--rf-u));
+  letter-spacing: .06em; text-transform: uppercase; line-height: 1.1;
+}
+.rf-key.wipe:disabled { cursor: default; color: rgba(167, 183, 201, .3); filter: none; }
 .rf-key.util { font-size: calc(1rem * var(--rf-u)); color: #a7b7c9; background: linear-gradient(180deg, #3a4552 0%, #212a35 42%, #101720 100%); }
 /* The commit slab is the tear's own colour, because committing is what shuts it. */
 .rf-key.commit {
@@ -1638,11 +1705,19 @@
   }
   .rf-help { font-size: calc(.72rem * var(--rf-u)); line-height: 1.35; flex: 1 0 100%; order: 3; }
   .rf-btn { padding: .5rem .7rem; font-size: .58rem; }
-  /* a phone has room the desktop rig does not: spend it on thumb targets and
-     on the instrument, never on empty bands above and below it */
-  .rf-pad { max-width: none; flex: 1 0 auto; }
+  /* A phone has room the desktop rig does not, and it is spent on the
+     instrument — but not on making the instrument the biggest thing on the
+     card. `max-width: none` here put the keypad at the full 372 px of a 390 px
+     handset while the chart above it drew at 257: THE QUESTION WAS 31%
+     NARROWER THAN THE KEYPAD ANSWERING IT, which is the same defect this
+     block's own economy created on the laptop. The pad takes `--rf-instr` like
+     everywhere else, the keys keep their 44 px floor from the coarse-pointer
+     block at the foot of this file, and the chart's floor is the pad. */
+  .rf-pad { flex: 1 0 auto; }
   .rf-socket { min-height: calc(70px * var(--rf-u)); flex: 0 0 auto; }
-  .rf-keys { gap: .38rem; flex: 1 1 auto; grid-auto-rows: minmax(calc(50px * var(--rf-u)), 1fr); }
+  /* .3rem, not .38: four rows of a 44 px key is 176 px of thumb that cannot be
+     traded, so the only thing left to give between them is air. */
+  .rf-keys { gap: .3rem; flex: 1 1 auto; grid-auto-rows: minmax(calc(50px * var(--rf-u)), 1fr); }
   .rf-key { font-size: 1.24rem; }
   .rf-key.commit { min-height: calc(54px * var(--rf-u)); }
   .rf-readings { flex: 1 1 auto; grid-auto-rows: minmax(58px, 1fr); }
@@ -1676,6 +1751,56 @@
   .wd-read { font-size: .5rem; letter-spacing: .16em; }
   .wd-read > * { padding: 0 .6rem; }
   .wd-grip .bar { width: 62px; }
+}
+
+/* ========================================== A THUMB IS 44 CSS PX WIDE ==
+   Apple's Human Interface Guidelines and Google's Material guidance both
+   publish the same floor for a touch target: 44 x 44 CSS px. Nothing on this
+   card met it.
+
+   Measured on the real panel, English, before this block existed:
+
+     CALL THE ECHO   111 x 22    <- the only route to the teaching in the game
+     close (.rf-x)    25 x 25    (18 x 18 on a phone held sideways)
+     a keycap         88 x 36    (67 x 27 sideways)
+
+   CALL THE ECHO is the control BRIEF.md's fourth invariant is about — the
+   teaching arrives as a faded worked echo and this button is the only door to
+   it — and it was the SMALLEST control on the card. A learner who is stuck is
+   the learner being asked to hit a 22 px target.
+
+   Everything here is `max(44px, <what the unit asks for>)`, never a flat 44:
+   the rig gets denser as the window shrinks and must keep doing so, but it may
+   not shrink a HAND. The fit pass still converges, because every other
+   dimension in the rig is still free to give.
+
+   The rule is on `(pointer: coarse)` and not on a width, because the thing
+   that needs 44 px is a finger, not a small screen: a touchscreen Chromebook
+   at 1366 px is a coarse pointer and a 390 px window on a desktop is not.
+   `tools/critic/thumb.mjs` measures every control on this card in the real
+   panel, in three languages, at five phone sizes, and plants a 38 px control
+   to prove it can still refuse one.
+   ==================================================================== */
+@media (pointer: coarse) {
+  .rf-key { min-height: max(44px, calc(50px * var(--rf-u))); }
+  .rf-key.commit { min-height: max(48px, calc(54px * var(--rf-u))); }
+  /* The foot's two controls are text, so they are given the height a hand
+     needs and the words are centred in it rather than sitting on its lip. */
+  .rf-btn {
+    min-height: 44px; min-width: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .rf-x { width: max(44px, calc(34px * var(--rf-u))); height: max(44px, calc(34px * var(--rf-u))); }
+  .rf-reading { min-height: max(44px, calc(58px * var(--rf-u))); }
+  .rf-move { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .rf-cell { min-height: max(44px, calc(76px * var(--rf-u))); }
+  /* `.rf-bay` is deliberately absent. Its height is composed three times over
+     — 146u here, 106u in portrait, 86u sideways — and a flat floor written
+     last would not raise the small one, it would REPLACE the composed one and
+     quietly change the sorter's proportions at every size. It clears 44 px at
+     every unit the fit pass can reach (86 x 0.54 = 46.4 at the floor), and
+     `npm run check:reach` measures the real box rather than trusting that
+     sentence: lower it and the gate says so. */
 }
 
 @media (prefers-reduced-motion: reduce) {

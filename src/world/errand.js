@@ -4,7 +4,15 @@ import { PEAK, PEAK2, HENGE } from './terrain.js';
 import { WRECK, CATHEDRAL, ARCH } from './landmarks.js';
 import { merge, paint, paintY } from './geom.js';
 import { createBeacon } from '../fx/beacon.js';
+// A survey mark is a place the game sends a cadet to. (src/world/clearings.js)
+import { reserve } from './clearings.js';
 import { t } from '../i18n/index.js';
+/* lane C (the objective may ask for a traversal verb): a survey mark is the
+   bottom of the traversal ladder — the one place the game can point a cadet
+   who has bought nothing at all. `registerField` is a live view; the
+   objective reads it and nothing here reads the objective. See the block at
+   the top of src/meta/objective.js. */
+import { registerField } from '../meta/objective.js';
 
 /**
  * THE SURVEY — what the island is FOR, between two tears.
@@ -173,6 +181,8 @@ export function createErrand(opts = {}) {
     if (g0 === null) continue;
     const y = g0 + s.lift;
 
+    reserve(s.x, s.z, 11, 'errand');
+
     const holder = new THREE.Group();
     holder.position.set(s.x, y, s.z);
 
@@ -234,6 +244,14 @@ export function createErrand(opts = {}) {
     // has to survive the break, or yesterday's climb was rented.
     if (m.held) drift?.addColumn?.(s.x, s.z, LIFT_H, LIFT_R, true);
   }
+
+  /* The marks, as places the objective may name. `rung` is this file's own
+     ladder, unchanged and not re-derived: 0 is a walk, 1 a climb, 2 the wing,
+     3 a column. A claimed mark is not a place to go, so it is not offered. */
+  registerField(() => marks.filter((m) => !m.held).map((m) => ({
+    id: 'mark-' + m.id, kind: 'mark', x: m.x, y: m.y, z: m.z,
+    rung: m.rung, open: true, air: false, nameKey: 'survey.' + m.id,
+  })));
 
   /** A mark wears its state: live is violet and turning, claimed is green and still. */
   function dress(m) {

@@ -42,6 +42,19 @@
  *   Silver essentially the only currency left is lines actually held. Bronze is
  *   four clean seals. Sovereign is six held lines. The rite stays scarce, and
  *   the Standard in the plaza never lies about how much mathematics you own.
+ *
+ * ---------------------------------------------------------------------------
+ * AND ONE BEAT THAT IS NOT A CLOCK: THE LATTICE OPENING (`region.js`).
+ *
+ * The two clocks above are about the cadet. A region opening is about the
+ * WORLD: the last line of a ring holds, and a whole new part of the knowledge
+ * graph lights up beyond it (`src/content/route.js`). It happens perhaps four
+ * times in a course rather than four times a session, so it is written like the
+ * chapter plate — same gesture, same queue, same skip key, running through it
+ * is exactly right — and paced like the rite. It states no figure and no level
+ * number: it names a place. The ground itself is made at the next planetfall,
+ * because the island is built once, at boot, from the lattice the route hands
+ * it.
  */
 
 import { CHAPTER_AT } from './shard.js';

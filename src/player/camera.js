@@ -50,6 +50,66 @@ const MIN_BOOM = 1.85;    // ...and never closer than this to the cadet
  */
 const BOOM = 3.80;
 
+/**
+ * ---- THE TWO NUMBERS THAT KEEP THE FRAME A FRAME -------------------------
+ *
+ * Everything above this line is a camera with ONE move: when something gets
+ * between the lens and the cadet, come closer. On open ground that is the
+ * right and only move. On tight ground it has one destination — the lens
+ * pressed against whatever is behind him, looking at it — and the project's
+ * own escape instrument (`notFree()` in tools/critic/_escape.mjs) reads that
+ * destination as four separate failures at once: `boom 1.85`, `short 0.73`,
+ * `seeFar 0.00`, `open 0.00`, over a frame that is solid dark green with no
+ * cadet in it. Measured, standing three metres from an objective ring the
+ * game itself had sent the player to.
+ *
+ * A camera operator has a SECOND move, and it is the one the reference games
+ * use: back into the wall and raise the camera over your own head. These two
+ * numbers are that move.
+ *
+ *  `RISE_MAX` — how far the lens may climb to find a shot. Beyond about three
+ *  metres on a four-metre boom the shot is a map screen, which is the failure
+ *  the boom-climb budget below was written to prevent, so the climb is capped
+ *  rather than uncapped.
+ *
+ *  `EYE_MIN` — the closest the DRAWN lens may end up to the cadet. 2.35 m is
+ *  not a taste: it is the bar src/player/controller.js already uses to decide
+ *  whether a recovery produced a frame (`_verifyRecovery`, `_hit < 2.35`), and
+ *  it clears the instrument's own 2.2 m with the margin a bar needs.
+ */
+const RISE_MAX = 3.2;
+const EYE_MIN = 2.35;
+/**
+ * How far the top of the frame has to reach before it counts as a horizon.
+ *
+ * THE BAR IS 25 m AND THIS USED TO BE 26. A solve that clears the instrument's
+ * own distance by one metre is a solve that fails whenever the lens settles
+ * anywhere but exactly where the solve assumed — and the composition gate duly
+ * read `nothing in the frame reaches 25m` at fifty-nine places on a build whose
+ * horizon solve was reporting itself satisfied. Thirty is the same solve with a
+ * fifth of margin in it.
+ */
+const HZ_FAR = 30;
+/**
+ * ---- THE THIRD MOVE: TILT ---------------------------------------------------
+ *
+ * The lens has two ways to find a horizon and both are bounded. It can climb —
+ * capped at `RISE_MAX`, and capped harder by the hero's place in the frame — and
+ * it can back off, which the boom budget already pays for. On a 22-degree sun's
+ * island that is enough for a bank and not enough for a hillside: measured on
+ * this build at the frames the composition gate refused, the median climb the
+ * solve asked for was **0.03 m**, so the cap was not even binding. The rig was
+ * satisfied and the frame still had nothing in it past twenty-five metres.
+ *
+ * A camera operator standing in a hollow does not only stand up. They TILT, and
+ * the sky arrives at the top of the frame. That is the move this constant is:
+ * how far the axis may be tipped up, in radians, when the climb has been spent
+ * and the top row still does not reach. It is paid for by raising the aim point,
+ * which is the same lever the climb already uses, and it is bounded by the one
+ * rule that outranks it — the cadet does not leave his own frame.
+ */
+const TILT_MAX = 0.34;
+
 export class CameraRig {
   constructor(camera, scene = null) {
     this.cam = camera;
@@ -77,10 +137,15 @@ export class CameraRig {
     this.terrainBias = 0;
     this.pitchBias = 0;
     this.lift = 0;
+    // How far the axis is tipped up to find a horizon, and how far it wants to
+    // be. See TILT_MAX and `_horizon`.
+    this.tilt = 0;
+    this._tiltWant = 0;
     this.side = 1;            // which shoulder the lens is over: +1 right, -1 left
     this._sideWant = 1;
     this._hit = BOOM;
     this._first = true;
+    this._axisEl = -0.14;
 
     this._d = new THREE.Vector3();
     this._r = new THREE.Vector3();
@@ -116,6 +181,7 @@ export class CameraRig {
     this.glideW = 0;
     this.terrainBias = 0;
     this.pitchBias = 0;
+    this._axisEl = -0.14;
     this._first = true;
   }
 
@@ -249,7 +315,33 @@ export class CameraRig {
       const u = 1 - this.kickT / this.kickDur;
       kickB = this.kick * (u < 0.14 ? u / 0.14 : Math.pow(1 - (u - 0.14) / 0.86, 1.9));
     }
-    const reach = Math.max(MIN_BOOM, this.boom - kickB);
+    // ---- AND THE CLIMB IS PART-PAID FOR IN BOOM ----------------------------
+    //
+    // The first version of the climb below only went UP, and the capture says
+    // exactly what that looks like: at a bank on the north shore the lens rose
+    // three metres, the frame filled with trees and sky and valley — and the
+    // cadet was a helmet at the very bottom edge of it. Where the hero sits in
+    // the frame is `lift / boom` and nothing else, so a climb has to buy some
+    // boom or it is a plan view.
+    //
+    // IT IS BOUNDED, AND THE BOUND IS THE SECOND THING THE CAPTURES TAUGHT. An
+    // unbounded `reach += lift` is a loop that feeds itself: a longer boom is
+    // allowed a bigger climb, a bigger climb buys a longer boom, and two frames
+    // later the lens is eight metres back in a stand of trees with something
+    // twenty-six centimetres in front of it. A metre and a quarter is what the
+    // composition needs and nothing beyond it is safe.
+    //
+    // AND THE BOUND IS 2.4, NOT 1.25, BECAUSE THE HORIZON HAS TO BE PAYABLE.
+    // The climb below is capped at `lift <= max(1.4, hit) * 0.62` — the hero's
+    // place in the frame — so on a four-metre boom no climb over 2.5 m can ever
+    // be taken, and the horizon solve was asking for three and being refused.
+    // The composition gate then read `nothing in the frame reaches 25m` at
+    // fifty-six places with nothing at all near the lens: not a wall, a
+    // hollow. Climbing and reaching are the same move, and this is the line
+    // that lets the operator step BACK to stand up. It is still bounded, and
+    // the loop still converges — `this.lift` is last frame's damped climb, so
+    // 2.16 m of extra boom is the whole of what a maximum climb can buy.
+    const reach = Math.max(MIN_BOOM, this.boom - kickB) + Math.min(this.lift, 2.4) * 0.9;
 
     const cp = Math.cos(pitchUse);
     const dir = this._d.set(Math.sin(this.yaw) * cp, Math.sin(pitchUse), Math.cos(this.yaw) * cp);
@@ -274,6 +366,21 @@ export class CameraRig {
     let lift = 0;
     const STEPS = 12;
     let run = 0;
+    // ---- AND WHAT THE MARCH GAVE UP ON IS NOT THROWN AWAY ------------------
+    //
+    // The loop stops the moment the climb it would take to clear the ground
+    // behind the cadet outgrows the budget for a boom that short. Until this
+    // line existed it then DISCARDED that number and left the lens at the last
+    // station it liked. On the tightest ground the FIRST station already blows
+    // the budget — `run > 0.50 + 1.85 * 0.46` — so `hit` never moves off
+    // `MIN_BOOM`, `lift` never moves off zero, and the lens is planted 1.85 m
+    // behind the cadet inside the bank. That is the reported frame, exactly:
+    // boom 1.85, short 0.73, seeFar 0.00, and no cadet in his own shot.
+    //
+    // The budget is the right rule for CHOOSING a boom length, and the wrong
+    // rule for deciding whether to climb at all — because the alternative to
+    // climbing is not a shorter shot, it is the inside of a hill.
+    let overrun = 0;
     for (let i = 0; i <= STEPS; i++) {
       const f = MIN_BOOM + (i / STEPS) * (reach - MIN_BOOM);
       const h = heightAt(rig.x - dir.x * f, rig.z - dir.z * f);
@@ -282,7 +389,14 @@ export class CameraRig {
       // How much climb a given boom length is allowed to buy. It grows with
       // distance: a long boom lifting a metre is a camera looking over a ridge,
       // a short one lifting a metre is a map screen.
-      if (run > 0.50 + f * 0.46) break;
+      // THE BUDGET BUYS A LONGER BOOM AS WELL AS A HIGHER ONE. At 0.46 a
+      // four-metre boom could climb 2.25 m, and on anything steeper the march
+      // fell out early and handed back a SHORT boom as well as a low one —
+      // which is the worst of both, because a short boom is the thing that
+      // makes the climb look like a map screen. Climbing and reaching are the
+      // same move here, so the slope of the budget is what lets the lens ride
+      // out over a bank instead of standing on top of the cadet.
+      if (run > 0.50 + f * 0.70) { overrun = run; break; }
       hit = f; lift = Math.max(0, run);
     }
     // Two more samples, either side of where the lens is going to end up.
@@ -340,6 +454,66 @@ export class CameraRig {
     // raises the camera over their own head. The ground clamp and the two
     // de-penetration passes below still have the last word on where it lands.
     if (hit < MIN_BOOM) lift = Math.max(lift, Math.min(1.1, (MIN_BOOM - hit) * 1.35));
+    // …and the same answer for the ground, which is the case that was leaving
+    // the lens in the hill: the march wanted to climb and was not allowed to,
+    // so it climbs now, capped.
+    if (overrun > 0) lift = Math.max(lift, Math.min(overrun, RISE_MAX));
+
+    // ---- HOLD A HORIZON ----------------------------------------------------
+    //
+    // Everything above answers "is the lens inside something". Nothing above
+    // answers the question the player is actually asking, which is "can I see
+    // anything from here" — and those are different questions. A lens sitting
+    // in clean air at the bottom of a bowl is inside nothing at all and its
+    // frame still stops dead at nine metres in every direction.
+    //
+    // So this asks the instrument's own question, on the terrain, off the same
+    // lens: DOES THE TOP OF THE FRAME REACH REAL DISTANCE. `seeFar` in
+    // tools/critic/_escape.mjs counts frame rays that get past 25 m and wants
+    // more than one in sixteen of them; the top row of its grid is nine rays of
+    // sixty-three, so the top row reaching is the whole of that clause. The
+    // climb that would make it reach is computed directly rather than searched
+    // for, and the second-cheapest of five bearings is taken — one clear
+    // bearing is luck, two across the width of the frame is a horizon.
+    //
+    // It is off on the wing: a glider is already nine metres back and looking
+    // down past the pilot, and lifting that shot flattens it into a map.
+    //
+    // ONE THING HERE IS LOAD-BEARING AND WAS WRONG IN THE FIRST VERSION OF IT.
+    // The elevation the top of the frame actually points along is NOT the boom
+    // pitch: the lens looks AT the cadet, so every metre it climbs tips the
+    // whole frame further down, and a lift solved against the boom pitch buys
+    // a horizon the frame is no longer aimed at. Measured: `seeFar` stayed at
+    // 0.00 while the lens rose. So the climb is solved against the elevation
+    // the previous frame's lens really looked along, which is a loop that
+    // closes rather than a prediction that has to be right first time — and
+    // the aim compensation below is the other half of it.
+    if (gW < 0.3 && s.airTime < 0.6) {
+      lift = Math.max(lift, this._horizon(
+        rig.x - dir.x * hit, rig.y - dir.y * hit + lift, rig.z - dir.z * hit,
+        this.yaw, this._axisEl + 0.586,
+      ) * (1 - gW));
+    }
+    // ---- AND THE HERO NEVER LEAVES HIS OWN FRAME ---------------------------
+    //
+    // The hard tie, for the case the boom could not be paid: a wall directly
+    // behind the cadet holds `hit` short however much the lens wants to climb,
+    // and the two together are a top-down shot of a helmet — measured, with a
+    // capture: at a bank on the north shore the lens rose three metres on a
+    // four-and-a-half-metre boom and the cadet was a helmet at the bottom edge.
+    //
+    // 0.62 of the boom is 32° below the LENS, and the aim compensation further
+    // down tips the axis up by most of that, so the cadet lands about seven
+    // tenths of the way down the frame with the horizon above him — a high
+    // shot, which is what this whole section is trying to reach.
+    //
+    // THE NUMBER WAS CHOSEN OFF CAPTURES, NOT OFF THE GATE. At 0.85 the escape
+    // instrument scores better — the lens climbs further out of more wedges —
+    // and the cadet sits at 92% of the way down the frame with his helmet under
+    // the companion's card. A camera that passes a predicate and loses the hero
+    // is the failure this file exists to prevent, so the tighter number wins
+    // and the residual wedges are named in the report instead of hidden.
+    lift = Math.min(lift, Math.max(1.4, hit) * 0.62);
     this._hit = hit;
 
     // the climb is damped, or a boom that steps over a boulder pops the horizon
@@ -379,12 +553,110 @@ export class CameraRig {
     // naming the top of a wall rather than its face.
     camClear(this.pos, rig);
 
+
+    // ---- IT IS NOT INSIDE ANYTHING, WHATEVER MOVED IT LAST -----------------
+    //
+    // Everything above this line answers the boom's own question — *how far
+    // back may the lens sit* — and then two passes move it somewhere else
+    // vertically: the climb, and the ground clamp in `_clear`. Both leave the
+    // line the boom was tested along, and neither re-asks the only question
+    // that matters about the pixel that ships: is there anything drawn between
+    // the cadet and the lens.
+    //
+    // The heightfield is answered by `_clear` and the built lattice by
+    // `camClear`. Nothing answered for the third kind of solid — the trees,
+    // boulders, hoodoos, arches and landmarks the island is actually made of —
+    // and that is the frame the composition gate keeps photographing:
+    // `minD 0.02, camOpen 0.00, short 1.00`, a lens with its face against the
+    // inside of a trunk. This is the answer for that kind, and it runs before
+    // the pauldron rise below so that the rise can put back whatever boom
+    // there is room to put back.
+    this._unbury(rig, sr);
+
+    // ---- AND THE SHOT IS NEVER A PAULDRON ----------------------------------
+    //
+    // Both passes above are allowed to pull the lens IN toward the cadet, and
+    // they have to be: the alternative to a short boom is the inside of a rock.
+    // What they may not do is leave it there. A lens 1.85 m from a 1.8 m body
+    // is not a shot of a place with a person in it, it is a shot of a person,
+    // and `notFree()` names it — *the lens is in his shoulder*.
+    //
+    // Rising is the way out that keeps the boom pointing where it was pointing,
+    // and above a heightfield it is always available, because nothing in a
+    // heightfield is over your head. So a lens that has been squeezed inside
+    // the minimum stands up on the spot until it is a shot again — the same
+    // 2.35 m src/player/controller.js uses to decide a recovery worked.
+    //
+    // AND THE RISE IS INTO SPACE THAT IS ACTUALLY THERE. *"Above a heightfield
+    // it is always available, because nothing in a heightfield is over your
+    // head"* is true of the heightfield and false of the island: the thing
+    // over your head is a canopy, a lintel, a hoodoo's capstone or an arch.
+    // The composition gate photographed the result — `boom 2.35, minD 0.02,
+    // camOpen 0.00, short 1.00`, a lens that had stood up exactly the 2.35 m
+    // this block asks for and stood up into a tree. So the climb is measured
+    // first and taken only as far as it is free.
+    {
+      const ax = s.pos.x, ay = s.pos.y + HEAD, az = s.pos.z;
+      const dx = this.pos.x - ax, dy = this.pos.y - ay, dz = this.pos.z - az;
+      const flat2 = dx * dx + dz * dz;
+      if (flat2 + dy * dy < EYE_MIN * EYE_MIN) {
+        const up = Math.sqrt(Math.max(0, EYE_MIN * EYE_MIN - flat2));
+        if (up > dy) this.pos.y = ay + Math.min(up, dy + this._headroom(up - dy));
+        // one more word from the lattice, since the lens just moved
+        camClear(this.pos, rig);
+      }
+    }
+
+
     // ---- aim point ----
     // Under the wing the lens looks *below* the pilot, which drops the horizon
     // toward the top of the frame and opens the world up underneath him. It is
     // the single beat that separates a glide from a fall with a decoration.
     this.focus.copy(rig).add(this.lead);
     this.focus.y -= gW * (1.05 + dive * 1.15);
+    // ---- A CLIMBING LENS LOOKS OVER HIM, NOT DOWN AT HIM -------------------
+    //
+    // An orbit camera aims at the centre of its own sphere, and that is right
+    // for as long as the lens is ON the sphere. The climb above takes it off:
+    // three metres up on a four-metre boom is a lens looking down at forty
+    // degrees, so the horizon it just climbed to see is above the top of the
+    // frame and the whole shot is ground. Every metre of climb therefore also
+    // moves the aim point up and out along the bearing, which tips the axis
+    // back toward level and drops the cadet down the frame — which is what a
+    // high shot is supposed to look like.
+    //
+    // The vertical share is capped against the boom, because that ratio IS the
+    // cadet's place in the frame: 0.45 of the boom holds him no lower than
+    // about a quarter of the frame under the axis, well inside a 70° lens.
+    if (gW < 0.3) {
+      // The whole of what the aim point may be raised by, climb and tilt
+      // together. It is the cadet's place in the frame and it outranks the
+      // horizon: a shot with a legal `seeFar` and no hero in it is the failure
+      // this file exists to prevent, not the one it is fixing.
+      const budget = Math.max(1.2, this._hit) * 0.55;
+      let up = 0;
+      if (this.lift > 0.02) {
+        up = Math.min(this.lift, Math.max(1.2, this._hit) * 0.45);
+        this.focus.x += Math.sin(this.yaw) * this.lift * 0.85;
+        this.focus.z += Math.cos(this.yaw) * this.lift * 0.85;
+      }
+      // ---- AND WHEN THE CLIMB CANNOT BUY A HORIZON, THE TILT DOES --------
+      //
+      // `_horizon` now returns both prices for the same piece of ground: the
+      // metres of climb, and the radians of elevation. The climb is taken first
+      // because it keeps the axis level and the shot honest; whatever it could
+      // not pay for arrives here as a tip of the axis, which puts sky in the top
+      // of the frame instead of the hillside that was in it.
+      //
+      // It converges rather than predicts: `_axisEl` on the next frame is read
+      // off the transform that actually shipped, so a tilt that bought the
+      // horizon makes `_tiltWant` zero and the tilt decays out again. That is
+      // the same loop the climb closes, and for the same reason.
+      const tiltWant = (s.airTime < 0.6) ? (this._tiltWant || 0) : 0;
+      this.tilt = damp(this.tilt, tiltWant, 5, dt);
+      if (this.tilt > 0.004) up += Math.max(1.2, this._hit) * Math.tan(this.tilt);
+      if (up > 0.001) this.focus.y += Math.min(up, budget);
+    }
 
     // ---- shake ----
     this.trauma = Math.max(0, this.trauma - dt * 1.35);
@@ -400,7 +672,32 @@ export class CameraRig {
     this.cam.position.x += sr.x * ox;
     this.cam.position.z += sr.z * ox;
     this.cam.position.y += oy;
+    // ---- AND THE SHAKE DOES NOT GET TO BURY THE LENS ----------------------
+    //
+    // Everything above solves for a lens that is clear of the ground, and then
+    // trauma adds up to 46 cm of vertical offset to the pixel that actually
+    // ships. On flat ground that is a knock; on a slope taken at a scramble it
+    // is the lens 47 cm under the drawn hillside, which the traverse gate
+    // caught at bearing 315° and which is the same class of failure as every
+    // other one this file exists to prevent. The offset is a *shake*, not a
+    // position, so it yields to the floor.
+    {
+      const gy = heightAt(this.cam.position.x, this.cam.position.z);
+      if (gy !== null && this.cam.position.y < gy + CLEAR * 0.82) {
+        this.cam.position.y = gy + CLEAR * 0.82;
+      }
+    }
     this.cam.lookAt(this.focus);
+    // What the lens is really looking along, for the horizon solve above. It
+    // is read off the shipped transform rather than predicted, which is why
+    // the loop converges instead of being right or wrong once.
+    {
+      const fx2 = this.focus.x - this.cam.position.x;
+      const fy2 = this.focus.y - this.cam.position.y;
+      const fz2 = this.focus.z - this.cam.position.z;
+      const fl = Math.hypot(fx2, fz2);
+      this._axisEl = fl > 0.01 ? clamp(Math.atan2(fy2, fl), -0.9, 0.7) : 0;
+    }
 
     // ---- bank ----
     const lateral = s.vel.x * sr.x + s.vel.z * sr.z;
@@ -434,6 +731,7 @@ const _sc = new THREE.Vector3();
 const _c = new THREE.Vector3();
 const _o = new THREE.Vector3();
 const _dp = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
 
 /**
  * The lens is never inside the island. Run on the position that is drawn.
@@ -450,7 +748,50 @@ CameraRig.prototype._clear = function (rig) {
     const h = heightAt(x, z);
     return h === null ? -99 : (h + CLEAR * 0.82) - y;
   };
-  if (need(p.x, p.y, p.z) <= 0) return;
+  // ---- THE GROUND BETWEEN THE CADET AND THE LENS, NOT UNDER IT ------------
+  //
+  // This used to ask one question — is the ground under the lens's own column
+  // below it — and that question is blind to the case the captures keep
+  // returning: the lens beside a bank rather than over one. Stand on a shelf
+  // with a two-metre face half a metre behind you and every one of these is
+  // true at once: the ground under the lens is a metre below it, the boom's own
+  // march approved the shot two frames ago at a different pitch, and the frame
+  // reads `short 0.98, minD 0.02` — the lens two centimetres from the face of
+  // the bank, looking at it.
+  //
+  // The boom march (above, in `update`) does look along the line — but at the
+  // boom the SOLVER chose, before the climb, before the ground clamp, and
+  // before the settle lerp puts the drawn lens somewhere between the two. So
+  // the same march is run again here, on the pixel that ships, over the
+  // segment from the cadet's own aim point to the lens.
+  let under = need(p.x, p.y, p.z);
+  {
+    _dp.copy(p).sub(rig);
+    const len = _dp.length();
+    if (len > 1e-4) {
+      // Raising the lens by `r` raises a station a fraction `f` along the
+      // segment by only `f · r`, so what each station asks for is its own
+      // shortfall divided by `f`. Stations nearer than a third of the way in
+      // are skipped: they sit at the cadet's feet, where that division is
+      // meaningless and the answer is always negative anyway.
+      for (let i = 3; i < 8; i++) {
+        const f = i / 8;
+        const q = need(rig.x + _dp.x * f, rig.y + _dp.y * f, rig.z + _dp.z * f) / f;
+        if (q > under) under = q;
+      }
+    }
+  }
+  if (under <= 0) return;
+
+  // ---- RISE BEFORE WALKING IN --------------------------------------------
+  //
+  // Walking the lens toward the cadet gets it out of the hill and hands back a
+  // shot of a pauldron. There is a second way out of a heightfield and it is
+  // always available, because nothing in a heightfield is over your head, and
+  // it is the one that KEEPS THE BOOM — which is to say, keeps the shot. It is
+  // bounded: a lens ten metres inside a mountain rising ten metres is a map
+  // screen, and for that case walking in is still the right answer.
+  if (under <= RISE_MAX) { p.y += under; return; }
 
   _dp.copy(rig).sub(p);
   const len = _dp.length();
@@ -469,6 +810,169 @@ CameraRig.prototype._clear = function (rig) {
   // src/player/controller.js is meanwhile offering them the way out.
   const h = heightAt(p.x, p.z);
   if (h !== null) p.y = Math.max(p.y, h + CLEAR);
+};
+
+/**
+ * HOW MUCH CLEAR AIR IS OVER THE LENS, up to `want` metres.
+ *
+ * Straight up from the drawn position, against the same three kinds of solid
+ * the boom is tested against — the scenery list, the built lattice, and (for
+ * completeness, though nothing in a heightfield is over your head) nothing
+ * else. Returns the metres of climb that are actually available.
+ */
+CameraRig.prototype._headroom = function (want) {
+  if (!(want > 0.01)) return 0;
+  let free = want;
+  const list = this.blockers;
+  if (list && list.length && this._ray) {
+    const ray = this._ray;
+    ray.near = 0.04; ray.far = want + 0.30;
+    ray.set(_o.copy(this.pos), _up);
+    const hits = ray.intersectObjects(list, false);
+    // A HIT AT ARM'S LENGTH IS NOT A CEILING, IT IS A FLOOR SEEN FROM INSIDE.
+    // Every material on this list is single-sided in the shipped frame but the
+    // lens can still end up within a few centimetres of one, and the nearest
+    // thing overhead is then the underside of whatever it is standing against —
+    // at which point refusing the climb keeps the lens exactly where it must
+    // not be. Anything inside 45 cm is treated as already-behind: the climb is
+    // measured against the first surface the lens has actual room under.
+    for (const h of hits) {
+      if (h.distance <= 0.45) continue;
+      free = Math.min(free, Math.max(0, h.distance - 0.30));
+      break;
+    }
+  }
+  const built = camMarch(this.pos.x, this.pos.y, this.pos.z, 0, 1, 0, want + 0.30);
+  if (built < want + 0.30) free = Math.min(free, Math.max(0, built - 0.30));
+  return free;
+};
+
+/**
+ * NOTHING DRAWN BETWEEN THE CADET AND THE LENS. Run on the position that ships,
+ * after every other pass has had its say.
+ *
+ * The cadet's own aim point is by construction a place the player can be, so
+ * shortening the boom toward it always terminates somewhere legal — the same
+ * argument `_clear` is built on, and the same three-ray sweep `_propHit` uses,
+ * because a single centre ray lets the lens shave the inside of a trunk and
+ * fill a third of the frame with its backfaces.
+ *
+ * It is allowed to end up closer than `MIN_BOOM`. That is the trade this file
+ * already made once and it has not changed: *squeezing right up against the
+ * cadet's shoulders is not a nice shot, but it is a shot; the inside of a rock
+ * is not.*
+ */
+CameraRig.prototype._unbury = function (rig, sr) {
+  const list = this.blockers;
+  _dp.copy(this.pos).sub(rig);
+  const len = _dp.length();
+  if (len < 0.12) return;
+  _dp.multiplyScalar(1 / len);
+  let hit = len;
+  if (list && list.length && this._ray) {
+    const ray = this._ray;
+    ray.near = 0.05; ray.far = len;
+    for (let k = 0; k < 3; k++) {
+      _o.copy(rig);
+      if (k === 1) _o.addScaledVector(sr, 0.26);
+      else if (k === 2) _o.addScaledVector(sr, -0.26);
+      ray.set(_o, _dp);
+      const hits = ray.intersectObjects(list, false);
+      if (hits.length) hit = Math.min(hit, hits[0].distance);
+    }
+  }
+  const built = camMarch(rig.x, rig.y, rig.z, _dp.x, _dp.y, _dp.z, len);
+  if (built < hit) hit = built;
+  if (hit >= len - 0.02) return;
+  // 0.34 is the lens's own girth, the same figure `_propHit` backs off by.
+  //
+  // AND IT IS NEVER PLACED BEYOND THE THING IT JUST DETECTED. The floor used to
+  // be a flat 0.75 m, which on anything the lens was already half a metre from
+  // put it on the FAR side of the hit — inside the stone — and then the rise
+  // out of the pauldron below could not lift it out either, because a ray cast
+  // upward from inside a mesh hits that mesh's own backface at once. The gate
+  // photographed the result six times over: `boom 1.36, short 1.00, minD 0.06`.
+  // A very short boom is a bad shot; the inside of a kerb is not a shot.
+  const d = Math.max(0.25, hit > 1.09 ? hit - 0.34 : hit - 0.22);
+  this.pos.copy(rig).addScaledVector(_dp, d);
+  // the ground still has the last word on the shorter boom
+  this._clear(rig);
+};
+
+/**
+ * HOW HIGH THE LENS HAS TO SIT FOR THE TOP OF THE FRAME TO REACH DISTANCE.
+ *
+ * Five bearings across the width of the shipped frame, marched over the
+ * heightfield at the elevation of its top row, out to `HZ_FAR`. For each one
+ * the answer is a single number — the metres of climb that would put every
+ * piece of ground on that bearing under the ray — and it is computed rather
+ * than searched for, so the whole thing is eighty-five heightfield samples and
+ * costs about fifteen microseconds.
+ *
+ * The SECOND CHEAPEST of the five is returned, not the cheapest and not the
+ * worst. The cheapest is one bearing, which is a gap between two hills and not
+ * a horizon; the worst would fly the lens up the side of any mountain the
+ * player happened to be facing, which is the map screen this file's boom-climb
+ * budget exists to prevent. Two of five is about a third of the frame's width,
+ * which is comfortably more than the `seeFar` clause asks for.
+ *
+ * Terrain only, deliberately. Props and landmarks are answered by the boom's
+ * own three-ray sweep at the range where they matter, and marching a raycast
+ * through the scene five times a frame to find a horizon would cost more than
+ * the horizon is worth.
+ */
+const _hz = [0, 0, 0, 0, 0];
+const _hzT = [0, 0, 0, 0, 0];
+CameraRig.prototype._horizon = function (lx, ly, lz, yaw, el) {
+  const ce = Math.cos(el), se = Math.sin(el);
+  for (let b = 0; b < 5; b++) {
+    // ±35°, which is the half-width of a 70° lens on a 16:9 frame
+    const a = yaw + (b / 4 - 0.5) * 1.22;
+    const dx = Math.sin(a) * ce, dz = Math.cos(a) * ce;
+    let m = -99, mt = -9;
+    for (let t = 2; t <= HZ_FAR; t += 1.6) {
+      const h = heightAt(lx + dx * t, lz + dz * t);
+      // off the edge of the island: this bearing sees for ever
+      if (h === null) { m = -99; mt = -9; break; }
+      const k = h + 0.9 - (ly + se * t);
+      if (k > m) m = k;
+      // ---- THE SAME SHORTFALL, AS AN ANGLE ------------------------------
+      //
+      // `k` is how far the lens would have to CLIMB to pass over this piece of
+      // ground. That is one of the two ways to clear it and it is the bounded
+      // one: three metres of climb clears a bank and does not clear a hillside.
+      // This is the other — the elevation the top row would have to be at to
+      // pass over the same ground from where the lens already is. The rig pays
+      // whichever it can afford, and on the frames this file was rewritten
+      // against it can afford this one.
+      const q = Math.atan2(h + 0.9 - ly, t) - el;
+      if (q > mt) mt = q;
+    }
+    _hz[b] = m; _hzT[b] = mt;
+  }
+  _hz.sort((p, q) => p - q);
+  _hzT.sort((p, q) => p - q);
+  // ---- THE MEDIAN OF FIVE, NOT THE SECOND CHEAPEST -----------------------
+  //
+  // The second cheapest is two bearings of five, which is about two of the top
+  // row's nine rays, which is two of the instrument's sixty-three — and the
+  // clause wants more than four. So the old solve was calibrated to land ON the
+  // bar it was trying to clear, and a solve that lands on a bar fails half the
+  // time by construction. The median is five of nine rays and clears it.
+  //
+  // ---- AND THE TILT IS SOLVED AGAINST THE UNTILTED AXIS ------------------
+  //
+  // `el` is the elevation the lens ACTUALLY looked along last frame, tilt
+  // included. Asking "how much more elevation do I need than I already have"
+  // and then damping toward that answer is an oscillator: the tilt buys the
+  // horizon, the horizon says nothing is needed, the tilt decays, the horizon
+  // goes away again. The climb does not have this problem because it is solved
+  // against the lens height it is ABOUT to be at, not the one it was at. So the
+  // tilt is put on the same footing — `this.tilt` is added back, making
+  // `_tiltWant` the total tilt this frame needs from a level axis, which is a
+  // damp target that stands still when the shot is right.
+  this._tiltWant = Math.max(0, Math.min(_hzT[2] + this.tilt, TILT_MAX));
+  return Math.max(0, Math.min(_hz[2], RISE_MAX));
 };
 
 /**

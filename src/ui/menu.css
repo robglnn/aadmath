@@ -292,3 +292,227 @@
 @media (prefers-reduced-motion: reduce) {
   #ui .mnu, #ui .mnu-card { transition-duration: .01ms; }
 }
+
+/* ===========================================================================
+   THE SETTINGS — sound, language, aim, on the one card Escape opens.
+
+   The client, playing the shipping build: *"sound can go in settings … 
+   languages should also be in settings."* Both were permanent chips on the
+   glass; §7.3 of design/FIRST-90-SECONDS.md lists both under CUT and names
+   this card as where they go. Nothing about either control was rebuilt — the
+   sound button is the same element src/audio/control.js has always built, moved
+   here by `adoptSound()`, and the language row is the same `.langs` control
+   with the same `data-loc` buttons, wearing each language's own name for
+   itself instead of a two-letter code.
+   =========================================================================== */
+
+.mnu-set .mnu-row { align-items: center; }
+
+/* ---- language ------------------------------------------------------------
+   Written in its own language, every one of them, because that is the only
+   form a student who cannot read the current language can use. Wraps rather
+   than scrolls: three languages is a set that fits, and a horizontal scroller
+   is a control half of whose options nobody knows are there. */
+.mnu-lang .langs {
+  display: flex; flex-wrap: wrap; gap: .3rem;
+  position: static; padding: 0; background: none; border: 0; box-shadow: none;
+}
+.mnu-lang .langs button {
+  appearance: none; font: inherit; font-size: .78rem; letter-spacing: .02em;
+  padding: .34rem .68rem; min-height: 32px;
+  color: var(--ink-dim); background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(140, 195, 255, .16); border-radius: 7px;
+  cursor: pointer; transition: color .14s, border-color .14s, background .14s;
+}
+.mnu-lang .langs button:hover { color: var(--ink); border-color: rgba(140, 195, 255, .34); }
+.mnu-lang .langs button.on {
+  color: var(--cyan); background: rgba(95, 230, 255, .13);
+  border-color: rgba(95, 230, 255, .5);
+}
+
+/* ---- sound ---------------------------------------------------------------
+   `.sound` is `position: absolute` in src/audio/audio.css and is moved again by
+   both phone compositions, because for its whole life it has been a chip pinned
+   to the glass. Inside this card it is a row control, so the pinning is undone
+   here — at a specificity that beats every sheet that pins it, and in the one
+   file that knows the element is no longer where those sheets think it is. */
+#ui .mnu-sound .sound,
+#ui .mnu-audio .mnu-sound .sound {
+  position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto;
+  min-height: 32px;
+}
+
+/* ---- the screens, as buttons --------------------------------------------
+   A key is not an affordance for a thumb or a stick. These rows carry the same
+   words they always did and are now the door as well as the sign on it. */
+.mnu-screens li { padding: 0; }
+.mnu-screens li button {
+  appearance: none; font: inherit; color: inherit; text-align: left;
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  width: 100%; min-height: 32px; padding: .3rem .42rem;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(140, 195, 255, .14); border-radius: 7px;
+  cursor: pointer; transition: color .14s, border-color .14s, background .14s;
+}
+.mnu-screens li button:hover {
+  color: var(--ink); border-color: rgba(140, 195, 255, .34);
+  background: rgba(255, 255, 255, .06);
+}
+
+/* ---- the handle ----------------------------------------------------------
+   Two symbols and no words (src/ui/hud.css folds the caption). The globe is
+   the half that is not about clutter: it is how a student who reads no English
+   knows the language is behind this button. */
+.mnu-pill .mnu-globe { flex: none; }
+
+/* The locale switcher's old home was `position: absolute` at the top-right of
+   the glass (src/ui/style.css, and both phone sheets moved it again). Inside
+   this card it is a row control, and the reset has to out-specify `#ui .langs`
+   — which is where every one of those sheets wrote it. */
+#ui .mnu-set .mnu-lang .langs {
+  position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto;
+  z-index: auto;
+}
+
+/* ---- the card is not part of the world's choreography --------------------
+   Both adopted controls used to live on the glass, so half a dozen sheets stand
+   them down while a beat owns the frame — `#ui.meta-cine .langs`,
+   `#ui.ses-cine .sound`, `#ui.ses-resting .langs`, `#ui:has(.meta-rite.show)
+   .langs`, all with `!important`, all correct about a chip in the corner and
+   all wrong about a row inside an open settings card.
+
+   Measured, not guessed: with the cold open still running, the language buttons
+   inside this card computed `pointer-events: none` and a real click landed on
+   the row behind them. Escape opens this card during the cold open — that is
+   the point of it — so the one control a Spanish-speaking student needs was
+   visible, focusable, and dead.
+
+   Three classes deep so it beats every one of those rules whatever order the
+   bundler lands them in.
+
+   AND ONLY WHILE THE CARD IS OPEN — `.show`, which was the missing word.
+
+   `#ui .mnu` is `opacity: 0; pointer-events: none` when the card is shut, and
+   `pointer-events` is INHERITED, so every control inside a shut card is
+   correctly untouchable — until a rule with `!important` hands three of them
+   back. That is what this block did: the three language buttons and the sound
+   button stayed hit-testable, at full size, in their laid-out positions, on
+   top of the world, for the whole run. They are invisible (opacity is composited
+   on the parent and cannot be undone from a child), so nothing could be seen
+   there and nothing could be photographed.
+
+   Measured on a 390x844 iPhone 13 profile: in POLISH, held up, the shut card's
+   language row lands exactly over `.mnu-pill` — the globe handle, the one
+   control a student who reads no English has to press to get out of English.
+   `document.elementFromPoint` at the centre of that handle returned
+   `button < div.langs < div.mnu-row.mnu-lang`, not the handle. A thumb on the
+   globe hit a language button nobody can see, the card never opened, and the
+   locale switcher was unreachable in exactly the language that needs it most.
+   English and Spanish wrap that row to a different height and missed it, which
+   is why nine green phone profiles said nothing. */
+#ui .mnu.show .mnu-set .langs,
+#ui .mnu.show .mnu-set .langs button,
+#ui .mnu.show .mnu-sound .sound {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+}
+/* And belt as well as braces: a shut card is not on the glass at all, whatever
+   any other sheet says with `!important` about a chip that used to live there. */
+#ui .mnu:not(.show), #ui .mnu:not(.show) * { pointer-events: none !important; }
+
+/* ---- on one column, the settings come first ------------------------------
+   The card stacks into one column below 720 px wide or 520 px tall, and in that
+   order the settings are last: on a phone held sideways a player has to scroll
+   past nine controls and four screens to reach the two things the client
+   actually asked for — *"sound can go in settings … languages should also be in
+   settings"*. A setting you have to go looking for is the same defect as a
+   setting that is not there.
+
+   So on one column the order is: the settings, then the screens, then the
+   controls, then the words. The card's DOM order is unchanged — it is the
+   reading order for a mouse and a screen reader on a wide frame, and both
+   still get it — and `order` only moves the boxes on the frames that stack. */
+@media (max-width: 720px), (max-height: 520px) and (orientation: landscape) {
+  #ui .mnu-cols { display: flex; flex-direction: column; }
+  #ui .mnu-side { order: -1; }
+  #ui .mnu-side { display: flex; flex-direction: column; }
+  #ui .mnu-side .mnu-set { order: -1; }
+}
+
+/* ===========================================================================
+   A THUMB IS THE SAME SIZE ON EVERY PHONE — 44 x 44, on every control here.
+
+   Apple's Human Interface Guidelines and Google's Material guidance both
+   publish the same floor for a touch target: 44 x 44 CSS px. Measured on this
+   card, on a 390x844 iPhone 13 profile, before this block existed:
+
+     RESUME              145 x 26.4        the way out of the pause
+     each screen row     289 x 32          progress, dossier, controls, menu
+     English/Espanol/Polski  79/82/69 x 32 THE LOCALE SWITCHER
+     the sound button     66 x 32
+     LOOK SPEED          116 x 3           a three-pixel-tall rail
+     INVERT              101 x 19.4
+     RECOVER / START OVER, YES / NO   all under it as well
+
+   Every interactive control on the pause menu was under the floor, in all
+   three languages and both orientations, INCLUDING THE THREE LANGUAGE BUTTONS.
+   A previous round moved the locale switcher off the glass and into this card
+   and gave the handle a globe, so it is findable without reading English —
+   which was right, and left it findable and not reliably tappable. On this
+   surface a mis-tap is not a cosmetic annoyance: it is a wrong answer recorded
+   against a student, a misconception tagged they do not hold, and a proving
+   run burned.
+
+   `(pointer: coarse)` and not a width breakpoint, for the same reason
+   src/ui/rift.css gives: the thing that needs 44 px is a finger, so a
+   touchscreen Chromebook at 1366 px is in and a narrow window on a desktop is
+   not. `npm run check:touch` measures every one of these boxes in the real
+   card, opened with a real tap on the handle, in three locales x three phone
+   frames, and plants a 38 px control to prove it can still refuse one.
+   =========================================================================== */
+@media (pointer: coarse) {
+  #ui .mnu-resume,
+  #ui .mnu-act,
+  #ui .mnu-yes,
+  #ui .mnu-no,
+  #ui .mnu-toggle,
+  #ui .mnu-screens li button,
+  #ui .mnu-lang .langs button,
+  #ui .mnu-sound .sound,
+  #ui .mnu-audio .mnu-sound .sound {
+    min-height: 44px; min-width: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* The screen rows are a full-width list, so they keep their own axis. */
+  #ui .mnu-screens li button { justify-content: space-between; width: 100%; }
+  /* The handle itself. It measured 55 x 44 and passed, which is luck rather
+     than a floor — the caption is folded away on a phone and only the two
+     glyphs hold it up. */
+  #ui .mnu-pill { min-height: 44px; min-width: 44px; justify-content: center; }
+
+  /* THE SLIDER IS THE CONTROL, NOT THE RAIL.
+     `input[type=range]` IS the hit target, and this one was 116 x 3 CSS px —
+     a three-pixel-tall line, on a phone. The rail stays three pixels because
+     that is the drawing; the BOX becomes 44, and the gradient is painted as a
+     centred background band instead of filling it, so nothing about the look
+     changes and everything about the reach does. */
+  #ui .mnu-sens {
+    height: 44px; min-height: 44px; width: 132px; flex: none;
+    background: linear-gradient(90deg, var(--cyan), rgba(126, 190, 255, .22))
+                center / 100% 3px no-repeat;
+    border-radius: 0;
+  }
+  /* The knob rides the middle of that 44 px box rather than the top of it. */
+  #ui .mnu-sens::-webkit-slider-thumb { margin-top: 0; }
+
+  /* Rows that hold a 44 px control need the room for one — and ONLY those.
+     `.mnu-verbs li` is a verb and its keycap, a line of reading with nothing
+     to press, and giving it a 44 px floor spent a third of a phone card on
+     nine rows nobody can tap. */
+  #ui .mnu-row, #ui .mnu-screens li { min-height: 44px; }
+  /* …and on a short frame the card is a scroller, so the extra height is
+     scrolled, never cut. `.mnu-card` already carries `overflow: auto` and
+     `min-height: 0`; this is the momentum a thumb expects on top of it. */
+  #ui .mnu-card { -webkit-overflow-scrolling: touch; }
+}

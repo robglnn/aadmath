@@ -37,7 +37,15 @@
    Five bars driven by the master analyser. This is the only audio-reactive
    pixel in the game and it is two millimetres tall, which is the correct size
    for a thing whose entire job is to prove the sound is alive. */
-.sound .meter { display: flex; align-items: flex-end; gap: 2px; height: 13px; }
+.sound .meter {
+  display: flex; align-items: flex-end; gap: 2px; height: 13px;
+  /* The five bars are also the level track: drag across them, or use the arrow
+     keys. `--vol` is written by the control and is what decides how many of
+     them are lit, so the widget shows what the sound is SET to as well as what
+     it is doing. */
+  cursor: ew-resize;
+  touch-action: none;
+}
 .sound .meter i {
   display: block;
   width: 2px;
@@ -47,10 +55,18 @@
   opacity: .55;
   transform-origin: 50% 100%;
   transform: scaleY(var(--v, 1));
-  transition: transform .09s linear;
+  transition: transform .09s linear, opacity .18s;
 }
-.sound:not(.off) .meter i { background: var(--cyan); opacity: .8; }
-.sound.off .meter i { transform: scaleY(1); opacity: .28; }
+/* A bar past the set level is drawn, but unlit: the track is always five wide,
+   so the control never changes size as the level moves. */
+.sound .meter i:nth-child(1) { --at: .1; }
+.sound .meter i:nth-child(2) { --at: .3; }
+.sound .meter i:nth-child(3) { --at: .5; }
+.sound .meter i:nth-child(4) { --at: .7; }
+.sound .meter i:nth-child(5) { --at: .9; }
+.sound .meter i { opacity: clamp(.14, calc((var(--vol, 1) - var(--at)) * 40 + .18), .82); }
+.sound:not(.off) .meter i { background: var(--cyan); }
+.sound.off .meter i { transform: scaleY(1); opacity: .22; }
 .sound.off .slash { stroke-width: 1.9; }
 
 /* Before the first gesture the browser will not let us make a sound, so the
@@ -78,4 +94,10 @@
   .sound, .sound.locked { animation: none; }
   .sound .meter i { transition: none; transform: none; height: 5px; }
   .sound:not(.off) .meter i { height: 8px; }
+}
+
+/* A finger needs more than thirteen pixels of track. On touch the bars stay the
+   same size and the area around them grows, which costs no layout. */
+@media (pointer: coarse) {
+  .sound .meter { gap: 4px; padding: 6px 2px; margin: -6px -2px; }
 }

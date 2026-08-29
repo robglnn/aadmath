@@ -27,6 +27,29 @@ export function setSolids(s) { SOLIDS = s; }
  */
 export function solids() { return SOLIDS; }
 
+/**
+ * Can a cadet standing here walk home at all?
+ *
+ * The world answers, off a table it builds at boot (src/world/paths.js). It is
+ * false only on genuinely one-way ground — 3.82% of this island, measured — and
+ * it is the ONE condition under which the boots may climb something they could
+ * not otherwise climb. Defensive, like everything else in this file: a world
+ * that has not answered yet, or a world team that has since deleted the
+ * function, means "you are fine", which is the answer that changes nothing.
+ */
+export function escapableAt(x, z) {
+  const f = World.escapable;
+  if (typeof f !== 'function') return true;
+  try { return f(x, z) !== false; } catch { return true; }
+}
+
+/** From one-way ground: which way is out, and how far. Null when he is fine. */
+export function wayOutFrom(x, z) {
+  const f = World.wayOut;
+  if (typeof f !== 'function') return null;
+  try { return f(x, z) || null; } catch { return null; }
+}
+
 export function heightAt(x, z) {
   const h = World.heightAt?.(x, z);
   const g = typeof h === 'number' && Number.isFinite(h) ? h : null;

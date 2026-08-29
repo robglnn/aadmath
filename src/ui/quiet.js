@@ -59,8 +59,24 @@
  */
 import './quiet.css';
 
-/** How many prose surfaces may stand at once. */
+/** How many prose surfaces may stand at once, once the opening is over. */
 export const BUDGET = 3;
+
+/**
+ * …and how many during the opening, which is a different screen.
+ *
+ * design/FIRST-90-SECONDS.md §7.1 measured the frame a stranger is handed and
+ * set two caps for the first ninety seconds: **at most 3 text surfaces** and
+ * **at most 12 readable strings**. Two of those three are already spent before
+ * any prose arrives — the rig, which src/meta/progress.js requires to carry the
+ * one progress number for the whole session, and the run band, which is the
+ * session's own pacing instrument. That leaves one, and one is also what §7.2's
+ * first rule asks for in words: *one decision at a time*.
+ *
+ * After the opening the caps relax to the same document's "ever" line — 5
+ * surfaces, 30 strings — which is exactly rig + band + this budget.
+ */
+export const OPENING_BUDGET = 1;
 
 /**
  * Ranked, lowest first.
@@ -80,6 +96,19 @@ const SURFACES = [
   { id: 'kit', sel: '.kit-chip' },
   { id: 'label', sel: '.gd-mark .gd-lab' },
 ];
+
+/**
+ * THE OPENING ORDER — the same list, with one thing moved.
+ *
+ * Marlow goes above the wayfinding surfaces for the first ninety seconds, and
+ * the reason is not that the voice matters more than the road. It is that she
+ * is TRANSIENT and they are NOT. A permanent readout that stands down for five
+ * seconds has lost nothing — it comes back, unchanged, and the road is still
+ * there. A sentence that is never printed is gone. At a budget of one, ranking
+ * the permanent thing first means the companion never speaks at all, which is
+ * the one voice this game has.
+ */
+const OPENING_ORDER = ['rift', 'marlow', 'objective', 'plate', 'hail', 'chapter', 'kit', 'label'];
 
 const HUSH = 'qt-hush';
 
@@ -103,6 +132,11 @@ function standing(el) {
   } catch { return false; }
 }
 
+/** The words on an element, normalised — for comparing one fact to another. */
+function txt(el) {
+  return el ? (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() : '';
+}
+
 /**
  * Start governing the screen.
  * @param {{root?: Document|Element, budget?: number, every?: number}} opts
@@ -114,9 +148,20 @@ export function startQuiet({ root = document, budget = BUDGET, every = 110 } = {
   let report = { showing: [], hushed: [] };
 
   function pass() {
+    /* THE OPENING IS A DIFFERENT SCREEN, and it says so on the root element.
+       `#ui.hud-open` is written by src/ui/hud.js for the first ninety seconds
+       of play — the window design/FIRST-90-SECONDS.md measured and the window
+       tools/critic/glass.mjs gates. Read here rather than timed here, so there
+       is one clock in the game for this and not two that drift. */
+    const opening = !!(root.querySelector && root.querySelector('#ui.hud-open, .hud-open'));
+    const order = opening ? OPENING_ORDER : null;
+    const list = order
+      ? SURFACES.slice().sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+      : SURFACES;
+
     const found = [];
     const seen = new Set();
-    for (const s of SURFACES) {
+    for (const s of list) {
       for (const el of root.querySelectorAll(s.sel)) {
         if (seen.has(el)) continue;
         seen.add(el);
@@ -146,9 +191,33 @@ export function startQuiet({ root = document, budget = BUDGET, every = 110 } = {
     const busy = plateUp || riftUp;
     const STANDS_BACK = new Set(['chapter', 'kit']);
 
+    /* ── TWO SURFACES, ONE FACT ──────────────────────────────────────────
+       The client counted the things on his screen and could not tell them
+       apart, and two of the pairs below were literally the same sentence
+       twice. Both rules are about a FACT, not about a budget: they fire at any
+       budget, because saying one thing twice is wrong even when there is room
+       for it.
+
+       1. THE OBJECTIVE CARD AND THE PLATE ON THE THING. §7.2's third rule is
+          "instructions live on the object". When the world's own plate is
+          standing on the very thing the objective card names — the same line,
+          matched on the name each of them prints, not guessed at — the card is
+          a second printing of it and stands down. Where the plate is calling a
+          DIFFERENT thing (the foundry on the way to a tear) nothing yields,
+          because then they are two facts and both are wanted.
+       2. THE PLATE AND THE INTERACT PROMPT. At contact range the game prints
+          "E · Open the rift" on the ring and "E · Open the rift" under the
+          crosshair. The one under the crosshair is where the eye already is,
+          and it is the one the key belongs to, so the plate stands down.
+          (The prompt is not governed here: it is not prose, it is a key.) */
+    const cardWhat = txt(root.querySelector('.gd-card.show .gd-what'));
+    const plateWhat = txt(root.querySelector('.afd-call .afd-plate .afd-what'));
+    const sameFact = !!cardWhat && cardWhat === plateWhat;
+    const promptUp = !!root.querySelector('.gd-prompt.show');
+
     const showing = [];
     const hushed = [];
-    let room = budget;
+    let room = opening ? Math.min(budget, OPENING_BUDGET) : budget;
     for (const f of found) {
       const dup = f.id === 'label' && cardUp;
       /* THE KEY FOR THE THING YOU ARE STANDING ON IS A CONTROL, NOT PROSE.
@@ -171,12 +240,14 @@ export function startQuiet({ root = document, budget = BUDGET, every = 110 } = {
          (kit — one condition and one exemption; no new surface.) */
       const onIt = f.id === 'hail' && f.el.classList.contains('here');
       const far = f.id === 'hail' && plateUp && !onIt;
+      // one fact, one surface — see TWO SURFACES, ONE FACT above
+      const said = (f.id === 'objective' && sameFact) || (f.id === 'plate' && promptUp);
       // …and the reverse, when the boots are on the deck: the tear across the
       // meadow stands down in favour of the thing being stood on.
       const outranked = f.id === 'plate' && onDeck;
       const behind = riftUp && f.id !== 'rift';
       const aside = busy && STANDS_BACK.has(f.id);
-      if (behind || outranked || (!onIt && (dup || far || aside || room <= 0))) {
+      if (behind || outranked || said || (!onIt && (dup || far || aside || room <= 0))) {
         f.el.classList.add(HUSH);
         hushed.push(f.id);
         continue;

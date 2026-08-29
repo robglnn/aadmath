@@ -1,0 +1,332 @@
+{
+  "$comment": [
+    "EVERY ALGEBRA I STUDENT EXPECTATION, so a coverage figure has a denominator.",
+    "",
+    "A coverage claim is only checkable against the whole list. Without this file",
+    "the product could say \"38 expectations\" and nobody could tell whether that was",
+    "most of Algebra I or a third of it. Forty-nine content expectations sit in",
+    "19 TAC §111.39(c)(2) through (c)(12); the seven process standards in (c)(1)",
+    "are how a learner works, not what the course teaches, and are counted",
+    "separately.",
+    "",
+    "THE TEXT OF AN EXPECTATION THIS COURSE CITES IS NOT RETYPED HERE. It is read",
+    "out of the graph that cites it, which is the copy tools/validate-courses.mjs",
+    "already checks character for character against the standards maps. Only the",
+    "eleven expectations no node cites carry their wording in this file, because",
+    "there is nowhere else in the repo for it to live, and they were transcribed",
+    "from the authority below on the date in checkedOn."
+  ],
+  "framework": "Texas Essential Knowledge and Skills",
+  "authority": "19 Texas Administrative Code, Part 2 (Texas Education Agency), Chapter 111 (Mathematics)",
+  "course": "Algebra I, Adopted 2012 (One Credit)",
+  "checkedOn": "2026-08-19",
+  "sources": [
+    "19 Tex. Admin. Code §111.39 (Algebra I, Adopted 2012, One Credit), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-39"
+  ],
+  "processStandards": [
+    "A.1(A)",
+    "A.1(B)",
+    "A.1(C)",
+    "A.1(D)",
+    "A.1(E)",
+    "A.1(F)",
+    "A.1(G)"
+  ],
+  "statements": [
+    {
+      "n": 2,
+      "domain": "Linear functions, equations, and inequalities",
+      "citation": "19 TAC §111.39(c)(2)",
+      "statement": "The student applies the mathematical process standards when using properties of linear functions to write and represent in multiple ways, with and without technology, linear equations, inequalities, and systems of equations. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.2(A)",
+          "citation": "19 TAC §111.39(c)(2)(A)"
+        },
+        {
+          "code": "A.2(B)",
+          "citation": "19 TAC §111.39(c)(2)(B)"
+        },
+        {
+          "code": "A.2(C)",
+          "citation": "19 TAC §111.39(c)(2)(C)"
+        },
+        {
+          "code": "A.2(D)",
+          "citation": "19 TAC §111.39(c)(2)(D)"
+        },
+        {
+          "code": "A.2(E)",
+          "citation": "19 TAC §111.39(c)(2)(E)"
+        },
+        {
+          "code": "A.2(F)",
+          "citation": "19 TAC §111.39(c)(2)(F)"
+        },
+        {
+          "code": "A.2(G)",
+          "citation": "19 TAC §111.39(c)(2)(G)"
+        },
+        {
+          "code": "A.2(H)",
+          "citation": "19 TAC §111.39(c)(2)(H)"
+        },
+        {
+          "code": "A.2(I)",
+          "citation": "19 TAC §111.39(c)(2)(I)"
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "domain": "Linear functions, equations, and inequalities",
+      "citation": "19 TAC §111.39(c)(3)",
+      "statement": "The student applies the mathematical process standards when using graphs of linear functions, key features, and related transformations to represent in multiple ways and solve, with and without technology, equations, inequalities, and systems of equations. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.3(A)",
+          "citation": "19 TAC §111.39(c)(3)(A)"
+        },
+        {
+          "code": "A.3(B)",
+          "citation": "19 TAC §111.39(c)(3)(B)"
+        },
+        {
+          "code": "A.3(C)",
+          "citation": "19 TAC §111.39(c)(3)(C)"
+        },
+        {
+          "code": "A.3(D)",
+          "citation": "19 TAC §111.39(c)(3)(D)",
+          "text": "graph the solution set of linear inequalities in two variables on the coordinate plane;"
+        },
+        {
+          "code": "A.3(E)",
+          "citation": "19 TAC §111.39(c)(3)(E)",
+          "text": "determine the effects on the graph of the parent function f(x) = x when f(x) is replaced by af(x), f(x) + d, f(x - c), f(bx) for specific values of a, b, c, and d;"
+        },
+        {
+          "code": "A.3(F)",
+          "citation": "19 TAC §111.39(c)(3)(F)"
+        },
+        {
+          "code": "A.3(G)",
+          "citation": "19 TAC §111.39(c)(3)(G)",
+          "text": "estimate graphically the solutions to systems of two linear equations with two variables in real-world problems; and"
+        },
+        {
+          "code": "A.3(H)",
+          "citation": "19 TAC §111.39(c)(3)(H)",
+          "text": "graph the solution set of systems of two linear inequalities in two variables on the coordinate plane."
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "domain": "Linear functions, equations, and inequalities",
+      "citation": "19 TAC §111.39(c)(4)",
+      "statement": "The student applies the mathematical process standards to formulate statistical relationships and evaluate their reasonableness based on real-world data. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.4(A)",
+          "citation": "19 TAC §111.39(c)(4)(A)",
+          "text": "calculate, using technology, the correlation coefficient between two quantitative variables and interpret this quantity as a measure of the strength of the linear association;"
+        },
+        {
+          "code": "A.4(B)",
+          "citation": "19 TAC §111.39(c)(4)(B)",
+          "text": "compare and contrast association and causation in real-world problems; and"
+        },
+        {
+          "code": "A.4(C)",
+          "citation": "19 TAC §111.39(c)(4)(C)"
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "domain": "Linear functions, equations, and inequalities",
+      "citation": "19 TAC §111.39(c)(5)",
+      "statement": "The student applies the mathematical process standards to solve, with and without technology, linear equations and evaluate the reasonableness of their solutions. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.5(A)",
+          "citation": "19 TAC §111.39(c)(5)(A)"
+        },
+        {
+          "code": "A.5(B)",
+          "citation": "19 TAC §111.39(c)(5)(B)"
+        },
+        {
+          "code": "A.5(C)",
+          "citation": "19 TAC §111.39(c)(5)(C)"
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "domain": "Quadratic functions and equations",
+      "citation": "19 TAC §111.39(c)(6)",
+      "statement": "The student applies the mathematical process standards when using properties of quadratic functions to write and represent in multiple ways, with and without technology, quadratic equations. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.6(A)",
+          "citation": "19 TAC §111.39(c)(6)(A)"
+        },
+        {
+          "code": "A.6(B)",
+          "citation": "19 TAC §111.39(c)(6)(B)"
+        },
+        {
+          "code": "A.6(C)",
+          "citation": "19 TAC §111.39(c)(6)(C)"
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "domain": "Quadratic functions and equations",
+      "citation": "19 TAC §111.39(c)(7)",
+      "statement": "The student applies the mathematical process standards when using graphs of quadratic functions and their related transformations to represent in multiple ways and determine, with and without technology, the solutions to equations. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.7(A)",
+          "citation": "19 TAC §111.39(c)(7)(A)"
+        },
+        {
+          "code": "A.7(B)",
+          "citation": "19 TAC §111.39(c)(7)(B)"
+        },
+        {
+          "code": "A.7(C)",
+          "citation": "19 TAC §111.39(c)(7)(C)",
+          "text": "determine the effects on the graph of the parent function f(x) = x^2 when f(x) is replaced by af(x), f(x) + d, f(x - c), f(bx) for specific values of a, b, c, and d."
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "domain": "Quadratic functions and equations",
+      "citation": "19 TAC §111.39(c)(8)",
+      "statement": "The student applies the mathematical process standards to solve, with and without technology, quadratic equations and evaluate the reasonableness of their solutions. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.8(A)",
+          "citation": "19 TAC §111.39(c)(8)(A)"
+        },
+        {
+          "code": "A.8(B)",
+          "citation": "19 TAC §111.39(c)(8)(B)",
+          "text": "write, using technology, quadratic functions that provide a reasonable fit to data to estimate solutions and make predictions for real-world problems."
+        }
+      ]
+    },
+    {
+      "n": 9,
+      "domain": "Exponential functions and equations",
+      "citation": "19 TAC §111.39(c)(9)",
+      "statement": "The student applies the mathematical process standards when using properties of exponential functions and their related transformations to write, graph, and represent in multiple ways exponential equations and evaluate, with and without technology, the reasonableness of their solutions. The student formulates statistical relationships and evaluates their reasonableness based on real-world data. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.9(A)",
+          "citation": "19 TAC §111.39(c)(9)(A)",
+          "text": "determine the domain and range of exponential functions of the form f(x) = ab^x and represent the domain and range using inequalities;"
+        },
+        {
+          "code": "A.9(B)",
+          "citation": "19 TAC §111.39(c)(9)(B)"
+        },
+        {
+          "code": "A.9(C)",
+          "citation": "19 TAC §111.39(c)(9)(C)"
+        },
+        {
+          "code": "A.9(D)",
+          "citation": "19 TAC §111.39(c)(9)(D)",
+          "text": "graph exponential functions that model growth and decay and identify key features, including y-intercept and asymptote, in mathematical and real-world problems; and"
+        },
+        {
+          "code": "A.9(E)",
+          "citation": "19 TAC §111.39(c)(9)(E)",
+          "text": "write, using technology, exponential functions that provide a reasonable fit to data and make predictions for real-world problems."
+        }
+      ]
+    },
+    {
+      "n": 10,
+      "domain": "Number and algebraic methods",
+      "citation": "19 TAC §111.39(c)(10)",
+      "statement": "The student applies the mathematical process standards and algebraic methods to rewrite in equivalent forms and perform operations on polynomial expressions. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.10(A)",
+          "citation": "19 TAC §111.39(c)(10)(A)"
+        },
+        {
+          "code": "A.10(B)",
+          "citation": "19 TAC §111.39(c)(10)(B)"
+        },
+        {
+          "code": "A.10(C)",
+          "citation": "19 TAC §111.39(c)(10)(C)"
+        },
+        {
+          "code": "A.10(D)",
+          "citation": "19 TAC §111.39(c)(10)(D)"
+        },
+        {
+          "code": "A.10(E)",
+          "citation": "19 TAC §111.39(c)(10)(E)"
+        },
+        {
+          "code": "A.10(F)",
+          "citation": "19 TAC §111.39(c)(10)(F)"
+        }
+      ]
+    },
+    {
+      "n": 11,
+      "domain": "Number and algebraic methods",
+      "citation": "19 TAC §111.39(c)(11)",
+      "statement": "The student applies the mathematical process standards and algebraic methods to rewrite algebraic expressions into equivalent forms. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.11(A)",
+          "citation": "19 TAC §111.39(c)(11)(A)"
+        },
+        {
+          "code": "A.11(B)",
+          "citation": "19 TAC §111.39(c)(11)(B)"
+        }
+      ]
+    },
+    {
+      "n": 12,
+      "domain": "Number and algebraic methods",
+      "citation": "19 TAC §111.39(c)(12)",
+      "statement": "The student applies the mathematical process standards and algebraic methods to write, solve, analyze, and evaluate equations, relations, and functions. The student is expected to:",
+      "expectations": [
+        {
+          "code": "A.12(A)",
+          "citation": "19 TAC §111.39(c)(12)(A)"
+        },
+        {
+          "code": "A.12(B)",
+          "citation": "19 TAC §111.39(c)(12)(B)"
+        },
+        {
+          "code": "A.12(C)",
+          "citation": "19 TAC §111.39(c)(12)(C)"
+        },
+        {
+          "code": "A.12(D)",
+          "citation": "19 TAC §111.39(c)(12)(D)"
+        },
+        {
+          "code": "A.12(E)",
+          "citation": "19 TAC §111.39(c)(12)(E)"
+        }
+      ]
+    }
+  ]
+}

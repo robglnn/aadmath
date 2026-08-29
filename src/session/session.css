@@ -221,11 +221,28 @@
    caught it as an un-clickable element rather than as a layout fault, which is
    why it read as a harness problem for three runs.
    Capped, scrollable, and the button pinned to the foot of the scroll so it is
-   on the glass whatever the language does to the sentences above it. */
+   on the glass whatever the language does to the sentences above it.
+
+   THE CAP WAS WRITTEN AND THE OTHER TWO WERE NOT, for long enough that the
+   paragraph above described a fix the file did not contain. `max-height` with
+   the default `overflow: visible` clips the BOX and not the CONTENT, so BEGIN
+   went on rendering below the fold exactly as before — and this is not a
+   cosmetic fault. The charter holds `uiOpen`, and `uiOpen` sets `#touchpad` to
+   `display: none` (src/core/input.js -> src/player/touch.js `setVisible`). So a
+   BEGIN nobody can reach means every control in the game is dead, permanently,
+   on that device: no jump, no dash, no glide, no interact, and no way out.
+   Measured stuck at 568x320, 640x320, 667x300 and 844x300; BEGIN's top pins at
+   y=304 whatever the height, so the threshold is ~336 px of visible height and
+   ~356 px in ES and PL, where the longer sentences push it further down. An
+   iPhone 13 held sideways is 844x390 on paper and ~300-340 dvh once Safari's
+   toolbars are on screen, which puts a real phone inside the dead band. */
 .ses-charter .sc-card {
   --sc-pb: 1.35rem;
   position: relative; width: min(560px, 88vw);
   max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 1.5rem 1.7rem 1.35rem;
   background: var(--ses-plate);
   border: 1px solid var(--meta-edge);
@@ -341,6 +358,12 @@
    line — ES and PL both, at 390 px — got the flex row gap *plus* a top margin
    between the wrapped rows, and the pair read as two unrelated controls. */
 .sc-go, .sx-acts, .sr-e-acts { margin-top: 1.15rem; }
+/* Pinned to the foot of the card's own scroll, so the one control that starts a
+   run is on the glass at every height and in every language.
+   Nothing else is set here on purpose. `.ses-charter .sc-go` outranks the
+   `.sc-go` rule above it, so any background, padding or margin declared here
+   would silently replace the button's own plate rather than sit behind it. */
+.ses-charter .sc-go { position: sticky; bottom: 0; z-index: 1; }
 .sc-go, .sx-rest, .sr-again {
   border: 1px solid color-mix(in srgb, var(--rank-ink) 62%, transparent);
   background: color-mix(in srgb, var(--rank-ink) 17%, var(--ses-solid));
@@ -359,6 +382,26 @@
   border-color: rgba(140, 195, 255, .38); color: var(--ink);
   background: color-mix(in srgb, rgb(126, 170, 220) 12%, var(--ses-solid-ghost));
 }
+
+/* ---- THE KEY, PRINTED ON THE BUTTON IT WORKS ------------------------------
+   The close card holds the whole frame and `uiOpen` with it, and for as long as
+   it existed the only way off it was an aimed click. Escape stands the run down
+   now, and a key nobody is told about is not an affordance — so the cap is
+   inside the button's own line box, which costs the card NO extra height. That
+   matters here more than anywhere: see THE SHELF, below, for what one extra
+   line on this surface cost the last time. */
+.sx-rest { display: inline-flex; align-items: center; gap: .55rem; }
+.sx-rest kbd {
+  display: inline-block; padding: .1em .36em .14em;
+  font: inherit; font-size: .58rem; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: #dff0ff;
+  background: rgba(8, 18, 34, .55);
+  border: 1px solid rgba(160, 210, 255, .34);
+  border-bottom-color: rgba(160, 210, 255, .5);
+  border-radius: 4px;
+}
+.sx-rest kbd:empty { display: none; }
 
 /* -------------------------------------------------------------- the close --
    Not a results card. Three blocks in the order a person actually wants them:
@@ -720,6 +763,13 @@
   position: absolute; inset: 0; display: grid; place-items: center;
   grid-auto-rows: min-content; align-content: center; gap: 1.4rem;
   pointer-events: none;
+  /* ROOM FOR THE WAY OUT. `.sr-esc` is pinned to the foot of the beat, and the
+     stack in here is centred in the whole frame — so on a phone held sideways
+     (320-390 px of height, which is the frame this project keeps failing on)
+     the skip button and the way out were laid out into the same band. Reserving
+     the strip here moves the centre up instead of letting two controls share a
+     row; it costs a desktop frame nothing anybody can see. */
+  padding-bottom: calc(var(--pad-b) + 68px);
 }
 .ses-rest.ended .sr-stage, .ses-rest.closed .sr-stage { opacity: 0; transition: opacity .7s ease; pointer-events: none; }
 
@@ -744,6 +794,51 @@
   50% { scale: 1; opacity: .92 }
   100% { scale: .34; opacity: .3 }
 }
+/* THE WAY OUT OF THE BREAK, ON SCREEN FROM ITS FIRST FRAME.
+   `.sr-skip` is drawn at `opacity: 0` for the first forty seconds — that is a
+   deliberate part of the beat and it is not being changed — which means that
+   for forty seconds there was nothing on screen to press and, until Escape
+   worked here, no key that did anything either, while `uiOpen` held every verb
+   the player owns. This line is one row of small type at the foot, out of the
+   ring's way and out of the range the eye is being asked to look at. */
+.sr-esc {
+  position: absolute; left: 50%; translate: -50% 0;
+  /* ABOVE `.sr-end` AND `.sr-off-frame`, which are both `inset: 0` with
+     `pointer-events: auto` once the beat ends — without this the way out is
+     drawn on the glass and covered by a transparent sheet, which is the closed
+     full-screen rift dialog all over again. Both of those are `z-index: auto`,
+     so they win on DOM order alone. */
+  z-index: 2;
+  bottom: calc(var(--pad-b) + 26px);
+  display: inline-flex; align-items: center; gap: .5rem;
+  appearance: none; cursor: pointer; pointer-events: auto;
+  margin: 0; padding: .5rem .9rem; border-radius: 8px;
+  font: inherit; font-size: .68rem; letter-spacing: .08em;
+  color: rgba(180, 200, 224, .72);
+  background: rgba(6, 13, 24, .42);
+  border: 1px solid rgba(140, 195, 255, .16);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .85);
+  transition: color .16s, border-color .16s, background .16s;
+}
+.sr-esc:hover, .sr-esc:focus-visible {
+  color: var(--ink); border-color: rgba(140, 195, 255, .36);
+  background: rgba(10, 20, 36, .62);
+}
+.sr-esc kbd {
+  display: inline-block; padding: .1em .36em .14em;
+  font: inherit; font-size: .58rem; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: #dff0ff;
+  background: rgba(8, 18, 34, .55);
+  border: 1px solid rgba(160, 210, 255, .3);
+  border-bottom-color: rgba(160, 210, 255, .46);
+  border-radius: 4px;
+}
+.sr-esc kbd:empty { display: none; }
+/* It stays through `ended` and `closed` too: Escape works at every phase of
+   this beat, and a hint that disappears while its key still works is the same
+   lie as a key that is printed and does nothing. */
+
 .sr-say {
   margin: 0; max-width: 34ch; text-align: center; text-wrap: balance;
   font-size: clamp(.92rem, 2vw, 1.06rem); line-height: 1.55; color: #dfeaf9;
@@ -770,7 +865,10 @@
 /* …and then it stops properly */
 .ses-rest .sr-end, .ses-rest .sr-off-frame {
   position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
-  text-align: center; padding: 0 6vw; gap: .1rem;
+  /* …and the same strip for the two cards that follow the breathing: Escape
+     still works on both of them, so the line that says so is still on screen,
+     and nothing may be laid out on top of it. */
+  text-align: center; padding: 0 6vw calc(var(--pad-b) + 68px); gap: .1rem;
   background: radial-gradient(58% 40% at 50% 50%, rgba(2, 5, 12, .88) 0%, rgba(2, 5, 12, .55) 58%, transparent 78%);
   opacity: 0; visibility: hidden; pointer-events: none;
   transition: opacity .8s ease, visibility 0s linear .8s;

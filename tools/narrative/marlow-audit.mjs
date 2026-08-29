@@ -45,6 +45,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { findings as ledger } from '../_findings.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const JSON_OUT = process.argv.includes('--json');
@@ -335,4 +336,9 @@ function printCensus() {
   console.log(`stages: ${STAGES.map((s) => s.id).join(' → ')}`);
 }
 
-process.exit(findings.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. The companion channel
+   is the shipped route: a tutorial line reaching a sovereign is in front of a
+   learner today. */
+const F = ledger('check:marlow', { scope: 'route' });
+F.route(findings.map((f) => (typeof f === 'string' ? f : JSON.stringify(f))));
+F.done();

@@ -81,6 +81,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -1146,4 +1147,10 @@ console.log(allFails.length
   : `\nPASS — one progress number, at every checkpoint, agreeing with the engine. -> ${OUT}`);
 
 await browser.close();
-process.exit(allFails.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This gate is recorded
+   per wave and its recorded RED fails `npm run check`, so what it holds has to
+   be legible to the runner and not only to a reader. Every progress number a learner reads is
+   read off the shipped surfaces. */
+findings('check:progress', { scope: 'route' })
+  .route(allFails.map((f) => (typeof f === 'string' ? f : `[${f.rule}] ${f.label}: ${f.why}`)))
+  .done();

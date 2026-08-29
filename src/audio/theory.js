@@ -10,14 +10,41 @@
  *            lurching. Every root sits inside D major's neighbourhood, which
  *            is why the transitions are legal.
  *
- *   MASTERY  picks the *cadence*. This is the part worth being careful about.
- *            At low integrity the progression is built from suspensions and
+ *   RESOLVE  picks the *cadence*. This is the part worth being careful about.
+ *            At low resolve the progression is built from suspensions and
  *            never lands: every phrase leaves a fourth hanging over the root.
- *            As the lattice knits together the suspensions start resolving,
- *            then the sevenths arrive, and at the top the score is allowed
- *            major sixths and ninths — the sound of a thing that is finished.
- *            Nobody will name what changed. Everybody will feel that the
- *            world stopped asking a question.
+ *            As things knit together the suspensions start resolving, then the
+ *            sevenths arrive, and at the top the score is allowed major sixths
+ *            and ninths — the sound of a thing that is finished. Nobody will
+ *            name what changed. Everybody will feel that the world stopped
+ *            asking a question.
+ *
+ *            WHAT RESOLVE IS MADE OF, AND WHY IT IS NOT LATTICE INTEGRITY.
+ *
+ *            It used to be `mastery.softIntegrity()` alone — the mean posterior
+ *            over every skill in the record. That is the right number for the
+ *            arc of a course and the wrong number for the arc of an afternoon:
+ *            holding one line of sixty-two moves it by 0.016, and the first
+ *            cadence bank runs from 0 to 0.25. A learner could master four
+ *            skills in a sitting, walk out having genuinely changed, and never
+ *            once hear the suspension resolve. The dial existed and nobody
+ *            could reach it.
+ *
+ *            So resolve is a blend, and the faster half weighs more: how the
+ *            LINE IN FRONT OF THE LEARNER stands — the posterior on the skill
+ *            this rift is asking about, what a live proving run has filled, and
+ *            a run of statements that held — against the long integrity of the
+ *            lattice. Ten minutes of real work moves it a whole bank. Nothing
+ *            about the long arc is lost: a cadet who holds forty lines still
+ *            arrives somewhere a cadet who holds four never gets to.
+ *
+ *   OPEN     how much of the ground in front of the learner is unknown. It is
+ *            not a volume and it is not a mode: it takes the THIRD OUT of the
+ *            chord. A triad has already decided whether the news is good; a
+ *            fourth stacked on a fifth has not, which is why every score
+ *            written about standing at the edge of somewhere is quartal. A unit
+ *            opening should sound like altitude and space, not like a fanfare
+ *            for work nobody has done yet.
  */
 
 // Chords as interval stacks over the chord root, in semitones.
@@ -48,6 +75,18 @@ const CADENCES = [
 ];
 
 /**
+ * The open voicing: the same degrees, with the third taken out and a fourth put
+ * in its place. Used when the ground in front of the learner is unknown.
+ *
+ * This is a substitution rather than a fifth cadence bank on purpose. A learner
+ * who opens a new unit has not gone backwards, and a score that drops them to
+ * bank 0 the moment something new appears is telling them they have. What
+ * changes is not how *resolved* the harmony is, it is whether it has committed
+ * to a colour — and a stack of fourths has not.
+ */
+const OPEN_VOICE = [0, 5, 7, 12, 17];
+
+/**
  * The regions. `root` is a MIDI note, `bright` biases the pad's filter, `air`
  * is how much of the long reverb this place gets — the fen is close and wet,
  * the spine is enormous and empty.
@@ -66,25 +105,57 @@ const PENTA_MAJ = [0, 2, 4, 7, 9, 12, 14, 16, 19];
 const PENTA_MIN = [0, 3, 5, 7, 10, 12, 15, 17, 19];
 
 /**
+ * How resolved the harmony is allowed to be, from the two clocks the game
+ * actually runs on.
+ *
+ * @param {number} lattice 0..1 mean posterior over the whole record — the arc
+ *        of a course. Moves by a sixtieth when a line holds.
+ * @param {number} line    0..1 how the line in front of the learner stands.
+ *        Moves by tenths inside one sitting, which is the whole point.
+ * @param {number} run     0..1 how much of a live proving run has filled. A run
+ *        in progress is the single most resolved thing a learner can be doing,
+ *        so it is allowed to pull the cadence up on its own.
+ */
+export function resolveOf(lattice = 0, line = 0, run = 0) {
+  const L = Math.max(0, Math.min(1, lattice));
+  const N = Math.max(0, Math.min(1, line));
+  const R = Math.max(0, Math.min(1, run));
+  // The line weighs more than the lattice because it is the half a learner can
+  // hear change. The run is a bonus on top rather than a third of the total: a
+  // proving run is evidence of standing already counted in `line`, and counting
+  // it twice would make a run sound like mastery before it has been earned.
+  return Math.max(0, Math.min(1, L * 0.42 + N * 0.58 + R * 0.12 * (1 - L * 0.5)));
+}
+
+/**
  * Resolve the whole harmonic situation for one chord slot.
  *
  * @param {string} place  region id, or 'home'
- * @param {number} mastery 0..1 lattice integrity
+ * @param {number} resolve 0..1 — see `resolveOf`
  * @param {number} index  which chord of the phrase
+ * @param {object} [opts]
+ *   open  0..1 how much of the ground in front of the learner is unknown. At 1
+ *         the chord loses its third and becomes a stack of fourths.
  */
-export function harmony(place, mastery, index) {
+export function harmony(place, resolve, index, opts = {}) {
   const P = PLACES[place] || PLACES.home;
   // Blend between adjacent cadence banks rather than snapping: a learner who
-  // crosses 0.25 integrity mid-session should hear the suspension resolve, not
+  // crosses 0.25 resolve mid-session should hear the suspension resolve, not
   // hear the soundtrack change.
-  const f = Math.max(0, Math.min(0.999, mastery)) * (CADENCES.length - 0.001);
+  const f = Math.max(0, Math.min(0.999, resolve)) * (CADENCES.length - 0.001);
   const bank = CADENCES[Math.floor(f)];
-  const [deg, chord] = bank[index % bank.length];
+  const [deg, chordRaw] = bank[index % bank.length];
+  const open = Math.max(0, Math.min(1, opts.open ?? 0));
+  // Above two thirds unknown the third comes out. Below it the chord is left
+  // alone: a half-open voicing is neither one thing nor the other, and the ear
+  // reads it as a mistake rather than as a colour.
+  const chord = open > 0.66 ? OPEN_VOICE : chordRaw;
   const root = P.root + deg;
   const minorish = chord === MIN || chord === MIN7 || chord === MIN9;
   return {
     place: P,
     root,
+    open,
     bass: root - 12 + (P.oct < 0 ? 0 : 0),
     // Voicing, and it matters more than the chord. Stacked as written, a
     // five-note chord occupies a major ninth at the bottom of the piano and
@@ -93,11 +164,35 @@ export function harmony(place, mastery, index) {
     // every orchestrator since Mozart has voiced a sustained chord, and why
     // one sounds like a section and the other sounds like a synthesiser.
     notes: chord.map((iv, i) => root + iv + (i >= 2 ? 12 : 0)),
-    scale: (minorish ? PENTA_MIN : PENTA_MAJ).map((d) => P.root + d),
-    minorish,
+    // Unknown ground gets the major pentatonic whatever the chord is doing.
+    // A minor colour over a skill nobody has tried yet is the score making a
+    // judgement about work that has not happened.
+    scale: (minorish && open <= 0.66 ? PENTA_MIN : PENTA_MAJ).map((d) => P.root + d),
+    minorish: minorish && open <= 0.66,
     // How settled this chord is, for the pad's filter and the bell density.
     settle: Math.floor(f) / (CADENCES.length - 1),
   };
+}
+
+/**
+ * The pedal a live proving run holds under the score.
+ *
+ * A proving run is the one stretch of this game where a learner is being asked
+ * to hold something up rather than to find it, and it is the one stretch that
+ * had no sound of its own at all. So while a run is open the score carries one
+ * extra tone, very quiet, a fifth over the region's root — and it CLIMBS the
+ * pentatonic one degree per item the run has banked. By the last rung it is an
+ * octave over where it started and it is the reason the closing seal lands.
+ *
+ * Returns a MIDI note, or null when there is no run.
+ */
+export function runPedal(place, done, need) {
+  if (!need || done < 0) return null;
+  const P = PLACES[place] || PLACES.home;
+  const k = Math.max(0, Math.min(1, done / Math.max(1, need)));
+  const steps = PENTA_MAJ;
+  const i = Math.min(steps.length - 1, Math.round(k * 4) + 2);
+  return P.root + steps[i] + (P.oct > 0 ? 12 : 0);
 }
 
 /** How long a phrase is, in chords. */

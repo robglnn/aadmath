@@ -28,18 +28,64 @@
  *
  *   node tools/session-length.mjs [learners] [sessions-each]
  */
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MasteryEngine, itemSeconds } from '../src/learn/mastery.js';
 import { FORMS_BY_SKILL, SKILLS, generate, demandOf } from '../src/learn/generators.js';
 import { planRun, SESSION_MAX, SESSION_MIN } from '../src/session/estimate.js';
+import { manifest, allUnits, loadUnit, standalone } from './_courses.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const graph = JSON.parse(await readFile(path.join(ROOT, 'content/graph/algebra1-l1.json'), 'utf8'));
 
-const LEARNERS = Number(process.argv[2] || 300);
-const SESSIONS = Number(process.argv[3] || 8);
+/**
+ * WHICH LATTICE IS BEING TIMED.
+ *
+ * This file read `content/graph/algebra1-l1.json` outright, so the answer to
+ * "does a run take fifteen to twenty-five minutes?" was an answer about TEN
+ * skills — and the route now opens a second region into the same lattice, which
+ * is exactly the shape of defect RESUME.md records: `SKILLS` is a live view
+ * over the content registry, so a tool that never loads the manifest's packs
+ * sees the first unit and says "fine" in the same words either way.
+ *
+ *   node tools/session-length.mjs                       # unchanged: the first region alone
+ *   node tools/session-length.mjs --route               # every region the route opens, composed
+ *   node tools/session-length.mjs --units a,b           # exactly these, composed
+ *
+ * The default does not move, on purpose: the numbers this build is held
+ * against were measured on the shipped ten-node graph and a default that
+ * silently changed them would make every previous run unreadable.
+ */
+const argOf = (k) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : null; };
+const WANT_UNITS = process.argv.includes('--route')
+  ? ((await manifest()).route?.units || ['algebra1-l1'])
+  : (argOf('--units') ? argOf('--units').split(',').map((x) => x.trim()).filter(Boolean) : ['algebra1-l1']);
+
+const graph = await composeUnits(WANT_UNITS);
+console.log(`lattice: ${WANT_UNITS.join(' + ')} — ${graph.nodes.length} skills\n`);
+
+async function composeUnits(ids) {
+  const units = await allUnits();
+  const picked = ids.map((id) => units.find((u) => u.unit.id === id)).filter(Boolean);
+  if (!picked.length) throw new Error(`no unit in the manifest called ${ids.join(', ')}`);
+  const graphs = [];
+  for (const { unit } of picked) graphs.push(await loadUnit(unit));
+  if (graphs.length === 1) return standalone(graphs[0]);
+  const head = graphs[0];
+  const nodes = graphs.flatMap((g) => g.nodes);
+  const seen = new Set(nodes.map((n) => n.id));
+  const common = new Map();
+  for (const g of graphs) for (const m of g.commonMisconceptions || []) common.set(m.id, m);
+  return {
+    ...head,
+    id: `${ids.join('+')}-composed`,
+    nodes: nodes.map((n) => ({ ...n, prereqs: n.prereqs.filter((p) => seen.has(p)) })),
+    commonMisconceptions: [...common.values()],
+  };
+}
+
+const positional = process.argv.slice(2).filter((a) => /^\d+$/.test(a));
+const LEARNERS = Number(positional[0] || 300);
+const SESSIONS = Number(positional[1] || 8);
 
 // --- the difficulty ladder, measured off the shipping bank -----------------
 const SAMPLES = Number(process.env.LADDER_SAMPLES || 120);
@@ -283,6 +329,11 @@ for (let n = 1; n <= SESSIONS; n++) {
     `   pace factor ${median(g.map((s) => s.factor)).toFixed(2)}`);
 }
 
-const done = learners.filter((l) => l.lines >= 9).length;
-console.log(`\n  learners holding 9+ of 10 lines after ${SESSIONS} runs: ${(100 * done / learners.length).toFixed(1)}%`);
+/* The bar is nine of TEN, which is the shipped first region, whatever size the
+   lattice under test is: a composed run has more lines to hold and the same
+   number of minutes to hold them in, so a bar that grew with the lattice would
+   be a different question wearing the same words. */
+const BAR = Math.min(9, graph.nodes.length);
+const done = learners.filter((l) => l.lines >= BAR).length;
+console.log(`\n  learners holding ${BAR}+ of ${graph.nodes.length} lines after ${SESSIONS} runs: ${(100 * done / learners.length).toFixed(1)}%`);
 console.log(`\n  >>> median run: ${median(mins).toFixed(1)} minutes; ${(100 * inWindow / all.length).toFixed(0)}% inside 15–25 <<<`);

@@ -81,6 +81,17 @@ const OPEN_WAIT_MAX = 16;
 const MAX_EXTENSIONS = 2;
 /** An extension shorter than this is not worth the card that offers it. */
 const MIN_EXTENSION = 3;
+/**
+ * Seconds before the loop comes back after a beat was dismissed on Escape.
+ *
+ * A player who escapes a session card is asking for the world, not for the
+ * session to be over — but a beat that re-opens the moment they let go of the
+ * key is a beat they cannot escape at all. `plan()` still refuses to take the
+ * frame from anybody whose hands are on the controls, so a cadet who escapes
+ * and keeps playing is never stopped; one who escapes and stands still gets
+ * their orders, which is the same road `begin()` takes on every other entry.
+ */
+const DISMISS_WAIT = 20;
 
 export function createSession({
   root, mastery, story, input, fx, audio, panel, hud,
@@ -97,11 +108,18 @@ export function createSession({
   const pace = createPace();
   const band = new RunBand(root);
   const charter = new Charter(root, { onBegin: startWork });
-  const resolution = new Resolution(root, { onRest: toRest, onMore: extend });
+  /* `onDismiss` is Escape and a click on the dim. It takes the primary
+     button's road on purpose: the run is over either way, and standing the
+     cadet down neither throws the break away nor spends an extension nobody
+     asked for. See the head of resolution.js for what it was before. */
+  const resolution = new Resolution(root, { onRest: toRest, onMore: extend, onDismiss: toRest });
   const rest = new Rest(root, {
     onDone: () => {},
-    onAnother: () => { leaveRest(); plan(); },
+    onAnother: () => { leaveRest(); if (!crossIfWaiting()) plan(); },
     onClose: closeChannel,
+    /* Escape out of the break. The world comes back now; the loop comes back
+       in DISMISS_WAIT seconds, and only if the cadet is not already playing. */
+    onDismiss: () => { leaveRest(); setModal(false); pending = DISMISS_WAIT; },
   });
 
   /* ONE CEREMONY AT A TIME. The three session beats take the whole frame, and
@@ -226,6 +244,12 @@ export function createSession({
       band.seamHeld();
     }
     for (const u of res?.newlyUnlocked || []) if (!run.opened.includes(u)) run.opened.push(u);
+    /* …and the biggest one of all: a line held may have finished a whole region
+       of the lattice. The narrative plays that beat (src/meta/region.js); the
+       run only has to remember that it happened, so the close card can say what
+       this sitting was worth without asking a counter that has since moved. */
+    const road = story?.road?.();
+    if (road?.waiting && run.region !== road.waiting) run.region = road.waiting;
     save();
   }
 
@@ -267,6 +291,8 @@ export function createSession({
       worked: {},
       held: [],
       opened: [],
+      // The region this run opened, if it opened one. See `onAnswer`.
+      region: null,
       extensions: 0,
       // Where every line the orders name actually stood before the first item,
       // in tears. The close compares against this rather than asserting that
@@ -539,6 +565,17 @@ export function createSession({
       held: run.held.filter((id) => mastery.get(id)?.mastered),
       stalled,
       opened: run.opened.slice(),
+      /* THE ROAD (src/meta/region.js). A region opened by this run, and the one
+         standing off the horizon waiting for planetfall — read off the route at
+         the moment the card is built, exactly like every other figure here. */
+      region: (() => {
+        const road = story?.road?.() || null;
+        if (!road) return null;
+        /* `opened` is what THIS run opened and nothing else. Falling back to
+           whatever is waiting would let a run that opened nothing print a
+           region under OPENED because an earlier one had. */
+        return { opened: run.region || null, waiting: road.waiting || null, here: road.here, next: road.next };
+      })(),
       chapter: run.chapterAt != null && s.chapter > run.chapterAt ? s.chapter : null,
       rank: run.rankAt && s.rank && s.rank !== run.rankAt ? t('rank.' + s.rank) : null,
       next,
@@ -695,6 +732,30 @@ export function createSession({
     phase = 'idle';
   }
 
+  /**
+   * A NEW RUN IS A NEW PLANETFALL.
+   *
+   * The island is built once, at boot, out of the lattice the route hands it
+   * (src/content/route.js), so a region earned in the middle of a sitting is
+   * announced when it is earned and stood on when the ground is next made. A
+   * learner who asks for another run right now is asking for exactly that, so
+   * this is where the landing happens. Nothing is cleared: the record is on
+   * disk already — `src/main.js` writes it on every answer — and this is the
+   * same call the pause menu's own restart makes without the part that throws
+   * the save away.
+   *
+   * @returns {boolean} true when the landing was taken and no plan is wanted
+   */
+  function crossIfWaiting() {
+    if (!story?.road) return false;
+    let waiting = null;
+    try { waiting = story.road().waiting; } catch { waiting = null; }
+    if (!waiting) return false;
+    save();
+    story.cross?.();
+    return true;
+  }
+
   function closeChannel() {
     ending = true;
     save();
@@ -784,6 +845,10 @@ export function createSession({
 
   /** See GAP_GRACE: the session's clock is the planner's clock, not the wall's. */
   function chargeWork(d) {
+    // Belt to the braces above: nothing in this module may dereference a run
+    // that is not there. `reset()` puts the phase back, and this makes the
+    // frame loop survive any future path that forgets to.
+    if (!run) return;
     const open = !!panel?.open;
     if (open) {
       run.focus += d;
@@ -803,6 +868,22 @@ export function createSession({
   // ---------------------------------------------------------------------------
   function update(dt) {
     const d = Math.min(MAX_DT, dt);
+    /* THE FLOOR IS NEVER HELD BY NOBODY.
+     *
+     * `takeFloor()` sets `input.uiOpen` and the only things that used to clear
+     * it were `startWork()`, `extend()` and the one line in the rest branch
+     * below. Every other way out of a beat left the flag standing — and
+     * `uiOpen` deafens every verb the player owns and hides the touch pad
+     * entirely, so a session that lost track of its own card took the whole
+     * game with it and there was nothing on screen to say why. This is the
+     * standing answer: if this module is holding the floor and none of its
+     * three beats is on screen, it is not holding it any more. It can only
+     * release what it took (`floorHeld`), so the rift panel's own `uiOpen` is
+     * never touched.
+     *
+     * Every beat is shown in the same tick as its `takeFloor()`, so there is no
+     * frame in which this can fire early. */
+    if (floorHeld && !beatShown()) setModal(false);
     if (phase === 'rest') {
       rest.update(d);
       if (!rest.open) { root.classList.remove('ses-resting'); setModal(false); phase = 'idle'; }
@@ -813,7 +894,9 @@ export function createSession({
       if (pending <= 0) { pending = 0; resume(); }
       return;
     }
-    if (phase !== 'work') return;
+    // …and never `work` without a run. `reset()` can be called from anywhere —
+    // a tool, a start-over — and every line below this one reads `run`.
+    if (phase !== 'work' || !run) return;
     chargeWork(d);
     if (shouldClose()) close();
     // Written once a second rather than once a frame: the goal is that a run
@@ -924,10 +1007,26 @@ export function createSession({
     setModal(true);
   }
 
+  /**
+   * Is the floor ours right now? Read by the watchdog in `update()`.
+   *
+   * `uiOpen` is a flag six modules set and none of them own, so this module may
+   * only ever hand back what it took. Without this, a watchdog that released
+   * `uiOpen` on any frame with no session beat up would tear the input surface
+   * out from under the rift panel.
+   */
+  let floorHeld = false;
+
   function setModal(on) {
+    floorHeld = !!on;
     if (input) input.uiOpen = !!on;
     if (on) document.exitPointerLock?.();
     root.classList.toggle('ses-cine', !!on);
+  }
+
+  /** Is one of this module's three full-frame beats actually on screen? */
+  function beatShown() {
+    return charter.open || resolution.open || rest.open;
   }
 
   // ---------------------------------------------------------------------------
@@ -935,6 +1034,12 @@ export function createSession({
   // ---------------------------------------------------------------------------
   let lastSave = 0;
   function save() {
+    // A run that is not there is not a run to write. This wrote the literal
+    // string "null" over the key instead of leaving it absent, so a record that
+    // had just been thrown away came back as a file on disk that `load()` then
+    // had to be careful to disbelieve. A wipe should leave nothing, not a
+    // carefully-ignored nothing.
+    if (!run) { try { localStorage.removeItem(KEY); } catch { /* private mode */ } return; }
     try { localStorage.setItem(KEY, JSON.stringify(run)); } catch { /* private mode */ }
     lastSave = performance.now();
   }
@@ -1003,6 +1108,23 @@ export function createSession({
       pace.reset();
       run = null;
       last = null;
+      /* AND THE PHASE, WHICH IS HALF OF WHAT A RUN IS.
+         This dropped the run object and left `phase` where it was. Called
+         mid-sitting — which is exactly when a start-over is pressed — that
+         leaves the module in `work` with nothing to work on, and the very next
+         frame runs `chargeWork()` against a null run. Measured on the shipping
+         build, with a four-second reload standing in for a school laptop:
+         `Cannot read properties of null (reading 'focus')`, once per frame,
+         for as long as the page took to go. BRIEF invariant 3 is zero console
+         errors, and a run that has been thrown away is not a sitting that is
+         still going. */
+      phase = 'idle';
+      pending = 0;
+      ending = false;
+      saidNear = false;
+      gapSpent = 0;
+      panelWasOpen = false;
+      band.show(false);
     },
   };
 }

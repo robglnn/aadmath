@@ -15,7 +15,7 @@
  *   TEN LINES   the proof itself, with real state out of the mastery model.
  */
 import { ACTS, CODA, RANKS, RANK_AT, RANK_NIGHTS, rankGate, sigilSVG } from './arc.js';
-import { breakdown, STANDING_MAX } from './standing.js';
+import { breakdown, standingMax } from './standing.js';
 import { t, pct } from '../i18n/index.js';
 import { FIG, tagFigure } from './progress.js';
 
@@ -159,10 +159,10 @@ export class Dossier {
     head.className = 'st-head';
     head.innerHTML = '<span class="st-n"></span><span class="st-of"></span>';
     head.querySelector('.st-n').textContent = String(s.standing);
-    head.querySelector('.st-of').textContent = t('story.dossier.outOf', { n: STANDING_MAX });
+    head.querySelector('.st-of').textContent = t('story.dossier.outOf', { n: standingMax(s.linesTotal) });
     tagFigure(head.querySelector('.st-n'), FIG.STANDING, s.standing);
     stand.appendChild(head);
-    for (const term of breakdown(s.ledger, s.lines, s.opened)) {
+    for (const term of breakdown(s.ledger, s.lines, s.opened, s.linesTotal)) {
       const row = document.createElement('div');
       const full = term.have >= term.cap;
       row.className = `st-row${full ? ' capped' : ''}`;

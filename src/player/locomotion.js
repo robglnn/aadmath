@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundUnder, gradientAt, heightAt, onBuilt, RIM } from './terrain.js';
+import { escapableAt, groundUnder, gradientAt, heightAt, onBuilt, RIM } from './terrain.js';
 
 /**
  * The physics half of game feel.
@@ -57,6 +57,28 @@ export const P = {
   // up. A four-metre ramp climbs one metre per metre travelled, so a sprint
   // off its head is thrown about seven metres a second upward — a gap you
   // could not cross on foot, crossed, because you built the lip.
+  // ---- THE SCRAMBLE -----------------------------------------------------
+  // What the boots may do, and ONLY on ground a cadet cannot otherwise walk
+  // off. The island was swept at two metres and 3.82% of it is one-way — a
+  // ledge you can drop onto and not climb off, a slot whose head is a wall —
+  // and a walk driven with nothing but W ended inside one of them, holding the
+  // key, going nowhere, for twenty-three seconds. (src/world/paths.js)
+  //
+  // A cliff is still a cliff everywhere else in this game: the Reach is still
+  // the way up the Spine, a perch is still somewhere you have to fly to. This
+  // is a hand on the rock in the one place the world has hold of you, it is
+  // slow enough to read as a climb rather than a run, and the terrain itself
+  // decides when it is available — nothing the player presses can ask for it.
+  // NO SLOPE LIMIT AT ALL, and that is the point. A limit of seven was still a
+  // limit, and the faces that make one-way ground on this island run at a
+  // gradient of fourteen — so the boots went on refusing them and a cadet
+  // dropped on the Spine's west flank climbed twenty centimetres in twelve
+  // seconds. What makes this a climb rather than a cheat is the RATE, below,
+  // not a face the game is still allowed to say no to.
+  scrambleSlope: 1e4,
+  scrambleStep: 1.35,          // …the step the boots will pull up over
+  scrambleClimb: 4.5,          // metres a second of height, and no more
+
   launchK: 0.62,               // fraction of the rising speed that becomes lift
   launchBuilt: 0.80,           // …off a lip you machined yourself
   launchMin: 0.26,             // metres of rise per metre run: below this, ground
@@ -117,6 +139,13 @@ export class Locomotion {
     this.flow = 0;
     /** Strength of the last launch off a rising surface, 0..1. */
     this.launchPower = 0;
+    /**
+     * True while the ground under the cadet leads nowhere he can walk to.
+     * Read from the world, never from an input (see P.scrambleSlope).
+     */
+    this.scrambling = false;
+    /** Seconds spent on one-way ground. The interface reads it; nothing else. */
+    this.scrambleT = 0;
 
     this.ev = {};
     this._wish = new THREE.Vector3();
@@ -132,6 +161,15 @@ export class Locomotion {
       skidStart: 0, sprintOn: 0, launched: 0, dashJumped: 0,
     };
     this._prev.copy(this.pos);
+
+    // ---- IS THE WORLD HOLDING HIM? ----------------------------------------
+    // Asked of the island, once a frame, from a table built at boot: can a
+    // cadet standing here walk home at all? On the 96% of the island where the
+    // answer is yes this changes nothing whatsoever. On the 4% where it is no,
+    // the boots get a hand on the rock — see P.scrambleSlope.
+    const canLeave = this.grounded ? escapableAt(this.pos.x, this.pos.z) : true;
+    this.scrambling = this.grounded && !canLeave;
+    this.scrambleT = this.scrambling ? this.scrambleT + dt : 0;
 
     this.dashCd = Math.max(0, this.dashCd - dt);
     this.hardLand = Math.max(0, this.hardLand - dt);
@@ -230,6 +268,12 @@ export class Locomotion {
       target *= this.onBuilt
         ? THREE.MathUtils.clamp(1 - along * 0.11, 0.86, 1.34)
         : THREE.MathUtils.clamp(1 - along * 0.42, 0.5, 1.28);
+      // A scramble is a climb, not a run: the height gained is capped, so a
+      // gradient-five face is taken at two thirds of a metre a second of run
+      // and reads as hauling yourself up it.
+      if (this.scrambling && along > P.slideLimit) {
+        target = Math.min(target, P.scrambleClimb / along);
+      }
     }
 
     const vx = this.vel.x, vz = this.vel.z;
@@ -570,9 +614,10 @@ export class Locomotion {
     if (nh === null) return false;
     const rise = nh - py;
     if (rise <= 0.03) return false;
-    if (rise > P.stepUp) return true;
+    const step = this.scrambling ? P.scrambleStep : P.stepUp;
+    if (rise > step) return true;
     const g2 = gradientAt(x, z, 0.7);
-    return Math.hypot(g2.x, g2.y) > P.slopeLimit;
+    return Math.hypot(g2.x, g2.y) > (this.scrambling ? P.scrambleSlope : P.slopeLimit);
   }
 
   _integrate(dt) {
@@ -664,7 +709,9 @@ export class Locomotion {
     if (this.grounded) {
       const g = gradientAt(this.pos.x, this.pos.z);
       const st = Math.hypot(g.x, g.y);
-      if (st > P.slideLimit) {
+      // …except while the world has hold of him. Sliding a cadet back down the
+      // one face he is allowed to climb is the trap with an animation on it.
+      if (st > P.slideLimit && !this.scrambling) {
         if (this.slideT <= 0) ev.slideStart = 1;
         this.slideT = 0.2;
         this.vel.x -= g.x * 15 * dt;

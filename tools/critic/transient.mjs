@@ -41,6 +41,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AUDIT_SRC, insetsFor, APPLY_INSET_SRC, DESKTOP, PORTRAIT, LANDSCAPE } from './_viewports.mjs';
 import { TRANS_SRC, SCENES, intoPlay, settle } from './_transient.mjs';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -349,4 +350,15 @@ if (failures.length) {
 errors.slice(0, 10).forEach((e) => console.log('  ! ' + e));
 
 await browser.close();
-process.exit(failures.length || errors.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This gate is recorded
+   per wave and its recorded RED fails `npm run check`, so what it holds has to
+   be legible to the runner and not only to a reader. Every transient surface is one a learner
+   is shown on the shipped build. */
+findings('check:transient', { scope: 'route' })
+  .route(failures.map((f) => (typeof f === 'string' ? f
+    : f.error ? `${f.vp} ${f.loc} notch=${f.notch} ${f.scene}: ${f.error}`
+      : f.never ? `${f.vp} ${f.loc} notch=${f.notch} ${f.scene}: never seen — ${[].concat(f.never).join(', ')}`
+        : `${f.vp} ${f.loc} notch=${f.notch} ${f.scene}: clipped ${f.clipped?.length ?? 0}, ink outside ${f.outside?.length ?? 0}, `
+          + `overlaps ${f.overlaps?.length ?? 0}, silent scrollers ${f.silent?.length ?? 0}`)))
+  .route(errors.length ? [`${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`] : [])
+  .done();

@@ -33,9 +33,37 @@ import { t } from '../i18n/index.js';
 export const REST_SECONDS = 165;
 /** …and after this long they have had the useful part, so let them go. */
 const SKIP_AFTER = 40;
+/**
+ * Nothing dismisses this beat for this long after it opens.
+ *
+ * It is a quarter of the close card's window, not the same number, and the
+ * difference is the point. The close card's 700 ms exists because the keystroke
+ * that sealed the last tear is genuinely still in the queue when it opens.
+ * Nothing is in flight when THIS beat opens except the Escape that dismissed
+ * the card above it, and that one event is already stopped dead by
+ * `stopImmediatePropagation` in `resolution.js` — so a long window here would
+ * buy nothing and cost the one thing that matters: a player who presses Escape
+ * twice in a second, meaning it both times, has to be let out.
+ */
+const GRACE = 250;
+
+/**
+ * A BREAK YOU CANNOT LEAVE IS NOT A BREAK.
+ *
+ * This beat had no key handler either. It runs for `REST_SECONDS` — two and
+ * three quarter minutes — and `src/session/index.js` holds `input.uiOpen` for
+ * every second of it, which on a phone means no controls at all. Its one early
+ * exit, the SKIP button, is drawn at `opacity: 0` until `SKIP_AFTER`, so for
+ * the first forty seconds there is nothing on screen to press and no key that
+ * does anything. Then it ends on a card that waits for a click forever, and
+ * the two roads off that card both lead back into a new run: **there was no
+ * road from here to the world at all.**
+ *
+ * Escape is that road, at any phase of the beat, in one press.
+ */
 
 export class Rest {
-  constructor(root, { onDone, onAnother, onClose }) {
+  constructor(root, { onDone, onAnother, onClose, onDismiss }) {
     this.el = document.createElement('div');
     this.el.className = 'ses-rest';
     this.el.innerHTML = `
@@ -45,6 +73,7 @@ export class Rest {
         <p class="sr-say"></p>
         <button type="button" class="sr-skip"></button>
       </div>
+      <button type="button" class="sr-esc"><span></span><kbd></kbd></button>
       <div class="sr-arc"><i></i></div>
       <div class="sr-end" role="dialog" aria-modal="true">
         <div class="sr-e-kick"></div>
@@ -68,6 +97,17 @@ export class Rest {
     this.offLine = this.offFrame.querySelector('p');
     this.offBack = this.offFrame.querySelector('button');
 
+    /* A BUTTON, NOT A LINE OF TYPE. `uiOpen` sets `#touchpad` to `display: none`
+       (src/core/input.js -> src/player/touch.js), and a phone has no Escape key,
+       so on touch this beat had NOTHING that could be pressed for the first
+       forty seconds. This is that thing. It is deliberately not `.sr-skip` with
+       a shortcut bolted on: SKIP ends the breathing and offers another run,
+       this gives the world back. */
+    this.escLine = this.el.querySelector('.sr-esc');
+    this.escLabel = this.el.querySelector('.sr-esc span');
+    this.escKey = this.el.querySelector('.sr-esc kbd');
+    this.escLine.addEventListener('click', () => this._leave());
+
     this.skip.addEventListener('click', () => this._finish());
     this.again.addEventListener('click', () => { this.hide(); onAnother?.(); });
     this.off.addEventListener('click', () => this._standDown());
@@ -76,8 +116,33 @@ export class Rest {
 
     this._onDone = onDone;
     this._onClose = onClose;
+    this._onDismiss = onDismiss;
+    this._openedAt = 0;
     this.phase = 'off';
     this.t = 0;
+
+    /* ESCAPE LEAVES THE BREAK, from any phase of it, in one press. Capture, for
+       the same reason the close card takes it in capture: the menu hands Escape
+       back whenever `uiOpen` is true, so nothing downstream would ever have got
+       it. It is not the SKIP button with a shortcut on it — SKIP ends the
+       breathing and shows the card that offers another run, which is a
+       different verb. This one gives the world back. */
+    addEventListener('keydown', (e) => {
+      if (!this.open || e.repeat || e.code !== 'Escape') return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+      if (performance.now() - this._openedAt < GRACE) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this._leave();
+    }, true);
+  }
+
+  /** The one road from this beat back to the world. Escape, or the button. */
+  _leave() {
+    if (!this.open) return;
+    this.hide();
+    this._onDismiss?.();
   }
 
   get open() { return this.phase !== 'off'; }
@@ -91,8 +156,16 @@ export class Rest {
     this.retext();
     this.el.classList.remove('ended', 'closed', 'lettergo');
     this.el.classList.add('show');
+    this._openedAt = performance.now();
     this.arc.style.width = '0%';
-    requestAnimationFrame(() => this.skip.focus({ preventScroll: true }));
+    /* FOCUS GOES TO A CONTROL THE PLAYER CAN SEE.
+       It used to go to `.sr-skip`, which is drawn at `opacity: 0` for the first
+       `SKIP_AFTER` seconds — so the keyboard's Enter was wired to a button
+       nobody could see, and pressing it in the first forty seconds skipped the
+       break with nothing on screen to say what had happened. `.sr-esc` is on
+       the glass from this frame, it says what it does, and it carries the same
+       key Escape does. `_finish()` moves focus on to ANOTHER RUN as before. */
+    requestAnimationFrame(() => this.escLine.focus({ preventScroll: true }));
   }
 
   update(dt) {
@@ -135,6 +208,11 @@ export class Rest {
     this.off.textContent = t('session.rest.off');
     this.offLine.textContent = t('session.rest.signOff');
     this.offBack.textContent = t('session.rest.wakeUp');
+    /* The way out, printed from the first frame of the beat — because the only
+       other one is invisible for forty seconds. */
+    this.escLabel.textContent = t('session.rest.leave');
+    this.escKey.textContent = t('session.rest.leaveKey');
+    this.escLine.setAttribute('aria-keyshortcuts', 'Escape');
     this.el.querySelector('.sr-stage').setAttribute('aria-label', t('session.rest.aria'));
   }
 

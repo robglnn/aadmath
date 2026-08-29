@@ -28,7 +28,6 @@ export default {
   'l3.ask.shareOnePower': "Write one share as one power.",
   'l3.ask.oneExpression': 'Write this as one expression.',
   'l3.ask.exactValue': 'What is the exact value?',
-  'l3.ask.whichIsRight': 'Which cadet is right?',
   'l3.ask.valueOfF': 'What is $f({k})$?',
   'l3.ask.whichInputGives': 'Which input gives the output ${out}$?',
   'l3.ask.largestOutput': 'What is the largest output?',
@@ -42,7 +41,7 @@ export default {
   'l3.ask.stepAdd': 'The output adds the same number at each step. What is it?',
   'l3.ask.gapAt': 'What is the value at ${v} = {k}$?',
   'l3.ask.startValue': 'What is the output at the start?',
-  'l3.ask.nextReading': 'What is the output one step later?',
+  'l3.ask.nextReading': 'What is the output one step after $f({k})$?',
 
   // ------------------------------------------------------- the input range
   'l3.ctx.inputsRun': 'The inputs are the whole numbers from {lo} to {hi}.',

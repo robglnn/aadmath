@@ -152,18 +152,24 @@
      only one that keeps its word. They used to be stacked at 74 px and 120 px
      down the right flank, which is the middle of a 390 px screen — and the
      flank is where the first-contact card lives. */
-  #ui .langs { top: var(--pad-t); right: var(--pad-r); z-index: var(--lsc-z-band); }
+  /* 44 px tall and 44 px wide, on the same rule as every other control the
+     game puts under a thumb: they were 53 x 30 and 31 x 30, and a coarse
+     pointer is 44 (see the block at the end of src/ui/rift.css). They are
+     placed off ONE running edge now rather than off two numbers measured
+     apart — at 30 px tall PROGRESS's right edge stood at 164 and MENU's box
+     ran to 175, so the two boxes already overlapped by 11 px and only the fact
+     that MENU prints an icon and no word kept it off the layout gate. */
   #ui .mnu-pill {
     top: var(--pad-t); bottom: auto;
     left: auto; right: calc(var(--pad-r) + 122px);
-    min-height: 30px; padding: .3rem .44rem;
+    min-height: 44px; min-width: 44px; padding: .3rem .5rem;
     z-index: var(--lsc-z-band);
   }
   #ui .mnu-pill b { display: none; }          /* the icon and the title attribute carry it */
   .rp-launch {
     top: var(--pad-t); bottom: auto;
-    left: auto; right: calc(var(--pad-r) + 164px);
-    min-height: 30px; padding: .3rem .5rem;
+    left: auto; right: calc(var(--pad-r) + 182px);
+    min-height: 44px; min-width: 44px; padding: .3rem .5rem;
     font-size: .5rem; letter-spacing: .14em;
     z-index: var(--lsc-z-band);
   }
@@ -338,6 +344,11 @@
   .sound {
     left: calc(var(--pad-l) + var(--lsc-rail) + var(--lsc-step)); right: auto;
     top: calc(var(--pad-t) + 46px);
+    /* a control on a coarse pointer, like every other one: 44 x 44. Its own
+       sheet composes it at about 25 px tall, which is the right size for the
+       corner of a laptop and not for a thumb. It stands alone in the gutter
+       here, so the height costs nothing beside it. */
+    min-height: 44px; min-width: 44px; justify-content: center;
   }
   /* Anchored off the TOP of the frame, not the bottom: this strip and the
      companion's card are the two things that grow, and they grow towards each
@@ -540,10 +551,15 @@
 
      The portrait cluster is 132x150 with 46 px buttons and a 72 px jump. On a
      390 px screen that is 38% of the height and a quarter of the width per
-     side. Everything here is scaled to a thumb rather than to a screenshot:
-     38 px buttons clear Apple's 36 pt minimum at this density, the jump keeps
-     its emphasis at 56, and the whole cluster fits in 118x128 — which is what
-     buys the companion her width back.
+     side. Everything here is scaled to a thumb rather than to a screenshot —
+     but scaled to a THUMB, which has a published size. The sentence that used
+     to stand here read "38 px buttons clear Apple's 36 pt minimum at this
+     density", and it was wrong twice: the figure Apple and Google both publish
+     is 44 pt, and a pt is not a device pixel to be traded against a scale
+     factor. Three of the four verbs shipped at 38 x 38 on that sentence. They
+     are 44 now, the jump keeps its emphasis at 56, and the cluster is still
+     118 px wide — so `--thumb-r` is unchanged and the companion keeps every
+     pixel of her line. It is 12 px taller, which is the only price.
      ========================================================================= */
   #touchpad .home {
     left: max(12px, var(--sa-l)); bottom: calc(14px + var(--sa-b));
@@ -560,10 +576,19 @@
      word JUMP. */
   #touchpad .pads {
     right: max(10px, var(--sa-r)); bottom: calc(16px + var(--sa-b));
-    width: 118px; height: 128px;
+    width: 118px; height: 140px;
   }
-  #touchpad .btn { width: 38px; height: 38px; }
-  #touchpad .btn svg { width: 19px; height: 19px; }
+  /* 44, NOT 38. Apple's HIG and Google's Material publish the same floor for a
+     touch target and it is 44 CSS px; three of the four verbs on this pad were
+     38 x 38 and only JUMP cleared it. "38 px clears Apple's 36 pt minimum at
+     this density" — the sentence that used to be here — was wrong twice over:
+     the published figure is 44 pt, and pt is not a device pixel to be traded
+     against a scale factor. A thumb is the same size on every phone.
+     `tools/critic/touch.mjs` now measures every button and refuses one under
+     44 x 44, and the cluster is still 118 px wide, so `--thumb-r` is unchanged
+     and the companion keeps every pixel of her line. */
+  #touchpad .btn { width: 44px; height: 44px; }
+  #touchpad .btn svg { width: 22px; height: 22px; }
   /* 8 px, and the two upper buttons are pushed apart by the width of the
      LONGEST of the three languages' words, not the English one: SZYBOWANIE and
      INTERAKCJA are 40% wider than GLIDE and INTERACT and were printed through
@@ -576,9 +601,9 @@
   #touchpad .btn[data-a="jump"] { right: 0; bottom: 14px; width: 56px; height: 56px; }
   #touchpad .btn[data-a="jump"] svg { width: 26px; height: 26px; }
   #touchpad .btn[data-a="jump"] b { font-size: 9.5px; }
-  #touchpad .btn[data-a="dash"] { right: 64px; bottom: 18px; }
-  #touchpad .btn[data-a="glide"] { right: 2px; bottom: 88px; }
-  #touchpad .btn[data-a="interact"] { right: 68px; bottom: 82px; }
+  #touchpad .btn[data-a="dash"] { right: 62px; bottom: 16px; }
+  #touchpad .btn[data-a="glide"] { right: 0; bottom: 92px; }
+  #touchpad .btn[data-a="interact"] { right: 62px; bottom: 86px; }
 
   /* =========================================================================
      7. THE PANELS THAT TAKE THE WHOLE FRAME.
@@ -621,21 +646,122 @@
   .rf-foot { flex-wrap: nowrap; }
   .rf-help { flex: 1 1 auto; order: 0; }
 
-  /* THE KEYPAD IS THE WORST OF THEM. A readout stacked on twelve keys in four
-     columns plus a commit slab is five rows deep: 492 px of plate in a 390 px
-     frame with the fit pass already on its floor, which put CALL THE ECHO and
-     the commit key itself off the bottom of the screen. On a sideways screen it
-     lays out sideways — the value beside the keys, and the keys six across
-     rather than four: 103 px instead of 208, at the same key size. */
+  /* THE KEYPAD IS THE WORST OF THEM. A readout stacked on twelve keys plus a
+     commit slab is five rows deep: 492 px of plate in a 390 px frame with the
+     fit pass already on its floor, which put CALL THE ECHO and the commit key
+     itself off the bottom of the screen. On a sideways screen it lays out
+     sideways — the value BESIDE the keys rather than above them, which is 208
+     px of height given back for nothing.
+     It also used to lay the keys six across rather than four, and that half
+     was not free: see the note on `.rf-keys` below. The height it bought is
+     taken out of the stage instead, which is allowed to scroll here. */
   .rf-pad {
     flex-direction: row; align-items: stretch;
     max-width: min(700px, 100%); gap: calc(.5rem * var(--rf-u));
   }
-  .rf-socket { flex: 1 1 38%; min-height: calc(50px * var(--rf-u)); }
-  .rf-keys { flex: 1 1 62%; grid-template-columns: repeat(6, 1fr); }
-  .rf-key { min-height: calc(44px * var(--rf-u)); }
-  .rf-key.widest, .rf-key.commit { grid-column: span 6; }
-  .rf-key.commit { min-height: calc(46px * var(--rf-u)); }
+  /* THE SOCKET IS A READOUT, NOT A SLAB.
+     Stretched, it took the whole height of the keypad beside it — 194 px of
+     opaque plate to hold four digits — and the moment the stage scrolls (which
+     it is allowed to do, twenty lines down) its BOX ran on under the foot and
+     sat on CALL THE ECHO and the coaching line. `tools/critic/landscape.mjs`
+     is right to refuse that: it is an opaque panel and a control in the same
+     pixels, and the only reason nothing was printed through was the stage's
+     own clip. It is top-aligned and given a readout's height instead. */
+  .rf-socket {
+    flex: 1 1 38%; align-self: flex-start;
+    min-height: calc(96px * var(--rf-u));
+  }
+  /* FOUR COLUMNS, BECAUSE A KEYPAD IS A KEYPAD.
+     This said `repeat(6, 1fr)`, which bought two rows of height and cost the
+     thing that makes a keypad usable without looking at it. The keys are laid
+     out in the DOM as 7 8 9 ⌫ / 4 5 6 ± / 1 2 3 ÷ / 0 CLEAR, so six columns
+     reflowed them to  7 8 9 ⌫ 4 5 / 6 ± 1 2 3 ÷ / 0 0 0 CLEAR : FOUR AND FIVE
+     SAT ON THE TOP ROW BESIDE NINE. Every phone, every calculator and every
+     ATM a student has ever touched puts 4 under 7. The height that buys back
+     comes out of the stage instead, which is allowed to scroll here and says
+     so twenty lines down. */
+  .rf-keys {
+    flex: 1 1 62%;
+    /* AND THE SLAB THAT ENDS THE TURN GOES BESIDE THE KEYS, NOT UNDER THEM.
+       Four rows of 44 px keys is 194 px, and the commit slab under them is
+       another 54: 248 px of instrument in a stage that is 197 px tall at
+       844x390 once the head and the foot carry controls a thumb can hit. The
+       row that overflowed was the last one, which is the key that ends the
+       turn — the exact failure this whole block exists to end. SET takes a
+       column of its own down the right-hand side instead, the way the equals
+       bar does on every calculator, and the instrument comes back to 194.
+       The four digit columns are unaffected: an explicitly placed item blocks
+       auto-placement, so 7 8 9 ⌫ / 4 5 6 ± / 1 2 3 ÷ / 0 CLEAR still fill
+       columns one to four, in that order. */
+    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(56px, .8fr);
+  }
+  /* AND THE WORD ON THAT SLAB IS A DIFFERENT LENGTH IN EVERY LANGUAGE.
+     src/ui/rift.css:940 already carries this exact finding, in these exact
+     words, about the key twelve lines above it: *"CLEAR is 5 letters, BORRAR
+     is 6, WYCZYSC is 7 … a Polish student's CLEAR key read WYCZYS with the
+     last letter cut off."* `.rf-key.wipe` was cut to `.52rem` and `.06em` of
+     tracking and fixed; `.rf-key.commit` kept `.82rem` and **`.22em`** — and
+     it is the key that ENDS THE TURN. Measured on the frozen build at
+     844x390, one form, three locales:
+
+       SEAL          28 px of ink   in a 69 px slab
+       SELLAR        42 px
+       ZAPIECZETUJ   76 px          <- seven px off the right-hand edge
+
+     A Polish cadet on a phone held sideways reads ZAPIECZETU on the button
+     that seals the rift. Eleven letters cannot afford `.22em`: it is 27 px of
+     air between glyphs in a column that only exists because there was no
+     height for the slab underneath. This is the only frame where that column
+     is narrow, so it is the only frame the type is trimmed on — SEAL keeps its
+     tracking everywhere the slab spans four columns. */
+  .rf-key.commit {
+    grid-column: 5; grid-row: 1 / span 4;
+    font-size: calc(.72rem * var(--rf-u)); letter-spacing: .06em;
+    padding-inline: .2rem;
+  }
+
+  /* THE CHART AND THE INSTRUMENT THAT ANSWERS IT, SIDE BY SIDE.
+
+     A coordinate chart is the QUESTION, and stacked above a keypad on a 390 px
+     screen it had 46vh — 179 px — to be drawn in, under a pad that ran the
+     full 700. The two now share the width the way the socket and the keys do,
+     and both take `--rf-instr`, so the chart is never the narrower of them.
+
+     `--rf-instr` is the keypad's width, and here it carries a floor of 196 px:
+     four columns of 44 px plus three gaps is 190, so anything under that
+     is a keypad with keys no thumb can hit, and the chart's floor rides it up
+     with the keypad rather than the keypad down to the chart. The chart itself
+     is given 68vh on top of that, because the room a chart has sideways is
+     vertical room, not horizontal. */
+  .rift { --rf-instr: max(calc(366px * var(--rf-u)), 196px); }
+  .rf-inner:has(.rf-fig.grid) {
+    flex-direction: row; align-items: flex-start;
+    gap: calc(.7rem * var(--rf-u));
+  }
+  .rf-inner:has(.rf-fig.grid) > .rf-figbox,
+  .rf-inner:has(.rf-fig.grid) > .rf-work { flex: 1 1 0; min-width: 0; }
+  /* The chart takes the height the stage actually has — 52vh is what is left of
+     a 390 px frame once the head, the statement and the foot have carried
+     controls a thumb can hit — and never less than the instrument beside it.
+     68vh drew a 265 px chart into a 197 px stage and cut its bottom axis off,
+     which is the one thing on this card that may not be cut. */
+  .rf-inner:has(.rf-fig.grid) .rf-fig.grid {
+    max-width: min(100%, max(calc(var(--rf-instr) + 8px), 52vh));
+  }
+  /* In its own column the pad is a column again: the socket-beside-the-keys row
+     is an answer to a 700 px pad on a 390 px screen, and there is no 700 here. */
+  .rf-inner:has(.rf-fig.grid) .rf-pad { flex-direction: column; max-width: var(--rf-instr); }
+  /* …and the socket is a full-width readout again at the head of that column.
+     `align-self: flex-start` above is right for the socket-BESIDE-the-keys row;
+     in a column it is the cross axis, and it shrank the readout to the width of
+     the word YOUR ANSWER. */
+  .rf-inner:has(.rf-fig.grid) .rf-socket { flex: 0 0 auto; align-self: stretch; }
+  /* …and with a chart beside it the pad is a column with a column's height, so
+     the slab goes back under the keys where it reads as the end of the pad. */
+  .rf-inner:has(.rf-fig.grid) .rf-keys {
+    flex: 1 1 auto; grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .rf-inner:has(.rf-fig.grid) .rf-key.commit { grid-column: span 4; grid-row: auto; }
 
   /* THE LAST RESORT, and the only one this panel is allowed.
      The fit pass shrinks the rig by one unit until it fits and then stops at a
@@ -651,9 +777,12 @@
   .rf-stage { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
   /* the language pill is a modal's business too: it must not sit on a card */
-  #ui:has(.rift.show) .langs,
-  #ui:has(.rp-scrim.show) .langs,
-  #ui:has(.mnu.show) .langs { opacity: 0; pointer-events: none; }
+  /* THE LOCALE SWITCHER USED TO BE HERE AND IS NOT ANY MORE.
+     It stood at the top-right of the glass and had to be hidden under every
+     panel that took the frame — including, fatally for this rule, the menu.
+     It now lives INSIDE that menu (src/ui/menu.js), so a rule that hides
+     `.langs` while `.mnu` is open would hide the control the player just
+     opened the menu to reach. */
 }
 
 /* ---------------------------------------------------------------------------
@@ -795,4 +924,46 @@
 
 @media (prefers-reduced-motion: reduce) {
   #ui .meta-comms, #ui .fc, #ui .gd-card, #ui .meta-quest { transition-duration: .01ms; }
+}
+
+/* ===========================================================================
+   44 x 44, SIDEWAYS — the band's own controls, on a coarse pointer.
+
+   `tools/critic/thumb.mjs` said this out loud and then said it was not the
+   gate to make it: *".slot is 38 x 34 sideways and 44 x 40 held up … which is
+   under the floor, and that is a finding this gate is not the one to make."*
+   It is this file's finding, because these are this file's numbers.
+
+   Measured on a 844x390 iPhone 13 profile, before this block:
+
+     .slot            38 x 34     the build rack, one tap per piece
+     .buildbar .place 46 x 34     the verb that puts the piece down
+     .fc-x            50 x 16.8   GOT IT — the dismiss on the controls card
+
+   A .slot at 34 px tall is 77% of a thumb, and the piece it drops is dropped
+   into the world. `(pointer: coarse)`, not a width: the finger is what needs
+   44 px, so a touchscreen laptop is in and a narrow desktop window is not.
+   The glyphs inside are untouched — the box grows, the drawing does not, and
+   the band keeps its proportions because the row is centred either way.
+   =========================================================================== */
+@media (pointer: coarse) {
+  :root[data-touch] .slot,
+  #ui .slot { min-width: 44px; min-height: 44px; }
+  :root[data-touch] .buildbar .place,
+  #ui .buildbar .place { min-width: 44px; min-height: 44px; }
+  #ui .fc-x {
+    min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* AND THE OTHER HALF OF THE SAME CARD. `.fc-x` dismisses the controls card
+     and was swept to 44 px here; `.fc-pill` — the `?` that brings it BACK, four
+     declarations away from it in src/player/controls.css — was not, and stayed
+     `width: 26px; height: 26px` on every coarse pointer. That is 35% of the
+     area of the floor this block exists to publish, on the one control that is
+     the ONLY route back to the controls card once it has retired
+     (src/player/controls.js:237 sets `.fc-pill.show` from `hide()`), and on a
+     phone there is no `?` key to use instead. `min-width` clamps a fixed
+     `width`, so the circle simply grows; the glyph inside is untouched, exactly
+     as the note at the top of this block says. */
+  #ui .fc-pill { min-width: 44px; min-height: 44px; }
 }

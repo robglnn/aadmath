@@ -35,6 +35,7 @@
  * Exit 0 = the controller can still find its way back up.
  */
 import { QualityDirector } from '../../src/core/engine.js';
+import { findings } from '../_findings.mjs';
 
 // The controller reads `devicePixelRatio`, `matchMedia`, `innerWidth/Height`
 // and `navigator` off the global to decide where to start. Node has none of
@@ -179,4 +180,12 @@ const check = (name, ok, detail = '') => {
 const bad = results.filter((r) => !r.ok).length;
 console.log(bad ? `\nquality-loop gate FAILED (${bad} of ${results.length})`
   : `\nquality loop: all ${results.length} checks passed — the controller can find its way back up.`);
-process.exit(bad ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This gate is recorded
+   per wave and its recorded RED fails `npm run check`, so what it holds has to
+   be legible to the runner and not only to a reader. The quality controller is arithmetic in
+   src/core/engine.js and is not unit-scoped: a machine that spends its
+   resolution down to the floor and never gives up the effect tier is that way
+   in every unit at once. */
+findings('check:quality', { scope: 'engine' })
+  .engine(results.filter((r) => !r.ok).map((r) => `${r.name || r.label || 'case'}: ${r.why || r.detail || 'the controller did not recover'}`))
+  .done();

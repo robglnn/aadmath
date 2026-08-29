@@ -1,0 +1,366 @@
+/* ===========================================================================
+   THE COLLAPSED HUD.
+
+   WHY THIS FILE EXISTS.
+
+   The client played the build and wrote, in one breath:
+
+     "we need to collapse build menu by default, sound can go in settings, i see
+      like 3 different progress bars, we need to collapse to only whats relevant
+      and free up vertical space … languages should also be in settings"
+
+   An independent study (design/FIRST-90-SECONDS.md §1.2) had already measured
+   the same frame and named the same surfaces: **76 readable strings at peak**,
+   81 of 95 samples at 60 or more, and **ten distinct text surfaces standing at
+   one instant** — the rig, the objective card, the run band, the locale switch,
+   the audio meter, the progress pill, the notice toast, the controls card,
+   Marlow, and the build hotbar. §7.1 set the caps this file is written to:
+
+       first 90 seconds:   TEXT SURFACES <= 3      READABLE STRINGS <= 12
+
+   `tools/critic/glass.mjs` (npm run check:density) measures both, twice a
+   second, for the whole opening, in three languages, on a phone held up, a
+   phone on its side and a laptop.
+
+   WHAT THIS FILE IS, AND WHAT IT IS NOT.
+
+   It is the HUD's own composition. It writes no words and owns no panel's
+   logic: every rule here either dresses an element src/ui/hud.js builds, or
+   folds one that has nothing to say yet. Where it reaches outside the HUD it
+   does so the way src/ui/slots.css and src/ui/layers.css already do — by
+   composing surfaces that share a frame — and every one of those rules carries
+   its reason with it.
+
+   THE THREE THINGS IT DOES.
+
+     1. NOTHING PRINTS A ZERO. A rank nobody has been given and a purse with
+        nothing in it are not information, they are furniture. The rig's foot
+        arrives at the first mote and at the first promotion, and then stays,
+        because an inventory that vanishes is a game that looks broken.
+     2. THE RACK IS SHUT. The build hotbar cost four names, four digits and a
+        row of vertical space to a cadet who had not been given the verb. It is
+        now one icon-only handle that is not on the glass at all until there is
+        something to build, and the rack behind it opens on a reason.
+     3. A CONTROL THAT IS A DOOR DOES NOT NEED A CAPTION. The menu handle and
+        the progress handle are icons. The words they carried — MENU, ESC, F1,
+        PROGRESS — are four readable strings for two buttons that are already
+        the most familiar shapes on any screen a teenager has ever used.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   THE FOLD. One class, no layout, no colour — the same discipline as
+   src/ui/quiet.css and src/ui/slots.css.
+
+   `display: none` rather than `visibility: hidden`, and that is the difference
+   between this and the other two. A hush exists so that two surfaces can share
+   a frame and only one be read; a FOLD exists so that a surface stops taking
+   room at all. The client asked for vertical space back, and a hidden box that
+   still occupies its slot gives none of it.
+   --------------------------------------------------------------------------- */
+#ui .hud-fold,
+.hud-fold { display: none !important; }
+
+/* …AND THE HUSH, for a surface whose BOX another module still measures.
+   The kit strip's height is read off its live chips (src/kit), and
+   tools/critic/transient.mjs uses that box to know the strip is up at all. A
+   chip that is folded out of the flow collapses the strip and takes a whole
+   column out of the gate's sight — so the chip gives up its ink and keeps its
+   box, which is exactly the distinction src/ui/quiet.css and src/ui/slots.css
+   both draw between a hush and a yield. */
+#ui .hud-hush,
+.hud-hush {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   1 · THE RIG — the one progress instrument, and nothing else
+
+   `src/meta/progress.js` owns the rule that there is exactly ONE progress
+   number and that it is WORLD REPAIRED; `tools/critic/oneprogress.mjs` fails
+   the build if that number is ever off the glass or ever has company. So the
+   percentage and its meter are permanent. Everything else on this panel is
+   conditional, and the conditions are set by src/ui/hud.js.
+
+   `[data-earned]` carries what the cadet has actually been given:
+       (absent)   nothing yet — the foot is not on the glass at all
+       rank       a rank has been conferred (src/meta/index.js writes it)
+       motes      the purse has been opened
+       both       both
+   --------------------------------------------------------------------------- */
+.rig .rig-foot { display: none; }
+.rig[data-earned] .rig-foot { display: flex; }
+.rig:not([data-earned~="rank"]) .rig-rank { display: none; }
+.rig:not([data-earned~="motes"]) .rig-shards { display: none; }
+
+/* THE RUN BAND IS THE PACING INSTRUMENT; THIS IS THE LONG ARC.
+   The client saw three progress bars at once. Two of them were these: the run
+   band across the top of the frame, which fills one cell per tear and moves
+   every forty seconds, and this segmented meter, which moves once a session.
+   Two bars answering "how far along am I" twenty pixels apart is the defect,
+   and the answer is not to delete either fact — it is that only one of them is
+   a BAR at a time. While a run is on, the band is the bar and this panel keeps
+   the figure alone. `src/ui/hud.js` sets `[data-band]` off the live element. */
+.rig[data-band] .rig-meter { display: none; }
+.rig[data-band] { padding-block: .34rem; }
+
+/* ---------------------------------------------------------------------------
+   2 · THE BUILD RACK — shut by default
+
+   src/ui/hud.js:_buildbar() carries the two reasons this rack cannot simply be
+   deleted on a phone: the digit that selects a slot is printed ON the slot, so
+   the rack is where the keyboard binding is learned, and the PLACE and TURN
+   buttons are the only build verbs a thumb has anywhere in the game. Both are
+   honoured. The rack still teaches its bindings and still carries the thumb's
+   verbs — it is simply shut until the cadet has a reason to open it, and the
+   handle that opens it is one icon with no caption.
+   --------------------------------------------------------------------------- */
+/* No reason yet: no rack, no handle, no row of vertical space. */
+.buildbar:not([data-reason]) { display: none; }
+
+/* A reason, but the cadet has not reached for a piece: the handle alone. */
+.buildbar:not(.open) .slot:not(.rack) { display: none; }
+.buildbar:not(.open) { padding: .26rem; }
+
+/* The handle. Icon only, on purpose — see the header. It is the same alloy as
+   every other slot so the rack reads as one piece of hardware opening, not as
+   a different control appearing. */
+.buildbar .rack { width: 44px; height: 44px; }
+.buildbar .rack svg { width: 20px; height: 20px; }
+.buildbar.open .rack { color: var(--cyan); border-color: rgba(95, 230, 255, .45); }
+.buildbar.open .rack .bar-open { display: none; }
+.buildbar:not(.open) .rack .bar-shut { display: none; }
+
+/* ---------------------------------------------------------------------------
+   3 · THE TWO DOORS — icons, not captions
+
+   `.mnu-pill` (src/ui/menu.js) printed MENU · ESC · F1 and `.rp-launch`
+   (src/report/index.js) printed PROGRESS: four readable strings, permanently,
+   for two buttons whose shapes — a hamburger and a bar chart — are already
+   understood by anyone who has used a phone. Both keep their `title` and their
+   `aria-label`, so a screen reader and a hovering hand still get the whole
+   word, and the menu names its own key on the card the moment it opens.
+   --------------------------------------------------------------------------- */
+#ui .mnu-pill b,
+#ui .mnu-pill .mnu-keys,
+#ui .rp-launch .rp-launch-t { display: none; }
+
+/* …and the globe, which is the half of the answer that is not about clutter.
+   A student who speaks Spanish and lands in English cannot read the word MENU
+   and would not know that the language lives behind it. So the handle carries
+   a globe beside the bars: two symbols, no language, and the first row inside
+   the card is every language written in its own name. */
+#ui .mnu-pill { gap: .3rem; }
+#ui .mnu-pill .mnu-globe { width: 15px; height: 15px; opacity: .78; }
+
+/* ---------------------------------------------------------------------------
+   4 · THE CONTROLS CARD — one verb at a time, while it is teaching
+
+   Not this file's element (src/player/controls.js), and not this file's logic:
+   the card already ticks each row the moment the cadet performs it, already
+   retires itself when the last core verb is done, and already comes back on
+   `?`. What is composed here is HOW MUCH OF IT IS ON THE GLASS AT ONCE.
+
+   Nine verbs and seventeen keycaps is twenty-eight readable strings, arriving
+   in one frame, at a stranger — measured at t=12.9 s in §1.2, and the single
+   largest item on §7.3's cut list. §7.2's first rule is "one decision at a
+   time". So while the card is teaching for the first time, it shows the row
+   the cadet has not done yet, and holds the rest until it is that row's turn:
+
+       li.done          ->  already performed, and no longer worth a line
+       li:not(.done) ~  ->  every row after the first undone one, held back
+
+   Two rules, no JavaScript, and the card's own `.done` bookkeeping does the
+   work. `#ui.hud-brief` is set by src/ui/hud.js only while the card is in its
+   FIRST showing; a player who calls it back three minutes later to check which
+   key the wing was on gets all nine rows, which is what they asked for.
+
+   NOTHING HERE APPLIES WHEN THE BROWSER HAS REFUSED THE MOUSE. `.fc.nolock` is
+   set by `ControlsCard.lookBlocked()` and it is a different card doing a
+   different job: it is the only surface in the game that says the mouse cannot
+   turn the view here and names the keys that can. An error state is not the
+   opening, and it is not collapsed. (tools/critic/nolocklayout.mjs measures
+   exactly that frame, at eight viewports in three languages, and it measures
+   the same card it always did.)
+   --------------------------------------------------------------------------- */
+#ui.hud-brief .fc .fc-rows li.done { display: none; }
+#ui.hud-brief .fc .fc-rows li:not(.done) ~ li { display: none; }
+#ui.hud-brief .fc .fc-rows.tail { display: none; }
+/* The heading names a card that is now one line long. The card is still
+   introduced — by being the only thing on the screen.
+
+   `visibility`, NOT `display`, for the same reason the run band below keeps its
+   box: taking the heading out of the flow lifted every row by its height, and
+   on the tablet frame that put the word MOVE into the compass's band — an 8x13
+   px corner at (645, 103), found by tools/critic/landscape.mjs at 1024x768 in
+   all three notch rotations. The card is composed against the surfaces around
+   it, so it may give up its words and not its geometry. */
+#ui.hud-brief .fc .fc-head h3 { visibility: hidden; }
+
+/* WHEN THE BROWSER HAS REFUSED THE MOUSE, THE ONE ROW IS THE LOOK ROW.
+   `.fc.nolock` is set by `ControlsCard.lookBlocked()` and it is a different
+   card doing a different job: it is the only surface in the game that says the
+   mouse cannot turn the view here, and it names the keys that can. That is an
+   error state, and it interrupts — but it interrupts about ONE verb, so it
+   shows that verb's row whether or not it is the cadet's turn to learn it, and
+   nothing else. A school Chromebook inside an LMS iframe is a normal machine
+   (src/player/controls.js says so) and it gets the same uncluttered opening
+   everyone else does, plus the one row it actually needs.
+   tools/critic/nolocklayout.mjs measures this exact frame at eight viewports in
+   three languages: the card, the note, and no new collision. */
+#ui.hud-brief .fc.nolock .fc-rows li[data-v="look"] { display: flex; }
+#ui.hud-brief .fc.nolock .fc-rows li:not([data-v="look"]) { display: none; }
+
+/* AND WHEN THE LAST VERB IS TICKED, THE CARD IS ALREADY EMPTY.
+   The card leaves 1500 ms after the final core verb (src/player/controls.js),
+   which is right — but under the rule above its body is empty for that whole
+   second and a half, so what stands on the glass is a plate with a GOT IT
+   button on it and nothing to get. The card is folded the instant it has
+   nothing left to say; its own retreat still runs underneath, unchanged.
+   (`.fc-rows:not(.tail)` is the core list. Both lists carry `.fc-rows`, and the
+   tail's four rows are almost never ticked, so a selector that did not exclude
+   it would never fire.) */
+#ui.hud-brief .fc:not(.nolock):not(:has(.fc-rows:not(.tail) > li:not(.done))) {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   5 · THE TWO DOORS STAY UP DURING THE COLD OPEN — deliberately not folded
+
+   They were folded here for one draft, and src/meta/meta.css already answers
+   that: *"the two doors out. The open ends the moment the cadet takes a step,
+   but nothing makes them take one, and a PROGRESS pill that is drawn and inert
+   for twenty-one seconds is worse than one that is drawn and works. They are
+   the only controls in #ui that go somewhere."* That reasoning survives this
+   pass unchanged — and it costs nothing now, because both are icons: zero
+   readable strings and, having no visible words, no text surface either.
+   --------------------------------------------------------------------------- */
+
+/* ===========================================================================
+   6 · THE OPENING — what a stranger is handed, and nothing else
+
+   `#ui.hud-open` is the first ninety seconds of play (OPENING_MS in
+   src/ui/hud.js). Everything in this block is a fold that lifts by itself when
+   the opening is over; nothing here deletes a fact, and every fact folded is
+   still reachable from a surface the player opens on purpose.
+   =========================================================================== */
+
+/* ---- the run band keeps its instrument and gives up its caption ----------
+   The band (src/session/band.js) is a row of cells that fill, one per tear,
+   and its own header explains at length why it carries no numerals. It still
+   carries two SENTENCES — "Run 1" and the run's goal — and the goal is the
+   objective card's own words, printed a second time, at the top of the frame,
+   before the cadet has done anything at all. §7.3 files the whole band under
+   "a count of a thing not yet done once".
+
+   So during the opening the band is the instrument and not the caption. The
+   cells still fill on the first held line, which is the moment the words start
+   being about something that happened. */
+/* `visibility`, NOT `display`, and that is not a detail.
+   src/ui/slots.js measures the band's live height into `--slot-band`, and the
+   compass and the notice slot are both positioned off it (src/ui/slots.css
+   rule 2). Folding these two rows out of the flow shortened the band by about
+   twenty pixels, the compass came up that far to meet it, and
+   tools/critic/landscape.mjs caught the result on the tablet frame: an 8x10 px
+   corner of the compass under the controls card's first row. The band keeps
+   its box — which is the same decision src/ui/slots.css and src/ui/quiet.css
+   both make, for the same reason — and gives up only its words. */
+#ui.hud-open .ses-band .sb-head,
+#ui.hud-open .ses-band .sb-foot { visibility: hidden; }
+
+/* ---- the objective card says the objective ------------------------------
+   §7.3: *"The two-paragraph gloss on the objective card — 44 words under a
+   number that changes every frame → Progress panel."* §7.2's fifth rule is the
+   reason: never move a thing the eye is using, and this card carries a live
+   distance directly above two paragraphs somebody is trying to read. The verb,
+   the line, the distance and the bearing stay. The gloss is in the progress
+   report and in the menu's own WORDS block, both one key away. */
+#ui.hud-open .gd-card .gd-why,
+#ui.hud-open .gd-card .gd-gloss { display: none; }
+
+/* ---- a notice and the teaching card are two different slots --------------
+   An earlier draft stood the controls card down whenever a notice was up. That
+   was a budget answering a budget, and the three slots in src/ui/hud.js answer
+   it better: the card is what to do next and the notice is what just happened,
+   so they are B and C and both are allowed. What is NOT allowed is two things
+   in one slot, which is what the rules above are for. */
+
+/* ---- one receipt at a time -----------------------------------------------
+   The ledger strip (src/kit/ledger.js) prints a receipt for everything the
+   world hands over: "+2 · Cipher vein — loose lattice you can run through and
+   keep", then "balance 4", then "balance 6". Measured on a cold walk, three of
+   them stood at once — three painted rows, in the corner, about one action.
+   They arrive and leave on their own clock and nothing is lost by reading them
+   one at a time, so during the opening the newest is the one on the glass.
+   (The strip's own rule that a row "prints what a word MEANS the first time it
+   is used" is untouched: the row still runs its whole life, it simply does not
+   run it underneath two later ones.) */
+#ui.hud-open .led-row:not(:last-child) { display: none; }
+
+/* ---- the compass is an instrument, not a second distance -----------------
+   src/ui/slots.css already states the rule this restores: the compass "is not a
+   pill any more … it is language-free … and it prints no distance at all while
+   the objective card is up — so there is no longer a second reading of
+   anything to delete." On a cold walk it was printing "104 m · NEXT RIFT" over
+   an objective card reading "93 m", which is two numbers about one place that
+   do not agree. During the opening the arc, the needle and the survey ticks
+   stay — all of the wayfinding, none of the words. */
+#ui.hud-open .afd-head .afd-hdist,
+#ui.hud-open .afd-head .afd-hcap { display: none; }
+
+/* ---- the three slots, written where the browser can keep them --------------
+   src/ui/hud.js:_slots is the arbiter and it explains the ranking. These rules
+   are the same ranking expressed in CSS, and they are here because a pass that
+   runs on a timer has a window: a notice arrives, and for up to one tick of the
+   pass the companion is still standing beside it. Measured, that window is
+   about six per cent of a notice's life — which over a ninety-second walk is
+   several frames with four surfaces on them, and a frame is what a player sees.
+
+   `:has()` is evaluated by the browser at the moment the class changes, so
+   these pairs can never be caught half-resolved. The pass stays: it handles the
+   surfaces whose "up" state is not a class (the world's own call plate), and it
+   is what lifts every fold when the opening ends. */
+
+/* SLOT B — what to do next. Nearest wins, and a KEY outranks a card:
+   `.gd-prompt` is the verb on the thing the cadet is touching, so the
+   first-contact card yields to it and never the other way round. */
+#ui.hud-open:has(.fcs.show) :is(.fc, .gd-prompt, .gd-card),
+#ui.hud-open:has(.gd-prompt.show) :is(.fc, .gd-card),
+#ui.hud-open:has(.fc.show) .gd-card,
+#ui.hud-open:has(.gd-card.show) .gd-mark .gd-lab,
+#ui.hud-open:has(.gd-prompt.show) .gd-mark .gd-lab,
+#ui.hud-open:has(.fc.show) .gd-mark .gd-lab,
+#ui.hud-open:has(.fcs.show) .gd-mark .gd-lab { display: none !important; }
+
+/* SLOT C — what just happened. Newest wins.
+   The notice wins, and it wins because it is the answer to a button the player
+   just pressed and it has 1800 ms to be read. The companion's card stands down
+   for exactly that long; her line is not deleted and her own clock never
+   stopped, so it is on the glass again the moment the notice goes.
+
+   An earlier draft did the opposite — it held the notice back until she had
+   finished — and tools/critic/transient.mjs caught it: that gate drops a notice
+   onto the interact prompt and asserts the prompt yields within half a second,
+   which a held notice cannot do. A notice that waits is a notice that has
+   stopped being about the thing the player just did. */
+#ui.hud-open:has(#toast.show) :is(.meta-comms, .led-row),
+#ui.hud-open:has(.meta-comms.show) .led-row { display: none !important; }
+
+/* ---- a notice leaves the way it arrives ----------------------------------
+   src/ui/style.css gives the notice a 300 ms fade OUT, and src/ui/slots.css's
+   fourth rule already argues against the matching fade IN: *"A transient
+   surface arrives legible or not at all. A 300 ms fade on an 1800 ms message is
+   a sixth of its life spent as grey ghost text."* The exit is the same sixth,
+   and it has a second cost the entry does not: for those 300 ms the element is
+   painted but no longer carries `.show`, so every rule above that resolves the
+   slot on `:has(#toast.show)` has already handed the slot back while the ghost
+   is still on the glass. Measured, that is a frame with four surfaces on it.
+
+   During the opening the notice leaves at once. It is not cut short — its whole
+   1800 ms life is spent at full ink, which is the only part of it anybody
+   reads. */
+#ui.hud-open .toast:not(.show) {
+  transition: none !important;
+  opacity: 0 !important;
+}

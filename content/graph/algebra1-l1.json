@@ -48,15 +48,18 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.2.A",
-          "text": "Write expressions that record operations with numbers and with letters standing for numbers."
+          "text": "Write expressions that record operations with numbers and with letters standing for numbers.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.6.EE.B.6",
-          "text": "Use variables to represent numbers and write expressions when solving a real-world or mathematical problem; understand that a variable can represent an unknown number, or, depending on the purpose at hand, any number in a specified set."
+          "text": "Use variables to represent numbers and write expressions when solving a real-world or mathematical problem; understand that a variable can represent an unknown number, or, depending on the purpose at hand, any number in a specified set.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
-          "text": "Interpret parts of an expression, such as terms, factors, and coefficients."
+          "text": "Interpret parts of an expression, such as terms, factors, and coefficients.",
+          "depth": "core"
         }
       ],
       "practices": [
@@ -164,15 +167,18 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.2.C",
-          "text": "Evaluate expressions at specific values of their variables. Include expressions that arise from formulas used in real-world problems. Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations)."
+          "text": "Evaluate expressions at specific values of their variables. Include expressions that arise from formulas used in real-world problems. Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations).",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.6.EE.C.9",
-          "text": "Use variables to represent two quantities in a real-world problem that change in relationship to one another; write an equation to express one quantity, thought of as the dependent variable, in terms of the other quantity, thought of as the independent variable. Analyze the relationship between the dependent and independent variables using graphs and tables, and relate these to the equation."
+          "text": "Use variables to represent two quantities in a real-world problem that change in relationship to one another; write an equation to express one quantity, thought of as the dependent variable, in terms of the other quantity, thought of as the independent variable. Analyze the relationship between the dependent and independent variables using graphs and tables, and relate these to the equation.",
+          "depth": "supporting"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.B.3",
-          "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically."
+          "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically.",
+          "depth": "supporting"
         }
       ],
       "practices": [
@@ -260,15 +266,18 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.1",
-          "text": "Write and evaluate numerical expressions involving whole-number exponents."
+          "text": "Write and evaluate numerical expressions involving whole-number exponents.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.2.C",
-          "text": "Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations)."
+          "text": "Perform arithmetic operations, including those involving whole-number exponents, in the conventional order when there are no parentheses to specify a particular order (Order of Operations).",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.B.3",
-          "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically."
+          "text": "Solve multi-step real-life and mathematical problems posed with positive and negative rational numbers in any form, using tools strategically.",
+          "depth": "supporting"
         }
       ],
       "practices": [
@@ -342,19 +351,23 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.3",
-          "text": "Apply the properties of operations to generate equivalent expressions."
+          "text": "Apply the properties of operations to generate equivalent expressions.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.4",
-          "text": "Identify when two expressions are equivalent (i.e., when the two expressions name the same number regardless of which value is substituted into them)."
+          "text": "Identify when two expressions are equivalent (i.e., when the two expressions name the same number regardless of which value is substituted into them).",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.A.1",
-          "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients."
+          "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.B",
-          "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity."
+          "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity.",
+          "depth": "supporting"
         }
       ],
       "practices": [
@@ -435,19 +448,23 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.A.3",
-          "text": "Apply the properties of operations to generate equivalent expressions."
+          "text": "Apply the properties of operations to generate equivalent expressions.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.A.1",
-          "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients."
+          "text": "Apply properties of operations as strategies to add, subtract, factor, and expand linear expressions with rational coefficients.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.A.2",
-          "text": "Understand that rewriting an expression in different forms in a problem context can shed light on the problem and how the quantities in it are related."
+          "text": "Understand that rewriting an expression in different forms in a problem context can shed light on the problem and how the quantities in it are related.",
+          "depth": "supporting"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
-          "text": "Use the structure of an expression to identify ways to rewrite it."
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "supporting"
         }
       ],
       "practices": [
@@ -535,15 +552,18 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.B.5",
-          "text": "Understand solving an equation or inequality as a process of answering a question: which values from a specified set, if any, make the equation or inequality true? Use substitution to determine whether a given number in a specified set makes an equation or inequality true."
+          "text": "Understand solving an equation or inequality as a process of answering a question: which values from a specified set, if any, make the equation or inequality true? Use substitution to determine whether a given number in a specified set makes an equation or inequality true.",
+          "depth": "supporting"
         },
         {
           "code": "CCSS.MATH.CONTENT.6.EE.B.7",
-          "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers."
+          "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
-          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+          "depth": "core"
         }
       ],
       "practices": [
@@ -627,15 +647,18 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.6.EE.B.7",
-          "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers."
+          "text": "Solve real-world and mathematical problems by writing and solving equations of the form x + p = q and px = q for cases in which p, q and x are all nonnegative rational numbers.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
-          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently."
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
-          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+          "depth": "core"
         }
       ],
       "practices": [
@@ -714,19 +737,23 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
-          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently. Compare an algebraic solution to an arithmetic solution, identifying the sequence of the operations used in each approach."
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers. Solve equations of these forms fluently. Compare an algebraic solution to an arithmetic solution, identifying the sequence of the operations used in each approach.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
-          "text": "Create equations and inequalities in one variable and use them to solve problems."
+          "text": "Create equations and inequalities in one variable and use them to solve problems.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
-          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.8.EE.B.5",
-          "text": "Graph proportional relationships, interpreting the unit rate as the slope of the graph."
+          "text": "Graph proportional relationships, interpreting the unit rate as the slope of the graph.",
+          "depth": "introduced"
         }
       ],
       "practices": [
@@ -830,15 +857,18 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.8.EE.C.7.B",
-          "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms."
+          "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.REI.A.1",
-          "text": "Explain each step in solving a simple equation as following from the equality of numbers asserted at the previous step, starting from the assumption that the original equation has a solution. Construct a viable argument to justify a solution method."
+          "text": "Explain each step in solving a simple equation as following from the equality of numbers asserted at the previous step, starting from the assumption that the original equation has a solution. Construct a viable argument to justify a solution method.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.7.EE.B.4.A",
-          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers."
+          "text": "Solve word problems leading to equations of the form px + q = r and p(x + q) = r, where p, q, and r are specific rational numbers.",
+          "depth": "core"
         }
       ],
       "practices": [
@@ -929,23 +959,28 @@
       "standards": [
         {
           "code": "CCSS.MATH.CONTENT.8.EE.C.7.A",
-          "text": "Give examples of linear equations in one variable with one solution, infinitely many solutions, or no solutions. Show which of these possibilities is the case by successively transforming the given equation into simpler forms, until an equivalent equation of the form x = a, a = a, or a = b results (where a and b are different numbers)."
+          "text": "Give examples of linear equations in one variable with one solution, infinitely many solutions, or no solutions. Show which of these possibilities is the case by successively transforming the given equation into simpler forms, until an equivalent equation of the form x = a, a = a, or a = b results (where a and b are different numbers).",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.8.EE.C.7.B",
-          "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms."
+          "text": "Solve linear equations with rational number coefficients, including equations whose solutions require expanding expressions using the distributive property and collecting like terms.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.8.EE.C.8.A",
-          "text": "Understand that solutions to a system of two linear equations in two variables correspond to points of intersection of their graphs, because points of intersection satisfy both equations simultaneously."
+          "text": "Understand that solutions to a system of two linear equations in two variables correspond to points of intersection of their graphs, because points of intersection satisfy both equations simultaneously.",
+          "depth": "introduced"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.REI.B.3",
-          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters."
+          "text": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+          "depth": "core"
         },
         {
           "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
-          "text": "Create equations and inequalities in one variable and use them to solve problems."
+          "text": "Create equations and inequalities in one variable and use them to solve problems.",
+          "depth": "core"
         }
       ],
       "practices": [

@@ -1,0 +1,1641 @@
+{
+  "id": "algebra1-level5",
+  "course": "algebra1",
+  "unit": "algebra1-l5",
+  "titleKey": "unit.algebra1-l5.title",
+  "title": "Algebra I — Level 5: Rule, Fit and Pattern",
+  "description": "Thirteen lines that close the linear strand and open the data one. Every form of a line is written and read here — one reading and a rate, three spellings of the same rule, a line beside another and a line at a right angle to it, a lean in two letters that names a region, and a pair of statements that pin two unknowns down at once. Then a rule stops being handed over: real readings arrive scattered, and the one line closest to all of them at once is fitted exactly, used to predict, and judged by the gaps it leaves. A list of numbers is given a rule of its own, walked forward one position at a time and then written as one formula. A count above a number is allowed to be a fraction. And a relation is finally asked the question Level 3 could not ask it: does every input carry exactly one output?",
+  "schema": "unified-alignment-1",
+  "verification": {
+    "checkedOn": "2026-08-19",
+    "sources": [
+      "Common Core State Standards for Mathematics, High School Number and Quantity, Algebra, Functions and Statistics and Probability conceptual categories: https://www.thecorestandards.org/Math/",
+      "Common Core content-standard text read from Illustrative Mathematics' content-standard index (https://tasks.illustrativemathematics.org/content-standards), standard by standard, because the original corestandards.org content paths return 403.",
+      "19 Tex. Admin. Code §111.39 (Algebra I, Adopted 2012, One Credit), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-39",
+      "19 Tex. Admin. Code §111.28 (Grade 8, Adopted 2012), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-28"
+    ],
+    "note": "Every `text` field in this graph is the standard quoted word for word from the sources above, including the trailing punctuation the TEKS codes carry — a semicolon inside a knowledge-and-skills statement, \"; and\" on the penultimate expectation, a full stop on the last. Where a CCSS expectation ends in a worked example, the quotation stops before the example and the claim is unaffected; that applies to HSN.RN.A.1, HSF.IF.A.3 and HSF.IF.C.8.B.",
+    "caveats": [
+      "This alignment is to the 2012-adopted mathematics TEKS, which is the version STAAR Algebra I is built on. Nothing here is claimed against a revised chapter.",
+      "TYPOGRAPHY. The published TEKS print `ab^x` with a raised x, and this file is plain text, so A.9(B) and A.9(C) read `f(x) = ab^x` here with a caret. Level 3 made the same substitution for the same reason. Nothing else in any quoted text is re-typeset.",
+      "`core` means the mastery gate for that node proves the expectation: three unassisted items at band 4 or above, at least one outside notation, in a form the learner has not practised. Every claim below `core` carries a caveat naming the part that is not tested.",
+      "THIS UNIT DRAWS NOTHING. No scatter plot, no shaded region, no pair of traces, no coordinate axes. A drawing is a new figure kind in the rift surface and in the figure gate, which is a change outside this unit's files. Every expectation whose wording names a graph is therefore claimed below core, or not claimed at all, and each one says which.",
+      "Process standards are cited under `practices`, never under `alignment`. A process standard is not content coverage and is not counted as a code the unit teaches."
+    ],
+    "declaredGaps": [
+      {
+        "code": "A.4(A)",
+        "citation": "19 TAC §111.39(c)(4)(A)",
+        "claim": "NOT CLAIMED",
+        "why": "\"Calculate, using technology, the correlation coefficient between two quantitative variables and interpret this quantity as a measure of the strength of the linear association.\" The checker for this is exact and honest — it never takes a square root, and works instead with r squared and with the sign of r — but each of its three questions needs something the answer surface cannot carry. Two of them need a yes/no or strong/weak VERDICT, and the item builder can localise only two verdict words, so a third would reach a Spanish or Polish learner in English. The third needs a rounded decimal, and the keypad has no decimal point, so the value could not be entered. The idea is taught — the direction of an association is the sign of the exactly fitted rate, and the node says a steep line is not a strong one — but teaching is not evidence, and this unit ships no item it cannot re-derive AND cannot serve.",
+        "i18n": {
+          "es": {
+            "why": "«Calcular, con tecnología, el coeficiente de correlación entre dos variables cuantitativas e interpretarlo como medida de la fuerza de la asociación lineal.» El verificador de esto es exacto y honesto — nunca toma una raíz cuadrada y trabaja con r al cuadrado y con el signo de r — pero cada una de sus tres preguntas necesita algo que la superficie de respuesta no puede llevar. Dos necesitan un VEREDICTO de sí o no, o de fuerte o débil, y el constructor de ítems solo traduce dos veredictos, así que un tercero llegaría en inglés a un estudiante español o polaco. La tercera necesita un decimal redondeado, y el teclado no tiene punto decimal, así que el valor no se podría escribir. La idea se enseña — la dirección de una asociación es el signo de la tasa ajustada exacta, y el nodo dice que una recta empinada no es una asociación fuerte — pero enseñar no es evidencia, y esta unidad no publica ítems que no pueda rederivar Y servir."
+          },
+          "pl": {
+            "why": "„Obliczyć, przy użyciu technologii, współczynnik korelacji dwóch zmiennych ilościowych i odczytać go jako miarę siły zależności liniowej.” Weryfikator tego jest dokładny i uczciwy — nigdy nie bierze pierwiastka i pracuje na r do kwadratu oraz na znaku r — ale każde z jego trzech pytań potrzebuje czegoś, czego powierzchnia odpowiedzi nie uniesie. Dwa potrzebują WERDYKTU tak albo nie, silna albo słaba, a budowniczy zadań tłumaczy tylko dwa werdykty, więc trzeci trafiłby do ucznia hiszpańskiego lub polskiego po angielsku. Trzecie potrzebuje zaokrąglonego ułamka dziesiętnego, a klawiatura nie ma przecinka, więc wartości nie dałoby się wpisać. Pomysł uczymy — kierunek zależności to znak dokładnie dopasowanego tempa, a węzeł mówi, że stroma prosta nie znaczy silna zależność — ale uczenie to nie dowód, i ta jednostka nie publikuje zadania, którego nie potrafi wyprowadzić I podać."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSS.ID.C.8",
+        "claim": "NOT CLAIMED",
+        "why": "\"Compute (using technology) and interpret the correlation coefficient of a linear fit.\" The same reason as A.4(A), in the other framework: the quantity is computable exactly, and no question about it can be asked on this answer surface in three languages.",
+        "i18n": {
+          "es": {
+            "why": "«Calcular (con tecnología) e interpretar el coeficiente de correlación de un ajuste lineal.» La misma razón que A.4(A), en el otro marco: la cantidad se puede calcular de forma exacta, y ninguna pregunta sobre ella cabe en esta superficie de respuesta en tres idiomas."
+          },
+          "pl": {
+            "why": "„Obliczyć (przy użyciu technologii) i odczytać współczynnik korelacji dopasowania liniowego.” Ten sam powód co przy A.4(A), w drugim systemie: wielkość da się policzyć dokładnie, a żadnego pytania o nią nie da się zadać na tej powierzchni odpowiedzi w trzech językach."
+          }
+        }
+      },
+      {
+        "code": "A.8(B)",
+        "citation": "19 TAC §111.39(c)(8)(B)",
+        "claim": "NOT CLAIMED",
+        "why": "\"Write, using technology, quadratic functions that provide a reasonable fit to data to estimate solutions and make predictions for real-world problems.\" Texas files residual analysis under a QUADRATIC fit, and this unit fits no quadratic: the residual node fits straight lines only, and the quadratic strand is another unit's work. The Common Core home of residual analysis, HSS.ID.B.6.B, is claimed instead, at supporting, and its caveat names the plotting clause as the half that is missing.",
+        "i18n": {
+          "es": {
+            "why": "«Escribir, con tecnología, funciones cuadráticas que se ajusten razonablemente a los datos para estimar soluciones y hacer predicciones en problemas reales.» Texas coloca el análisis de residuos bajo un ajuste CUADRÁTICO, y esta unidad no ajusta ninguna cuadrática: el nodo de residuos solo ajusta rectas, y la parte cuadrática es trabajo de otra unidad. En su lugar se cita HSS.ID.B.6.B, el hogar del análisis de residuos en Common Core, como supporting, y su salvedad nombra el dibujo como la mitad que falta."
+          },
+          "pl": {
+            "why": "„Zapisać, przy użyciu technologii, funkcje kwadratowe, które rozsądnie pasują do danych, aby szacować rozwiązania i przewidywać w zadaniach z życia.” Teksas umieszcza analizę reszt pod dopasowaniem KWADRATOWYM, a ta jednostka nie dopasowuje żadnej paraboli: węzeł reszt dopasowuje tylko proste, a wątek kwadratowy to praca innej jednostki. Zamiast tego cytujemy HSS.ID.B.6.B, dom analizy reszt w Common Core, jako supporting, a jego zastrzeżenie nazywa rysowanie brakującą połową."
+          }
+        }
+      },
+      {
+        "code": "A.3(G)",
+        "citation": "19 TAC §111.39(c)(3)(G)",
+        "claim": "NOT CLAIMED",
+        "why": "\"Estimate graphically the solutions to systems of two linear equations with two variables in real-world problems; and\" Both halves fail here at once. Nothing in this unit is drawn, so nothing can be estimated GRAPHICALLY; and nothing in this unit is estimated at all, because every answer is exact and every checker refuses a decimal. A.3(F), which shares the graphing half, is claimed at supporting for its second clause only, and says so.",
+        "i18n": {
+          "es": {
+            "why": "«Estimar gráficamente las soluciones de sistemas de dos ecuaciones lineales con dos variables en problemas reales; y» Aquí fallan las dos mitades a la vez. Esta unidad no dibuja nada, así que nada se puede estimar GRÁFICAMENTE; y esta unidad no estima nada, porque toda respuesta es exacta y todo verificador rechaza un decimal. A.3(F), que comparte la mitad gráfica, se cita como supporting solo por su segunda cláusula, y lo dice."
+          },
+          "pl": {
+            "why": "„Oszacować graficznie rozwiązania układów dwóch równań liniowych z dwiema niewiadomymi w zadaniach z życia; oraz” Tu zawodzą obie połowy naraz. Ta jednostka nic nie rysuje, więc niczego nie da się oszacować GRAFICZNIE; i ta jednostka niczego nie szacuje, bo każda odpowiedź jest dokładna, a każdy weryfikator odrzuca ułamek dziesiętny. A.3(F), które dzieli połowę z wykresem, cytujemy jako supporting tylko za drugą część i mówimy to wprost."
+          }
+        }
+      },
+      {
+        "code": "A.9(A)",
+        "citation": "19 TAC §111.39(c)(9)(A)",
+        "claim": "NOT CLAIMED",
+        "why": "\"Determine the domain and range of exponential functions of the form f(x) = ab^x and represent the domain and range using inequalities;\" This unit evaluates and writes exponential rules; it never states the set of inputs a rule accepts or the set of outputs it gives, and it writes no inequality about either. Level 3 declared the same gap for the same reason and it has not closed.",
+        "i18n": {
+          "es": {
+            "why": "«Determinar el dominio y el rango de funciones exponenciales de la forma f(x) = ab^x y representarlos con desigualdades;» Esta unidad evalúa y escribe reglas exponenciales; nunca dice el conjunto de entradas que una regla admite ni el de salidas que da, y no escribe ninguna desigualdad sobre ninguno de los dos. El Nivel 3 declaró el mismo hueco por la misma razón y sigue abierto."
+          },
+          "pl": {
+            "why": "„Wyznaczyć dziedzinę i zbiór wartości funkcji wykładniczych postaci f(x) = ab^x oraz zapisać je nierównościami;” Ta jednostka oblicza i zapisuje reguły wykładnicze; nigdy nie podaje zbioru wejść, które reguła przyjmuje, ani zbioru wyjść, które daje, i nie zapisuje o żadnym z nich nierówności. Poziom 3 zgłosił tę samą lukę z tego samego powodu i nadal jest otwarta."
+          }
+        }
+      },
+      {
+        "code": "A.3(E)",
+        "citation": "19 TAC §111.39(c)(3)(E)",
+        "claim": "NOT CLAIMED",
+        "why": "\"Determine the effects on the graph of the parent function f(x) = x when f(x) is replaced by af(x), f(x) + d, f(x - c), f(bx) for specific values of a, b, c, and d;\" Every word of this expectation is about a GRAPH, and this unit draws none. Writing the same line three ways is a change of spelling, not a transformation of a trace, and calling it one would be exactly the kind of row that makes a vendor alignment sheet stop being true.",
+        "i18n": {
+          "es": {
+            "why": "«Determinar los efectos en la gráfica de la función madre f(x) = x cuando f(x) se sustituye por af(x), f(x) + d, f(x - c), f(bx) para valores concretos de a, b, c y d;» Cada palabra de esta expectativa habla de una GRÁFICA, y esta unidad no dibuja ninguna. Escribir la misma recta de tres maneras es un cambio de escritura, no una transformación de un trazo, y llamarlo así sería justo el tipo de fila que hace que una hoja de alineación deje de ser cierta."
+          },
+          "pl": {
+            "why": "„Wyznaczyć wpływ na wykres funkcji podstawowej f(x) = x, gdy f(x) zastąpimy przez af(x), f(x) + d, f(x - c), f(bx) dla konkretnych wartości a, b, c i d;” Każde słowo tego oczekiwania mówi o WYKRESIE, a ta jednostka żadnego nie rysuje. Zapisanie tej samej prostej na trzy sposoby to zmiana zapisu, a nie przekształcenie krzywej, i nazwanie tego przekształceniem byłoby dokładnie takim wierszem, przez który arkusz zgodności przestaje być prawdziwy."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSN.Q.A.1",
+        "claim": "NOT CLAIMED",
+        "why": "\"Use units as a way to understand problems and to guide the solution of multi-step problems; choose and interpret units consistently in formulas; choose and interpret the scale and the origin in graphs and data displays.\" The last clause needs a data display with a scale and an origin, and this unit builds none. The rest of the expectation is about carrying units through a calculation, which no item here requires, so the claim would be decorative and it is left off.",
+        "i18n": {
+          "es": {
+            "why": "«Usar las unidades para entender problemas y guiar la solución de problemas de varios pasos; elegir e interpretar unidades de forma coherente en las fórmulas; elegir e interpretar la escala y el origen en gráficas y presentaciones de datos.» La última cláusula necesita una presentación de datos con escala y origen, y esta unidad no construye ninguna. El resto habla de arrastrar unidades por un cálculo, cosa que ningún ítem exige aquí, así que la afirmación sería decorativa y se deja fuera."
+          },
+          "pl": {
+            "why": "„Używać jednostek, aby rozumieć zadania i prowadzić rozwiązanie zadań wieloetapowych; wybierać i odczytywać jednostki spójnie we wzorach; wybierać i odczytywać skalę oraz początek układu na wykresach i w prezentacjach danych.” Ostatnia część potrzebuje prezentacji danych ze skalą i początkiem układu, a ta jednostka żadnej nie buduje. Reszta mówi o prowadzeniu jednostek przez rachunek, czego żadne zadanie tu nie wymaga, więc deklaracja byłaby ozdobą i zostaje pominięta."
+          }
+        }
+      }
+    ]
+  },
+  "requires": [
+    "algebra1-l1",
+    "algebra1-l2",
+    "algebra1-l3",
+    "algebra1-l4"
+  ],
+  "masteryThreshold": 0.95,
+  "mastery": {
+    "pL": 0.95,
+    "cleanRun": 3,
+    "minDifficulty": 3,
+    "checkItems": 3,
+    "checkMinDifficulty": 4,
+    "checkRequiresUnseenForm": true,
+    "checkRequiresNonSymbolic": true,
+    "reviewIntervals": [
+      6,
+      16,
+      40,
+      90
+    ],
+    "note": "The gate is the Level 1 gate, unchanged, because the gate belongs to the engine and not to the course. A unit may retune these numbers; it may not invent a different kind of proof."
+  },
+  "commonMisconceptions": [
+    {
+      "id": "arith-slip",
+      "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+    },
+    {
+      "id": "sign-slip",
+      "text": "Loses or invents a minus sign somewhere in the chain."
+    },
+    {
+      "id": "partial-rule",
+      "text": "Applies part of the rule and stops before finishing it."
+    },
+    {
+      "id": "off-by-one-row",
+      "text": "Reads the neighbouring row of a table instead of the one asked for."
+    },
+    {
+      "id": "input-output-swap",
+      "text": "Answers with the input when the question asked for the output."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "rational-exponent",
+      "prereqs": [
+        "radical-simplify",
+        "zero-negative-exponent"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "A count above a number does not have to be whole. The bottom of a fractional count says which root to take, and the top says what power to raise it to.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSN.RN.A.2",
+          "text": "Rewrite expressions involving radicals and rational exponents using the properties of exponents.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSN.RN.A.1",
+          "text": "Explain how the definition of the meaning of rational exponents follows from extending the properties of integer exponents to those values, allowing for a notation for radicals in terms of rational exponents.",
+          "depth": "supporting",
+          "caveat": "Rewriting a radical as a rational exponent, and back, is core and is what the gate tests. EXPLAINING why the definition follows from the laws of integer exponents is not asked for: the bank marks a value, not an argument, and this unit ships no item whose answer is a sentence.",
+          "i18n": {
+            "es": {
+              "caveat": "Reescribir un radical como exponente fraccionario, y al revés, es central y es lo que evalúa la puerta. EXPLICAR por qué la definición sale de las leyes de los exponentes enteros no se pide: el banco califica un valor, no un argumento, y esta unidad no publica ítems cuya respuesta sea una frase."
+            },
+            "pl": {
+              "caveat": "Przepisanie pierwiastka jako wykładnika ułamkowego i z powrotem jest rdzeniowe i to sprawdza brama. WYJAŚNIENIE, dlaczego definicja wynika z praw wykładników całkowitych, nie pada: bank ocenia wartość, a nie argument, i ta jednostka nie publikuje zadań, których odpowiedzią jest zdanie."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.11(B)",
+          "citation": "19 TAC §111.39(c)(11)(B)",
+          "text": "simplify numeric and algebraic expressions using the laws of exponents, including integral and rational exponents.",
+          "depth": "core",
+          "caveat": "The integral half of this expectation is not asked here. Every count on screen is a fraction, or a square root written as one. Whole-number and negative whole-number counts are the prerequisite zero-negative-exponent, and Level 3 claims them at core. This node adds the rational half.",
+          "i18n": {
+            "es": {
+              "caveat": "La mitad entera de esta expectativa no se pregunta aquí. Todo exponente en pantalla es una fracción, o una raíz cuadrada escrita como fracción. Los exponentes enteros y enteros negativos son el prerrequisito zero-negative-exponent, y el Nivel 3 los reclama como centrales. Este nodo añade la mitad racional."
+            },
+            "pl": {
+              "caveat": "Połowy całkowitej tej oczekiwanej wiedzy tu nie sprawdzamy. Każdy wykładnik na ekranie to ułamek albo pierwiastek kwadratowy zapisany jako ułamek. Wykładniki całkowite i całkowite ujemne to wymaganie wstępne zero-negative-exponent, a Poziom 3 twierdzi je jako rdzeniowe. Ten węzeł dodaje połowę wymierną."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.11(A)",
+          "citation": "19 TAC §111.39(c)(11)(A)",
+          "text": "simplify numerical radical expressions involving square roots; and",
+          "depth": "supporting",
+          "caveat": "Simplifying a numerical square root is Level 4's CORE claim, on its own radical nodes, and this node does not restate it. What is claimed here is the bridge: the same simplification carried out under a fractional count, so a learner reads a count of one half and a square root as one idea rather than two. A radical whose radicand is not a whole number, and a sum of two unlike radicals, both belong to Level 4 and are not served here.",
+          "i18n": {
+            "es": {
+              "caveat": "Simplificar una raíz cuadrada numérica es la afirmación CENTRAL del Nivel 4, en sus propios nodos de radicales, y este nodo no la repite. Lo que se afirma aquí es el puente: la misma simplificación bajo una cuenta fraccionaria, para que el estudiante lea una cuenta de un medio y una raíz cuadrada como una sola idea. Un radical cuyo radicando no es entero, y una suma de dos radicales distintos, pertenecen al Nivel 4 y aquí no se sirven."
+            },
+            "pl": {
+              "caveat": "Upraszczanie liczbowego pierwiastka kwadratowego to RDZENIOWA deklaracja Poziomu 4, na jego własnych węzłach pierwiastkowych, i ten węzeł jej nie powtarza. Tutaj deklarujemy most: to samo upraszczanie pod ułamkowym licznikiem, aby uczeń czytał licznik jedna druga i pierwiastek kwadratowy jako jedną myśl. Pierwiastka o niecałkowitej liczbie pod znakiem ani sumy dwóch różnych pierwiastków tu nie podajemy; należą do Poziomu 4."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.6",
+          "MP.7"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSN.RN.A.2 is core. Every item shows a base with a fractional count above it, or a square root of a whole number, and the learner returns the exact value or the simplest radical. The checker TAKES NO ROOT: it raises the learner's own value to the bottom count and requires the result to equal the base raised to the top count, in exact arithmetic, so a generator that is wrong about its own root cannot make it agree. HSN.RN.A.1 is claimed at supporting for its rewriting clause only, and the caveat names the clause left alone.",
+        "TEKS": "A.11(B) — \"simplify numeric and algebraic expressions using the laws of exponents, including integral and rational exponents\" — is a sentence-for-sentence description of this node. Level 3 finished the integral half; this is the node that adds the rational half. The claim carried NO caveat and said both halves were on screen here, and that was wrong: every count this node prints is a fraction, or a square root written as one, and a count below zero appears only as the top of a fraction. The integral half is the prerequisite zero-negative-exponent, in Level 3, which claims it at core. npm run check:cases generates the items and reads them against the words of the expectation, which is how the sentence was found. A.11(A) is claimed at supporting rather than core, because Level 4's radical nodes own it: this node takes that skill as a PREREQUISITE and carries it only far enough to show that a count of one half IS a square root. The radical forms here take one square root of a whole number and simplify it to a whole coefficient and a square-free radicand, proved by squaring back in whole numbers."
+      },
+      "bkt": {
+        "pInit": 0.14,
+        "pTransit": 0.24,
+        "pSlip": 0.09,
+        "pGuess": 0.12
+      },
+      "requiredReps": [
+        "symbolic",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "exponent-becomes-a-factor",
+          "text": "Reads a fractional count as a multiplication, so 8 to the power two thirds becomes 8 multiplied by two thirds."
+        },
+        {
+          "id": "top-and-bottom-swapped",
+          "text": "Takes the root the top number names and raises to the bottom one."
+        },
+        {
+          "id": "root-index-ignored",
+          "text": "Reads 16 to the power one half as 16 divided by 2."
+        },
+        {
+          "id": "negative-count-makes-a-negative",
+          "text": "Writes a count below zero as a value below zero rather than as a value turned upside down."
+        },
+        {
+          "id": "base-rooted-and-count-kept",
+          "text": "Takes the root and then drops the top count instead of using it."
+        },
+        {
+          "id": "partial-rule",
+          "text": "Applies part of the rule and stops before finishing it."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "relation-is-function",
+      "prereqs": [
+        "function-notation",
+        "domain-range"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "A rule is a function when every input has exactly one output. One input with two different outputs breaks it. Two inputs sharing an output does not.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.A.1",
+          "text": "Understand that a function from one set (called the domain) to another set (called the range) assigns to each element of the domain exactly one element of the range. If f is a function and x is an element of its domain, then f(x) denotes the output of f corresponding to the input x. The graph of f is the graph of the equation y = f(x).",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.12(A)",
+          "citation": "19 TAC §111.39(c)(12)(A)",
+          "text": "decide whether relations represented verbally, tabularly, graphically, and symbolically define a function;",
+          "depth": "core"
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.3",
+          "MP.6",
+          "MP.7"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(F)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSF.IF.A.1 is claimed at CORE here, and Level 3 said in writing that it could not be. What changed is the checker, not the wording: `relationPairs` reads the printed pairs off the table, keys them by input, and reports the first input that carries two different outputs. That is a COMPLETE decision procedure over the printed relation rather than a sample, so the judgement re-derives. Every table also carries two inputs that legally share one output, so a learner who is hunting for any repeat at all lands on the decoy.",
+        "TEKS": "A.12(A) — \"decide whether relations represented verbally, tabularly, graphically, and symbolically define a function\" — is the expectation Level 3 declared UNCLAIMABLE, and this node claims it at core for the tabular and verbal representations. The item asks WHICH INPUT breaks the relation rather than yes or no, because the surface can carry a number and cannot carry a localised verdict; the mathematics decided is the same, and the numeric form cannot be answered by counting rows. The graphical representation is NOT tested: this unit draws nothing, and the vertical-line test needs a drawing."
+      },
+      "bkt": {
+        "pInit": 0.2,
+        "pTransit": 0.3,
+        "pSlip": 0.08,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "repeated-output-rejected",
+          "text": "Says a relation is not a function because two inputs share the same output."
+        },
+        {
+          "id": "repeated-input-accepted",
+          "text": "Names an input that carries only one output, so the real break goes unseen."
+        },
+        {
+          "id": "ordering-required",
+          "text": "Judges the relation by whether the inputs are listed in order."
+        },
+        {
+          "id": "counted-not-checked",
+          "text": "Decides by counting rows rather than by reading the inputs."
+        },
+        {
+          "id": "input-output-swap",
+          "text": "Answers with the output when the question asked for the input."
+        },
+        {
+          "id": "sign-slip",
+          "text": "Loses or invents a minus sign somewhere in the chain."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "sequence-terms",
+      "prereqs": [
+        "function-notation",
+        "rule-from-table"
+      ],
+      "worldSite": "span",
+      "bigIdea": "A list of numbers is a rule whose inputs are the positions 1, 2, 3 and so on. A rule that says how to get the next value from the one before it is a recursive rule.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.A.3",
+          "text": "Recognize that sequences are functions, sometimes defined recursively, whose domain is a subset of the integers.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.BF.A.1.A",
+          "text": "Determine an explicit expression, a recursive process, or steps for calculation from a context.",
+          "depth": "supporting",
+          "caveat": "A recursive process is determined from a printed list and from a printed recursion, and run forward to a named position. Determining one FROM A CONTEXT is met only by the situation forms, where the story states the step and the table carries it; the learner is never asked to invent the process from prose alone.",
+          "i18n": {
+            "es": {
+              "caveat": "El proceso recursivo se determina a partir de una lista escrita y de una recursión escrita, y se aplica hacia delante hasta una posición dada. Determinarlo A PARTIR DE UN CONTEXTO solo lo cumplen las formas con situación, donde la historia dice el paso y la tabla lo lleva; nunca se pide inventar el proceso solo desde el texto."
+            },
+            "pl": {
+              "caveat": "Proces rekurencyjny wyznaczamy z zapisanej listy i z zapisanej rekurencji, a potem prowadzimy go do wskazanej pozycji. Wyznaczenie go Z KONTEKSTU spełniają tylko formy z sytuacją, gdzie historia podaje krok, a tabela go niesie; nikt nie każe wymyślać procesu z samego tekstu."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.12(C)",
+          "citation": "19 TAC §111.39(c)(12)(C)",
+          "text": "identify terms of arithmetic and geometric sequences when the sequences are given in function form using recursive processes;",
+          "depth": "core"
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.7",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(E)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSF.IF.A.3 is core: the domain really is the positions, the recursive form is printed as two statements, and the checker runs the printed recursion forward in exact rational arithmetic. `equivalent` CANNOT be used for any of this — it samples at half-integer values, and a position of two and a half is not a position — so this kind carries its own whole-number sampler, and derives the step or the factor from the printed list rather than being told it.",
+        "TEKS": "A.12(C) — \"identify terms of arithmetic and geometric sequences when the sequences are given in function form using recursive processes\" — is exactly this node. The recursion is printed in function form, f(1) and f(n) = f(n-1) + d or f(n) = k times f(n-1), and the checker refuses any other shape rather than guessing at it. Both kinds of list are served: one that adds the same amount and one that multiplies by the same factor."
+      },
+      "bkt": {
+        "pInit": 0.16,
+        "pTransit": 0.28,
+        "pSlip": 0.09,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "table",
+        "symbolic",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "step-from-the-first-pair-only",
+          "text": "Takes the step from the first two values and never checks the rest of the list."
+        },
+        {
+          "id": "step-and-factor-confused",
+          "text": "Divides values in a list that adds, or subtracts in a list that multiplies."
+        },
+        {
+          "id": "position-off-by-one",
+          "text": "Reads the first printed value as the value at position zero, so every value sits one place out."
+        },
+        {
+          "id": "rule-applied-to-the-position",
+          "text": "Works the rule on the position number rather than on the value before it."
+        },
+        {
+          "id": "falling-step-made-positive",
+          "text": "Treats a list that goes down as if its step were above zero."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "sequence-nth-term",
+      "prereqs": [
+        "sequence-terms",
+        "write-linear",
+        "exponential-rule"
+      ],
+      "worldSite": "span",
+      "bigIdea": "Instead of walking value by value, one formula gives any value straight from its position. A list that adds the same amount needs a step formula; a list that multiplies by the same factor needs a power formula.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.BF.A.2",
+          "text": "Write arithmetic and geometric sequences both recursively and with an explicit formula, use them to model situations, and translate between the two forms.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.LE.A.2",
+          "text": "Construct linear and exponential functions, including arithmetic and geometric sequences, given a graph, a description of a relationship, or two input-output pairs (include reading these from a table).",
+          "depth": "supporting",
+          "caveat": "Arithmetic and geometric sequences are constructed from a table of positions and values, which the expectation names outright. Constructing one from a GRAPH is not tested, because this unit draws none, and constructing an exponential function from a description belongs to the exponential-model node.",
+          "i18n": {
+            "es": {
+              "caveat": "Las sucesiones aritméticas y geométricas se construyen a partir de una tabla de posiciones y valores, que la expectativa nombra. Construir una a partir de una GRÁFICA no se evalúa, porque esta unidad no dibuja ninguna, y construir una función exponencial desde una descripción corresponde al nodo del modelo exponencial."
+            },
+            "pl": {
+              "caveat": "Ciągi arytmetyczne i geometryczne budujemy z tabeli pozycji i wartości, którą oczekiwanie wprost wymienia. Budowania z WYKRESU nie sprawdzamy, bo ta jednostka nic nie rysuje, a budowanie funkcji wykładniczej z opisu należy do węzła modelu wykładniczego."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.12(D)",
+          "citation": "19 TAC §111.39(c)(12)(D)",
+          "text": "write a formula for the nth term of arithmetic and geometric sequences, given the value of several of their terms; and",
+          "depth": "core"
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(E)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSF.BF.A.2 is core for the explicit half and for the translation between the two forms: the previous node prints the recursion and this one asks for the formula. The checker parses the LEARNER'S OWN formula and evaluates it at every printed position and at three positions past the end of the printed list. That last clause is the whole gate: \"the step times the position\" fits the four printed rows and drifts afterwards, and it fails on the fifth test rather than on a marker's opinion.",
+        "TEKS": "A.12(D) — \"write a formula for the nth term of arithmetic and geometric sequences, given the value of several of their terms\" — is a sentence-for-sentence description of this node, including \"several of their terms\": four values are printed and all four are used. A list that is neither arithmetic nor geometric is refused by the checker outright rather than fitted to something."
+      },
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "offset-dropped",
+          "text": "Writes the step times the position and leaves out what is left over, so position one is wrong."
+        },
+        {
+          "id": "factor-power-off-by-one",
+          "text": "Writes the first value times the factor to the power n, so every value is one factor too big."
+        },
+        {
+          "id": "adding-formula-used-for-multiplying",
+          "text": "Writes a step formula for a list that multiplies."
+        },
+        {
+          "id": "recursive-called-explicit",
+          "text": "Gives a rule that still needs the value before it and calls it the formula."
+        },
+        {
+          "id": "position-returned-instead-of-value",
+          "text": "Reports the position rather than the value the formula gives there."
+        },
+        {
+          "id": "step-and-factor-confused",
+          "text": "Divides values in a list that adds, or subtracts in a list that multiplies."
+        },
+        {
+          "id": "falling-step-made-positive",
+          "text": "Treats a list that goes down as if its step were above zero."
+        }
+      ]
+    },
+    {
+      "id": "point-slope-form",
+      "prereqs": [
+        "write-linear",
+        "graph-linear",
+        "literal-equations"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "One reading and a rate are enough to pin a line down. The same line can be written three ways, and each way makes a different fact easy to read.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.2(B)",
+          "citation": "19 TAC §111.39(c)(2)(B)",
+          "text": "write linear equations in two variables in various forms, including y = mx + b, Ax + By = C, and y - y1 = m(x - x1), given one point and the slope and given two points;",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.2(C)",
+          "citation": "19 TAC §111.39(c)(2)(C)",
+          "text": "write linear equations in two variables given a table of values, a graph, and a verbal description;",
+          "depth": "supporting",
+          "caveat": "A linear equation is written from a table of values and from a verbal description of a steady rate. It is NOT written from a graph, because this unit draws none.",
+          "i18n": {
+            "es": {
+              "caveat": "La ecuación lineal se escribe a partir de una tabla de valores y de una descripción verbal de una tasa constante. NO se escribe a partir de una gráfica, porque esta unidad no dibuja ninguna."
+            },
+            "pl": {
+              "caveat": "Równanie liniowe zapisujemy z tabeli wartości i ze słownego opisu stałego tempa. NIE zapisujemy go z wykresu, bo ta jednostka nic nie rysuje."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.2(D)",
+          "citation": "19 TAC §111.39(c)(2)(D)",
+          "text": "write and solve equations involving direct variation;",
+          "depth": "supporting",
+          "caveat": "A direct-variation rule is WRITTEN from a table whose readings pass through zero, and the constant is worked out by dividing an output by its input. Solving an equation that involves direct variation is not asked for here; Level 2 carries that half.",
+          "i18n": {
+            "es": {
+              "caveat": "La regla de variación directa se ESCRIBE a partir de una tabla cuyas lecturas pasan por cero, y la constante sale de dividir una salida entre su entrada. Resolver una ecuación de variación directa no se pide aquí; esa mitad la lleva el Nivel 2."
+            },
+            "pl": {
+              "caveat": "Regułę proporcjonalności prostej ZAPISUJEMY z tabeli, której odczyty przechodzą przez zero, a stałą liczymy, dzieląc wyjście przez wejście. Rozwiązywania równania z proporcjonalnością prostą tu nie ma; tę połowę niesie Poziom 2."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.3(A)",
+          "citation": "19 TAC §111.39(c)(3)(A)",
+          "text": "determine the slope of a line given a table of values, a graph, two points on the line, and an equation written in various forms, including y = mx + b, Ax + By = C, and y - y1 = m(x - x1);",
+          "depth": "supporting",
+          "caveat": "The rate is read off an equation in all three written forms, and off a table of values. It is not read off a graph, and it is not read off two plotted points, because this unit plots nothing.",
+          "i18n": {
+            "es": {
+              "caveat": "La tasa se lee en las tres formas escritas de la ecuación y en una tabla de valores. No se lee en una gráfica ni en dos puntos dibujados, porque esta unidad no dibuja nada."
+            },
+            "pl": {
+              "caveat": "Tempo odczytujemy ze wszystkich trzech zapisanych postaci równania i z tabeli wartości. Nie odczytujemy go z wykresu ani z dwóch naniesionych punktów, bo ta jednostka nic nie nanosi."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.2",
+          "text": "Create equations in two or more variables to represent relationships between quantities; graph equations on coordinate axes with labels and scales.",
+          "depth": "supporting",
+          "caveat": "Equations in two variables are created to represent a relationship, which is the first clause. Graphing them on coordinate axes with labels and scales is the second clause and is not met: this unit draws no axes.",
+          "i18n": {
+            "es": {
+              "caveat": "Se crean ecuaciones con dos variables para representar una relación, que es la primera cláusula. Dibujarlas en ejes con rótulos y escala es la segunda cláusula y no se cumple: esta unidad no dibuja ejes."
+            },
+            "pl": {
+              "caveat": "Tworzymy równania z dwiema niewiadomymi, aby opisać zależność, i to jest pierwsza część. Rysowanie ich na osiach z opisem i skalą to druga część i jej nie spełniamy: ta jednostka nie rysuje osi."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.7"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(E)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.CED.A.2 is claimed at supporting, and the caveat names the graphing clause as the half that is missing. What the gate does test is the creating half, in all three written forms, and it tests it through a checker that derives the rate off the printed equation, derives the constant by putting the printed reading into it, and then puts that reading back into the LEARNER'S own equation. A rule with the right rate and the wrong constant fails the third test.",
+        "TEKS": "A.2(B) names the three forms by name — y = mx + b, Ax + By = C, and y - y1 = m(x - x1) — and is core: every one of the three is asked for, and `lineFormOf` reads the learner's spelling to decide which form they actually wrote, so an answer in the wrong form is refused even when the line is right. A.2(C) and A.3(A) are supporting and their caveats name the graph as the representation this unit cannot serve. A.2(D) is supporting through the direct-variation form, whose table passes through zero."
+      },
+      "bkt": {
+        "pInit": 0.18,
+        "pTransit": 0.26,
+        "pSlip": 0.09,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "table",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "point-signs-copied",
+          "text": "Writes the reading straight into the form, so a point below zero keeps its own sign."
+        },
+        {
+          "id": "rate-and-start-swapped",
+          "text": "Reads the constant term as the rate when changing between forms."
+        },
+        {
+          "id": "fractions-left-in-standard-form",
+          "text": "Leaves a fraction in Ax + By = C rather than clearing the bottom number first."
+        },
+        {
+          "id": "start-value-added-to-direct-variation",
+          "text": "Adds a starting value to a rule that passes through zero."
+        },
+        {
+          "id": "constant-of-variation-inverted",
+          "text": "Works out the constant by dividing the input by the output."
+        },
+        {
+          "id": "start-value-kept-from-the-given-line",
+          "text": "Keeps the printed line's constant term when a new constant is needed."
+        },
+        {
+          "id": "sign-flipped-only",
+          "text": "Changes the sign of the rate and leaves everything else alone."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "parallel-perpendicular",
+      "prereqs": [
+        "point-slope-form",
+        "slope-rate"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "Two lines that never meet have the same rate. Two lines that cross at a right angle have rates that multiply to minus one. An upright line has no rate at all.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.2(E)",
+          "citation": "19 TAC §111.39(c)(2)(E)",
+          "text": "write the equation of a line that contains a given point and is parallel to a given line;",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.2(F)",
+          "citation": "19 TAC §111.39(c)(2)(F)",
+          "text": "write the equation of a line that contains a given point and is perpendicular to a given line;",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.2(G)",
+          "citation": "19 TAC §111.39(c)(2)(G)",
+          "text": "write an equation of a line that is parallel or perpendicular to the X or Y axis and determine whether the slope of the line is zero or undefined;",
+          "depth": "supporting",
+          "caveat": "A line beside an upright line, and a line at a right angle to one, are both WRITTEN — x = a and y = b — and the checker refuses an answer that does not pass through the printed reading. Reporting in words that the rate is zero or undefined is NOT asked for: a verdict of that shape would have to appear on screen as an English token, because `finalize` localises only two verdict words, and an English token on a Polish screen is not something this unit ships.",
+          "i18n": {
+            "es": {
+              "caveat": "Se ESCRIBEN tanto la recta junto a una vertical como la recta en ángulo recto con ella — x = a e y = b — y el verificador rechaza una respuesta que no pase por la lectura escrita. Decir con palabras que la tasa vale cero o que no existe NO se pide: un veredicto así saldría en pantalla como una palabra en inglés, porque `finalize` traduce solo dos veredictos, y esta unidad no publica una palabra inglesa en una pantalla polaca."
+            },
+            "pl": {
+              "caveat": "ZAPISUJEMY zarówno prostą obok pionowej, jak i prostą do niej prostopadłą — x = a oraz y = b — a weryfikator odrzuca odpowiedź, która nie przechodzi przez zapisany odczyt. Podania słowami, że tempo wynosi zero albo nie istnieje, NIE wymagamy: taki werdykt trafiłby na ekran jako angielskie słowo, bo `finalize` tłumaczy tylko dwa werdykty, a ta jednostka nie publikuje angielskiego słowa na polskim ekranie."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.2",
+          "text": "Create equations in two or more variables to represent relationships between quantities; graph equations on coordinate axes with labels and scales.",
+          "depth": "supporting",
+          "caveat": "The equation of the new line is created from a printed line and a printed reading, which is the first clause. Graphing it on coordinate axes is the second clause and is not met.",
+          "i18n": {
+            "es": {
+              "caveat": "La ecuación de la recta nueva se crea a partir de una recta escrita y una lectura escrita, que es la primera cláusula. Dibujarla en ejes es la segunda cláusula y no se cumple."
+            },
+            "pl": {
+              "caveat": "Równanie nowej prostej tworzymy z zapisanej prostej i zapisanego odczytu, i to jest pierwsza część. Narysowanie jej na osiach to druga część i jej nie spełniamy."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.3",
+          "MP.7"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.CED.A.2 is supporting for the same reason it is supporting on the previous node: the creating half is tested and the graphing half is not. The right-angle case is where the checker earns its keep — it derives the rate off the printed line, turns it over, changes its sign, and then refuses a learner rule whose constant does not put the printed reading on it, so \"flipped the sign only\" and \"turned it over only\" are both caught by arithmetic rather than by a marker.",
+        "TEKS": "A.2(E) and A.2(F) are core and are what this node is: a printed line, a printed reading, and a new rule beside it or at a right angle to it. A.2(G) is supporting, and its caveat says plainly which half is missing — the equations x = a and y = b are written and checked, and the words \"zero\" and \"undefined\" are not asked for, because this surface cannot carry a verdict in three languages."
+      },
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.26,
+        "pSlip": 0.1,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "symbolic",
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "sign-flipped-only",
+          "text": "Uses the opposite of the rate for a right angle and never turns it upside down."
+        },
+        {
+          "id": "turned-over-only",
+          "text": "Turns the rate upside down for a right angle and leaves the sign alone."
+        },
+        {
+          "id": "given-line-copied-whole",
+          "text": "Repeats the printed line unchanged, so the required reading is not on it."
+        },
+        {
+          "id": "start-value-kept-from-the-given-line",
+          "text": "Keeps the printed line's constant term when writing a new line through a new reading."
+        },
+        {
+          "id": "flat-and-upright-swapped",
+          "text": "Treats an upright line as a level one, or a level line as an upright one."
+        },
+        {
+          "id": "point-signs-copied",
+          "text": "Writes the reading straight into the form, so a point below zero keeps its own sign."
+        },
+        {
+          "id": "rate-and-start-swapped",
+          "text": "Reads the constant term as the rate."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "inequality-two-var",
+      "prereqs": [
+        "point-slope-form",
+        "inequality-multi-step"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "A statement with a rate, two letters and a lean names a whole region, not a line. The boundary says where the region stops, and one tested reading says which side it is on.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.2(H)",
+          "citation": "19 TAC §111.39(c)(2)(H)",
+          "text": "write linear inequalities in two variables given a table of values, a graph, and a verbal description; and",
+          "depth": "supporting",
+          "caveat": "A linear inequality in two variables is written from a table of values and from a verbal description. It is NOT written from a graph: this unit shades no region and draws no boundary. The table carries the boundary readings, one mark saying whether the boundary belongs to the region, and one reading marked inside or outside.",
+          "i18n": {
+            "es": {
+              "caveat": "La desigualdad lineal con dos variables se escribe a partir de una tabla de valores y de una descripción verbal. NO se escribe a partir de una gráfica: esta unidad no sombrea ninguna región ni dibuja ningún borde. La tabla lleva las lecturas del borde, una marca que dice si el borde entra en la región y una lectura marcada dentro o fuera."
+            },
+            "pl": {
+              "caveat": "Nierówność liniową z dwiema niewiadomymi zapisujemy z tabeli wartości i ze słownego opisu. NIE zapisujemy jej z wykresu: ta jednostka niczego nie cieniuje i nie rysuje brzegu. Tabela niesie odczyty brzegu, jeden znak mówiący, czy brzeg należy do obszaru, oraz jeden odczyt oznaczony jako wewnątrz albo na zewnątrz."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.D.12",
+          "text": "Graph the solutions to a linear inequality in two variables as a half-plane (excluding the boundary in the case of a strict inequality), and graph the solution set to a system of linear inequalities in two variables as the intersection of the corresponding half-planes.",
+          "depth": "supporting",
+          "caveat": "The half-plane is NAMED rather than graphed, and the strictness clause — \"excluding the boundary in the case of a strict inequality\" — is exactly what the boundary mark tests. Graphing the region, and intersecting two of them, are not met.",
+          "i18n": {
+            "es": {
+              "caveat": "El semiplano se NOMBRA en vez de dibujarse, y la cláusula sobre el borde — «excluyendo el borde en el caso de una desigualdad estricta» — es justo lo que evalúa la marca del borde. Dibujar la región e intersecar dos de ellas no se cumplen."
+            },
+            "pl": {
+              "caveat": "Półpłaszczyznę NAZYWAMY, a nie rysujemy, a część o brzegu — „z wyłączeniem brzegu przy nierówności ostrej” — to dokładnie to, co sprawdza znak brzegu. Narysowania obszaru i przecięcia dwóch obszarów nie spełniamy."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.3",
+          "text": "Represent constraints by equations or inequalities, and by systems of equations and/or inequalities, and interpret solutions as viable or nonviable options in a modeling context.",
+          "depth": "supporting",
+          "caveat": "A constraint is represented by an inequality in two variables. Representing one by a SYSTEM of inequalities, and interpreting a solution as viable or nonviable in a modelling context, are not tested.",
+          "i18n": {
+            "es": {
+              "caveat": "Una restricción se representa con una desigualdad de dos variables. Representarla con un SISTEMA de desigualdades, e interpretar una solución como viable o no viable en un modelo, no se evalúan."
+            },
+            "pl": {
+              "caveat": "Ograniczenie zapisujemy nierównością z dwiema niewiadomymi. Zapisania go UKŁADEM nierówności ani oceny rozwiązania jako możliwego lub niemożliwego w modelu nie sprawdzamy."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(D)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.REI.D.12 and HSA.CED.A.3 are both supporting and both caveats name the drawing as the half that is absent. What IS proved is the part a graph usually hides: the checker fits the boundary through the printed readings, measures which side the marked reading falls on, reads the boundary mark for strictness, and compares the learner's statement against one canonical spelling. All three parts of the answer — the rate, the constant and the lean — are pinned by printed data.",
+        "TEKS": "A.2(H) names three representations and this node serves two of them, which is why the claim is supporting rather than core. The marks are notation and not prose — a plus for inside, a minus for outside, a filled circle for a boundary that belongs and an open one for a boundary that does not — so the item reads the same in English, Spanish and Polish and no locale is carrying a different question."
+      },
+      "bkt": {
+        "pInit": 0.1,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "boundary-strictness-ignored",
+          "text": "Writes a lean that includes the boundary where the mark says the boundary is out."
+        },
+        {
+          "id": "side-chosen-from-the-rate",
+          "text": "Chooses the greater-than sign because the rate is above zero, instead of testing the marked reading."
+        },
+        {
+          "id": "lean-not-turned-after-dividing",
+          "text": "Divides by a number below zero while rearranging and keeps the lean the same way round."
+        },
+        {
+          "id": "test-reading-substituted-backwards",
+          "text": "Puts the reading's output into the input letter and its input into the output letter."
+        },
+        {
+          "id": "equation-given-instead-of-a-lean",
+          "text": "Answers with the boundary equation and no lean at all."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "write-system",
+      "prereqs": [
+        "point-slope-form",
+        "system-substitution"
+      ],
+      "worldSite": "span",
+      "bigIdea": "One statement is not enough when two things are unknown. Two different statements about the same pair of unknowns pin both of them down at once.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.2(I)",
+          "citation": "19 TAC §111.39(c)(2)(I)",
+          "text": "write systems of two linear equations given a table of values, a graph, and a verbal description.",
+          "depth": "supporting",
+          "caveat": "A pair of linear equations is written from two tables of values and from a verbal description. It is NOT written from a graph, because this unit draws none.",
+          "i18n": {
+            "es": {
+              "caveat": "El par de ecuaciones lineales se escribe a partir de dos tablas de valores y de una descripción verbal. NO se escribe a partir de una gráfica, porque esta unidad no dibuja ninguna."
+            },
+            "pl": {
+              "caveat": "Parę równań liniowych zapisujemy z dwóch tabel wartości i ze słownego opisu. NIE zapisujemy jej z wykresu, bo ta jednostka nic nie rysuje."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.3",
+          "text": "Represent constraints by equations or inequalities, and by systems of equations and/or inequalities, and interpret solutions as viable or nonviable options in a modeling context.",
+          "depth": "supporting",
+          "caveat": "Two constraints are represented by a system of equations, which is the middle clause. Representing a constraint by an inequality belongs to the previous node, and interpreting a solution as viable or nonviable in a modelling context is not tested.",
+          "i18n": {
+            "es": {
+              "caveat": "Dos restricciones se representan con un sistema de ecuaciones, que es la cláusula central. Representar una restricción con una desigualdad corresponde al nodo anterior, e interpretar una solución como viable o no viable en un modelo no se evalúa."
+            },
+            "pl": {
+              "caveat": "Dwa ograniczenia zapisujemy układem równań, i to jest część środkowa. Zapisanie ograniczenia nierównością należy do poprzedniego węzła, a oceny rozwiązania jako możliwego lub niemożliwego w modelu nie sprawdzamy."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.2",
+          "text": "Create equations in two or more variables to represent relationships between quantities; graph equations on coordinate axes with labels and scales.",
+          "depth": "supporting",
+          "caveat": "Two equations in two variables are created from two data sets, which is the first clause. Graphing them on coordinate axes is the second clause and is not met.",
+          "i18n": {
+            "es": {
+              "caveat": "Se crean dos ecuaciones con dos variables a partir de dos conjuntos de datos, que es la primera cláusula. Dibujarlas en ejes es la segunda cláusula y no se cumple."
+            },
+            "pl": {
+              "caveat": "Tworzymy dwa równania z dwiema niewiadomymi z dwóch zestawów danych, i to jest pierwsza część. Narysowanie ich na osiach to druga część i jej nie spełniamy."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.4"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(D)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "The existing system checker proves a SOLUTION and cannot prove that a written pair describes two data sets, so this node uses one that fits both printed tables exactly, refuses a pair of tables that fit the same line, and matches the learner's two rules against the two fits in either order. That last clause matters: a learner who writes the rules the other way round has written the same system, and being marked wrong for the order would be a defect of the marker.",
+        "TEKS": "A.2(I) — \"write systems of two linear equations given a table of values, a graph, and a verbal description\" — is served for two of its three representations, and the caveat names the third. The commonest wrong answer, reporting the pair of numbers where the pair of statements was asked for, is on the option list as a tagged misconception rather than as a random perturbation."
+      },
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "two-conditions-merged",
+          "text": "Writes a single equation that adds both constraints together."
+        },
+        {
+          "id": "same-line-twice",
+          "text": "Writes two statements that are multiples of each other, so nothing is pinned down."
+        },
+        {
+          "id": "letters-redefined-between-rows",
+          "text": "Lets a letter mean one thing in the first statement and another in the second."
+        },
+        {
+          "id": "counts-added-to-values",
+          "text": "Adds a how-many statement to a how-much statement as though the units matched."
+        },
+        {
+          "id": "solved-instead-of-written",
+          "text": "Reports the pair of numbers when the pair of statements was asked for."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "system-graphically",
+      "prereqs": [
+        "write-system",
+        "system-elimination",
+        "graph-linear"
+      ],
+      "worldSite": "span",
+      "bigIdea": "Two statements drawn as two traces meet where both are true at once. The crossing is the answer, and it has to satisfy both statements.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.5(C)",
+          "citation": "19 TAC §111.39(c)(5)(C)",
+          "text": "solve systems of two linear equations with two variables for mathematical and real-world problems.",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.3(F)",
+          "citation": "19 TAC §111.39(c)(3)(F)",
+          "text": "graph systems of two linear equations in two variables on the coordinate plane and determine the solutions if they exist;",
+          "depth": "supporting",
+          "caveat": "The second half — \"determine the solutions if they exist\" — is core and is what the gate tests, through a checker that solves the printed pair by Cramer's rule in exact rationals and refuses a pair that does not meet at one point. GRAPHING the system on the coordinate plane is not met: each rule's own readings are printed in a table beside it, and the crossing is the row that appears in both, which is a table and not a plane.",
+          "i18n": {
+            "es": {
+              "caveat": "La segunda mitad — «determinar las soluciones si existen» — es central y es lo que evalúa la puerta, con un verificador que resuelve el par escrito por la regla de Cramer en racionales exactos y rechaza un par que no se cruza en un punto. DIBUJAR el sistema en el plano no se cumple: las lecturas de cada regla salen en una tabla al lado, y el cruce es la fila que aparece en las dos, lo cual es una tabla y no un plano."
+            },
+            "pl": {
+              "caveat": "Druga połowa — „wyznaczyć rozwiązania, jeśli istnieją” — jest rdzeniowa i to sprawdza brama, przez weryfikator, który rozwiązuje zapisaną parę wzorami Cramera na dokładnych ułamkach i odrzuca parę, która nie spotyka się w jednym punkcie. NARYSOWANIA układu na płaszczyźnie nie spełniamy: odczyty każdej reguły stoją obok w tabeli, a przecięcie to wiersz obecny w obu, czyli tabela, a nie płaszczyzna."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.C.6",
+          "text": "Solve systems of linear equations exactly and approximately (e.g., with graphs), focusing on pairs of linear equations in two variables.",
+          "depth": "supporting",
+          "caveat": "Solving a pair of linear equations EXACTLY is core and is what the checker does. Solving one approximately, which the expectation illustrates with graphs, is not met: this unit draws nothing and reports no approximate value.",
+          "i18n": {
+            "es": {
+              "caveat": "Resolver el par de ecuaciones lineales de forma EXACTA es central y es lo que hace el verificador. Resolverlo de forma aproximada, que la expectativa ilustra con gráficas, no se cumple: esta unidad no dibuja nada ni da valores aproximados."
+            },
+            "pl": {
+              "caveat": "Dokładne rozwiązanie pary równań liniowych jest rdzeniowe i to robi weryfikator. Rozwiązania przybliżonego, które oczekiwanie ilustruje wykresami, nie spełniamy: ta jednostka nic nie rysuje i nie podaje wartości przybliżonych."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.D.11",
+          "text": "Explain why the x-coordinates of the points where the graphs of the equations y = f(x) and y = g(x) intersect are the solutions of the equation f(x) = g(x); find the solutions approximately, e.g., using technology to graph the functions, make tables of values, or find successive approximations. Include cases where f(x) and/or g(x) are linear, polynomial, rational, absolute value, exponential, and logarithmic functions.",
+          "depth": "supporting",
+          "caveat": "The crossing of two rules really is where one equals the other, and the table of values route the expectation names is the route this node takes. The EXPLANATION of why, and the cases where either rule is polynomial, rational, absolute value, exponential or logarithmic, are not tested: both rules here are straight.",
+          "i18n": {
+            "es": {
+              "caveat": "El cruce de dos reglas es justo donde una vale lo mismo que la otra, y la vía de la tabla de valores que nombra la expectativa es la que sigue este nodo. La EXPLICACIÓN de por qué, y los casos con reglas polinómicas, racionales, con valor absoluto, exponenciales o logarítmicas, no se evalúan: aquí las dos reglas son rectas."
+            },
+            "pl": {
+              "caveat": "Przecięcie dwóch reguł leży dokładnie tam, gdzie jedna równa się drugiej, a droga przez tabelę wartości, którą oczekiwanie wymienia, to droga tego węzła. WYJAŚNIENIA dlaczego ani przypadków z regułami wielomianowymi, wymiernymi, z wartością bezwzględną, wykładniczymi czy logarytmicznymi nie sprawdzamy: obie reguły są tu proste."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.1",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(C)",
+          "A.1(D)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "Both Common Core claims are supporting, and both caveats name the drawing. The mathematics that IS proved is the mathematics a graph is usually used to approximate: the checker re-solves the printed pair exactly, and every worked line of the derivation has to be a statement that is true at the solution, which is what substitution, elimination and back-substitution all are.",
+        "TEKS": "A.5(C) — \"solve systems of two linear equations with two variables for mathematical and real-world problems\" — is core, and the situation forms carry the real-world half. A.3(F) is supporting and its caveat separates the two halves of the expectation by name. A.3(G), which asks a learner to estimate a solution GRAPHICALLY, is NOT claimed at all: nothing here is estimated and nothing here is drawn. The unit's declared gaps say so."
+      },
+      "bkt": {
+        "pInit": 0.14,
+        "pTransit": 0.26,
+        "pSlip": 0.09,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "table",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "crossing-coordinates-swapped",
+          "text": "Reports the output at the crossing as the input."
+        },
+        {
+          "id": "nearest-grid-line-taken",
+          "text": "Reads the crossing at the nearest whole number rather than where the rules really agree."
+        },
+        {
+          "id": "one-trace-followed",
+          "text": "Reads where one rule meets an axis and calls that the answer."
+        },
+        {
+          "id": "crossing-invented-for-parallel-traces",
+          "text": "Reports a crossing for two rules with the same rate."
+        },
+        {
+          "id": "checked-in-one-statement-only",
+          "text": "Gives a pair that fits one statement and never tries it in the other."
+        }
+      ]
+    },
+    {
+      "id": "scatter-regression",
+      "prereqs": [
+        "write-linear",
+        "slope-rate",
+        "rule-from-table"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "Real readings never sit exactly on one line. The closest line is the one line that comes nearest to all of them at once, and it can be used to predict.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.4(C)",
+          "citation": "19 TAC §111.39(c)(4)(C)",
+          "text": "write, with and without technology, linear functions that provide a reasonable fit to data to estimate solutions and make predictions for real-world problems.",
+          "depth": "supporting",
+          "caveat": "This claim is supporting, not core. A.4(C) asks the learner to WRITE a linear function. No question here asks for one: all five forms take a single number as the answer, which is the rate, the starting value or one prediction. The prediction half is proved, because a value is estimated past the end of the readings in a real situation. The writing half is not.",
+          "i18n": {
+            "es": {
+              "caveat": "Esta afirmación es de apoyo, no central. A.4(C) pide que el estudiante ESCRIBA una función lineal. Aquí ninguna pregunta la pide: las cinco formas se responden con un solo número, que es la tasa, el valor inicial o una predicción. La mitad de la predicción sí queda probada, porque se estima un valor más allá del final de las lecturas en una situación real. La mitad de escribir la función no."
+            },
+            "pl": {
+              "caveat": "To twierdzenie jest wspierające, a nie rdzeniowe. A.4(C) żąda, aby uczeń ZAPISAŁ funkcję liniową. Żadne pytanie tutaj o to nie prosi: na wszystkie pięć form odpowiada się jedną liczbą, czyli tempem, wartością początkową albo jedną prognozą. Połowa dotycząca prognozy jest udowodniona, bo wartość szacujemy poza końcem odczytów w prawdziwej sytuacji. Połowa dotycząca zapisania funkcji nie."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.C.7",
+          "text": "Interpret the slope (rate of change) and the intercept (constant term) of a linear model in the context of the data.",
+          "depth": "supporting",
+          "caveat": "This claim is supporting, not core. S-ID.C.7 asks the learner to INTERPRET the rate and the constant term in the context of the data. The answer surface here is a number keypad, so the learner returns those two numbers and never says what they mean. Working out the rate and the constant term of the closest line is proved. Interpreting them is not.",
+          "i18n": {
+            "es": {
+              "caveat": "Esta afirmación es de apoyo, no central. S-ID.C.7 pide que el estudiante INTERPRETE la tasa y el término constante en el contexto de los datos. Aquí se responde con un teclado numérico, así que el estudiante devuelve esos dos números y nunca dice qué significan. Calcular la tasa y el término constante de la recta más cercana sí queda probado. Interpretarlos no."
+            },
+            "pl": {
+              "caveat": "To twierdzenie jest wspierające, a nie rdzeniowe. S-ID.C.7 żąda, aby uczeń ZINTERPRETOWAŁ tempo i wyraz stały w kontekście danych. Odpowiedzi wpisuje się tutaj na klawiaturze numerycznej, więc uczeń oddaje te dwie liczby i nigdy nie mówi, co one znaczą. Obliczenie tempa i wyrazu stałego najbliższej prostej jest udowodnione. Zinterpretowanie ich nie."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.6.C",
+          "text": "Fit a linear function for a scatter plot that suggests a linear association.",
+          "depth": "supporting",
+          "caveat": "A linear function IS fitted, exactly, to readings that suggest a linear association. The readings arrive as a printed table rather than as a SCATTER PLOT, because this unit draws none.",
+          "i18n": {
+            "es": {
+              "caveat": "SÍ se ajusta una función lineal, de forma exacta, a lecturas que sugieren una asociación lineal. Las lecturas llegan en una tabla escrita y no en un DIAGRAMA DE DISPERSIÓN, porque esta unidad no dibuja ninguno."
+            },
+            "pl": {
+              "caveat": "Funkcję liniową DOPASOWUJEMY dokładnie do odczytów, które sugerują zależność liniową. Odczyty przychodzą jako zapisana tabela, a nie jako WYKRES ROZRZUTU, bo ta jednostka żadnego nie rysuje."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.6.A",
+          "text": "Fit a function to the data; use functions fitted to data to solve problems in the context of the data. Use given functions or choose a function suggested by the context. Emphasize linear, quadratic, and exponential models.",
+          "depth": "supporting",
+          "caveat": "A function is fitted to the data and used to solve problems in the context of the data, which is the first half. The emphasis on quadratic and exponential models is not met here: every model in this node is linear, and the exponential half lives in the exponential-model node.",
+          "i18n": {
+            "es": {
+              "caveat": "Se ajusta una función a los datos y se usa para resolver problemas en su contexto, que es la primera mitad. El énfasis en modelos cuadráticos y exponenciales no se cumple aquí: todos los modelos de este nodo son lineales, y la mitad exponencial vive en el nodo del modelo exponencial."
+            },
+            "pl": {
+              "caveat": "Funkcję dopasowujemy do danych i używamy jej do zadań w ich kontekście, i to jest pierwsza połowa. Nacisku na modele kwadratowe i wykładnicze tu nie spełniamy: każdy model w tym węźle jest liniowy, a połowa wykładnicza mieszka w węźle modelu wykładniczego."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.6",
+          "text": "Represent data on two quantitative variables on a scatter plot, and describe how the variables are related.",
+          "depth": "supporting",
+          "caveat": "How the two measurements are related is described, through the exact rate of the fitted line. Representing them ON A SCATTER PLOT is not met.",
+          "i18n": {
+            "es": {
+              "caveat": "Se describe cómo se relacionan las dos medidas, mediante la tasa exacta de la recta ajustada. Representarlas EN UN DIAGRAMA DE DISPERSIÓN no se cumple."
+            },
+            "pl": {
+              "caveat": "Opisujemy, jak wiążą się oba pomiary, przez dokładne tempo dopasowanej prostej. Naniesienia ich NA WYKRES ROZRZUTU nie spełniamy."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.4",
+          "MP.5",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(C)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSS.ID.C.7 is SUPPORTING, and was core until a reading of the answer surface said otherwise: the rate and the constant term of the fitted line are both asked for, but every form is answered on a number keypad, so the learner computes them and never interprets them. The fit itself is EXACT LEAST SQUARES — the normal equations solved by Cramer’s rule in exact rationals, over the readings the learner is shown — and not an interpolation through two chosen readings, which is the commonest way a bank fakes this and is on the option list as a tagged misconception. The readings genuinely scatter: each table is built from a line plus a pattern of gaps whose sum is zero and whose sum against the inputs is zero, so the closest line is provably the line the table was built from, while no reading sits on it.",
+        "TEKS": "A.4(C) — \"write, with and without technology, linear functions that provide a reasonable fit to data to estimate solutions and make predictions for real-world problems\" — is SUPPORTING, and was core until the verb was read against the item bank. The estimating and predicting half is served: a value is returned at an input past the end of the data, in a situation. The writing half is not served at all, because every one of the five forms is answered with a single number and none of them asks for the function itself. The word \"reasonable\" is doing no work here, because the fit is exact."
+      },
+      "bkt": {
+        "pInit": 0.1,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "first-and-last-joined",
+          "text": "Draws the line through the first and last readings and calls it the closest line."
+        },
+        {
+          "id": "rate-from-one-pair",
+          "text": "Works out the rate from a single pair of readings and uses it as the model's rate."
+        },
+        {
+          "id": "prediction-read-off-the-data",
+          "text": "Answers a prediction with the nearest measured value rather than the model's value."
+        },
+        {
+          "id": "smallest-reading-called-the-start",
+          "text": "Reports a measured output as the model's starting value."
+        },
+        {
+          "id": "prediction-stated-as-a-measurement",
+          "text": "Reports a predicted value as though somebody had observed it."
+        },
+        {
+          "id": "sign-flipped-only",
+          "text": "Changes the sign of the rate and leaves everything else alone."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "residual-and-fit",
+      "prereqs": [
+        "scatter-regression",
+        "quadratic-model"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "The gap between a real reading and the model's value is the residual. Gaps that keep the same sign along a run say the wrong shape of rule was chosen.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.6.B",
+          "text": "Informally assess the fit of a function by plotting and analyzing residuals.",
+          "depth": "supporting",
+          "caveat": "Residuals are ANALYSED: each one is the reading take away the fitted value, in that order, and a run of gaps that keeps one sign is printed back as the reason a straight rule is the wrong shape. PLOTTING them is not met, because this unit draws nothing.",
+          "i18n": {
+            "es": {
+              "caveat": "Los residuos SÍ se analizan: cada uno es la lectura menos el valor ajustado, en ese orden, y una racha de huecos con el mismo signo se muestra como la razón de que una recta tenga la forma equivocada. DIBUJARLOS no se cumple, porque esta unidad no dibuja nada."
+            },
+            "pl": {
+              "caveat": "Reszty ANALIZUJEMY: każda to odczyt minus wartość dopasowana, w tej kolejności, a seria luk o jednym znaku wraca na ekran jako powód, dla którego prosta ma zły kształt. RYSOWANIA ich nie spełniamy, bo ta jednostka nic nie rysuje."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.6.A",
+          "text": "Fit a function to the data; use functions fitted to data to solve problems in the context of the data. Use given functions or choose a function suggested by the context. Emphasize linear, quadratic, and exponential models.",
+          "depth": "supporting",
+          "caveat": "A fitted function is used to solve problems in the context of the data, and the residuals say whether the function suggested by the context was the right one. The emphasis on quadratic and exponential models is not met: every model here is linear.",
+          "i18n": {
+            "es": {
+              "caveat": "La función ajustada se usa para resolver problemas en el contexto de los datos, y los residuos dicen si la función sugerida por el contexto era la correcta. El énfasis en modelos cuadráticos y exponenciales no se cumple: aquí todos los modelos son lineales."
+            },
+            "pl": {
+              "caveat": "Dopasowanej funkcji używamy do zadań w kontekście danych, a reszty mówią, czy funkcja podpowiedziana przez kontekst była właściwa. Nacisku na modele kwadratowe i wykładnicze nie spełniamy: każdy model jest tu liniowy."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.4(C)",
+          "citation": "19 TAC §111.39(c)(4)(C)",
+          "text": "write, with and without technology, linear functions that provide a reasonable fit to data to estimate solutions and make predictions for real-world problems.",
+          "depth": "supporting",
+          "caveat": "The prediction half of the expectation is served, and the residual is what says whether the prediction is worth making. WRITING the linear function is the previous node's core claim, not this one's.",
+          "i18n": {
+            "es": {
+              "caveat": "Se cumple la mitad de la predicción, y el residuo dice si vale la pena predecir. ESCRIBIR la función lineal es la afirmación central del nodo anterior, no de este."
+            },
+            "pl": {
+              "caveat": "Spełniamy połowę o przewidywaniu, a reszta mówi, czy przewidywanie ma sens. ZAPISANIE funkcji liniowej to rdzeniowa deklaracja poprzedniego węzła, nie tego."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.3",
+          "MP.5",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(F)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSS.ID.B.6.B is the claim this node exists for, and it is claimed at supporting because the expectation asks for the residuals to be PLOTTED and this unit plots nothing. Everything else in it is met and is re-derived: the checker fits the line itself, subtracts, and returns the difference with its sign, so an answer that drops the sign or works the subtraction the other way round is wrong by arithmetic. A gap below zero and its own sign flip are the SAME NUMBER, so the bank tags only the one it can tell apart, and does not claim to diagnose the other.",
+        "TEKS": "Texas puts residual analysis inside A.8(B), which asks for a QUADRATIC model fitted using technology. This unit fits no quadratic and uses no technology, so A.8(B) is NOT CLAIMED and the declared gaps say so. What is claimed is A.4(C) at supporting, for the prediction half that a residual is evidence about. The prerequisite on Level 4's quadratic-model node is deliberate, and is the honest half of this: a learner cannot call a straight rule the WRONG SHAPE until some other shape exists for them, and a run of gaps on one side is what points at it."
+      },
+      "bkt": {
+        "pInit": 0.08,
+        "pTransit": 0.22,
+        "pSlip": 0.11,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "residual-sign-flipped",
+          "text": "Works out the model's value minus the reading and reports it as the gap."
+        },
+        {
+          "id": "single-largest-gap-used",
+          "text": "Judges the fit by the one biggest gap rather than by the pattern of the gaps."
+        },
+        {
+          "id": "curved-data-kept-linear",
+          "text": "Keeps a straight-line model although the gaps hold one sign along a run."
+        },
+        {
+          "id": "residual-taken-at-the-wrong-row",
+          "text": "Uses one row's input with another row's output."
+        },
+        {
+          "id": "prediction-stated-as-a-measurement",
+          "text": "Reports a predicted value as though somebody had observed it."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "association-strength",
+      "prereqs": [
+        "scatter-regression",
+        "ratio-proportion"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "Two measurements can rise together, fall against each other, or have no pattern at all. A two-way table splits one count against three different wholes, and a share is never a cause.",
+      "alignment": [
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.5",
+          "text": "Summarize categorical data for two categories in two-way frequency tables. Interpret relative frequencies in the context of the data (including joint, marginal, and conditional relative frequencies). Recognize possible associations and trends in the data.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSS.ID.B.6",
+          "text": "Represent data on two quantitative variables on a scatter plot, and describe how the variables are related.",
+          "depth": "supporting",
+          "caveat": "How two measurements are related is described by the exact sign of the fitted rate: above zero they rise together, below zero one falls as the other rises. Representing them ON A SCATTER PLOT is not met, and neither is any statement about how STRONG the association is — see the unit's declared gaps.",
+          "i18n": {
+            "es": {
+              "caveat": "Cómo se relacionan dos medidas se describe con el signo exacto de la tasa ajustada: por encima de cero suben juntas, por debajo una baja mientras la otra sube. Representarlas EN UN DIAGRAMA DE DISPERSIÓN no se cumple, ni ninguna afirmación sobre lo FUERTE que sea la asociación; véanse los huecos declarados de la unidad."
+            },
+            "pl": {
+              "caveat": "To, jak wiążą się dwa pomiary, opisujemy dokładnym znakiem dopasowanego tempa: powyżej zera rosną razem, poniżej jeden spada, gdy drugi rośnie. Naniesienia ich NA WYKRES ROZRZUTU nie spełniamy, ani żadnego zdania o tym, jak SILNA jest zależność; zobacz zadeklarowane luki jednostki."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "8.11(A)",
+          "citation": "19 TAC §111.28(b)(11)(A)",
+          "text": "construct a scatterplot and describe the observed data to address questions of association such as linear, non-linear, and no association between bivariate data;",
+          "depth": "supporting",
+          "caveat": "The observed data are described to address a question of association, which is the second half. CONSTRUCTING a scatterplot is the first half and is not met: the bivariate readings arrive as a printed table.",
+          "i18n": {
+            "es": {
+              "caveat": "Se describen los datos observados para responder a una pregunta de asociación, que es la segunda mitad. CONSTRUIR el diagrama de dispersión es la primera mitad y no se cumple: las lecturas llegan en una tabla escrita."
+            },
+            "pl": {
+              "caveat": "Zaobserwowane dane opisujemy, aby odpowiedzieć na pytanie o zależność, i to jest druga połowa. ZBUDOWANIE wykresu rozrzutu to pierwsza połowa i jej nie spełniamy: odczyty par przychodzą jako zapisana tabela."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.3",
+          "MP.4",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSS.ID.B.5 is core. Joint, marginal and conditional relative frequencies are all served, in exact rationals, and the checker audits the table against ITSELF first: every printed total must equal the sum of its own cells before any frequency is re-derived. The third sentence of the expectation — recognising possible associations and trends — is met by the direction form, where the sign of the exactly fitted rate is the direction. The word STRONG never appears, and the declared gaps say why.",
+        "TEKS": "Texas has no Algebra I expectation for two-way frequency tables, so the TEKS row here is the grade 8 expectation 8.11(A), claimed at supporting for its description half. A.4(A) — calculating and interpreting the correlation coefficient — is NOT CLAIMED. The reason is written into the unit's declared gaps and is worth stating twice: the checker CAN work exactly with r squared and with the sign of r, but every question it can settle needs either a localised verdict word or a printed decimal, and the answer surface can carry neither. An unverifiable claim is worse than an absent one."
+      },
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.26,
+        "pSlip": 0.09,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "strong-means-steep",
+          "text": "Calls an association strong because the fitted line is steep."
+        },
+        {
+          "id": "sign-read-off-the-values",
+          "text": "Decides the direction from whether the outputs are above zero."
+        },
+        {
+          "id": "coefficient-and-rate-confused",
+          "text": "Reports one quantity where a different one was asked for."
+        },
+        {
+          "id": "no-pattern-called-negative",
+          "text": "Calls a rate near zero a strong association because the number is small."
+        },
+        {
+          "id": "grand-total-used-as-the-row-total",
+          "text": "Works out a share within a row against the whole table's total."
+        },
+        {
+          "id": "off-by-one-row",
+          "text": "Reads the neighbouring row of a table instead of the one asked for."
+        },
+        {
+          "id": "counted-not-checked",
+          "text": "Reports the count itself where a share was asked for."
+        },
+        {
+          "id": "rate-from-one-pair",
+          "text": "Works out the rate from a single pair of readings."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    },
+    {
+      "id": "exponential-model",
+      "prereqs": [
+        "exponential-rule",
+        "linear-vs-exponential",
+        "rational-exponent"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "A rule that multiplies by the same factor at every step grows or shrinks by a fixed percentage. The first number is where it starts and the factor says what happens each step. Multiplying always overtakes adding in the end.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.9(C)",
+          "citation": "19 TAC §111.39(c)(9)(C)",
+          "text": "write exponential functions in the form f(x) = ab^x (where b is a rational number) to describe problems arising from mathematical and real-world situations, including growth and decay;",
+          "depth": "core"
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.9(B)",
+          "citation": "19 TAC §111.39(c)(9)(B)",
+          "text": "interpret the meaning of the values of a and b in exponential functions of the form f(x) = ab^x in real-world problems;",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.LE.B.5",
+          "text": "Interpret the parameters in a linear or exponential function in terms of a context.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.C.8.B",
+          "text": "Use the properties of exponents to interpret expressions for exponential functions.",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.LE.A.2",
+          "text": "Construct linear and exponential functions, including arithmetic and geometric sequences, given a graph, a description of a relationship, or two input-output pairs (include reading these from a table).",
+          "depth": "supporting",
+          "caveat": "An exponential function is constructed from a table of input-output pairs, which the expectation names outright. Constructing one from a GRAPH is not tested, and the linear half of this expectation belongs to Level 2.",
+          "i18n": {
+            "es": {
+              "caveat": "La función exponencial se construye a partir de una tabla de pares de entrada y salida, que la expectativa nombra. Construirla a partir de una GRÁFICA no se evalúa, y la mitad lineal de esta expectativa corresponde al Nivel 2."
+            },
+            "pl": {
+              "caveat": "Funkcję wykładniczą budujemy z tabeli par wejście-wyjście, którą oczekiwanie wprost wymienia. Budowania z WYKRESU nie sprawdzamy, a liniowa połowa tego oczekiwania należy do Poziomu 2."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.LE.A.3",
+          "text": "Observe using graphs and tables that a quantity increasing exponentially eventually exceeds a quantity increasing linearly, quadratically, or (more generally) as a polynomial function.",
+          "depth": "supporting",
+          "caveat": "A quantity that multiplies is observed to overtake one that adds, USING TABLES: the checker walks both printed rules over a stated run of whole positions and reports the first position where the multiplying rule leads. The graph half is not met, and neither is the quadratic or polynomial comparison — the rule that is overtaken here is always straight.",
+          "i18n": {
+            "es": {
+              "caveat": "Se observa que una cantidad que multiplica adelanta a una que suma, USANDO TABLAS: el verificador recorre las dos reglas escritas sobre un tramo de posiciones enteras y da la primera posición donde manda la que multiplica. La mitad de la gráfica no se cumple, ni la comparación cuadrática o polinómica: la regla adelantada aquí siempre es recta."
+            },
+            "pl": {
+              "caveat": "Widać, że wielkość, która mnoży, wyprzedza tę, która dodaje, PRZY UŻYCIU TABEL: weryfikator przechodzi obie zapisane reguły po podanym zakresie pozycji całkowitych i podaje pierwszą pozycję, na której prowadzi reguła mnożąca. Połowy z wykresem nie spełniamy, ani porównania z funkcją kwadratową czy wielomianową: wyprzedzana reguła jest tu zawsze prosta."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.4",
+          "MP.7"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(D)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSF.LE.B.5 and HSF.IF.C.8.B are both core. The percent form is the one that earns HSF.IF.C.8.B outright: the factor is worked out from the printed readings, one is taken away, and the result is multiplied by a hundred, all in exact rationals — which is why a rise of seven percent is a factor of 1.07 in this unit and never 0.07. The checker refuses a table whose inputs are not consecutive and whose readings do not share ONE ratio, so a table that only looks exponential cannot be served.",
+        "TEKS": "A.9(C) is core: the rule f(x) = ab^x is written from readings, with b a rational number, and both growth and decay are served. A.9(B) is core too, through the situation forms, which ask what the starting amount and the factor MEAN in the story. A.9(A) — the domain and range of an exponential function, represented using inequalities — is NOT CLAIMED: this unit writes no inequality about a domain or a range, and the declared gaps say so."
+      },
+      "bkt": {
+        "pInit": 0.1,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.09
+      },
+      "requiredReps": [
+        "table",
+        "context",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "growth-is-linear",
+          "text": "Adds the same amount at each step instead of multiplying by the same factor."
+        },
+        {
+          "id": "growth-start-for-factor",
+          "text": "Uses the starting amount as the multiplier."
+        },
+        {
+          "id": "percent-used-as-the-factor",
+          "text": "Writes the factor as 0.07 for a rise of seven percent instead of 1.07."
+        },
+        {
+          "id": "decay-factor-subtracted-from-one-twice",
+          "text": "Writes the factor as 0.2 where the store keeps 80 percent each step."
+        },
+        {
+          "id": "step-count-off-by-one",
+          "text": "Uses the factor raised to the printed position where the first reading sits one step along."
+        },
+        {
+          "id": "arith-slip",
+          "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+        }
+      ]
+    }
+  ]
+}

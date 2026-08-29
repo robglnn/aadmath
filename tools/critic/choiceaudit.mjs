@@ -34,6 +34,8 @@ import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listenFree } from '../_freeport.mjs';
+import { findings } from '../_findings.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -117,7 +119,6 @@ try {
     build: { target: 'es2022', outDir: out, emptyOutDir: true, sourcemap: false, assetsInlineLimit: 0 },
   });
 
-  const port = 4700 + Math.floor(Math.random() * 500);
   server = createServer(async (req, res) => {
     const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
     try {
@@ -126,7 +127,8 @@ try {
       res.end(body);
     } catch { res.writeHead(404); res.end('nope'); }
   });
-  await new Promise((r) => server.listen(port, '127.0.0.1', r));
+  // Port 0, not a random one in a range: see tools/_freeport.mjs.
+  const port = await listenFree(server);
 
   browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
@@ -233,10 +235,15 @@ try {
     errors.slice(0, 6).forEach((e) => console.log('  ! ' + e));
   }
 
-  const failed = all.findings.length > 0 || errors.length > 0;
-  console.log(`\n${failed ? 'FAIL' : 'PASS'} — ${all.findings.length} answer-integrity findings, ${errors.length} console errors`);
+  console.log(`\n${all.findings.length} answer-integrity finding(s), ${errors.length} console error(s)`);
   await done();
-  process.exit(failed ? 1 : 0);
+  /* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. This sweeps every unit,
+     and a key that cannot be entered — or an option set that does not hold the
+     answer — is a card a learner is stopped at wherever it is served. */
+  findings('check:choices', { scope: 'sweep' })
+    .route(all.findings.map((f) => (typeof f === 'string' ? f : (f.detail || f.kind || JSON.stringify(f)))))
+    .route(errors.length ? [`${errors.length} console error(s) during the sweep: ${errors.slice(0, 3).join(' | ')}`] : [])
+    .done();
 } catch (e) {
   console.error(e);
   await done();

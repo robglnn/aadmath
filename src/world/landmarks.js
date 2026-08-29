@@ -3,6 +3,9 @@ import { merge, paint, paintY } from './geom.js';
 import { rng, fbm } from './noise.js';
 import { sampleH, heightAt, LAKE, GROVE, HENGE, MESA, PEAK2 } from './terrain.js';
 import { stoneMaterial } from './stone.js';
+// A landmark is a solid a cadet can be inside. Nothing the game routes him to
+// may be seated in one. (src/world/clearings.js)
+import { obstruct } from './clearings.js';
 
 /**
  * HERO SILHOUETTES.
@@ -173,6 +176,8 @@ export function createWreck(scene) {
   beacon.position.set(...along(58, 14, Math.PI / 2));
   g.add(beacon);
 
+  g.name = 'lm-wreck';
+  obstruct(g.position.x, g.position.z, 26);
   scene.add(g);
   return {
     group: g,
@@ -242,6 +247,8 @@ export function createCathedral(scene) {
   l.position.set(0, 52, 0);
   g.add(l);
 
+  g.name = 'lm-cathedral';
+  obstruct(g.position.x, g.position.z, 22);
   scene.add(g);
   return {
     group: g,
@@ -317,6 +324,8 @@ export function createArch(scene) {
   l.position.set(0, 44, 0);
   g.add(l);
 
+  g.name = 'lm-arch';
+  obstruct(g.position.x, g.position.z, 20);
   scene.add(g);
   return { group: g, update(t) { l.intensity = 42 + Math.sin(t * 0.9) * 10; } };
 }
@@ -390,6 +399,8 @@ export function createReckoning(scene) {
   glyph.position.y = 0.7;
   g.add(glyph);
 
+  g.name = 'lm-reckoning';
+  obstruct(g.position.x, g.position.z, 20);
   scene.add(g);
   return {
     group: g,
@@ -447,6 +458,8 @@ export function createWatchtower(scene) {
   l.position.set(2.4, 42, 0);
   g.add(l);
 
+  g.name = 'lm-watchtower';
+  obstruct(g.position.x, g.position.z, 18);
   scene.add(g);
   return {
     group: g,

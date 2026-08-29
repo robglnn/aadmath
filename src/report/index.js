@@ -78,8 +78,9 @@ import { FORMS_BY_SKILL } from '../learn/generators.js';
 import { FIG, tagFigure, linesHeld, repaired } from '../meta/progress.js';
 import {
   buildCoverage, buildProcess, createFrameSwitch, depthFor, caveatFor,
-  getFramework, onFrameworkChange, shortCode,
+  getFramework, onFrameworkChange, shortCode, useGraph, unitTitle, unitIdsOf,
 } from './standards.js';
+import { alignmentOf } from '../content/standards.js';
 
 const REPS = ['symbolic', 'context', 'verbal', 'table', 'graph'];
 const DEPTHS = ['core', 'supporting', 'introduced'];
@@ -182,6 +183,11 @@ export function createReport({
    */
   sealed = () => null,
 }) {
+  // THE MAPS ARE THE RUNNING GRAPH'S. Before this call the standards module
+  // imported Level 1's two files and printed them under every unit; it now
+  // derives both frameworks from whatever lattice was loaded. See rule 4 in
+  // ./standards.js.
+  useGraph(graph);
   const tracker = createTracker(mastery);
   /** This line's seam confidence, if a run is planned and names it. */
   const planFor = (id) => {
@@ -258,6 +264,9 @@ export function createReport({
     build: (learner) => buildRecord({
       mastery, graph, tracker, learner, stateOf, depthOf,
       coverage: () => coverage(),
+      // The course and unit this document is about, in the reader's language.
+      // A thunk, because the record is rebuilt on every locale change.
+      levelName: unitTitle(graph),
     }),
     coverage: () => coverage(),
     process: () => buildProcess({ graph, mastery, framework: getFramework(), stateOf }),
@@ -772,6 +781,14 @@ export function createReport({
     art.className = 'rp-cstd';
     art.dataset.cover = row.cover;
     art.dataset.depth = row.depth || 'unknown';
+    // The two numbers the row prints in words, as numbers. A row whose
+    // denominator is ZERO is the exact shape of the defect this section was
+    // rewritten for: Level 2 and Level 3 printing Level 1's twenty-three
+    // expectations, every one of them reading "lines held 0 of 0", because the
+    // rows came from an imported file and the lines came from the running
+    // graph. `tools/check-record.mjs` fails on a zero denominator.
+    art.dataset.lines = String(row.totalLines);
+    art.dataset.held = String(row.heldLines);
     const isOpen = stdOpen.has(row.code);
 
     const btn = document.createElement('button');
@@ -1425,20 +1442,19 @@ export function createReport({
     // one click and it is at the top of the coverage section.
     const fw = getFramework();
     const counts = { core: 0, total: 0 };
-    const chips = fw === 'teks'
-      ? (n.teks || []).map((x) => ({
-        code: x.code,
+    // `alignmentOf` reads both graph shapes. Reading `n.teks` / `n.standards`
+    // directly, as this did, printed nothing at all on every unit after
+    // Level 1 — those units align through the unified `alignment` array.
+    const want = fw === 'teks' ? 'TEKS' : 'CCSS-M';
+    const chips = alignmentOf(n)
+      .filter((x) => x.framework === want)
+      .map((x) => ({
+        code: shortCode(x.code),
         title: [x.citation, x.text].filter(Boolean).join('\n'),
         // The graph copy of a citation carries no caveat — the standards record
         // is where that prose lives, and it is translated there.
-        caveat: caveatFor('teks', x.code),
-        depth: depthOf('teks', n.id, x.code),
-      }))
-      : (n.standards || []).map((x) => ({
-        code: shortCode(x.code),
-        title: x.text,
-        caveat: caveatFor('ccss', x.code),
-        depth: depthOf('ccss', n.id, x.code),
+        caveat: caveatFor(fw, x.code),
+        depth: depthOf(fw, n.id, x.code) || x.depth,
       }));
     const grp = document.createElement('div');
     grp.className = `rp-std-grp g-${fw}`;
@@ -1500,6 +1516,11 @@ export function createReport({
       return {
         locale: getLocale(),
         framework: cov.framework,
+        // Which lattice this report is about. A critic comparing the printed
+        // codes against a unit's graph needs to know which unit was open, and
+        // the answer used to be "Level 1, whatever you loaded".
+        units: unitIdsOf(graph),
+        level: unitTitle(graph),
         // Standard-level coverage, as data: a critic can compare what the
         // screen printed against what the learner model actually holds.
         coverage: {
@@ -1507,7 +1528,7 @@ export function createReport({
           rows: cov.rows.map((r) => ({
             code: r.short, depth: r.depth, cover: r.cover, thin: r.thin,
             heldLines: r.heldLines, totalLines: r.totalLines,
-            formsMet: r.formsMet, formsDeclared: r.formsDeclared,
+            formsMet: r.formsMet, formsDeclared: r.formsDeclared, basis: r.basis,
             answers: r.answers, unaided: r.unaided,
             lines: r.lines.map((l) => ({ id: l.id, depth: l.depth, state: l.state })),
           })),
@@ -1563,14 +1584,17 @@ export function createReport({
           claimSum: claimSum(n.id),
           sinceClaim: sinceClaim(n.id),
           evidence: evidenceOf(n.id).map((e) => ({ id: e.id, met: e.met, value: e.value })),
-          ccss: (n.standards || []).map((x) => ({ code: x.code, depth: depthOf('ccss', n.id, x.code) })),
-          teks: (n.teks || []).map((x) => ({ code: x.code, citation: x.citation, depth: x.depth })),
+          ccss: alignmentOf(n).filter((x) => x.framework === 'CCSS-M')
+            .map((x) => ({ code: x.code, depth: depthOf('ccss', n.id, x.code) || x.depth })),
+          teks: alignmentOf(n).filter((x) => x.framework === 'TEKS')
+            .map((x) => ({ code: x.code, citation: x.citation || null, depth: depthOf('teks', n.id, x.code) || x.depth })),
         })),
       };
     },
     /** The document a teacher would print or export, as data. */
     record: (learner) => buildRecord({
       mastery, graph, tracker, learner, stateOf, depthOf, coverage: () => coverage(),
+      levelName: unitTitle(graph),
     }),
     /** Standard-level coverage in the framework now chosen. */
     coverage,

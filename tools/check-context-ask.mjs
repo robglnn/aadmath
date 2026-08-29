@@ -41,6 +41,7 @@ import pl from '../content/lang/items.pl.js';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DECK_PAIRS } from '../src/learn/generators.js';
+import { findings } from './_findings.mjs';
 
 const BUNDLES = { en, es, pl };
 const LOCALES = Object.keys(BUNDLES);
@@ -374,6 +375,45 @@ function selfTest() {
   return ok;
 }
 
+/**
+ * WHAT THIS GATE CANNOT SEE, said out loud.
+ *
+ * `DECK_PAIRS` is built from `DECKS` in `src/learn/generators.js` — the Level 1
+ * core deck and nothing else. Every other unit is a generator PACK, and a pack
+ * composes its situation and its question inside the form
+ * (`${T(sc.ctx)} ${T('l5.ask.shareOfRow')}`) instead of declaring the pairing,
+ * so there is no table for this gate to walk. Loading all five units leaves
+ * `DECK_PAIRS.length` at exactly 257, none of them from a pack.
+ *
+ * That is a hole, and it is not one a tool can close on its own: the audit
+ * turns on `ASK_SUBJECT`, a table of human judgements saying which noun each
+ * question asks for, and no pack question is in it. Closing it needs two
+ * things, in this order:
+ *
+ *   1. packs to export their (situation, question) pairings the way `DECKS`
+ *      does — a registry change in `src/content/registry.js` plus one export
+ *      per pack;
+ *   2. an `ASK_SUBJECT` and `NOUNS` entry for each pack question, in EN, ES
+ *      and PL.
+ *
+ * Until then this prints the size of the hole rather than hiding it. It does
+ * not fail the build: an undeclared pairing is unmeasured, not wrong, and a
+ * gate that goes red for work nobody in the room can do gets switched off.
+ */
+async function reportUncovered() {
+  const { allUnits, loadUnit } = await import('./_courses.mjs');
+  const { packStrings } = await import('../src/content/registry.js');
+  for (const { unit } of await allUnits()) await loadUnit(unit);
+  const keys = Object.keys(packStrings('en'));
+  const asks = keys.filter((k) => /(^|\.)ask\./.test(k));
+  const ctxs = keys.filter((k) => /(^|\.)ctx\./.test(k));
+  const declared = asks.filter((k) => ASK_SUBJECT[k]);
+  if (!asks.length && !ctxs.length) return;
+  console.log(`  NOT COVERED: ${ctxs.length} situation(s) and ${asks.length} question(s) live in generator packs, `
+    + `which declare no pairings — ${declared.length} of those questions are in ASK_SUBJECT`);
+  console.log('               see reportUncovered() in this file for what closing it needs');
+}
+
 // The audit is importable — tools/validate-items.mjs runs it too, so the same
 // defect fails the content gate and this one — so the command line only runs
 // when this file *is* the command.
@@ -391,11 +431,12 @@ if (!invokedDirectly) { /* imported: expose auditContextAsk and stop here */ } e
   console.log('ASCENT — context/question agreement');
   console.log(`  ${DECK_PAIRS.length} deck pairings × ${LOCALES.length} locales, ${checked} situation/question readings`);
   console.log(`  ${Object.keys(ASK_SUBJECT).length} questions declared over ${Object.keys(NOUNS).length} nouns`);
-  if (problems.length) {
-    console.error(`\n  ${problems.length} problem(s):`);
-    for (const p of problems) console.error('   · ' + p);
-    console.error('\nFAIL — a question asks for something its situation never counted.');
-    process.exit(1);
-  }
-  console.log('\n  PASS — every question asks for the noun its situation counts, in all three languages');
+  await reportUncovered();
+  if (!problems.length) console.log('\n  every question asks for the noun its situation counts, in all three languages');
+  /* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. The deck pairings this
+     sweeps are shared by every unit, so a question that asks for something its
+     situation never counted is in front of a learner wherever it lands. */
+  const F = findings('check:prose', { scope: 'sweep' });
+  F.route(problems.map(String));
+  F.done();
 }

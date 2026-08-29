@@ -351,8 +351,36 @@ export const GradeShader = {
       // --- tone map ---------------------------------------------------------
       col = acesFitted(col);
 
-      // --- black point: the frame gets a real anchor, not a mid-grey floor ---
-      col = max(col - uBlackPoint, 0.0) / (1.0 - uBlackPoint);
+      // --- black point: an anchor and a TOE, not a guillotine ---------------
+      //
+      // The frame still gets a real anchor rather than a mid-grey floor. What
+      // it no longer gets is a hole.
+      //
+      // 'max(col - bp, 0.0)' does two things this frame cannot afford. It
+      // CLIPS — everything under the point comes out at exactly zero, so a face
+      // that is merely dark arrives as a flat region with a hard edge round it
+      // and no gradient in it to read the shape off. A critic named that
+      // exactly: "a dead region with a hard edge". And it clips PER CHANNEL, so
+      // a cool shadow loses red and green a good deal before it loses blue and
+      // slides its hue as it goes down, which is the other half of why those
+      // regions read as damage rather than as shade.
+      //
+      // So the roll-off is a quadratic toe on LUMINANCE, applied to all three
+      // channels at once: zero still maps to zero — a black frame is still
+      // black — but everything above it is monotonic, so a dark surface keeps
+      // its shape instead of becoming an absence. Above the black point the
+      // curve is the same straight line it always was, half a black point
+      // higher, so nothing in the midtones or the highlights moves.
+      //
+      // It is a toe and NOT a fix for an unlit surface. What was actually
+      // black in this build was black before the tone map: see the deck light
+      // in src/world/terrain.js, which is where those pixels got their light.
+      {
+        float lb = dot(col, LUMA);
+        float bp = max(1e-5, uBlackPoint);
+        float lo = lb < bp ? (lb * lb) / (2.0 * bp) : lb - bp * 0.5;
+        col *= (lo / max(1e-5, lb)) / (1.0 - bp * 0.5);
+      }
 
       // --- grade: cyan in the shadows, gold in the highlights ---------------
       float l = dot(col, LUMA);

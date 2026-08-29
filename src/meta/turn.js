@@ -87,9 +87,20 @@ export class Turn {
   /** What it is showing, for a beat that has to take the frame off it. */
   get live() { return this._live ? { ...this._live } : null; }
 
-  /** @param {number} n chapter @param {string} id act id @param {number} tears */
-  play(n, id, tears) {
-    this._live = { n, id, tears };
+  /**
+   * @param {number} n chapter number, or 0 for a beat that has no number
+   * @param {string} id act id
+   * @param {number} tears
+   * @param {{kickKey?:string, titleKey?:string, params?:object, act?:object}} [opts]
+   *        A second beat borrows this plate: the lattice opening a new region
+   *        (src/meta/region.js). Same gesture, same 3.6 s, same skip — a
+   *        different pair of words. It is one plate rather than two because a
+   *        second element with this class is a second thing the layout gates
+   *        have to be taught about, and because only one of them may ever hold
+   *        the frame anyway.
+   */
+  play(n, id, tears, opts = {}) {
+    this._live = { n, id, tears, ...opts };
     this.retext();
     this.el.classList.remove('show', 'out');
     void this.el.offsetWidth;
@@ -110,11 +121,14 @@ export class Turn {
   retext() {
     const L = this._live;
     if (!L) return;
-    this.kick.textContent = t('story.hud.act', { n: L.n });
-    this.title.textContent = t(`story.${L.id}.title`);
+    this.kick.textContent = L.kickKey ? t(L.kickKey, L.params) : t('story.hud.act', { n: L.n });
+    this.title.textContent = L.titleKey ? t(L.titleKey, L.params) : t(`story.${L.id}.title`);
     this.seals.textContent = '';
     untagFigure(this.seals);
-    tagFigure(this.kick, FIG.CHAPTER_NO, L.n);
+    // A chapter carries an ordinal and must declare it. A region carries no
+    // number at all — nothing on this plate is a figure — so nothing is
+    // declared, and `oneprogress` sees no undeclared digit either.
+    if (L.kickKey) untagFigure(this.kick); else tagFigure(this.kick, FIG.CHAPTER_NO, L.n);
   }
 
   hide() {

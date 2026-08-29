@@ -1,5 +1,5 @@
 import './menu.css';
-import { t, onLocaleChange } from '../i18n/index.js';
+import { t, onLocaleChange, LOCALES, LOCALE_SWITCH, getLocale, setLocale } from '../i18n/index.js';
 
 /**
  * THE MENU — the surface that was not there.
@@ -115,12 +115,16 @@ export class Menu {
    * @param {object} opts
    * @param {import('../core/input.js').Input} opts.input
    * @param {() => boolean} [opts.isBusy] another surface owns the frame
+   * @param {(id: string) => void} [opts.onScreen] open a screen named in SCREENS
    */
-  constructor(root, { input, isBusy = () => false, onRecover = null, onRestart = null } = {}) {
+  constructor(root, { input, isBusy = () => false, onRecover = null, onRestart = null,
+    onScreen = null } = {}) {
     this.input = input;
     this.isBusy = isBusy;
     this.onRecover = onRecover;
     this.onRestart = onRestart;
+    /** Open one of the game's screens by id — see SCREENS. Wired in main.js. */
+    this.onScreen = onScreen;
     this.open = false;
     this._src = null;
     this._shownAt = -1e9;
@@ -143,12 +147,20 @@ export class Menu {
             <section class="mnu-sec mnu-screens"><h3></h3><ul></ul></section>
             <section class="mnu-sec mnu-set">
               <h3></h3>
-              <label class="mnu-row mnu-slider">
+              <div class="mnu-row mnu-lang">
+                <span class="mnu-verb"></span>
+                <div class="langs" role="group"></div>
+              </div>
+              <div class="mnu-row mnu-audio">
+                <span class="mnu-verb"></span>
+                <div class="mnu-sound"></div>
+              </div>
+              <label class="mnu-row mnu-slider mnu-aim">
                 <span class="mnu-verb"></span>
                 <input type="range" min="0.35" max="2.4" step="0.05" class="mnu-sens">
                 <em class="mnu-val"></em>
               </label>
-              <div class="mnu-row">
+              <div class="mnu-row mnu-aim mnu-invert">
                 <span class="mnu-verb"></span>
                 <button type="button" class="mnu-toggle" aria-pressed="false"><span></span></button>
               </div>
@@ -178,8 +190,25 @@ export class Menu {
     this.pill = document.createElement('button');
     this.pill.type = 'button';
     this.pill.className = 'mnu-pill';
+    /* TWO SYMBOLS AND NO WORDS.
+     *
+     * This handle used to print MENU · ESC · F1 — three readable strings, in
+     * the corner of every frame of the game, for a button whose shape is the
+     * most universally understood control on any screen a teenager has ever
+     * touched. src/ui/hud.css folds the words; they stay in the DOM for the
+     * `aria-label`, and the card names its own keys the moment it opens.
+     *
+     * THE GLOBE IS NOT DECORATION. The locale switcher has left the glass
+     * (§7.3, and the client: "languages should also be in settings"), and a
+     * student who speaks Spanish and lands in English cannot read the word
+     * MENU to find out that their language is behind it. A globe beside the
+     * bars says "settings, and one of them is what language this is in" in no
+     * language at all — and the first row inside the card is every language
+     * written in its own name. */
     this.pill.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 7h16M4 12h16M4 17h16"/></svg><b></b><span class="mnu-keys"></span>`;
+        <path d="M4 7h16M4 12h16M4 17h16"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" class="mnu-globe">
+        <circle cx="12" cy="12" r="9"/><path d="M3 12h18"/>
+        <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><b></b><span class="mnu-keys"></span>`;
     root.appendChild(this.pill);
 
     this.card = this.el.querySelector('.mnu-card');
@@ -189,6 +218,8 @@ export class Menu {
     this.verbList = this.el.querySelector('.mnu-verbs ul');
     this.screenList = this.el.querySelector('.mnu-screens ul');
     this.wordList = this.el.querySelector('.mnu-words dl');
+    this.langBox = this.el.querySelector('.mnu-set .langs');
+    this.soundBox = this.el.querySelector('.mnu-sound');
     this.sens = this.el.querySelector('.mnu-sens');
     this.sensVal = this.el.querySelector('.mnu-val');
     this.toggle = this.el.querySelector('.mnu-toggle');
@@ -203,10 +234,50 @@ export class Menu {
     this.noBtn = this.el.querySelector('.mnu-no');
 
     this.verbList.innerHTML = VERBS.map((v) => row(v.id)).join('');
-    this.screenList.innerHTML = SCREENS.map((s) => row(s)).join('');
+    /* A SCREEN IS A DOOR, SO IT IS A BUTTON.
+     *
+     * This list used to be three lines of prose naming three keys, which made
+     * every screen in the game keyboard-only from here: a thumb and a
+     * controller could open this card and then read about doors they could not
+     * push. The progress report's own handle is now an icon rather than a
+     * caption (src/ui/hud.css), so this list is also where the WORD "progress"
+     * lives — and a word that names a door had better be the door. */
+    this.screenList.innerHTML = SCREENS.map((id) => screenRow(id)).join('');
     this.wordList.innerHTML = WORDS.map((w) => `<div data-w="${w}"><dt></dt><dd></dd></div>`).join('');
 
     // --- wiring ---------------------------------------------------------
+    /* THE LANGUAGE, WRITTEN IN ITS OWN LANGUAGE.
+     *
+     * This control is the one that used to sit on the glass as EN / ES / PL
+     * (src/ui/hud.js). It has moved here — the client asked for it and §7.3 of
+     * design/FIRST-90-SECONDS.md lists it under CUT with the same destination —
+     * and moving it is only half the job. A student who reads no English has to
+     * be able to get out of English, so:
+     *
+     *   · the handle that opens this card carries a globe, in no language;
+     *   · this is the FIRST row of the settings, above everything else;
+     *   · and each button says its own language's name for itself — English,
+     *     Español, Polski — because a flag is not a language and a two-letter
+     *     code is not a name.
+     *
+     * The class is still `.langs` and the buttons still carry `data-loc`, so
+     * every harness and every habit that ever reached for this control still
+     * finds it. */
+    this._langs();
+    /* THE SCREENS, AS BUTTONS. Same handlers a key would reach: the game's own
+     * keydown listeners are what open these, so this dispatches the key rather
+     * than inventing a second way in — one path, one behaviour, nothing here
+     * to drift out of step with the binding printed beside it. */
+    this.screenList.addEventListener('click', (e) => {
+      const b = e.target instanceof Element ? e.target.closest('button[data-screen]') : null;
+      if (!b) return;
+      const id = b.dataset.screen;
+      if (id === 'menu') { this.hide(); return; }
+      this.hide();
+      // Let the frame settle before the next surface asks for it: every panel
+      // in this game refuses to open while somebody else holds `uiOpen`.
+      setTimeout(() => this.onScreen?.(id), 60);
+    });
     this.pill.addEventListener('click', () => this.toggleOpen());
     this.resume.addEventListener('click', () => this.hide());
     this.el.querySelector('.mnu-scrim').addEventListener('click', () => this.hide());
@@ -326,8 +397,17 @@ export class Menu {
     this.el.querySelector('.mnu-verbs h3').textContent = t('menu.controls');
     this.el.querySelector('.mnu-screens h3').textContent = t('menu.screens');
     this.el.querySelector('.mnu-set h3').textContent = t('menu.settings');
+    this.el.querySelector('.mnu-lang .mnu-verb').textContent = t('hud.language');
+    this.el.querySelector('.mnu-audio .mnu-verb').textContent = t('audio.label');
     this.el.querySelector('.mnu-slider .mnu-verb').textContent = t('menu.sens');
-    this.el.querySelector('.mnu-set .mnu-row:last-child .mnu-verb').textContent = t('menu.invert');
+    /* `.mnu-invert`, by name. This was `.mnu-set .mnu-aim:last-of-type`, and
+       `:last-of-type` counts ELEMENT TYPES, not classes: the slider row is a
+       <label> and the invert row a <div>, so both were "last of type" and
+       `querySelector` returned the first — LOOK SPEED was overwritten with
+       INVERT LOOK and the invert row was left with no label at all. Caught in
+       the Polish settings frame; it was wrong in all three. */
+    this.el.querySelector('.mnu-invert .mnu-verb').textContent = t('menu.invert');
+    this._langs();
     this.el.querySelector('.mnu-words h3').textContent = t('menu.words');
     for (const w of WORDS) {
       const box = this.wordList.querySelector(`div[data-w="${w}"]`);
@@ -365,32 +445,93 @@ export class Menu {
       li.querySelector('.mnu-verb').textContent = t('controls.' + v.id);
       li.querySelector('.mnu-keys').innerHTML = caps(t(`${v.bind}.bind.${s}.${v.id}`));
     }
-    // A screen is opened by a key or by a button on the glass. Only the
-    // keyboard has keys for these, and inventing a gamepad chord that nothing
-    // in the game listens for would be a lie printed in three languages.
+    /* A screen is opened by a key or by a button. Only the keyboard has keys
+       for these, and inventing a gamepad chord that nothing in the game
+       listens for would be a lie printed in three languages — so the KEYCAPS
+       are keyboard-only. The list itself is not: it is buttons now, and a
+       thumb and a stick can push them. (The whole section used to disappear
+       for everyone else, which made the progress report, the dossier and the
+       controls card keyboard-only screens in a game that ships to phones.) */
     const keyed = s === 'kbm';
     // The handle carries its own binding, so the key is learned by anyone who
     // ever looks at the button — and by nobody who has no keys to press it with.
     this.pill.querySelector('.mnu-keys').innerHTML = keyed ? caps(t('menu.bind.kbm.menu')) : '';
-    this.el.querySelector('.mnu-screens').hidden = !keyed;
+    this.el.querySelector('.mnu-screens').hidden = false;
     // The button carries the binding, so the key is learned by whoever has one
     // and the button is still the whole affordance for whoever has not.
     this.recoverKeys.innerHTML = s === 'touch' ? '' : caps(t(`firstrun.bind.${s}.recover`));
-    if (keyed) {
-      for (const id of SCREENS) {
-        const li = this.screenList.querySelector(`li[data-v="${id}"]`);
-        li.querySelector('.mnu-verb').textContent = t('menu.screen.' + id);
-        li.querySelector('.mnu-keys').innerHTML = caps(t('menu.bind.kbm.' + id));
-      }
+    for (const id of SCREENS) {
+      const li = this.screenList.querySelector(`li[data-v="${id}"]`);
+      li.querySelector('.mnu-verb').textContent = t('menu.screen.' + id);
+      li.querySelector('.mnu-keys').innerHTML = keyed ? caps(t('menu.bind.kbm.' + id)) : '';
+      li.querySelector('button').setAttribute('aria-label', t('menu.screen.' + id));
     }
     // The one sentence a lost player is looking for names the key that is
     // actually under their hand — E on a keyboard, X on a pad, the button on
     // a phone — composed from one pattern rather than glued together, so the
     // word order stays the translator's.
     this.nowP.textContent = t('menu.nowBody', { key: t(`firstrun.bind.${s}.interact`) });
-    // Look speed and inverted aim are a mouse and a stick's settings; a thumb
-    // has neither, and the row would be a dead control on a phone.
-    this.el.querySelector('.mnu-set').hidden = s === 'touch';
+    /* LOOK SPEED AND INVERTED AIM ARE NOT A MOUSE'S SETTINGS ONLY.
+     *
+     * This whole section used to be hidden on a touch device, on the reasoning
+     * that "a thumb has neither, and the row would be a dead control on a
+     * phone". Read src/player/touch.js:128 — a drag to look is
+     *
+     *     input.look.x += (t.clientX - s.x) * 0.0052 * input.sensitivity;
+     *     input.look.y += … * input.sensitivity * (input.invertY ? -1 : 1);
+     *
+     * Both settings apply, exactly, to the one look control a phone has. They
+     * were not dead on a phone; they were hidden from the players most likely
+     * to want them, because a drag-to-look that is too fast is the commonest
+     * complaint a touch game gets. They stay, on every device.
+     *
+     * (And the section itself must stay regardless now: it holds the language
+     * and the sound, which are the two settings a phone most needs.) */
+  }
+
+  /**
+   * The language row. Every button says its own language's name for itself.
+   *
+   * Moved here from src/ui/hud.js unchanged in behaviour: same class, same
+   * `data-loc`, same `setLocale`. What changed is the LABEL — the glass could
+   * only afford `EN ES PL`, and a card can afford `English · Español · Polski`,
+   * which is the only form a student who does not read the current language can
+   * actually use.
+   */
+  _langs() {
+    const box = this.langBox;
+    if (!box) return;
+    box.setAttribute('aria-label', t('hud.language'));
+    box.innerHTML = LOCALES.map((l) => {
+      const m = LOCALE_SWITCH[l] || { short: l.toUpperCase(), name: l, title: l };
+      const on = l === getLocale();
+      return `<button type="button" lang="${l}" data-loc="${l}" class="${on ? 'on' : ''}"`
+        + ` title="${esc(m.title)}" aria-pressed="${on ? 'true' : 'false'}">${esc(m.name)}</button>`;
+    }).join('');
+    box.querySelectorAll('button').forEach((b) => {
+      b.addEventListener('click', () => setLocale(b.dataset.loc));
+    });
+  }
+
+  /**
+   * TAKE THE SOUND CONTROL OFF THE GLASS AND PUT IT IN THE SETTINGS.
+   *
+   * The audio meter is five animated bars and a level, permanently, in the
+   * corner of a game whose own audio layer says *"nothing in this game is only
+   * audible"*. The client asked for it to move; §7.3 lists it under CUT with
+   * the same destination.
+   *
+   * It is MOVED, not rebuilt. `src/audio/control.js` owns three states, a
+   * level driven by arrows, wheel and drag, `prefers-reduced-motion`, and the
+   * one gesture the browser will accept as permission to start audio at all —
+   * none of which this file knows anything about, and all of which keep working
+   * because it is the same element in a different place.
+   *
+   * @param {HTMLElement} el the `.sound` button src/audio/index.js built
+   */
+  adoptSound(el) {
+    if (!el || !this.soundBox) return;
+    this.soundBox.appendChild(el);
   }
 
   _paintSettings() {
@@ -483,6 +624,12 @@ function stop(e) { e.preventDefault(); e.stopPropagation(); }
 
 function row(id) {
   return `<li data-v="${id}"><span class="mnu-verb"></span><span class="mnu-keys"></span></li>`;
+}
+
+/** A screen is a door, so its row is a button. See `screenList` above. */
+function screenRow(id) {
+  return `<li data-v="${id}"><button type="button" data-screen="${id}">`
+    + '<span class="mnu-verb"></span><span class="mnu-keys"></span></button></li>';
 }
 
 /**

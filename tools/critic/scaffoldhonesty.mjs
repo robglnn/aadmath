@@ -40,6 +40,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -387,4 +388,6 @@ if (failed.length) {
   for (const x of failed) console.log(`  - ${x.what}${x.detail ? ' (' + x.detail + ')' : ''}`);
 }
 await browser.close();
-process.exit(failed.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. */
+findings('check:scaffold', { scope: 'route' })
+  .route(failed.map((x) => `${x.what || x.label}${x.detail ? ` (${x.detail})` : ''}`)).done();

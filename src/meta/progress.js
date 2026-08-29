@@ -318,6 +318,90 @@ function earned(node, pL) {
  */
 
 
+/* ===========================================================================
+ * WHEN THE ONE NUMBER GOES DOWN, IT SAYS SO.
+ *
+ * `repaired()` above is deliberately not a ratchet, and the two arguments for
+ * that are both written down there and both right: a claim of mastery that can
+ * only ever rise is not a claim about mastery, and a figure that cannot move
+ * for eight sealed rifts is not a figure. Neither is being changed here.
+ *
+ * The defect is the SILENCE. The largest number on the screen fell, mid-session,
+ * with nothing anywhere to say why — so from where a fourteen-year-old sits it
+ * did not lose ground, it *took ground away*. No progress bar in a game anybody
+ * chooses to play does that: Fortnite tells you the storm closed, Breath of the
+ * Wild tells you the weapon broke. Losing ground is fine. Losing it quietly is
+ * the thing that makes a player stop believing the rest of the screen.
+ *
+ * So the rule and the words live here, beside the figure they are about, and a
+ * surface drives them. It answers three questions and nothing else: has the
+ * PRINTED figure fallen, which line fell furthest, and was that line one the
+ * engine had already claimed. It states no figure of its own — the sentence
+ * that explains a number must never be a second reading of it, which is what
+ * `tools/critic/oneprogress.mjs` exists to refuse.
+ * ========================================================================= */
+
+/**
+ * Seconds before the same fall may be explained a second time.
+ *
+ * A learner who is missing repeatedly is having a bad two minutes; a notice on
+ * every one of those answers is a game nagging somebody who is already
+ * struggling. One sentence, then quiet, then one more if it happens again much
+ * later.
+ */
+const SLIP_QUIET_S = 45;
+
+/**
+ * A watch over the one number, with its own memory.
+ *
+ * @param {() => number} clock wall clock, injectable for a test
+ * @returns {{ read: (mastery:object) => {key:string, skill:string}|null,
+ *             seen: () => object }}
+ *   `read` returns the line to say, ONCE per fall, or null. The caller decides
+ *   whether the frame is free — a beat must never talk over a learning surface.
+ */
+export function createRepairWatch(clock = () => Date.now()) {
+  let last = null;
+  let saidAt = -1e9;
+  return {
+    read(mastery) {
+      const now = repaired(mastery);
+      const was = last;
+      last = { pct: now.pct, lines: now.lines.slice(), held: heldSet(mastery) };
+      if (!was) return null;
+      // THE PRINTED FIGURE, not the fraction behind it. A learner cannot see a
+      // change that does not reach the numeral, and a notice about one is a
+      // notice about nothing.
+      if (now.pct >= was.pct) return null;
+      if (clock() - saidAt < SLIP_QUIET_S * 1000) return null;
+      // Which line actually fell furthest. The nodes are in graph order in both
+      // readings, because both come from the same `mastery.graph.nodes`.
+      const nodes = mastery?.graph?.nodes || [];
+      let worst = -1;
+      let drop = 0;
+      for (let i = 0; i < nodes.length && i < was.lines.length; i++) {
+        const d = was.lines[i] - (now.lines[i] ?? 0);
+        if (d > drop) { drop = d; worst = i; }
+      }
+      if (worst < 0) return null;
+      saidAt = clock();
+      const id = nodes[worst].id;
+      // A line the engine had already claimed is a different sentence from a
+      // line still being learned: one is a re-probe that did not come back, the
+      // other is a miss on work in progress.
+      return { key: was.held.has(id) ? 'guide.slip.held' : 'guide.slip.line', skill: id };
+    },
+    /** What the watch is holding, for a test. Never for a surface. */
+    seen: () => (last ? { pct: last.pct } : null),
+  };
+}
+
+function heldSet(mastery) {
+  const out = new Set();
+  for (const n of (mastery?.graph?.nodes || [])) if (mastery.get?.(n.id)?.mastered) out.add(n.id);
+  return out;
+}
+
 /**
  * How many lines this engine will stand behind. Evidence, not progress — the
  * report prints it and nothing on the live HUD does.

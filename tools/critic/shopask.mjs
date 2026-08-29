@@ -26,6 +26,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -152,4 +153,6 @@ note(errors.length === 0, 'no console errors', errors.slice(0, 3).join(' | '));
 const passed = steps.filter((s) => s.ok).length;
 console.log(`\n${passed}/${steps.length} passed  ->  ${OUT}`);
 await browser.close();
-process.exit(passed === steps.length ? 0 : 1);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. */
+findings('check:shopask', { scope: 'route' })
+  .route(steps.filter((s) => !s.ok).map((s) => `${s.label || s.what || 'step'}${s.detail ? ` (${s.detail})` : ''}`)).done();

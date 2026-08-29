@@ -32,9 +32,26 @@
  * by `./diagnose.js` — an error that matches none of them is never given a
  * name), and `steps` (the worked solution used for faded worked examples).
  */
-import { R, add, sub, mul, div, neg, str as rstr, texOf, fromString, eq as reqq, isZero, toNum } from './rational.js';
-import { evaluate, solveLinear, equivalent, parse, evalAst, parseEquation, linearize, parseArrayCells, varsOf } from './parser.js';
+import {
+  R, add, sub, mul, div, neg, str as rstr, texOf, fromString, eq as reqq, isZero, toNum,
+  pow as rpow, cmp as rcmp, sign as rsign, isSafe,
+} from './rational.js';
+import {
+  evaluate, solveLinear, equivalent, parse, evalAst, parseEquation, linearize, parseArrayCells, varsOf,
+  // The quadratics strand. Every one of these reads the notation the learner
+  // is shown and works the answer out again from nothing.
+  solveQuadratic, polyCoeffs, polynomialise, polyDegree, polyTex, answerValues,
+  evalSurd, radicandsOf, radicalInDenominator, containsSqrt, mentionsVar, walkAst,
+  splitTop, parseArrayBlocks,
+} from './parser.js';
+import {
+  S, SR, sAdd, sSub, sMul, sPow, sEq, sCmp, sIsZero, sIsRational, sTex, sTexOverOne,
+  surdSpellings, simplifySqrt, rationalSqrt, isPerfectSquareR, surdSqrt, isSurd,
+} from './surd.js';
 import { makeT } from './strings.js';
+// The shape of an option set is not this file's business alone: `src/ui/rift.js`
+// balances the beam's move tray with the same instrument. See src/learn/shape.js.
+import { balancedPick, shapeMix } from './shape.js';
 import {
   registerPack, formsFor, setFormSummary,
   SKILLS as REGISTERED_SKILLS, FORMS_BY_SKILL as REGISTERED_FORMS_BY_SKILL,
@@ -386,8 +403,14 @@ const DECKS = {
   twoTraces: ['ctx.twoBeacons', 'ctx.twoLifts',
     'ctx.twoSleds', 'ctx.twoDrills', 'ctx.twoBalloons', 'ctx.twoTides'],
   // Two cadets, two answers, one of them true.
-  dispute: ['ctx.dispute', 'ctx.disputeBoard', 'ctx.disputeAudit',
-    'ctx.disputeGalley', 'ctx.disputeBridge', 'ctx.disputeInk', 'ctx.disputeRadio', 'ctx.disputeWager'],
+  /* `ctx.disputeAudit` used to sit here and does not any more. Every framing
+     in this deck REPORTS two readings; that one PROMISED — "The audit takes
+     one" — and since `quoteReadings` draws both quoted readings out of the
+     wrong ones on a free keypad, a sentence that says one of them is the one
+     to file is a sentence the card cannot keep. It is still a framing, and any
+     form that really does print the answer may use it. */
+  dispute: ['ctx.dispute', 'ctx.disputeBoard', 'ctx.disputeGalley',
+    'ctx.disputeBridge', 'ctx.disputeInk', 'ctx.disputeRadio', 'ctx.disputeWager'],
   disputeSolve: ['ctx.disputeSolve', 'ctx.disputeUndo',
     'ctx.disputeReverse', 'ctx.disputeStrip', 'ctx.disputeUnpick', 'ctx.disputeBackwards'],
   disputeExpand: ['ctx.disputeExpand', 'ctx.disputeReach',
@@ -1338,6 +1361,11 @@ const FORMS = {
         const i = int(r, 0, NAMES.length - 1);
         const j = (i + 1 + int(r, 0, NAMES.length - 2)) % NAMES.length;
         return {
+          // A FREE KEYPAD, so neither quoted reading may be the answer — see
+          // `quoteReadings`. This form used to print `{ a: right, b: wrong }`
+          // and every framing names `{a}` first, so a cadet who typed the
+          // first number in the sentence never touched the mathematics.
+          quote: { ctx: sc, ask: 'ask.evaluate', vars: { one: NAMES[i], two: NAMES[j] } },
           stem: `${T(sc, { one: NAMES[i], two: NAMES[j], a: right, b: wrong })} ${T('ask.whichIsRight')}`,
           latex: expr,
           type: 'numeric',
@@ -1622,7 +1650,16 @@ const FORMS = {
           + (wide ? ` ${sgc(g, v)} ${sg(h)}` : '');
         const ans = lin(a + c + g, v, b + e + h);
         return {
-          stem: `${T(sc)} ${T('ask.whichEquivalent')}`,
+          /* THE QUESTION HAS TO BE THE ONE THE INSTRUMENT ASKS.
+             This form asked `ask.whichEquivalent` — "Which one says exactly the
+             same thing?" — over a display carrying ONE filing, on a surface
+             that is a sorting tray with two bays and no readings to choose
+             between at all. 573 route cards printed a two-way choice between
+             two notations and never showed the second one. The framing stays
+             (two teams filed the same quantity, and the rig takes one line);
+             the ask is now the act the tray performs, and it is the act this
+             skill is named for. */
+          stem: `${T(sc)} ${T('ask.simplifyAlt2')}`,
           latex: expr,
           type: 'expression',
           answer: ans,
@@ -1901,6 +1938,17 @@ const FORMS = {
         const sc = deck(sr, 'asUnits');
         const v = pick(r, VARS);
         const k = int(r, 2, 4 + d), a = int(r, 1, 4 + d), b = nz(r, -(5 + d), 5 + d);
+        /* `k` HAS TO BE THE WHOLE COMMON FACTOR, NOT A COMMON FACTOR.
+           gcd(ka, kb) is k*gcd(a, b), so unless a and b are coprime the key
+           this form writes is a product that still comes apart: `12y + 8` was
+           keyed `2\left(6y + 4\right)`, and the echo under it read "Both
+           terms carry a factor of 2. Pull the 2 out in front." CCSS A-SSE.3a
+           and TEKS A.10(E) both say factor COMPLETELY, and this is the form
+           that teaches the habit — in three languages, in the unit that
+           ships. Drawn from the numbers that cannot do it rather than
+           re-rolled, so no retry budget decides whether a cadet is taught to
+           stop early. */
+        if (gcd(a, b) !== 1) throw new Error('retry: a factor is still inside the bracket');
         if (!distinct(k, a, b, k * a, k * b)) throw new Error('retry: repeated number');
         const expr = lin(k * a, v, k * b);
         const ans = `${k}\\left(${lin(a, v, b)}\\right)`;
@@ -2673,9 +2721,15 @@ const FORMS = {
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'crew');
         const v = 'n';
+        // A CREW COUNT CANNOT GO NEGATIVE, SO THIS RUNG IS CARRIED BY SIZE.
+        // Every other form in this skill turns signed at band 3 and steps up
+        // hard there; this one drew from ranges that barely moved, and its
+        // share of the band-3 draw is large enough that it held the whole band
+        // level with band 2. See the note above `Pcoef`: the ladder still
+        // rises here, it rises through magnitude — so the magnitudes rise.
         const k = int(r, 2, 2 + d);
-        const a = int(r, 2, 3 + d), b = int(r, 2, 5 + d * 2);
-        const x = int(r, 2, 4 + d * 2);
+        const a = int(r, 2, 3 + d), b = int(r, 2, 4 + d * 3);
+        const x = int(r, 2, 3 + d * 3);
         if (!distinct(k, a, b, x, k * a, k * b)) throw new Error('retry: repeated number');
         const total = k * (a * x + b);
         const eqn = `${paren(k, lin(a, v, b))} = ${total}`;
@@ -2735,19 +2789,32 @@ const FORMS = {
       },
     },
     {
+      /* TWO THINGS THIS FORM USED TO GET WRONG.
+         1. It ended in "Which reading is the true one?" — but `disputeExpand`
+            names two PROCEDURES ("Cadet Wren multiplies 3n and 5 by 4. Cadet
+            Vale multiplies only 3n."), not two readings, so nothing on the
+            card was a reading for "the true one" to point at. Its three
+            sibling disputes in this bank print both cadets' values in the
+            sentence and are fine; this one never did. It now asks what every
+            other multi-step form asks.
+         2. Every number it drew was positive and small while its siblings turn
+            signed at band 3, so it entered at band 3 measuring 8.25 against a
+            band-2 mean of 9.04 and pulled the whole band under the one below
+            it — the `inverted` fault `tools/critic/ladder.mjs` reports. It
+            draws from the band table now, like the rest of the skill. */
       id: 'ms-dispute', rep: 'verbal', dMin: 3, dMax: 5, distinctNums: true, scenes: 'disputeExpand',
       build({ r, d, T, sr }) {
         const sc = deck(sr, 'disputeExpand');
         const v = pick(r, ['x', 'n']);
-        const k = int(r, 2, 2 + d), a = int(r, 1, 2 + d), b = int(r, 2, 6 + d);
-        const x = int(r, 2, 5 + d);
+        const k = int(r, 2, 2 + d), a = nz(r, 1, 2 + d), b = Bkonst(r, d);
+        const x = Broot(r, d);
         if (!distinct(k, a, b, x, k * a, k * b)) throw new Error('retry: repeated number');
         const c = k * (a * x + b);
         const eqn = `${paren(k, lin(a, v, b))} = ${c}`;
         const i = int(r, 0, NAMES.length - 1);
         const j = (i + 1 + int(r, 0, NAMES.length - 2)) % NAMES.length;
         return {
-          stem: `${T(sc, { one: NAMES[i], two: NAMES[j], k, a: `$${co(a, v)}$`, b })} ${T('ask.whichIsRight')}`,
+          stem: `${T(sc, { one: NAMES[i], two: NAMES[j], k, a: `$${co(a, v)}$`, b })} ${T(deck(sr, 'askSolve'), { v })}`,
           latex: eqn,
           type: 'numeric',
           answer: String(x),
@@ -2863,29 +2930,49 @@ const FORMS = {
         const a = nzc(r, 2, 4 + d);
         const b = Bkonst(r, d);
         const k = int(r, 2, 2 + d);
-        const identity = chance(r, 0.5);
-        // Left: k(a v + b).  Right: k a v + k b  (identity) or k a v + k b + shift.
-        const shift = identity ? 0 : nz(r, 1, 5 + d);
-        const eqn = `${paren(k, lin(a, v, b))} = ${lin(k * a, v, k * b + shift)}`;
-        const ansTex = identity ? 'ALL' : 'NONE';
+        // THE FOUR READINGS ARE DRAWN, AND THE STATEMENT IS BUILT TO MATCH.
+        // See `SPECIAL_READINGS` for why the draw is the whole repair.
+        const kind = specialKind(r);
+        // Left: k(a v + b) — always. Right: whatever the drawn reading needs.
+        const shift = kind === 'NONE' ? nz(r, 1, 5 + d) : 0;
+        const x = kind === 'POS' ? int(r, 1, 4 + d) : kind === 'NEG' ? -int(r, 1, 4 + d) : 0;
+        // A unique solution needs the two sides to carry DIFFERENT counts of
+        // the unknown; `g` is the gap between them, and the loose number on the
+        // right is then forced by the value the reading names.
+        let g = 0;
+        if (kind === 'POS' || kind === 'NEG') {
+          g = int(r, 1, 3 + d);
+          if (k * a - g === 0) throw new Error('retry: the unknown leaves the right side');
+        }
+        const rightA = k * a - g;
+        const rightB = k * b + shift + g * x;
+        const eqn = `${paren(k, lin(a, v, b))} = ${lin(rightA, v, rightB)}`;
+        const solved = kind === 'POS' || kind === 'NEG';
         return {
           stem: T('ask.solveOrClassify', { v }),
           latex: eqn,
           type: 'special',
-          answer: ansTex,
-          check: { kind: 'solve', math: eqn, variable: v, expectKind: identity ? 'all' : 'none' },
-          steps: [
+          answer: kind,
+          check: {
+            kind: 'solve', math: eqn, variable: v,
+            expectKind: solved ? 'unique' : kind === 'ALL' ? 'all' : 'none',
+          },
+          steps: solved ? [
+            { latex: `${lin(k * a, v, k * b)} = ${lin(rightA, v, rightB)}`, why: T('why.expandFirst') },
+            { latex: `${co(g, v)} = ${g * x}`, why: T('why.gatherUnknownOneSide', { term: co(rightA, v) }) },
+            { latex: `${v} = ${x}`, why: T('why.divideBothByCoef', { a: g }) },
+          ] : [
             { latex: `${lin(k * a, v, k * b)} = ${lin(k * a, v, k * b + shift)}`, why: T('why.expandFirst') },
             {
-              latex: identity ? `0 = 0` : `0 = ${shift}`,
-              why: identity ? T('why.identityBothSidesSame') : T('why.contradictionNoValue'),
+              latex: kind === 'ALL' ? `0 = 0` : `0 = ${shift}`,
+              why: kind === 'ALL' ? T('why.identityBothSidesSame') : T('why.contradictionNoValue'),
             },
           ],
-          distractors: [
-            { v: identity ? 'NONE' : 'ALL', m: 'no-solution-confusion' },
-            { v: '0', m: 'no-solution-confusion' },
-            { v: String(shift || k * b), m: 'no-solution-confusion' },
-          ],
+          // The three readings that are NOT true of this statement — which is
+          // every other reading the card carries, so the four on screen are the
+          // same four every time and the key is uniform over them. That is the
+          // whole of what keeps this surface at chance; see `SPECIAL_READINGS`.
+          distractors: SPECIAL_KINDS.filter((z) => z !== kind).map((z) => ({ v: z, m: 'no-solution-confusion' })),
         };
       },
     },
@@ -2897,31 +2984,43 @@ const FORMS = {
         const v = pick(r, ['x', 'n', 'p', 't']);
         const a = nz(r, 2, 7 + d * 2), c = nz(r, 1, 6 + d * 2);
         const b = Bkonst(r, d);
-        const identity = chance(r, 0.5);
-        const shift = identity ? 0 : nz(r, 1, 9 + d * 2);
-        // left: a v + b + c v ; right: (a + c) v + b (+ shift)
+        const kind = specialKind(r);
+        const solved = kind === 'POS' || kind === 'NEG';
+        const shift = kind === 'NONE' ? nz(r, 1, 9 + d * 2) : 0;
+        const x = kind === 'POS' ? int(r, 1, 4 + d) : kind === 'NEG' ? -int(r, 1, 4 + d) : 0;
+        let g = 0;
+        if (solved) {
+          g = int(r, 1, 3 + d);
+          if (a + c - g === 0) throw new Error('retry: the unknown leaves the right side');
+        }
+        const rightA = a + c - g;
+        const rightB = b + shift + g * x;
+        // left: a v + b + c v ; right: whatever the drawn reading needs
         const left = `${co(a, v)} ${sg(b)} ${sgc(c, v)}`;
-        const right = lin(a + c, v, b + shift);
+        const right = lin(rightA, v, rightB);
         const eqn = `${left} = ${right}`;
         return {
           stem: T('ask.solveOrClassify', { v }),
           latex: eqn,
           type: 'special',
-          answer: identity ? 'ALL' : 'NONE',
-          check: { kind: 'solve', math: eqn, variable: v, expectKind: identity ? 'all' : 'none' },
-          steps: [
+          answer: kind,
+          check: {
+            kind: 'solve', math: eqn, variable: v,
+            expectKind: solved ? 'unique' : kind === 'ALL' ? 'all' : 'none',
+          },
+          steps: solved ? [
+            { latex: `${lin(a + c, v, b)} = ${right}`, why: T('why.simplifySideFirst') },
+            { latex: `${co(g, v)} ${sg(b)} = ${rightB}`, why: T('why.gatherUnknownOneSide', { term: co(rightA, v) }) },
+            { latex: `${v} = ${x}`, why: T('why.divideBothByCoef', { a: g }) },
+          ] : [
             { latex: `${lin(a + c, v, b)} = ${right}`, why: T('why.simplifySideFirst') },
             { latex: `${b} = ${b + shift}`, why: T('why.gatherUnknownOneSide', { term: co(a + c, v) }) },
             {
-              latex: identity ? `0 = 0` : `0 = ${shift}`,
-              why: identity ? T('why.identityBothSidesSame') : T('why.contradictionNoValue'),
+              latex: kind === 'ALL' ? `0 = 0` : `0 = ${shift}`,
+              why: kind === 'ALL' ? T('why.identityBothSidesSame') : T('why.contradictionNoValue'),
             },
           ],
-          distractors: [
-            { v: identity ? 'NONE' : 'ALL', m: 'no-solution-confusion' },
-            { v: '0', m: 'no-solution-confusion' },
-            { v: String(shift || a + c), m: 'no-solution-confusion' },
-          ],
+          distractors: SPECIAL_KINDS.filter((z) => z !== kind).map((z) => ({ v: z, m: 'no-solution-confusion' })),
         };
       },
     },
@@ -3400,6 +3499,853 @@ export function verify(item) {
       checkStepsEqual(item.steps, {});
       break;
     }
+    // -----------------------------------------------------------------------
+    // LEVEL 3 KINDS — the quadratics strand.
+    //
+    // Level 2 could always reach its answer with exact rationals. This strand
+    // cannot: the roots of x^{2} - 2x - 4 = 0 are irrational, and a checker
+    // that reached for a decimal there would be deciding mastery on a float.
+    // So the arithmetic is widened to Q(sqrt k) (`./surd.js`) rather than
+    // loosened, and the SUBSTITUTION — not the formula — is what proves a root.
+    // -----------------------------------------------------------------------
+
+    /**
+     * Solving a quadratic. `c.want`:
+     *   'roots'    the whole solution set, smallest first
+     *   'greater' / 'lesser'      one named root
+     *   'positive' / 'negative'   the one root with that sign
+     *   'unique'   a repeated root, which needs the discriminant to be zero
+     *   'none'     no real solution
+     */
+    case 'quadratic': {
+      const v = c.variable;
+      const sol = solveQuadratic(c.math, v);
+      if (sol.kind === 'notQuadratic') throw new Error(`the squared term cancels: this is not a quadratic in ${v}`);
+      if (sol.kind === 'identity') throw new Error(`this statement is true for every ${v}`);
+      if (sol.kind === 'none') throw new Error('this statement is true for no value at all');
+      if (isZero(sol.a)) throw new Error('a quadratic needs a squared term');
+      if (c.want === 'none') {
+        if (sol.kind !== 'noReal') throw new Error(`this equation does have solutions: ${rootSetTex(v, rootsOf(sol))}`);
+        requireVerdict(item, 'NONE', 'the discriminant is below zero');
+        break;
+      }
+      if (sol.kind === 'noReal') throw new Error(`the discriminant is ${rstr(sol.disc)}, so there is no real solution to name`);
+      if (c.want === 'unique' && sol.kind !== 'oneRational') {
+        throw new Error(`the discriminant is ${rstr(sol.disc)}, not zero, so this equation has two solutions`);
+      }
+      const roots = rootsOf(sol);
+      if (!c.want || c.want === 'roots' || c.want === 'unique') {
+        proveRootSet(item, c, sol, v);
+        break;
+      }
+      let wanted;
+      if (c.want === 'greater') wanted = roots[roots.length - 1];
+      else if (c.want === 'lesser') wanted = roots[0];
+      else if (c.want === 'positive' || c.want === 'negative') {
+        const sgn = c.want === 'positive' ? 1 : -1;
+        const hits = roots.filter((r) => sCmp(r, SR(R(0))) === sgn);
+        if (hits.length !== 1) throw new Error(`this equation has ${hits.length} ${c.want} solutions, so naming one is ambiguous`);
+        [wanted] = hits;
+      } else throw new Error(`unknown quadratic ask ${c.want}`);
+      const claimed = exactValue(item.answer, v);
+      if (c.spelling !== 'any' && !spellingOk(String(item.answer), [claimed])) {
+        throw new Error(`"${item.answer}" is not the spelling this checker uses; it writes ${valueTex(wanted)}`);
+      }
+      if (!sEq(claimed, wanted)) {
+        throw new Error(`the ${c.want} solution is ${valueTex(wanted)} but the answer says "${item.answer}"`);
+      }
+      // THE PROOF: the claimed value goes back into the printed equation.
+      const back = sAdd(sAdd(sMul(SR(sol.a), sPow(claimed, 2)), sMul(SR(sol.b), claimed)), SR(sol.c));
+      if (!sIsZero(back)) throw new Error(`putting ${sTex(claimed)} back into the equation leaves ${sTex(back)}, not zero`);
+      break;
+    }
+
+    /**
+     * A radical, simplified or combined. `c.form` is 'simplify' or 'combine'.
+     * The factoring is proved by squaring back in whole numbers, so the
+     * factoriser is never taken on its own word.
+     */
+    case 'radical': {
+      const shown = parse(c.math);
+      if (!containsSqrt(shown)) throw new Error('a radical item must show a radical');
+      const value = evalSurd(shown, {});
+      if (sIsRational(value)) {
+        throw new Error(`this expression is worth ${texOf(value.p)}, which is rational: that is an evaluate item`);
+      }
+      if (c.form === 'simplify') {
+        const rads = radicandsOf(shown);
+        if (rads.length !== 1) throw new Error('a simplify prompt shows exactly one radical');
+        const n = rads[0];
+        if (n === null || n <= 0) throw new Error('a simplify prompt needs a whole radicand above zero');
+        const { m, k } = simplifySqrt(n);
+        if (m * m * k !== n) throw new Error(`the square factor of ${n} does not multiply back`);
+        if (k === 1) throw new Error(`\\sqrt{${n}} is a whole number: that is an evaluate item`);
+      } else if (c.form !== 'combine') {
+        throw new Error(`unknown radical form ${c.form}`);
+      }
+      const claimed = exactValue(item.answer, null);
+      if (!sEq(claimed, value)) {
+        throw new Error(`the expression is worth ${sTex(value)} but the answer says "${item.answer}"`);
+      }
+      if (c.spelling !== 'any' && !spellingOk(String(item.answer), [claimed])) {
+        throw new Error(`"${item.answer}" is not the spelling this checker uses; it writes ${sTex(value)}`);
+      }
+      break;
+    }
+
+    /**
+     * A rational exponent. THE PROOF TAKES NO ROOT AT ALL: the learner's value
+     * is raised to the q-th power in exact arithmetic and must equal a^p.
+     */
+    case 'rationalExponent': {
+      const node = parse(c.math);
+      if (node.k !== 'pow') throw new Error('a rational-exponent prompt shows one power');
+      const base = evalAst(node.a, {});
+      const ex = evalAst(node.b, {});
+      const q = ex.d;
+      const p = ex.n;
+      if (q === 0) throw new Error('an exponent with no denominator is not a number');
+      if (isZero(base) && p <= 0) throw new Error('zero to a power that is not above zero has no value');
+      if (base.n < 0 && q % 2 === 0) throw new Error(`an even root of ${rstr(base)} is not a real number`);
+      const target = rpow(base, p);
+      const claimed = exactValue(item.answer, null);
+      if (q % 2 === 0 && sCmp(claimed, SR(R(0))) < 0) {
+        throw new Error('an even root is taken as the value that is not below zero');
+      }
+      const back = sPow(claimed, q);
+      if (!sEq(back, SR(target))) {
+        throw new Error(`"${item.answer}" to the power ${q} is ${sTex(back)}, and ${rstr(base)} to the power ${p} is ${rstr(target)}`);
+      }
+      if (!sIsRational(claimed) && c.spelling !== 'any' && !spellingOk(String(item.answer), [claimed])) {
+        throw new Error(`"${item.answer}" is not the spelling this checker uses; it writes ${sTex(claimed)}`);
+      }
+      break;
+    }
+
+    /**
+     * Factored form. Two clauses, both required: the answer must be the same
+     * function as the prompt AT EVERY VALUE, and it must be a PRODUCT — a
+     * learner who retypes the prompt passes the first and fails the second.
+     */
+    case 'factored': {
+      const v = c.variable;
+      const cs = polyCoeffs(c.math, v, 3);
+      const dg = polyDegree(cs);
+      if (c.form === 'decide') {
+        // "Is this a difference of two squares?" — an exact whole-number test.
+        if (dg !== 2) throw new Error('a difference of two squares is written as a quadratic');
+        if (!isZero(cs[1] || R(0))) throw new Error('a difference of two squares has no middle term');
+        const lead = cs[2]; const kon = cs[0] || R(0);
+        const yes = lead.n > 0 && kon.n < 0 && isPerfectSquareR(lead) && isPerfectSquareR(neg(kon));
+        requireVerdict(item, yes ? 'YES' : 'NO', yes
+          ? 'both parts are squares and the second is taken away'
+          : 'this is not a square take away a square');
+        break;
+      }
+      if (dg > 2) {
+        // The one family above degree two the strand teaches: a common factor
+        // times a difference of squares, which is odd powers only.
+        if (dg !== 3 || !isZero(cs[0] || R(0)) || !isZero(cs[2] || R(0))) {
+          throw new Error(`degree ${dg} is outside the difference-of-squares family this kind factors`);
+        }
+      }
+      if (!equivalent(c.math, item.answer, v)) {
+        throw new Error(`"${item.answer}" is not the same expression as the prompt "${c.math}"`);
+      }
+      const factors = flattenProduct(parse(String(item.answer)));
+      let usesVariable = 0;
+      for (const f of factors) {
+        let lin;
+        try { lin = linearize(f, v); } catch (e) {
+          throw new Error(`"${item.answer}" is not a product of factors that are each linear in ${v} (${e.message})`);
+        }
+        if (!isZero(lin.a)) usesVariable++;
+      }
+      if (usesVariable < 2) {
+        throw new Error(`"${item.answer}" is not a product of two or more factors that use ${v}`);
+      }
+      break;
+    }
+
+    /**
+     * Polynomial division. THIS KIND NEVER DIVIDES. `equivalent()` samples at
+     * the value that empties the divisor, so a fraction would be judged false
+     * for a correct item; instead the checker MULTIPLIES BACK, which needs no
+     * excluded value at all.
+     */
+    case 'polyQuotient': {
+      const v = c.variable;
+      for (const src of [c.dividend, c.divisor, c.quotient, c.remainder]) {
+        if (src && !targetIsThePrompt(item.latex, src)) throw new Error(`"${src}" is not what the prompt displays`);
+      }
+      const D = polyCoeffs(c.dividend, v, 6);
+      const B = polyCoeffs(c.divisor, v, 6);
+      const degB = polyDegree(B);
+      const degD = polyDegree(D);
+      if (degB < 1) throw new Error('a divisor of degree zero is not a division to do');
+      if (degB > degD) throw new Error('the divisor has a higher degree than the dividend');
+      const qSrc = c.want === 'remainder' ? c.quotient : String(item.answer);
+      const rSrc = c.want === 'remainder' ? String(item.answer) : c.remainder;
+      if (c.want === 'remainder' && !c.quotient) throw new Error('a remainder item must print its quotient');
+      const Q = polyCoeffs(qSrc, v, 6);
+      const Rem = rSrc ? polyCoeffs(rSrc, v, 6) : [R(0)];
+      if (polyDegree(Rem) >= degB) {
+        throw new Error(`the remainder has degree ${polyDegree(Rem)}, which is not below the divisor's ${degB}`);
+      }
+      // Multiplying back is the proof, and it is done twice: once on exact
+      // coefficients, and once through `equivalent()` on the strings, which is
+      // the route the shipped kinds use.
+      const product = [];
+      for (let i = 0; i < B.length; i++) {
+        for (let j = 0; j < Q.length; j++) product[i + j] = add(product[i + j] || R(0), mul(B[i], Q[j]));
+      }
+      for (let i = 0; i < Rem.length; i++) product[i] = add(product[i] || R(0), Rem[i]);
+      for (let i = 0; i < Math.max(product.length, D.length); i++) {
+        if (!reqq(product[i] || R(0), D[i] || R(0))) {
+          throw new Error(`multiplying back gives ${polyTex(product, v)}, not ${c.dividend}`);
+        }
+      }
+      const backTex = `\\left(${c.divisor}\\right)\\left(${qSrc}\\right)${rSrc ? ` + \\left(${rSrc}\\right)` : ''}`;
+      if (!equivalent(backTex, c.dividend, v)) {
+        throw new Error(`multiplying back does not reproduce "${c.dividend}"`);
+      }
+      break;
+    }
+
+    /**
+     * Vertex form. The identity holds at fourteen values, which for a
+     * quadratic is a proof, so h and k ARE the turning point by construction
+     * and no second derivation is asserted. What is left to check is SHAPE:
+     * the standard form is identically equal and must earn no credit.
+     */
+    case 'vertexForm': {
+      const v = c.variable;
+      const cs = polyCoeffs(c.math, v, 2);
+      if (polyDegree(cs) !== 2) throw new Error('vertex form is asked of a rule of degree two');
+      if (!equivalent(c.math, item.answer, v)) {
+        throw new Error(`"${item.answer}" is not the same rule as the prompt "${c.math}"`);
+      }
+      const node = parse(String(item.answer));
+      let squares = 0;
+      walkAst(node, (n) => {
+        if (n.k !== 'pow') return;
+        let e;
+        try { e = evalAst(n.b, {}); } catch { throw new Error('a power in the answer is not a whole number'); }
+        if (e.d !== 1 || e.n < 0) throw new Error('a power in the answer is not a whole number');
+        if (e.n >= 2) squares++;
+      });
+      if (squares !== 1) throw new Error(`vertex form holds exactly one squared bracket, and "${item.answer}" holds ${squares}`);
+      vertexShape(node, v);
+      break;
+    }
+
+    /**
+     * One named feature of a printed rule of degree one or two. Coefficients
+     * are probed off the notation and confirmed at five inputs, exactly as the
+     * quadratic route does, so no higher power can hide behind a bracket.
+     */
+    case 'features': {
+      const v = c.variable;
+      const { a, b, c: k0, node, degree } = ruleCoeffs(c.math, v);
+      if (degree < 1 || degree > 2) throw new Error('a features prompt is a rule of degree one or two');
+      const quadratic = degree === 2;
+      if (['vertex', 'axis', 'extremeValue', 'extremeKind', 'opening'].includes(c.want) && !quadratic) {
+        throw new Error(`a rule of degree ${degree} has no ${c.want}`);
+      }
+      const vertexIn = quadratic ? div(neg(b), mul(R(2), a)) : null;
+      const vertexOut = quadratic ? sub(k0, div(mul(b, b), mul(R(4), a))) : null;
+      switch (c.want) {
+        case 'yIntercept': {
+          const want = fromString(item.answer);
+          if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+          if (!reqq(evalAst(node, { [v]: R(0) }), want)) {
+            throw new Error(`the rule reads ${rstr(k0)} at zero but the answer says ${item.answer}`);
+          }
+          break;
+        }
+        case 'zeros': {
+          const sol = solveQuadratic(`${c.math} = 0`, v);
+          if (sol.kind === 'noReal') {
+            requireVerdict(item, 'NONE', 'the discriminant is below zero');
+            break;
+          }
+          if (sol.kind === 'notQuadratic') {
+            const want = exactValue(item.answer, v);
+            if (!sEq(want, SR(sol.root))) throw new Error(`the rule is zero at ${rstr(sol.root)}, not at "${item.answer}"`);
+            break;
+          }
+          proveRootSet(item, c, sol, v);
+          break;
+        }
+        case 'vertex': {
+          const pair = exactPair(item.answer);
+          if (!pair) throw new Error(`answer "${item.answer}" is not a pair of readings`);
+          if (!reqq(pair[0], vertexIn) || !reqq(pair[1], vertexOut)) {
+            throw new Error(`the turning point is \\left(${texOf(vertexIn)}, ${texOf(vertexOut)}\\right), not "${item.answer}"`);
+          }
+          break;
+        }
+        case 'axis': {
+          const at = String(item.answer).indexOf('=');
+          if (at < 0) throw new Error(`an axis of symmetry is an equation, and "${item.answer}" is a bare value`);
+          if (String(item.answer).slice(0, at).trim() !== v) throw new Error(`the axis names ${v}`);
+          const canon = `${v} = ${texOf(vertexIn)}`;
+          if (normalise(item.answer) !== normalise(canon)) {
+            throw new Error(`the axis is "${canon}" but the answer says "${item.answer}"`);
+          }
+          break;
+        }
+        case 'extremeValue': {
+          const want = fromString(item.answer);
+          if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+          if (!reqq(vertexOut, want)) throw new Error(`the turning value is ${rstr(vertexOut)} but the answer says ${item.answer}`);
+          break;
+        }
+        case 'extremeKind':
+          requireVerdict(item, a.n < 0 ? 'MAX' : 'MIN', `the squared term has coefficient ${rstr(a)}`);
+          break;
+        case 'opening':
+          requireVerdict(item, a.n < 0 ? 'DOWN' : 'UP', `the squared term has coefficient ${rstr(a)}`);
+          break;
+        case 'domain': {
+          if (!acceptsEveryReal(node, v)) {
+            throw new Error('this rule has a value it does not accept, so its domain is not every real number');
+          }
+          requireVerdict(item, 'ALLREAL', 'the rule divides by no letter and takes no root');
+          break;
+        }
+        case 'range': {
+          const outVar = c.outputVariable || 'y';
+          if (outVar === v) throw new Error('a range is stated in the output letter, not the input letter');
+          if (new RegExp(`(^|[^a-zA-Z])${v}([^a-zA-Z]|$)`).test(String(item.answer))) {
+            throw new Error(`the range is stated in ${outVar}, and "${item.answer}" states it in ${v}`);
+          }
+          if (quadratic) {
+            // RANGE IS PROVED BY IDENTITY. The rule is shown to be `a` times a
+            // square plus the turning value, so the sign of `a` fixes the
+            // boundary exactly and nothing about it is asserted.
+            const built = `\\left(${texOf(a)}\\right)\\left(${v} - \\left(${texOf(vertexIn)}\\right)\\right)^{2} + \\left(${texOf(vertexOut)}\\right)`;
+            if (!equivalent(built, c.math, v)) throw new Error('the completed square does not reproduce the printed rule');
+            const canon = statementTex(outVar, a.n > 0 ? '\\ge' : '\\le', vertexOut);
+            if (normalise(item.answer) !== normalise(canon)) {
+              throw new Error(`the range is "${canon}" but the answer says "${item.answer}"`);
+            }
+          } else {
+            if (!Array.isArray(c.interval) || c.interval.length !== 2) {
+              throw new Error('a straight rule has a range only on a stated closed interval');
+            }
+            const lo = asR(c.interval[0]); const hi = asR(c.interval[1]);
+            if (!lo || !hi || rcmp(lo, hi) >= 0) throw new Error('the stated interval is not a closed interval');
+            for (const end of [lo, hi]) {
+              if (!valueIsOnScreen(item, end)) throw new Error(`the interval end ${texOf(end)} is nowhere on screen`);
+            }
+            if (isZero(b)) throw new Error('a rule with no rate has one output, not a range');
+            const f0 = evalAst(node, { [v]: lo });
+            const f1 = evalAst(node, { [v]: hi });
+            const band = rcmp(f0, f1) < 0
+              ? { lower: { rel: '\\ge', value: f0 }, upper: { rel: '\\le', value: f1 } }
+              : { lower: { rel: '\\ge', value: f1 }, upper: { rel: '\\le', value: f0 } };
+            const canon = bandTex(outVar, band);
+            if (normalise(item.answer) !== normalise(canon)) {
+              throw new Error(`the range is "${canon}" but the answer says "${item.answer}"`);
+            }
+          }
+          break;
+        }
+        default: throw new Error(`unknown feature ${c.want}`);
+      }
+      break;
+    }
+
+    /**
+     * Is a printed set of pairs a function? A complete decision procedure, not
+     * a sample: an input that appears twice with two different outputs is the
+     * whole definition, and there is nothing else to check.
+     */
+    case 'relationPairs': {
+      if (item.figure && item.figure.kind === 'curve') {
+        throw new Error('the vertical-line test over a drawn arc is not attempted by this checker');
+      }
+      const pairs = readingsOf(item, c);
+      if (pairs.length < 3) throw new Error('a relation item needs at least three pairs');
+      const seen = new Map();
+      let offender = null;
+      for (const [x, y] of pairs) {
+        const key = rstr(x);
+        if (seen.has(key) && !reqq(seen.get(key), y)) { offender = x; break; }
+        seen.set(key, y);
+      }
+      if (c.want === 'breakingInput') {
+        if (!offender) throw new Error('every input appears once, so no input breaks this relation');
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        if (!reqq(offender, want)) throw new Error(`the input that breaks it is ${rstr(offender)}, not ${item.answer}`);
+      } else {
+        requireVerdict(item, offender ? 'NO' : 'YES', offender
+          ? `the input ${rstr(offender)} has two different outputs`
+          : 'no input has two different outputs');
+      }
+      break;
+    }
+
+    /**
+     * Sequences. `equivalent()` CANNOT be used here and the reason is exact:
+     * it samples at half-integer values, and a letter in an exponent has no
+     * value there. So this kind carries its own sampler, on whole numbers only.
+     */
+    case 'sequence': {
+      const v = c.variable;
+      if (c.form === 'recursive') {
+        const rec = readRecursion(c.statements);
+        for (const st of c.statements) {
+          if (!targetIsThePrompt(item.latex, st)) throw new Error(`"${st}" is not what the prompt displays`);
+        }
+        const at = Number(c.at);
+        const got = runRecursion(rec, at);
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        if (!reqq(got, want)) throw new Error(`the recursion reaches ${rstr(got)} at position ${at}, not ${item.answer}`);
+        break;
+      }
+      const rows = readingsOf(item, c);
+      const rule = sequenceRule(rows);
+      const last = toNum(rows[rows.length - 1][0]);
+      if (c.form === 'term') {
+        const at = Number(c.at);
+        const got = rule.at(at);
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        if (!reqq(got, want)) throw new Error(`this ${rule.kind} sequence reads ${rstr(got)} at position ${at}, not ${item.answer}`);
+        break;
+      }
+      if (c.form !== 'explicit') throw new Error(`unknown sequence form ${c.form}`);
+      refuseDecimal(item.answer);
+      const claimed = parse(String(item.answer));
+      const positions = [...rows.map((r) => toNum(r[0])), last + 1, last + 2, last + 3];
+      for (const n of positions) {
+        const got = atInteger(claimed, v, n);
+        const want = rule.at(n);
+        if (!reqq(got, want)) {
+          throw new Error(`at position ${n} the answer gives ${rstr(got)} but this ${rule.kind} sequence reads ${rstr(want)}`);
+        }
+      }
+      break;
+    }
+
+    /**
+     * A line parallel or at right angles to a printed one, through a printed
+     * point. The rate is derived here, the constant is derived here, and the
+     * point is put back into the learner's own equation — so a rule with the
+     * right rate and the wrong constant cannot pass.
+     */
+    case 'relatedLine': {
+      const vx = c.vars?.[0] || 'x';
+      const vy = c.vars?.[1] || 'y';
+      const { a, b } = coeffs2(c.math, vx, vy);
+      const [x0raw, y0raw] = c.point || [];
+      const x0 = asR(x0raw); const y0 = asR(y0raw);
+      if (!x0 || !y0) throw new Error('a related line needs a printed point to pass through');
+      if (!pointIsOnScreen(item, toNum(x0), toNum(y0))) {
+        throw new Error(`the point (${rstr(x0)}, ${rstr(y0)}) is nowhere on screen`);
+      }
+      let m = null;                       // null means the new line stands upright
+      if (isZero(b)) {
+        if (c.relation === 'parallel') m = null;
+        else m = R(0);
+      } else {
+        const m0 = neg(div(a, b));
+        if (c.relation === 'parallel') m = m0;
+        else if (c.relation === 'perpendicular') {
+          if (isZero(m0)) throw new Error('a line at right angles to a flat line stands upright, which this kind refuses');
+          m = neg(div(R(1), m0));
+        } else throw new Error(`unknown relation ${c.relation}`);
+      }
+      if (m === null) {
+        if (c.want === 'slope') { requireVerdict(item, 'UNDEFINED', 'the new line stands upright'); break; }
+        const canon = `${vx} = ${texOf(x0)}`;
+        if (normalise(item.answer) !== normalise(canon)) {
+          throw new Error(`the upright line is "${canon}" but the answer says "${item.answer}"`);
+        }
+        break;
+      }
+      const bNew = sub(y0, mul(m, x0));
+      if (c.want === 'slope') {
+        const want = fromString(item.answer);
+        if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+        if (!reqq(m, want)) throw new Error(`the ${c.relation} rate is ${rstr(m)} but the answer says ${item.answer}`);
+        break;
+      }
+      if (!String(item.answer).includes('=')) throw new Error('a rule has to be written as an equation');
+      const form = lineFormOf(item.answer, vx, vy);
+      if (c.form && form !== c.form) throw new Error(`this asks for ${c.form} and "${item.answer}" is written as ${form}`);
+      const learner = coeffs2(String(item.answer), vx, vy);
+      if (isZero(learner.b)) throw new Error(`"${item.answer}" draws an upright line, which has no rate`);
+      if (!reqq(neg(div(learner.a, learner.b)), m)) {
+        throw new Error(`the ${c.relation} rate is ${rstr(m)} but "${item.answer}" has rate ${rstr(neg(div(learner.a, learner.b)))}`);
+      }
+      if (!reqq(div(learner.c, learner.b), bNew)) {
+        throw new Error(`the line through the point meets the upright axis at ${rstr(bNew)}, and "${item.answer}" meets it at ${rstr(div(learner.c, learner.b))}`);
+      }
+      // …and separately, the printed point must satisfy the learner's own rule.
+      if (!reqq(add(mul(learner.a, x0), mul(learner.b, y0)), learner.c)) {
+        throw new Error(`"${item.answer}" does not pass through (${rstr(x0)}, ${rstr(y0)})`);
+      }
+      break;
+    }
+
+    /**
+     * An inequality in two unknowns, with no shaded region anywhere.
+     *
+     * The item prints readings ON the boundary, plus one reading off it, and
+     * says of exactly two of them whether they belong to the region. Those two
+     * statements pin the strictness and the side, so the inequality is unique.
+     *
+     * ONE STATEMENT, NOT FOUR GLYPHS. This used to read a private alphabet —
+     * `+` in, `-` out, a filled circle included, an open circle excluded — that
+     * the card never defined and the learner had to already know. Three of the
+     * four options on a `iv-*` card differ ONLY in the relation those glyphs
+     * decide, so a cadet who has not been told what they mean cannot answer at
+     * all, and the source comment defending them said they "are the
+     * convention", which is the definition of a card that teaches nothing.
+     * A row now carries `\in R` or `\notin R` — one statement, about the one
+     * thing that matters, in notation the stem itself introduces.
+     *
+     * WHICH OF THE TWO MARKED ROWS IS WHICH IS NOW GEOMETRY, not vocabulary,
+     * and that is a strengthening rather than a cost: the boundary is fitted
+     * through the readings that carry NO statement, and the marked row that
+     * lands on it is the one that settles the strictness while the marked row
+     * off it is the one that settles the side. A table whose unmarked readings
+     * do not lie on one line, or where both marked readings sit off it, is
+     * refused rather than guessed at.
+     *
+     * The four old glyphs are still read, and `tools/check-solver.mjs` still
+     * plants them. They no longer appear in any shipped item; they are kept
+     * because a checker that stops recognising notation it once accepted turns
+     * a content change into a silent scoring change.
+     */
+    case 'halfPlane': {
+      const vy = c.vars?.[1] || 'y';
+      const cells = parseArrayCells(item.latex);
+      const marked = []; const plain = [];
+      for (const row of cells) {
+        const nums = numericCells(row);
+        if (nums.length !== 2) continue;
+        let say = null;
+        for (const cell of row) {
+          const t = String(cell).replace(/\s+/g, '');
+          if (t === '+' || t === '\\bullet' || t === '\\inR') { say = true; break; }
+          if (t === '-' || t === '\\circ' || t === '\\notinR') { say = false; break; }
+        }
+        if (say === null) { plain.push(nums); continue; }
+        marked.push({ at: nums, inside: say });
+      }
+      if (marked.length !== 2) {
+        throw new Error('a half-plane item says of exactly two readings whether they are in the region');
+      }
+      const { m, b } = fitLineExactly(plain, 'the boundary readings');
+      const offBy = (k) => sub(k.at[1], add(mul(m, k.at[0]), b));
+      const onLine = marked.filter((k) => isZero(offBy(k)));
+      const offLine = marked.filter((k) => !isZero(offBy(k)));
+      if (onLine.length !== 1 || offLine.length !== 1) {
+        throw new Error('the boundary readings do not all sit on one line');
+      }
+      const strict = !onLine[0].inside;
+      const test = offLine[0];
+      // The reading off the boundary sits above the line, or below it; whether
+      // that side IS the region is the other half of what its statement says.
+      const above = offBy(test).n > 0;
+      const regionIsAbove = test.inside ? above : !above;
+      const rel = regionIsAbove ? (strict ? '>' : '\\ge') : (strict ? '<' : '\\le');
+      const canon = halfPlaneTex(vy, rel, m, b);
+      if (normalise(item.answer) !== normalise(canon)) {
+        throw new Error(`the readings give "${canon}" but the answer says "${item.answer}"`);
+      }
+      break;
+    }
+
+    /**
+     * WRITING a pair of rules from two printed data sets. The existing
+     * 'system' kind proves a SOLUTION; it cannot prove that a written pair
+     * describes two tables. This one fits both tables exactly and matches the
+     * learner's two rules against them in either order.
+     */
+    case 'systemWrite': {
+      const vx = c.vars?.[0] || 'x';
+      const vy = c.vars?.[1] || 'y';
+      const blocks = parseArrayBlocks(item.latex);
+      if (blocks.length !== 2) throw new Error('this item shows two tables of readings');
+      const fits = blocks.map((cells, i) => {
+        const pts = [];
+        for (const row of cells) {
+          const nums = numericCells(row);
+          if (!nums.length) continue;
+          if (nums.length !== 2) throw new Error('a table of readings needs exactly two numbers in each row');
+          pts.push(nums);
+        }
+        return fitLineExactly(pts, `table ${i + 1}`);
+      });
+      if (reqq(fits[0].m, fits[1].m) && reqq(fits[0].b, fits[1].b)) {
+        throw new Error('both tables fit the same line, so the pair meets nowhere in particular');
+      }
+      const written = splitTop(String(item.answer), ',').map((t) => t.trim()).filter(Boolean);
+      if (written.length !== 2) throw new Error(`a pair is two rules, and the answer holds ${written.length}`);
+      const got = written.map((e) => coeffs2(e, vx, vy));
+      const det = sub(mul(got[0].a, got[1].b), mul(got[1].a, got[0].b));
+      if (isZero(det)) throw new Error('the two written rules do not meet at one point');
+      const matches = (co, fit) => {
+        if (isZero(co.b)) return false;
+        return reqq(neg(div(co.a, co.b)), fit.m) && reqq(div(co.c, co.b), fit.b);
+      };
+      const straight = matches(got[0], fits[0]) && matches(got[1], fits[1]);
+      const swapped = matches(got[0], fits[1]) && matches(got[1], fits[0]);
+      if (!straight && !swapped) {
+        throw new Error(`the tables fit ${vy} = ${texLine(fits[0].m, fits[0].b)} and ${vy} = ${texLine(fits[1].m, fits[1].b)}, which "${item.answer}" does not`);
+      }
+      for (let i = 0; i < 2; i++) {
+        const fit = straight ? fits[i] : fits[1 - i];
+        const rhs = String(written[i]).split('=').slice(1).join('=').trim();
+        if (rhs && !mentionsVar(parse(rhs), vy) && !equivalent(rhs, texLine(fit.m, fit.b), vx)) {
+          throw new Error(`"${written[i]}" is not the line its table fits`);
+        }
+      }
+      break;
+    }
+
+    /**
+     * Exact least squares, from the readings the learner is shown. Not an
+     * interpolation through three chosen points: the normal equations are
+     * solved by Cramer's rule in exact rationals.
+     */
+    case 'regression': {
+      const pts = readingsOf(item, c);
+      const quad = c.model === 'quadratic';
+      const need = quad ? 5 : 4;
+      if (pts.length < need) throw new Error(`a ${c.model || 'linear'} fit needs at least ${need} readings, and this shows ${pts.length}`);
+      refuseDecimal(item.answer);
+      let fitted;                        // (x) -> exact output
+      let named;                         // the named coefficients
+      if (quad) {
+        const S = (k) => pts.reduce((acc, [x]) => add(acc, rpow(x, k)), R(0));
+        const T = (k) => pts.reduce((acc, [x, y]) => add(acc, mul(rpow(x, k), y)), R(0));
+        const M = [
+          [S(4), S(3), S(2)],
+          [S(3), S(2), S(1)],
+          [S(2), S(1), R(pts.length)],
+        ];
+        const sol = cramer3(M, [T(2), T(1), T(0)]);
+        if (!sol) throw new Error('these readings give a singular normal-equation determinant');
+        const [qa, qb, qc] = sol;
+        named = { a: qa, b: qb, c: qc };
+        fitted = (x) => add(add(mul(qa, mul(x, x)), mul(qb, x)), qc);
+      } else {
+        const { xbar, ybar, sxx, sxy } = fitSums(pts);
+        if (isZero(sxx)) throw new Error('every reading shares one input, so no rate can be fitted');
+        const m = div(sxy, sxx);
+        const b = sub(ybar, mul(m, xbar));
+        named = { slope: m, intercept: b, m, b };
+        fitted = (x) => add(mul(m, x), b);
+      }
+      const want = fromString(item.answer);
+      if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+      let got;
+      if (c.want === 'predict') {
+        const at = asR(c.at);
+        if (!at) throw new Error('a prediction needs an input to make it at');
+        got = fitted(at);
+      } else if (c.want === 'residual') {
+        const at = asR(c.at);
+        if (!at) throw new Error('a residual needs a reading to take it at');
+        const seen = pts.find(([x]) => reqq(x, at));
+        if (!seen) throw new Error(`no reading at ${rstr(at)} is on screen`);
+        got = sub(seen[1], fitted(at));   // observed minus fitted: the sign is part of the answer
+      } else {
+        got = named[c.want];
+        if (!got) throw new Error(`unknown regression ask ${c.want}`);
+      }
+      if (!isSafe(got)) throw new Error('this fit has grown too large to hold exactly');
+      if (!reqq(got, want)) throw new Error(`the exact fit gives ${rstr(got)} but the answer says ${item.answer}`);
+      break;
+    }
+
+    /**
+     * Association strength. THE CHECKER NEVER COMPUTES r: it is a square root
+     * and is irrational for almost every data set. It computes r SQUARED and
+     * the SIGN of r, both exactly, and those two settle every question asked.
+     */
+    case 'correlation': {
+      const pts = readingsOf(item, c);
+      if (pts.length < 5) throw new Error(`a correlation item needs at least five readings, and this shows ${pts.length}`);
+      const { sxx, sxy, syy } = fitSums(pts);
+      if (isZero(sxx) || isZero(syy)) throw new Error('one of the two readings never varies, so there is no association to measure');
+      const r2 = div(mul(sxy, sxy), mul(sxx, syy));
+      const sgn = rsign(sxy);
+      if (c.want === 'direction') {
+        requireVerdict(item, sgn > 0 ? 'POSITIVE' : sgn < 0 ? 'NEGATIVE' : 'NONE',
+          `the readings vary together with sign ${sgn}`);
+        break;
+      }
+      if (c.want === 'strength') {
+        const thr = asR(c.threshold);
+        const guard = asR(c.guard ?? R(1, 100));
+        if (!thr) throw new Error('a strength verdict needs a threshold stated in the item');
+        const gap = sub(r2, thr);
+        if (rcmp(gap.n < 0 ? neg(gap) : gap, guard) < 0) {
+          throw new Error(`r squared is ${rstr(r2)}, too close to the threshold ${rstr(thr)} for a safe verdict`);
+        }
+        requireVerdict(item, rcmp(r2, thr) >= 0 ? 'STRONG' : 'WEAK', `r squared is ${rstr(r2)}`);
+        break;
+      }
+      if (c.want === 'value') {
+        // The item prints a rounded r, as a calculator would. The checker
+        // proves the rounding by squaring the bounds — it still never takes a
+        // square root, and it still never compares decimals.
+        const read = readDecimal(item.answer);
+        if (!read) throw new Error(`"${item.answer}" is not a rounded value this checker can read`);
+        if (rsign(read.value) !== sgn) {
+          throw new Error(`the readings vary with sign ${sgn} and "${item.answer}" claims the other one`);
+        }
+        const half = R(5, 10 ** (read.places + 1));
+        const mag = read.value.n < 0 ? neg(read.value) : read.value;
+        const lo = rcmp(sub(mag, half), R(0)) < 0 ? R(0) : sub(mag, half);
+        const hi = add(mag, half);
+        if (rcmp(mul(lo, lo), r2) > 0 || rcmp(r2, mul(hi, hi)) >= 0) {
+          throw new Error(`r squared is ${rstr(r2)}, which does not round to ${item.answer} at ${read.places} places`);
+        }
+        break;
+      }
+      throw new Error(`unknown correlation ask ${c.want}`);
+    }
+
+    /**
+     * A two-way frequency table. The table is checked against itself first —
+     * every printed total must agree with its own cells — and only then is the
+     * asked frequency re-derived.
+     */
+    case 'twoWayTable': {
+      const grid = [];
+      for (const row of parseArrayCells(item.latex)) {
+        const nums = numericCells(row);
+        if (nums.length) grid.push(nums);
+      }
+      if (grid.length < 2) throw new Error('a two-way table needs at least two rows of numbers');
+      const width = grid[0].length;
+      if (!grid.every((row) => row.length === width)) throw new Error('the table is not rectangular');
+      if (width < 2) throw new Error('a two-way table needs at least two columns of numbers');
+      const bodyRows = grid.length - 1;
+      const bodyCols = width - 1;
+      if (bodyRows < 1 || bodyCols < 1) throw new Error('a two-way table needs a body inside its totals');
+      // Consistency: the printed totals must be the sums of the printed cells.
+      for (let i = 0; i < bodyRows; i++) {
+        let acc = R(0);
+        for (let j = 0; j < bodyCols; j++) acc = add(acc, grid[i][j]);
+        if (!reqq(acc, grid[i][bodyCols])) throw new Error(`row ${i + 1} adds to ${rstr(acc)} but its total says ${rstr(grid[i][bodyCols])}`);
+      }
+      for (let j = 0; j <= bodyCols; j++) {
+        let acc = R(0);
+        for (let i = 0; i < bodyRows; i++) acc = add(acc, grid[i][j]);
+        if (!reqq(acc, grid[bodyRows][j])) throw new Error(`column ${j + 1} adds to ${rstr(acc)} but its total says ${rstr(grid[bodyRows][j])}`);
+      }
+      const grand = grid[bodyRows][bodyCols];
+      if (isZero(grand)) throw new Error('a table with no readings in it has no frequencies');
+      const ri = Number(c.row); const ci = Number(c.col);
+      const rowOk = Number.isInteger(ri) && ri >= 0 && ri < bodyRows;
+      const colOk = Number.isInteger(ci) && ci >= 0 && ci < bodyCols;
+      const needRow = ['joint', 'marginalRow', 'conditionalRow', 'conditionalCol'].includes(c.want);
+      const needCol = ['joint', 'marginalCol', 'conditionalRow', 'conditionalCol'].includes(c.want);
+      if (needRow && !rowOk) throw new Error(`row ${c.row} is outside this table`);
+      if (needCol && !colOk) throw new Error(`column ${c.col} is outside this table`);
+      const cell = () => grid[ri][ci];
+      let num; let den;
+      switch (c.want) {
+        case 'joint': num = cell(); den = grand; break;
+        case 'marginalRow': num = grid[ri][bodyCols]; den = grand; break;
+        case 'marginalCol': num = grid[bodyRows][ci]; den = grand; break;
+        case 'conditionalRow': num = cell(); den = grid[ri][bodyCols]; break;
+        case 'conditionalCol': num = cell(); den = grid[bodyRows][ci]; break;
+        case 'conditional': throw new Error('a conditional frequency must name which way it conditions');
+        default: throw new Error(`unknown frequency ${c.want}`);
+      }
+      if (num == null || den == null) throw new Error('the named row or column is outside the table');
+      if (isZero(den)) throw new Error('this frequency divides by zero');
+      const got = div(num, den);
+      refuseDecimal(item.answer);
+      const want = fromString(item.answer);
+      if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+      const asPercent = c.asPercent ? mul(got, R(100)) : null;
+      if (asPercent && asPercent.d !== 1) throw new Error('this frequency is not an exact percentage');
+      if (!reqq(asPercent || got, want)) {
+        throw new Error(`the table gives ${rstr(asPercent || got)} but the answer says ${item.answer}`);
+      }
+      break;
+    }
+
+    /**
+     * Exponential rules. `equivalent()` cannot check a letter in an exponent —
+     * it samples at half-integers and there is no value there — so this kind
+     * samples on WHOLE numbers only, which for a fixed rational base is a
+     * proof over the inputs the item actually uses.
+     */
+    case 'exponentialFit': {
+      const v = c.variable;
+      if (c.form === 'overtake') {
+        const [ruleA, ruleB] = c.rules || [];
+        if (!ruleA || !ruleB) throw new Error('an overtaking item shows two rules');
+        for (const src of [ruleA, ruleB]) {
+          if (!targetIsThePrompt(item.latex, src)) throw new Error(`"${src}" is not what the prompt displays`);
+        }
+        const A = parse(ruleA); const B = parse(ruleB);
+        const [lo, hi] = (c.range || []).map(Number);
+        if (!Number.isInteger(lo) || !Number.isInteger(hi) || hi <= lo) throw new Error('an overtaking item needs a whole range');
+        let first = null;
+        for (let n = lo; n <= hi && first === null; n++) {
+          if (rcmp(atInteger(A, v, n), atInteger(B, v, n)) > 0) first = n;
+        }
+        if (first === null) throw new Error('the first rule never passes the second inside the printed range');
+        const want = fromString(item.answer);
+        if (!want || !reqq(R(first), want)) throw new Error(`the first rule passes the second at ${first}, not at ${item.answer}`);
+        break;
+      }
+      if (c.form === 'rewrite') {
+        const [ruleA, ruleB] = [c.math, String(item.answer)];
+        const A = parse(ruleA); const B = parse(ruleB);
+        for (let n = 0; n < 12; n++) {
+          const x = atInteger(A, v, n);
+          const y = atInteger(B, v, n);
+          if (!reqq(x, y)) throw new Error(`at ${v} = ${n} the prompt reads ${rstr(x)} and "${item.answer}" reads ${rstr(y)}`);
+        }
+        break;
+      }
+      const pts = readingsOf(item, c);
+      if (pts.length < 3) throw new Error('an exponential item needs at least three readings');
+      for (const [x] of pts) if (x.d !== 1) throw new Error('an exponential rule is sampled at whole inputs only');
+      if (pts.some(([, y]) => isZero(y))) throw new Error('a reading of zero cannot be part of an exponential rule');
+      const ratio = div(pts[1][1], pts[0][1]);
+      if (isZero(ratio) || reqq(ratio, R(1)) || ratio.n < 0) throw new Error('a ratio of zero, one or below zero is not exponential growth');
+      for (let i = 1; i < pts.length; i++) {
+        if (!reqq(sub(pts[i][0], pts[i - 1][0]), R(1))) throw new Error('the printed inputs are not consecutive');
+        if (!reqq(div(pts[i][1], pts[i - 1][1]), ratio)) throw new Error('the printed readings do not share one ratio');
+      }
+      const start = div(pts[0][1], rpow(ratio, pts[0][0].n));    // the value at input zero
+      refuseDecimal(item.answer);
+      if (c.form === 'fit') {
+        const claimed = parse(String(item.answer));
+        for (const [x, y] of pts) {
+          const got = atInteger(claimed, v, x.n);
+          if (!reqq(got, y)) throw new Error(`at ${v} = ${rstr(x)} the answer gives ${rstr(got)} but the table reads ${rstr(y)}`);
+        }
+        break;
+      }
+      const want = fromString(item.answer);
+      if (!want) throw new Error(`answer "${item.answer}" is not an exact value`);
+      const got = c.form === 'start' ? start
+        : c.form === 'factor' ? ratio
+          : c.form === 'percent' ? mul(sub(ratio, R(1)), R(100))
+            : null;
+      if (!got) throw new Error(`unknown exponential form ${c.form}`);
+      if (!reqq(got, want)) throw new Error(`the readings give ${rstr(got)} but the answer says ${item.answer}`);
+      break;
+    }
+
     case 'literal':
       break;
     default:
@@ -3565,6 +4511,24 @@ function texLine(m, b) {
  */
 function pointIsOnScreen(item, x, y) {
   const fig = item.figure;
+  // A DRAWN CURVE. `rift.js` samples `a x^{2} + b x + c` across `range` and
+  // emits one polyline, so the readings on screen are exactly the readings the
+  // rule produces inside that range — no more and no fewer. This branch
+  // therefore ANSWERS rather than falls through: if it fell through, a reading
+  // printed in the prose but nowhere on the drawing would still pass, and the
+  // whole point of the guard is that the checker cannot certify a reading the
+  // drawing does not contain.
+  if (fig && fig.kind === 'curve') {
+    const lo = Number(fig.range?.[0]);
+    const hi = Number(fig.range?.[1]);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return false;
+    if (x < Math.min(lo, hi) || x > Math.max(lo, hi)) return false;
+    const A = asR(fig.a); const B = asR(fig.b); const C = asR(fig.c);
+    if (!A || !B || !C) return false;
+    const X = asR(x); const Y = asR(y);
+    if (!X || !Y) return false;
+    return reqq(add(add(mul(A, mul(X, X)), mul(B, X)), C), Y);
+  }
   if (fig && Array.isArray(fig.points) && fig.points.some((p) => p[0] === x && p[1] === y)) return true;
   const hay = normalise(`${item.latex} ${item.stem || ''}`);
   if (hay.includes(normalise(`\\left(${x},${y}\\right)`))) return true;
@@ -3575,6 +4539,448 @@ function pointIsOnScreen(item, x, y) {
     }
   } catch { /* no table on screen */ }
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// LEVEL 3 re-derivation machinery — the quadratics strand and what it needs.
+//
+// Same commitment as everything above it: nothing here takes a number from a
+// generator. Each routine reads the LaTeX the learner is SHOWN, parses it, and
+// works the answer out again in exact rational arithmetic — widened to exact
+// arithmetic in Q(sqrt k) where, and only where, the mathematics is genuinely
+// irrational. No decimal ever decides anything.
+// ---------------------------------------------------------------------------
+
+/** Anything number-shaped, as an exact rational. Null when it is not. */
+function asR(x) {
+  if (x == null) return null;
+  if (typeof x === 'object' && typeof x.n === 'number' && typeof x.d === 'number') return x;
+  if (typeof x === 'number' && Number.isFinite(x)) { try { return R(x); } catch { return null; } }
+  if (typeof x === 'string') { try { return evaluate(x); } catch { return fromString(x); } }
+  return null;
+}
+
+/** Every value here must be exact. A decimal is a rounded value wearing a mask. */
+function refuseDecimal(src, what = 'the answer') {
+  if (/\d\s*\.\s*\d/.test(String(src))) {
+    throw new Error(`${what} "${src}" is a decimal, and only exact values are accepted`);
+  }
+}
+
+/**
+ * A written radical must be in the form the strand teaches: every radicand a
+ * whole number, every radicand squarefree, and no radical left downstairs.
+ */
+function refuseBadRadical(src, what = 'the answer') {
+  const node = parse(String(src));
+  if (radicalInDenominator(node)) throw new Error(`${what} "${src}" leaves a radical in a denominator`);
+  for (const n of radicandsOf(node)) {
+    if (n === null) throw new Error(`${what} "${src}" has a radicand that is not a whole number`);
+    if (n < 0) throw new Error(`${what} "${src}" has a radicand below zero`);
+    const { m } = simplifySqrt(n);
+    if (m !== 1) throw new Error(`${what} "${src}" leaves \\sqrt{${n}}, which is not in lowest terms`);
+  }
+  return node;
+}
+
+/** The exact values a written answer names, smallest first, after the refusals. */
+function exactValues(src, v = null, what = 'the answer') {
+  refuseDecimal(src, what);
+  for (const part of splitTop(String(src), ',')) {
+    const body = part.includes('=') ? part.slice(part.indexOf('=') + 1) : part;
+    if (body.trim()) refuseBadRadical(body.trim(), what);
+  }
+  return answerValues(src, v);
+}
+
+/** One exact value, or a complaint that the answer names more than one. */
+function exactValue(src, v = null, what = 'the answer') {
+  const all = exactValues(src, v, what);
+  if (all.length !== 1) throw new Error(`${what} "${src}" names ${all.length} values, not one`);
+  return all[0];
+}
+
+/**
+ * Is this how the checker would have spelt that value?
+ *
+ * The set is CLOSED and small: the split spelling, the over-one-denominator
+ * spelling the quadratic formula produces, and for a matched pair the `\pm`
+ * spelling. Anything else is thrown out WITH THE ITEM, before a learner sees
+ * it, which is the safe direction — a rejected item is simply re-drawn.
+ */
+function spellingOk(part, values) {
+  const body = part.includes('=') ? part.slice(part.indexOf('=') + 1) : part;
+  const want = normalise(body);
+  if (values.length === 1) return surdSpellings(values[0]).some((sp) => normalise(sp) === want);
+  if (values.length !== 2) return false;
+  const [lo, hi] = values;
+  if (lo.k !== hi.k || !reqq(lo.p, hi.p) || !reqq(lo.q, neg(hi.q))) return false;
+  const rad = sTex(S(R(0), hi.q, hi.k));
+  const cands = [`${texOf(hi.p)} \\pm ${rad}`];
+  const over = sTexOverOne(hi);
+  const m = /^\\frac\{(.*?)\s*\+\s*(.*)\}\{(\d+)\}$/.exec(over);
+  if (m) cands.push(`\\frac{${m[1]} \\pm ${m[2]}}{${m[3]}}`);
+  if (isZero(hi.p)) cands.push(`\\pm ${rad}`);
+  return cands.some((sp) => normalise(sp) === want);
+}
+
+/** The one spelling this checker prints when it has to name a value itself. */
+function valueTex(x) { return isSurd(x) ? sTex(x) : texOf(x); }
+
+/** Every root, as a value of Q(sqrt k), whatever the solver handed back. */
+function rootsOf(sol) { return (sol.roots || []).map((r) => (isSurd(r) ? r : SR(r))); }
+
+/** `x = -1, x = 4` — the increasing-order spelling a root set is printed in. */
+function rootSetTex(v, roots) { return roots.map((r) => `${v} = ${valueTex(r)}`).join(', '); }
+
+/**
+ * Prove a claimed root set against the equation it came from.
+ *
+ * Three separate things are required, and the SUBSTITUTION is the proof:
+ * the claimed values must be the solver's values, they must be printed
+ * smallest first, and each of them must make `a x^{2} + b x + c` exactly zero.
+ * A root that is out by one fails the third test whatever the first two say.
+ */
+function proveRootSet(item, c, sol, v) {
+  const roots = rootsOf(sol);
+  const claimedParts = splitTop(String(item.answer), ',').map((t) => t.trim()).filter(Boolean);
+  const claimed = exactValues(item.answer, v);
+  if (claimed.length !== roots.length) {
+    throw new Error(`this equation has ${roots.length} solution(s) but the answer names ${claimed.length}`);
+  }
+  for (let i = 0; i < roots.length; i++) {
+    if (!sEq(claimed[i], roots[i])) {
+      throw new Error(`the solutions are ${rootSetTex(v, roots)} but the answer says "${item.answer}"`);
+    }
+  }
+  // Printed order. The values above are sorted; these are as they were written.
+  const written = [];
+  for (const part of claimedParts) for (const val of exactValues(part, v)) written.push(val);
+  for (let i = 1; i < written.length; i++) {
+    if (sCmp(written[i - 1], written[i]) > 0) {
+      throw new Error(`the answer "${item.answer}" prints its solutions out of order; smallest first is ${rootSetTex(v, roots)}`);
+    }
+  }
+  if (c.spelling !== 'any') {
+    for (const part of claimedParts) {
+      const vals = exactValues(part, v);
+      if (!spellingOk(part, vals)) {
+        throw new Error(`"${part.trim()}" is not the spelling this checker uses; it writes ${rootSetTex(v, roots)}`);
+      }
+    }
+  }
+  // THE PROOF. Every claimed value goes back into the printed equation.
+  for (const r of claimed) {
+    const out = sAdd(sAdd(sMul(SR(sol.a), sPow(r, 2)), sMul(SR(sol.b), r)), SR(sol.c));
+    if (!sIsZero(out)) throw new Error(`putting ${sTex(r)} back into the equation leaves ${sTex(out)}, not zero`);
+  }
+  return roots;
+}
+
+/** `\left(3, -4\right)` — a written pair, as two exact values. Null when it is not one. */
+function exactPair(src) {
+  const t = String(src).trim().replace(/^\\left\(/, '(').replace(/\\right\)$/, ')');
+  if (!t.startsWith('(') || !t.endsWith(')')) return null;
+  const parts = splitTop(t.slice(1, -1), ',');
+  if (parts.length !== 2) return null;
+  try { return parts.map((piece) => evaluate(piece.trim())); } catch { return null; }
+}
+
+/**
+ * The factors of a written product. A squared bracket counts as its base
+ * twice, which is what makes `(x + 3)^{2}` a product of two linear factors
+ * rather than one opaque node.
+ */
+function flattenProduct(node) {
+  if (node.k === 'mul') return [...flattenProduct(node.a), ...flattenProduct(node.b)];
+  if (node.k === 'neg') return [{ k: 'num', v: -1 }, ...flattenProduct(node.a)];
+  if (node.k === 'pow') {
+    let e;
+    try { e = evalAst(node.b, {}); } catch { return [node]; }
+    if (e.d === 1 && e.n >= 1 && e.n <= 4) {
+      const out = [];
+      for (let i = 0; i < e.n; i++) out.push(...flattenProduct(node.a));
+      return out;
+    }
+  }
+  return [node];
+}
+
+/**
+ * Is this written as `a(v + h)^{2} + k`?
+ *
+ * The standard form is IDENTICALLY EQUAL to the vertex form, so the identity
+ * check alone would credit a learner who changed nothing. This is the half
+ * that will not.
+ */
+function vertexShape(node, v) {
+  const isConst = (n) => !mentionsVar(n, v);
+  let core = node;
+  let sign = 1;
+  if (core.k === 'add' || core.k === 'sub') {
+    if (isConst(core.b)) core = core.a;
+    else if (isConst(core.a) && core.k === 'add') core = core.b;
+    else throw new Error('vertex form adds one constant to one squared bracket');
+  }
+  while (core.k === 'neg') { core = core.a; sign = -sign; }
+  if (core.k === 'mul') {
+    if (isConst(core.a)) core = core.b;
+    else if (isConst(core.b)) core = core.a;
+    else throw new Error('vertex form multiplies the squared bracket by one constant');
+  }
+  while (core.k === 'neg') { core = core.a; sign = -sign; }
+  if (core.k === 'div') {
+    if (!isConst(core.b)) throw new Error('vertex form does not divide by the letter');
+    core = core.a;
+  }
+  while (core.k === 'neg') { core = core.a; sign = -sign; }
+  if (core.k !== 'pow') throw new Error('vertex form needs one squared bracket');
+  const e = evalAst(core.b, {});
+  if (e.d !== 1 || e.n !== 2) throw new Error('the bracket in vertex form is squared');
+  const lin = linearize(core.a, v);
+  if (isZero(lin.a)) throw new Error(`the squared bracket does not use ${v}`);
+  return { sign, base: core.a };
+}
+
+/** A verdict answer is a token, not a word: the word is localised, the token is not. */
+function verdictOf(item) { return String(item.answerKind ?? item.answer).trim().toUpperCase(); }
+function requireVerdict(item, want, why) {
+  const got = verdictOf(item);
+  if (got !== want) throw new Error(`${why}, so the answer should be ${want} and it says ${got}`);
+}
+
+/** Coefficients of a printed RULE, read twice and confirmed, exactly as the equation route is. */
+function ruleCoeffs(src, v) {
+  const node = parse(src);
+  const cs = polynomialise(node, v, 2);
+  const a = cs[2] || R(0); const b = cs[1] || R(0); const k = cs[0] || R(0);
+  const f = (t) => evalAst(node, { [v]: t });
+  if (!reqq(f(R(0)), k)) throw new Error('the rule does not read back at zero');
+  for (const t of [1, -1, 2, 3]) {
+    const want = add(add(mul(a, R(t * t)), mul(b, R(t))), k);
+    if (!reqq(f(R(t)), want)) throw new Error('a higher power is hiding in the notation');
+  }
+  return { a, b, c: k, node, degree: polyDegree(cs) };
+}
+
+/** Does the rule accept every real number? Decided by STRUCTURE, never by sampling. */
+function acceptsEveryReal(node, v) {
+  let ok = true;
+  walkAst(node, (n) => {
+    if (n.k === 'sqrt') ok = false;
+    if (n.k === 'div' && mentionsVar(n.b, v)) ok = false;
+  });
+  return ok;
+}
+
+/** Is this exact value printed anywhere the learner can read it? */
+function valueIsOnScreen(item, r) {
+  const hay = normalise(`${item.latex || ''} ${item.stem || ''}`);
+  for (const sp of [texOf(r), rstr(r), String(toNum(r))]) if (hay.includes(normalise(sp))) return true;
+  return false;
+}
+
+/** Only cells that are exact numbers. A header of letters contributes none. */
+function numericCells(row) {
+  const out = [];
+  for (const cell of row) {
+    let r;
+    try { r = evaluate(cell); } catch { continue; }
+    out.push(r);
+  }
+  return out;
+}
+
+/**
+ * The readings this item SHOWS — off the plotted points, or off the printed
+ * table. Never off a data array a generator kept to one side.
+ */
+function readingsOf(item, c) {
+  if (Array.isArray(item.figure?.points) && item.figure.points.length) {
+    return item.figure.points.map((p) => [R(p[0]), R(p[1])]);
+  }
+  const cells = parseArrayCells(item.latex);
+  if (c.layout === 'rows') {
+    const rows = cells.map(numericCells).filter((r) => r.length);
+    if (rows.length !== 2) throw new Error('a table laid out in rows needs exactly two rows of numbers');
+    if (rows[0].length !== rows[1].length) throw new Error('the two rows of the table are different lengths');
+    return rows[0].map((x, i) => [x, rows[1][i]]);
+  }
+  const out = [];
+  for (const row of cells) {
+    const nums = numericCells(row);
+    if (!nums.length) continue;
+    if (nums.length !== 2) throw new Error('a table of readings needs exactly two numbers in each row');
+    out.push(nums);
+  }
+  return out;
+}
+
+/** The exact line through a set of readings, refusing a set that is not on one. */
+function fitLineExactly(pts, why = 'the readings') {
+  if (pts.length < 2) throw new Error(`${why} are too few to fix a line`);
+  const [x1, y1] = pts[0];
+  let second = -1;
+  for (let i = 1; i < pts.length; i++) if (!reqq(pts[i][0], x1)) { second = i; break; }
+  if (second < 0) throw new Error(`${why} all share one input, which draws an upright line`);
+  const [x2, y2] = pts[second];
+  const m = div(sub(y2, y1), sub(x2, x1));
+  const b = sub(y1, mul(m, x1));
+  for (const [x, y] of pts) {
+    if (!reqq(add(mul(m, x), b), y)) throw new Error(`${why} do not all sit on one line`);
+  }
+  return { m, b };
+}
+
+/** The sums an exact least-squares fit is built from. */
+function fitSums(pts) {
+  const n = R(pts.length);
+  let sx = R(0); let sy = R(0);
+  for (const [x, y] of pts) { sx = add(sx, x); sy = add(sy, y); }
+  const xbar = div(sx, n); const ybar = div(sy, n);
+  let sxx = R(0); let sxy = R(0); let syy = R(0);
+  for (const [x, y] of pts) {
+    const dx = sub(x, xbar); const dy = sub(y, ybar);
+    sxx = add(sxx, mul(dx, dx));
+    sxy = add(sxy, mul(dx, dy));
+    syy = add(syy, mul(dy, dy));
+  }
+  for (const q of [xbar, ybar, sxx, sxy, syy]) {
+    if (!isSafe(q)) throw new Error('these readings are too large to fit exactly');
+  }
+  return { n, xbar, ybar, sxx, sxy, syy };
+}
+
+/** Three unknowns, by Cramer's rule, in exact rationals. Null when singular. */
+function cramer3(M, rhs) {
+  const det3 = (A) => sub(
+    add(mul(A[0][0], sub(mul(A[1][1], A[2][2]), mul(A[1][2], A[2][1]))),
+      mul(A[0][2], sub(mul(A[1][0], A[2][1]), mul(A[1][1], A[2][0])))),
+    mul(A[0][1], sub(mul(A[1][0], A[2][2]), mul(A[1][2], A[2][0]))),
+  );
+  const D = det3(M);
+  if (isZero(D)) return null;
+  const out = [];
+  for (let col = 0; col < 3; col++) {
+    const A = M.map((row, i) => row.map((cell, j) => (j === col ? rhs[i] : cell)));
+    out.push(div(det3(A), D));
+  }
+  for (const q of out) if (!isSafe(q)) throw new Error('this fit has grown too large to hold exactly');
+  return out;
+}
+
+/** A printed decimal, read by this checker's own reader, as an exact rational. */
+function readDecimal(src) {
+  const m = /^\s*(-?)\s*(\d+)\.(\d+)\s*$/.exec(String(src));
+  if (!m) return null;
+  const places = m[3].length;
+  if (places > 9) return null;
+  const scale = 10 ** places;
+  const mag = R(Number(m[2]) * scale + Number(m[3]), scale);
+  return { value: m[1] === '-' ? neg(mag) : mag, places };
+}
+
+/** Which of the three written forms of a line is this? */
+function lineFormOf(src, vx, vy) {
+  const at = String(src).indexOf('=');
+  if (at < 0) return 'other';
+  const lhs = String(src).slice(0, at).trim();
+  const rhs = String(src).slice(at + 1).trim();
+  let ln; let rn;
+  try { ln = parse(lhs); rn = parse(rhs); } catch { return 'other'; }
+  const lHasX = mentionsVar(ln, vx); const lHasY = mentionsVar(ln, vy);
+  const rHasX = mentionsVar(rn, vx); const rHasY = mentionsVar(rn, vy);
+  if (lHasY && !lHasX && !rHasY && rHasX) {
+    // y = ... is slope-intercept; y - 3 = ... is point-slope.
+    return ln.k === 'var' ? 'slopeIntercept' : 'pointSlope';
+  }
+  if (lHasX && lHasY && !rHasX && !rHasY) return 'standard';
+  return 'other';
+}
+
+/** The one spelling a written inequality in two unknowns is compared through. */
+function halfPlaneTex(vy, rel, m, b) { return `${vy} ${rel} ${texLine(m, b)}`; }
+
+/** Evaluate a rule at a WHOLE-number input only. Half-integers are why `equivalent` cannot be used here. */
+function atInteger(node, v, n) {
+  if (!Number.isInteger(n)) throw new Error(`${n} is not a whole position`);
+  return evalAst(node, { [v]: R(n) });
+}
+
+/** The two admissible shapes of a printed recursion, and nothing else. */
+const RECUR_NUM = String.raw`(?:-?\d+|-?\\frac\{\d+\}\{\d+\}|\\frac\{-\d+\}\{\d+\})`;
+const RECUR_START = new RegExp(`^([a-zA-Z])(?:\\\\left)?\\(1(?:\\\\right)?\\)=(${RECUR_NUM})$`);
+const RECUR_STEP_ADD = new RegExp(`^([a-zA-Z])(?:\\\\left)?\\(([a-zA-Z])(?:\\\\right)?\\)=\\1(?:\\\\left)?\\(\\2-1(?:\\\\right)?\\)([+-])(${RECUR_NUM})$`);
+const RECUR_STEP_MUL = new RegExp(`^([a-zA-Z])(?:\\\\left)?\\(([a-zA-Z])(?:\\\\right)?\\)=(${RECUR_NUM})\\\\cdot \\1(?:\\\\left)?\\(\\2-1(?:\\\\right)?\\)$`);
+
+function readRecursion(statements) {
+  if (!Array.isArray(statements) || statements.length !== 2) {
+    throw new Error('a recursion is printed as exactly two statements');
+  }
+  const flat = statements.map((t) => normalise(t).replace(/\\cdot/g, '\\cdot '));
+  let start = null; let step = null;
+  for (const t of flat) {
+    const a = RECUR_START.exec(t);
+    if (a) { start = { name: a[1], value: evaluate(a[2]) }; continue; }
+    const b = RECUR_STEP_ADD.exec(t);
+    if (b) { step = { name: b[1], v: b[2], kind: 'add', by: b[3] === '-' ? neg(evaluate(b[4])) : evaluate(b[4]) }; continue; }
+    const cM = RECUR_STEP_MUL.exec(t);
+    if (cM) { step = { name: cM[1], v: cM[2], kind: 'mul', by: evaluate(cM[3]) }; continue; }
+    throw new Error(`"${t}" is not one of the two recursion shapes this checker reads`);
+  }
+  if (!start || !step) throw new Error('a recursion needs a first term and one step rule');
+  if (start.name !== step.name) throw new Error('the two statements name different rules');
+  if (step.kind === 'add' && isZero(step.by)) throw new Error('a step of zero is not a sequence to find');
+  if (step.kind === 'mul' && (isZero(step.by) || reqq(step.by, R(1)))) {
+    throw new Error('a ratio of zero or one is not a sequence to find');
+  }
+  return { start, step };
+}
+
+/** Run a printed recursion forward, in exact rational arithmetic. */
+function runRecursion(rec, at) {
+  if (!Number.isInteger(at) || at < 1) throw new Error(`${at} is not a whole position above zero`);
+  if (at > 400) throw new Error('that position is too far along to work out exactly');
+  let v = rec.start.value;
+  for (let i = 2; i <= at; i++) {
+    v = rec.step.kind === 'add' ? add(v, rec.step.by) : mul(v, rec.step.by);
+    if (!isSafe(v)) throw new Error('this sequence has grown too large to hold exactly');
+  }
+  return v;
+}
+
+/**
+ * The nth-term rule of a printed list, derived rather than looked up.
+ * A list that is neither arithmetic nor geometric is refused outright.
+ */
+function sequenceRule(rows) {
+  if (rows.length < 3) throw new Error('a sequence needs at least three printed terms');
+  const pos = rows.map((r) => r[0]);
+  const val = rows.map((r) => r[1]);
+  for (const q of pos) if (q.d !== 1) throw new Error('a position must be a whole number');
+  for (let i = 1; i < pos.length; i++) {
+    if (!reqq(sub(pos[i], pos[i - 1]), R(1))) throw new Error('the printed positions are not consecutive');
+  }
+  const d = sub(val[1], val[0]);
+  let arithmetic = !isZero(d);
+  for (let i = 1; i < val.length && arithmetic; i++) if (!reqq(sub(val[i], val[i - 1]), d)) arithmetic = false;
+  if (arithmetic) {
+    return { kind: 'arithmetic', at: (n) => add(val[0], mul(d, sub(R(n), pos[0]))) };
+  }
+  if (val.some(isZero)) throw new Error('the printed terms are neither arithmetic nor geometric');
+  const q = div(val[1], val[0]);
+  if (isZero(q) || reqq(q, R(1))) throw new Error('a ratio of zero or one is not a sequence to find');
+  for (let i = 1; i < val.length; i++) {
+    if (!reqq(div(val[i], val[i - 1]), q)) throw new Error('the printed terms are neither arithmetic nor geometric');
+  }
+  return {
+    kind: 'geometric',
+    at: (n) => {
+      const step = sub(R(n), pos[0]);
+      if (step.d !== 1) throw new Error('a position must be a whole number');
+      return mul(val[0], rpow(q, step.n));
+    },
+  };
 }
 
 /** Every worked line of an inequality must describe the same solution set. */
@@ -3871,61 +5277,351 @@ function finalize(raw, meta) {
     if (!item.distractors.includes(dd)) item.distractors.push(dd);
   }
   if (item.distractors.length < 3) throw new Error('not enough usable distractors');
-  balanceLength(item);
+  balanceShape(item);
+  quoteReadings(item, raw, T);
 
   return item;
 }
 
 /**
- * Take the length cue off the table.
+ * WHICH READINGS THE SENTENCE QUOTES, AND WHY THE CARD DECIDES IT RATHER THAN
+ * THE FORM.
  *
- * A wrong answer is usually the right answer with something extra done to it,
- * so wrong answers drift longer and the key ends up the shortest string in the
- * set. Measured across the whole bank, "pick the shortest" was decisive on
- * roughly half the choice items and right 39% of the time against a 25%
- * baseline — a free 14 points for a learner who has read nothing but the
- * lengths, on a gate that everything downstream is unlocked behind.
+ * A `dispute` form puts two readings in the stem — "One cadet chalks $x > 4$.
+ * Another chalks $x < 4$." — and then asks which reading is true. It is a good
+ * item and it was handing the answer over, in twelve framings and three
+ * locales, because the two quoted readings were written by hand as
  *
- * So once the three are chosen for their *meaning*, the set is repaired for
- * its *shape*: if the key is the unique shortest option, one distractor is
- * swapped for a recognisable error that is no longer than the key, and the
- * same the other way for the unique longest. The swap only ever draws from
- * `diagnostics` — every option is still a wrong value this item can explain —
- * and it will not spend a misconception the set already carries unless there
- * is nothing else to spend. Where the bank cannot repair a set, it is left
- * alone rather than filled with an unexplainable option.
+ *     { a: THE ANSWER, b: the first distractor }
+ *
+ * and every one of the twelve sentences prints `{a}` first. So "take the
+ * reading the sentence names FIRST" was right 100% of the time on the
+ * four-option card, and on `rule-from-table/rft-dispute`, which lands on a FREE
+ * KEYPAD with no option set at all, a cadet who typed the first number in the
+ * sentence sealed the card with nothing whatever. 171 route cards.
+ *
+ * The two readings cannot be chosen when the form is built, because what the
+ * card will SHOW is not decided until `balanceShape` has run. So they are
+ * chosen here, and the rule is different on the two surfaces for a reason that
+ * is not a preference:
+ *
+ *   · A CARD THAT SHOWS ITS OPTIONS quotes two of the FOUR IT SHOWS, drawn
+ *     uniformly. Then the key is quoted exactly half the time and is quoted
+ *     first exactly a quarter of the time, so "pick a quoted one", "pick the
+ *     first quoted one" and "strike the quoted ones" are each worth 1/4 —
+ *     which is chance. Quoting only wrong readings would be worse than the
+ *     defect: "strike the two the sentence names" would leave two options and
+ *     be worth 1/2.
+ *
+ *   · A FREE KEYPAD has no option set, so there is nothing for a quoted
+ *     reading to be one of, and any rate at which the sentence prints the
+ *     answer is a rate at which a cadet types it without doing anything. So it
+ *     quotes two readings that are NEVER the key. Eliminating two numbers out
+ *     of every number there is buys nothing, which is exactly the point.
+ *     They are also drawn from BEYOND the two the narrowed field will show, so
+ *     that a cadet who misses twice does not then meet a three-option field
+ *     with the two struck readings in it.
+ *
+ * A form opts in by returning `quote: { ctx, ask, vars }` instead of writing
+ * its own stem; `a` and `b` are filled in here.
  */
-function balanceLength(item) {
-  const len = (x) => String(x).replace(/\\left|\\right|\\;|\\,|\s+/g, '').length;
-  const key = len(item.answer);
-
-  const repair = (want) => {
-    // want: -1 => need an option no longer than the key, +1 => no shorter
-    const ok = (n) => (want < 0 ? n <= key : n >= key);
-    if (item.distractors.some((dd) => ok(len(dd.value)))) return;
-    const held = new Set(item.distractors.map((dd) => dd.misconception));
-    const pool = item.diagnostics.filter((dd) => !item.distractors.includes(dd) && ok(len(dd.value)));
-    if (!pool.length) return;
-    // A new misconception is worth more than a second helping of one already
-    // on screen; among equals, the option closest to the key's own length.
-    pool.sort((a, b) => (held.has(a.misconception) - held.has(b.misconception))
-      || (Math.abs(len(a.value) - key) - Math.abs(len(b.value) - key)));
-    // Drop the option furthest from the key in the wrong direction, keeping
-    // one of each misconception for as long as possible.
-    const dupes = item.distractors.filter((dd) => item.distractors.filter((x) => x.misconception === dd.misconception).length > 1);
-    const droppable = dupes.length ? dupes : item.distractors;
-    const out = droppable.slice().sort((a, b) => (want < 0 ? len(b.value) - len(a.value) : len(a.value) - len(b.value)))[0];
-    item.distractors[item.distractors.indexOf(out)] = pool[0];
-  };
-
-  repair(-1);
-  repair(+1);
+function quoteReadings(item, raw, T) {
+  const q = raw.quote;
+  if (!q) return;
+  const shown = shownWidth(item) === 4;
+  const pool = shown
+    ? [String(item.answer), ...item.distractors.map((dd) => String(dd.value))]
+    : (item.diagnostics || []).map((dd) => String(dd.value))
+      .filter((x) => !item.distractors.slice(0, 2).some((dd) => String(dd.value) === x));
+  if (pool.length < 2) return;
+  // Drawn off the card's own hash, never off which one is the key.
+  const h = shapeMix(`${item.skill}|${item.form}|${item.difficulty}|${item.seed}|quote`);
+  const i = h % pool.length;
+  const j = (i + 1 + (Math.floor(h / pool.length) % (pool.length - 1))) % pool.length;
+  // The framing decides its own notation — every `disp*` sentence already
+  // writes `${a}$` — so what is handed over is the reading exactly as the card
+  // prints it, and nothing here adds a delimiter.
+  // WHAT THE SENTENCE QUOTES, ON THE ITEM. `tools/check-language.mjs` refuses a
+  // numeral in a stem that the mathematics never uses, and on a dispute card
+  // the quoted readings ARE the question — so the item has to be able to say
+  // which numbers those are. It used to be inferred from the stem printing the
+  // answer, which is the very thing this function exists to stop doing.
+  item.quoted = [pool[i], pool[j]];
+  item.stem = `${T(q.ctx, { ...(q.vars || {}), a: pool[i], b: pool[j] })} ${T(q.ask)}`;
 }
 
+/**
+ * THE KEY'S SHAPE MUST NOT DEPEND ON ITS BEING THE KEY — ON THE SURFACE THIS
+ * CARD IS ACTUALLY SHOWN ON.
+ *
+ * WHAT THIS REPLACED, TWICE, AND WHY NEITHER REPLACEMENT WAS A REVERT.
+ *
+ * Wrong answers drift longer than right ones, so the key used to end up the
+ * shortest string in the set: "pick the shortest" was decisive on roughly half
+ * the choice items and right 39% of the time against a 25% baseline. The first
+ * repair — `balanceLength` — guaranteed the key was never the unique shortest
+ * option and never the unique longest one. It worked, and that is exactly what
+ * was wrong with it: a cue right 39% of the time is a weak cue, a cue right 0%
+ * of the time is a PERFECT ELIMINATION RULE, and the sandwich turned the first
+ * into the second — 2.0% shortest, 0.3% longest, and a cadet who reads no
+ * mathematics first-picking 30.9% against 25%.
+ *
+ * The second repair DREW the key's place instead of clamping it, and weighted
+ * the draw against the catalogue's own lean with two hand-set vectors. That was
+ * the right shape and the wrong measurement. The weights were fitted to a
+ * number averaged over 89,994 cards — and only 26,436 of those are cards a
+ * learner is ever shown a set of options on. The other 63,558 go to a keypad, a
+ * beam, a sorter, a field or a coordinate plane, where the option list is never
+ * drawn at all. So the freedom was being spent on cards nobody chooses between,
+ * the aggregate read 26.31% and printed PASS, and the surfaces a learner really
+ * meets read 31.6% (the four-option card), 41.6% (the narrowed field) and 50.0%
+ * (the special-answer card).
+ *
+ * THE RULE THIS FILE NOW HOLDS. Not "the key is never extreme", not "the key is
+ * sometimes extreme", and not "on average over everything": **on each surface a
+ * learner is shown, every cue an eye can read must be worth exactly what chance
+ * is worth, and no more.** A cue that never fires leaks nothing; a cue that
+ * fires must name the key 1/k of the time.
+ *
+ * HOW, IN FOUR STEPS.
+ *
+ * 1. WHICH SET IS SHOWN. `shownWidth` answers it with the same predicate
+ *    `RiftPanel._mount` routes on: a card whose type is `special`, whose check
+ *    is an `equationChoice`, or whose display carries a box glyph goes to the
+ *    four-option card and shows all three distractors. Everything else lands on
+ *    a keypad, and the only option set it will ever draw is the NARROWED FIELD
+ *    — the key and the FIRST TWO distractors, after two honest misses. So a
+ *    keypad card spends its freedom on the three-option field and a choice card
+ *    spends it on the four-option card, and neither wastes it on the other.
+ *    `tools/critic/choiceshape.mjs` does not trust this predicate: it cuts the
+ *    real routing chain out of `src/ui/rift.js` and executes it, so if the two
+ *    ever disagree the gate says so on the next build.
+ *
+ * 2. WHAT AN EYE CAN READ. Two counts — the printed length and the digit count
+ *    — and six written features: a leading minus, a fraction bar, a relation
+ *    sign, words, a letter, a radical. `words` is here because of the
+ *    special-answer card, where the key is a PHRASE: two of its four options
+ *    used to be bare numbers, so "strike every bare number" first-picked 50.00%
+ *    against 25% and cleared a three-item proving run at 12.5% against 1.56%.
+ *
+ * 3. WHAT THE CARD IS ASKED FOR. For every cue, each candidate set gives one of
+ *    three outcomes: the cue names the KEY, the cue names a distractor (OTHER),
+ *    or the cue does not fire at all (NONE). The target is drawn per card from
+ *    what this card's own catalogue can actually reach — `shapeTarget` — and
+ *    the policy is the whole of the correction:
+ *
+ *      · both KEY and OTHER reachable → KEY with probability 1/k, else OTHER.
+ *        The cue fires, and over the population it names the key exactly at
+ *        chance. This is the case that matters and it needs no constants.
+ *      · KEY unreachable → ask for NONE if the catalogue can give it. A cue
+ *        that never fires cannot be an elimination rule, which is the honest
+ *        answer to a one-sided catalogue and the one the old weights were
+ *        approximating with a hand-set 8.
+ *      · OTHER unreachable → likewise NONE, so a cue that can only ever name
+ *        the key is silenced rather than left pointing at it.
+ *
+ *    That policy is LOCAL. It needs no measurement of the bank, so it cannot go
+ *    stale when the bank changes, which is what happened to the two weight
+ *    vectors it replaces.
+ *
+ * 4. WHICH SET IS TAKEN. Ten cues cannot all be satisfied by one set of three
+ *    options drawn from a catalogue of six, so the cues are put in a per-card
+ *    drawn order and the set matching the longest prefix of that order wins.
+ *    Every cue is first on 1/10 of cards, so no cue is systematically the one
+ *    that gets given up.
+ *
+ * WHAT IT WILL NOT TRADE. Every option still comes from `diagnostics`, so it is
+ * still a wrong value this item can recognise and name. The set still carries
+ * as many distinct misconceptions as the catalogue can give it — a hard filter
+ * applied before shape is looked at, so a choice is never two shades of one
+ * error in order to hit a target — and on a keypad card the TWO readings the
+ * narrowed field will show carry two distinct misconceptions wherever the
+ * catalogue has two to give.
+ */
+const SHAPE_POOL_CAP = 12;
+
+/**
+ * WHICH OPTION SET THIS CARD WILL ACTUALLY PUT ON SCREEN, and how wide it is.
+ *
+ * The predicate is `RiftPanel._mount`'s, in the same order and for the same
+ * reason: a `special` answer, an `equationChoice`, or a box glyph in the
+ * display sends the card to `_choice`, which shows the key and all three
+ * distractors. Every other card lands on the keypad, whose only option set is
+ * the narrowed field — the key and the FIRST TWO distractors, drawn after two
+ * honest misses.
+ *
+ * A card that goes to the beam, the sorter, the area field or the coordinate
+ * plane shows no option set at all; it is handled here as a keypad card,
+ * because balancing a set nobody sees costs nothing, and guessing which of
+ * those four surfaces will take it would mean keeping a copy of four DOM
+ * builders in this file.
+ *
+ * `tools/critic/choiceshape.mjs` does not trust this predicate: it cuts the
+ * real routing chain out of `src/ui/rift.js` and executes it, so if the two
+ * ever disagree the gate says so on the next build.
+ */
+function shownWidth(item) {
+  const choice = item.type === 'special'
+    || item.check?.kind === 'equationChoice'
+    || (item.latex && /\\square/.test(item.latex));
+  return choice ? 4 : 3;
+}
+
+/**
+ * Balance the option set this card will actually be shown as.
+ *
+ * Leaves `item.distractors` as three tagged wrong values, in the order the
+ * surfaces read them: `_choice` shows all three, `_narrow` shows the first two.
+ */
+function balanceShape(item) {
+  const pool = (item.diagnostics || []).slice(0, SHAPE_POOL_CAP);
+  const n = pool.length;
+  if (n < 3) return;
+  const width = shownWidth(item);
+  const M = pool.map((dd) => dd.misconception);
+
+  // Every trio the catalogue can offer, cut down to the ones carrying the most
+  // distinct misconceptions. That cut happens BEFORE shape is looked at:
+  // meaning is not spent on shape. On a keypad card the ORDER matters too — the
+  // narrowed field shows the first two — so each trio is offered in its three
+  // rotations, and a rotation whose two leading readings are two shades of one
+  // error is dropped wherever the catalogue has two to give.
+  const trios = [];
+  let bestMis = 0;
+  for (let a = 0; a < n - 2; a++) {
+    for (let b = a + 1; b < n - 1; b++) {
+      for (let c = b + 1; c < n; c++) {
+        const dist = new Set([M[a], M[b], M[c]]).size;
+        if (dist > bestMis) bestMis = dist;
+        trios.push({ o: [a, b, c], dist, near: a + b + c });
+      }
+    }
+  }
+  const cand = [];
+  let bestLead = 0;
+  for (const t of trios) {
+    if (t.dist !== bestMis) continue;
+    if (width === 4) { cand.push({ o: t.o, near: t.near, lead: 2 }); continue; }
+    const [a, b, c] = t.o;
+    for (const o of [[a, b, c], [a, c, b], [b, c, a]]) {
+      const lead = M[o[0]] === M[o[1]] ? 1 : 2;
+      if (lead > bestLead) bestLead = lead;
+      cand.push({ o, near: t.near, lead });
+    }
+  }
+  const live = width === 4 ? cand : cand.filter((x) => x.lead === bestLead);
+  if (!live.length) return;
+
+  const key = String(item.answer);
+  const salt = `${item.skill}|${item.form}|${item.difficulty}|${item.seed}|${key}`;
+  const at = balancedPick(key, live.map((x) => ({
+    show: x.o.slice(0, width - 1).map((i) => String(pool[i].value)),
+    rank: x.near,
+  })), salt);
+  let take = live[at];
+
+  /* THE THIRD READING ON A KEYPAD CARD IS NOT SHOWN, AND IS STILL WORTH
+     CHOOSING WELL. The narrowed field draws the key and the first two, so the
+     two above decide the surface a learner meets and the third is free. It is
+     spent on the four-option set anyway — the one `tools/validate-items.mjs`
+     sweeps — because a free choice left to fall out of the catalogue does not
+     stay neutral: it fell to "the longest option is the key 0.8% of the time",
+     which is a perfect elimination rule on a set nobody is shown today and a
+     real one the moment anything shows it. It costs nothing: only sets that
+     already give the narrowed field exactly what it asked for are considered. */
+  if (width === 3) {
+    const lead = `${take.o[0]},${take.o[1]}`;
+    const same = live.filter((x) => `${x.o[0]},${x.o[1]}` === lead);
+    if (same.length > 1) {
+      const j = balancedPick(key, same.map((x) => ({
+        show: x.o.map((i) => String(pool[i].value)), rank: x.near,
+      })), `${salt}|spare`);
+      take = same[j];
+    }
+  }
+  item.distractors = take.o.map((i) => pool[i]);
+}
+
+/**
+ * THE FOUR READINGS OF A STATEMENT, AND WHY EVERY ONE OF THEM CAN BE THE KEY.
+ *
+ * THREE ROUNDS OF THE SAME DEFECT, AND WHAT THEY ALL MISSED.
+ *
+ * A special-answer card asks which reading of the statement is true. Round one:
+ * the key was a phrase and its wrong readings were BARE NUMBERS, so "strike
+ * every bare number" left two readings, one of which was always the key —
+ * 50.00% against 25%. Round two wrote the wrong readings as phrases that named
+ * a value ("only 24 works"), and the key was still the only reading with no
+ * numeral in it. Round three wrote them as phrases naming a COUNT ("only four
+ * work"), matched all six to the same printed length, and put each whole phrase
+ * inside one `\text{}` so no glyph outside could separate them.
+ *
+ * Round three's card passes every cue a reading of ONE card can carry, and it
+ * was still a 50% giveaway, because the leak was never inside a card:
+ *
+ *     THE KEY WAS ALWAYS `ALL` OR `NONE`. A linear equation in one unknown has
+ *     no solution, one, or infinitely many — it can never have "only four" — so
+ *     three of the six readings could never be true of anything, the shipped
+ *     bank drew exactly four distinct strings, and a cadet who had met the
+ *     surface twice knew the answer was one of two of them. Measured over the
+ *     route: 56.25% against 25%, and a three-item proving run cleared 17.80% of
+ *     the time against 1.56%.
+ *
+ * No arrangement of four options can repair that. If only two of the four can
+ * ever be true, then "take one of those two" is worth 1/2 whatever order they
+ * are printed in, whatever they are called and however long they are.
+ *
+ * THE REPAIR: FOUR READINGS THAT ARE ALL REACHABLE, AND A DRAWN KEY.
+ *
+ * A linear equation's three solution sets are none, every value, and exactly
+ * one — and the fourth reading is the one that has to be EARNED: when exactly
+ * one value works, is it more than zero or less than it? Every one of the four
+ * is mutually exclusive of the other three, every one of them is true of some
+ * statement this generator can write, and `specialKind` DRAWS which one this
+ * card will be and then builds the statement to match.
+ *
+ * That is the whole of the correction, and it makes every other rule free. The
+ * four readings on screen are the SAME four on every card, so the option set
+ * carries no information at all; and the key is uniform over them, so for any
+ * rule a cadet can play — take the shortest, take the ones without a numeral,
+ * take the one you remember being right — the chance it names the key is
+ * exactly the share of the set that rule leaves standing. Printed length no
+ * longer has to be matched by hand, because the key is exchangeable with the
+ * other three by construction rather than by resemblance.
+ *
+ * It also asks for more mathematics than it did: two of the four outcomes
+ * cannot be read off the shape of the statement at all — the learner has to
+ * solve it — which is what `both-sides` is for, and it is the classification
+ * CCSS 8.EE.C.7a names in as many words.
+ *
+ * `npm run check:shape` measures the real card, plays a cadet who has met the
+ * surface before, and goes red on this one if any of it drifts.
+ */
+const SPECIAL_READINGS = {
+  ALL: 'answer.allValues', NONE: 'answer.noSolution',
+  POS: 'answer.oneAboveZero', NEG: 'answer.oneBelowZero',
+  // Kept for the preview units, whose special cards name their own readings.
+  ONE: 'answer.onlyOne', FEW: 'answer.onlyA', SOME: 'answer.onlyB', MANY: 'answer.onlyC',
+};
+/** The four a linear statement can be, in a fixed order. */
+const SPECIAL_KINDS = ['ALL', 'NONE', 'POS', 'NEG'];
+/** Which of the four this card will be — drawn, never derived. */
+const specialKind = (r) => SPECIAL_KINDS[Math.floor(r() * SPECIAL_KINDS.length) % SPECIAL_KINDS.length];
+
 function specialTex(kind, T) {
-  if (kind === 'ALL') return `\\text{${T('answer.allValues')}}`;
-  if (kind === 'NONE') return `\\text{${T('answer.noSolution')}}`;
-  return kind;
+  const key = SPECIAL_READINGS[kind];
+  if (!key) return kind;
+  /* A READING IS PROSE UNTIL THE MOMENT IT BECOMES NOTATION, AND THE TWO WANT
+     OPPOSITE THINGS FROM A SPACE. `src/i18n/typography.js` binds a one-letter
+     word to the word after it with a NO-BREAK space, because a Spanish line may
+     not end on a lone "y" and a Polish one may not end on a lone "w" — and
+     strict KaTeX refuses U+00A0 outright, so "uno funciona, y es mayor que
+     cero" came back as 477 rejected items the moment it was wrapped. Inside
+     `\text{}` the rule has nothing to do anyway: KaTeX sets the whole run as
+     one inline block and never breaks it, so the space it protects cannot
+     fall at the end of a line. It goes back to an ordinary space here, at the
+     one seam where prose turns into notation. */
+  return `\\text{${String(T(key)).replace(/\u00a0/g, ' ')}}`;
 }
 
 // ---------------------------------------------------------------------------

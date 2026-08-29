@@ -1,0 +1,1788 @@
+{
+  "id": "algebra1-level4",
+  "course": "algebra1",
+  "unit": "algebra1-l4",
+  "titleKey": "unit.algebra1-l4.title",
+  "title": "Algebra I — Level 4: Root, Factor and Turn",
+  "description": "Fourteen lines past the straight ones. The line was the only shape until now. Level 4 gives a number its root, gives an expression its factors, and gives a rule a place where it turns round. Radicals arrive first, because the quadratic formula needs them. Then three terms come apart into two brackets, a product that reads zero names its own zeros, and four different methods solve the same statement. Last, the curve is read: where it turns, where it crosses, how high it reaches, and what a thrown flare, a fenced pen and a ticket price all have in common.",
+  "schema": "unified-alignment-1",
+  "verification": {
+    "checkedOn": "2026-08-19",
+    "sources": [
+      "19 Tex. Admin. Code §111.39 (Algebra I, Adopted 2012, One Credit), via Cornell LII: https://www.law.cornell.edu/regulations/texas/19-Tex-Admin-Code-SS-111-39",
+      "Common Core State Standards for Mathematics, High School Algebra and High School Functions conceptual categories: https://www.thecorestandards.org/Math/",
+      "Common Core content-standard text cross-checked against Illustrative Mathematics' content-standard index (https://tasks.illustrativemathematics.org/content-standards), because the original corestandards.org content paths no longer resolve."
+    ],
+    "note": "Every `text` field in this graph is the standard quoted word for word from the sources above, including the trailing punctuation the TEKS codes carry. Each quotation was checked back against the source phrase by phrase, and the two places where a first transcription was wrong — the closing clause of A.10(F), and the plural in \"minimum values\" in A.7(A) — were corrected against it rather than against memory.",
+    "caveats": [
+      "This alignment is to the 2012-adopted mathematics TEKS, which is the version STAAR Algebra I is built on. Nothing here is claimed against a revised chapter.",
+      "TYPOGRAPHY. The published standards print raised exponents and this file is plain text. A superscript is written with a caret, so A.6(B) reads `f(x) = a(x - h)^2 + k`, A.10(E) reads `ax^2 + bx + c`, and HSA.REI.B.4.A and HSA.REI.B.4.B read `(x - p)^2 = q` and `x^2 = 49`. Nothing else in any quoted text is re-typeset: the plus-or-minus sign in HSA.REI.B.4.B is left as the source prints it.",
+      "`core` means the mastery gate for that node proves the expectation: three unassisted items at band 4 or above, at least one outside notation, in a form the learner has not practised. A `core` row may still carry a caveat, and where it does the caveat names a clause that is a judgement, a description or a drawing rather than a value — never a computational half that was skipped. Every claim below `core` carries a caveat naming the part that is not tested.",
+      "NO PARABOLA IS DRAWN ANYWHERE IN THIS UNIT. `figureHtml` in src/ui/rift.js draws a rectangle, straight segments and isolated points, and `tools/check-figures.mjs` refuses a plotted reading that sits on no drawn trace. Four codes lose a claim to that one fact — TEKS A.7(A), CCSS HSF.IF.C.7.A, HSA.APR.B.3 and HSA.CED.A.2 — and each says so in its own row rather than in a footnote.",
+      "NO VERDICT ANSWER IS PRINTED. `finalize` in src/learn/generators.js localises exactly two special answers, \"no solution\" and \"every value works\". A yes/no or maximum/minimum verdict would reach a Spanish or Polish screen as an English token, which invariant 2 forbids, so every deciding item in this unit is asked either as \"no solution\" or as a choice between two printed expressions with a real answer. TEKS A.10(F) is cited at supporting for exactly this reason.",
+      "Process standards are cited under `practices`, never under `alignment`. A process standard is not content coverage and is not counted as a code the unit teaches."
+    ],
+    "declaredGaps": [
+      {
+        "code": "A.7(C)",
+        "citation": "19 TAC §111.39(c)(7)(C)",
+        "claim": "NOT CLAIMED",
+        "why": "Deciding the effect on the graph of the parent rule when it is replaced by a f(x), f(x) + d, f(x - c) or f(bx). Transformations are not taught in this unit, and the expectation is about a graph, which this product does not draw for a squared rule.",
+        "i18n": {
+          "es": {
+            "why": "Decidir el efecto en la gráfica de la regla base cuando se sustituye por a f(x), f(x) + d, f(x - c) o f(bx). Las transformaciones no se enseñan en esta unidad, y la expectativa habla de una gráfica que este producto no dibuja para una regla al cuadrado."
+          },
+          "pl": {
+            "why": "Rozstrzyganie, jak zmienia się wykres reguły podstawowej, gdy zastąpi się ją przez a f(x), f(x) + d, f(x - c) albo f(bx). Przekształceń nie nauczamy w tej jednostce, a oczekiwanie mówi o wykresie, którego ten produkt dla reguły kwadratowej nie rysuje."
+          }
+        }
+      },
+      {
+        "code": "A.8(B)",
+        "citation": "19 TAC §111.39(c)(8)(B)",
+        "claim": "NOT CLAIMED",
+        "why": "Writing, using technology, quadratic functions that provide a reasonable fit to data. This unit uses an exact least-squares parabola as a CHECKER, on readings that lie exactly on a squared rule. Calling that a reasonable fit to data would be an over-claim: no item asks the learner to fit anything, and no reading is off the rule.",
+        "i18n": {
+          "es": {
+            "why": "Escribir, con tecnología, funciones cuadráticas que se ajusten razonablemente a unos datos. Esta unidad usa una parábola de mínimos cuadrados exacta como VERIFICADOR, sobre lecturas que caen exactamente sobre una regla al cuadrado. Llamar a eso un ajuste razonable a datos sería exagerar: ningún ítem pide ajustar nada y ninguna lectura se sale de la regla."
+          },
+          "pl": {
+            "why": "Zapisywanie, z użyciem technologii, funkcji kwadratowych rozsądnie dopasowanych do danych. Ta jednostka używa dokładnej paraboli najmniejszych kwadratów jako WERYFIKATORA, na odczytach leżących dokładnie na regule kwadratowej. Nazwanie tego rozsądnym dopasowaniem do danych byłoby nadużyciem: żadne zadanie nie każe niczego dopasowywać i żaden odczyt nie odbiega od reguły."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSN.RN.B.3",
+        "claim": "NOT CLAIMED",
+        "why": "\"Explain why the sum or product of two rational numbers is rational...\" The whole expectation is an explanation, and no independent checker can re-derive an argument. The facts it states are enforced by every item in the radical nodes — a whole number never merges into a radical, and the checker refuses an answer that says it does — but enforcing a fact is not asking for the proof, and this unit does not claim a standard on the strength of the half it can check.",
+        "i18n": {
+          "es": {
+            "why": "«Explicar por qué la suma o el producto de dos números racionales es racional...». Toda la expectativa es una explicación, y ningún verificador independiente puede rederivar un argumento. Los hechos que enuncia se aplican en cada ítem de los nodos de radicales —un número entero nunca se funde en un radical, y el verificador rechaza una respuesta que diga lo contrario— pero aplicar un hecho no es pedir la demostración, y esta unidad no reclama un estándar por la mitad que sí puede comprobar."
+          },
+          "pl": {
+            "why": "„Wyjaśnij, dlaczego suma lub iloczyn dwóch liczb wymiernych jest wymierny...\". Całe oczekiwanie to wyjaśnienie, a żaden niezależny weryfikator nie odtworzy argumentu. Fakty, o których mówi, są egzekwowane w każdym zadaniu węzłów pierwiastkowych — liczba całkowita nigdy nie wtapia się w pierwiastek, a weryfikator odrzuca odpowiedź, która to robi — ale egzekwowanie faktu to nie prośba o dowód, i ta jednostka nie zgłasza standardu na podstawie połowy, którą umie sprawdzić."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSN.RN.A.2",
+        "claim": "NOT CLAIMED",
+        "why": "\"Rewrite expressions involving radicals and rational exponents using the properties of exponents.\" This unit prints no rational exponent at all. A fractional count above a letter is notation that nothing below Level 4 defines, and no term is used before it is defined; the radical half of the expectation on its own is not the expectation.",
+        "i18n": {
+          "es": {
+            "why": "«Reescribir expresiones con radicales y exponentes racionales usando las propiedades de los exponentes». Esta unidad no imprime ningún exponente racional. Un recuento fraccionario sobre una letra es una notación que nada por debajo del Nivel 4 define, y ningún término se usa antes de definirse; la mitad de radicales por sí sola no es la expectativa."
+          },
+          "pl": {
+            "why": "„Przepisuj wyrażenia z pierwiastkami i wykładnikami wymiernymi, korzystając z własności potęg\". Ta jednostka nie drukuje żadnego wykładnika wymiernego. Ułamkowa liczba nad literą to zapis, którego nic poniżej Poziomu 4 nie definiuje, a żadnego terminu nie używamy przed zdefiniowaniem; sama połowa pierwiastkowa to jeszcze nie całe oczekiwanie."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSF.BF.B.3",
+        "claim": "NOT CLAIMED",
+        "why": "Identifying the effect on the graph of replacing f(x) by f(x) + k, k f(x), f(kx) and f(x + k). Refused for the same reason as TEKS A.7(C): transformations are not taught here, and the expectation is about a graph this product cannot draw for a squared rule.",
+        "i18n": {
+          "es": {
+            "why": "Identificar el efecto en la gráfica al sustituir f(x) por f(x) + k, k f(x), f(kx) y f(x + k). Se rechaza por la misma razón que TEKS A.7(C): aquí no se enseñan transformaciones, y la expectativa habla de una gráfica que este producto no puede dibujar para una regla al cuadrado."
+          },
+          "pl": {
+            "why": "Rozpoznawanie wpływu na wykres zamiany f(x) na f(x) + k, k f(x), f(kx) oraz f(x + k). Odrzucone z tego samego powodu co TEKS A.7(C): przekształceń tu nie nauczamy, a oczekiwanie dotyczy wykresu, którego ten produkt dla reguły kwadratowej nie narysuje."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSA.REI.D.10",
+        "claim": "NOT CLAIMED",
+        "why": "\"Understand that the graph of an equation in two variables is the set of all its solutions plotted in the coordinate plane, often forming a curve.\" Level 2 claims this for a straight line, which it draws. This unit draws no curve, so the clause the code is most about here is exactly the clause that is missing.",
+        "i18n": {
+          "es": {
+            "why": "«Entender que la gráfica de una ecuación en dos variables es el conjunto de todas sus soluciones dibujadas en el plano, que a menudo forma una curva». El Nivel 2 lo reclama para la recta, que sí dibuja. Esta unidad no dibuja ninguna curva, así que la cláusula que más importa aquí es justo la que falta."
+          },
+          "pl": {
+            "why": "„Zrozum, że wykres równania z dwiema niewiadomymi to zbiór wszystkich jego rozwiązań na płaszczyźnie, często tworzący krzywą\". Poziom 2 zgłasza to dla prostej, którą rysuje. Ta jednostka nie rysuje żadnej krzywej, więc brakuje właśnie tej klauzuli, o którą tu najbardziej chodzi."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSF.IF.C.9",
+        "claim": "NOT CLAIMED",
+        "why": "\"Compare properties of two functions each represented in a different way.\" A comparison needs two rules on one card and one checker that reads both. `verify()` takes one check descriptor per item, so the answer to such an item would rest on the generator rather than on a re-derivation.",
+        "i18n": {
+          "es": {
+            "why": "«Comparar propiedades de dos funciones representadas cada una de forma distinta». Una comparación necesita dos reglas en una misma tarjeta y un verificador que lea ambas. `verify()` acepta un descriptor de comprobación por ítem, así que la respuesta se apoyaría en el generador y no en una rederivación."
+          },
+          "pl": {
+            "why": "„Porównaj własności dwóch funkcji przedstawionych na różne sposoby\". Porównanie wymaga dwóch reguł na jednej karcie i weryfikatora, który czyta obie. `verify()` przyjmuje jeden opis sprawdzenia na zadanie, więc odpowiedź opierałaby się na generatorze, a nie na ponownym wyprowadzeniu."
+          }
+        }
+      },
+      {
+        "code": "CCSS.MATH.CONTENT.HSF.IF.C.7.B",
+        "claim": "NOT CLAIMED",
+        "why": "\"Graph square root, cube root, and piecewise-defined functions...\" This unit teaches square roots of numbers and never of a letter: `src/learn/parser.js` refuses a letter under a radical, so no such rule could be re-derived from what a learner is shown, and the renderer could not draw its arc either.",
+        "i18n": {
+          "es": {
+            "why": "«Graficar funciones de raíz cuadrada, raíz cúbica y definidas a trozos...». Esta unidad enseña raíces cuadradas de números y nunca de una letra: `src/learn/parser.js` rechaza una letra bajo el radical, así que ninguna regla así podría rederivarse de lo que ve el estudiante, y el motor tampoco podría dibujar su arco."
+          },
+          "pl": {
+            "why": "„Rysuj wykresy funkcji pierwiastkowych, sześciennych i określonych przedziałami...\". Ta jednostka uczy pierwiastków kwadratowych z liczb, nigdy z litery: `src/learn/parser.js` odrzuca literę pod pierwiastkiem, więc żadnej takiej reguły nie dałoby się wyprowadzić z tego, co widzi uczeń, a silnik nie narysowałby jej łuku."
+          }
+        }
+      }
+    ]
+  },
+  "requires": [
+    "algebra1-l1",
+    "algebra1-l2",
+    "algebra1-l3"
+  ],
+  "masteryThreshold": 0.95,
+  "mastery": {
+    "pL": 0.95,
+    "cleanRun": 3,
+    "minDifficulty": 3,
+    "checkItems": 3,
+    "checkMinDifficulty": 4,
+    "checkRequiresUnseenForm": true,
+    "checkRequiresNonSymbolic": true,
+    "reviewIntervals": [
+      6,
+      16,
+      40,
+      90
+    ],
+    "note": "The gate is the Level 1 gate, unchanged, because the gate belongs to the engine and not to the course. A unit may retune these numbers; it may not invent a different kind of proof. The non-symbolic requirement is what forces the proving run of every node in this strand to reach a situation or a table rather than a third page of notation."
+  },
+  "commonMisconceptions": [
+    {
+      "id": "arith-slip",
+      "text": "Right method, wrong arithmetic — a slip rather than a misconception."
+    },
+    {
+      "id": "sign-slip",
+      "text": "Loses or invents a minus sign somewhere in the chain."
+    },
+    {
+      "id": "partial-rule",
+      "text": "Applies part of the rule and stops before finishing it."
+    },
+    {
+      "id": "swapped-roles",
+      "text": "Swaps which quantity is which — the number under the bar for the one in front, or the input for the output."
+    },
+    {
+      "id": "zero-always-a-zero",
+      "text": "Adds a zero of its own to every answer, because zero stands on one side."
+    },
+    {
+      "id": "answer-given-as-roots",
+      "text": "Answers with the two zeros where a product of two brackets was asked for."
+    },
+    {
+      "id": "gcf-not-taken-first",
+      "text": "Leaves a common factor inside the brackets instead of taking it out first."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "radical-simplify",
+      "prereqs": [
+        "exponent-power",
+        "order-ops"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "A square root asks which number, multiplied by itself, gives the one under the bar. When no whole number does, the largest square inside comes out and the rest stays under.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.11(A)",
+          "citation": "19 TAC §111.39(c)(11)(A)",
+          "text": "simplify numerical radical expressions involving square roots; and",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "supporting",
+          "caveat": "The structure read here sits inside a whole number under a bar, not inside an algebraic expression. The polynomial half of this standard is carried by the factoring nodes.",
+          "i18n": {
+            "es": {
+              "caveat": "Aquí la estructura que se lee está dentro de un número entero bajo la barra, no dentro de una expresión algebraica. La mitad polinómica de este estándar la cubren los nodos de factorización."
+            },
+            "pl": {
+              "caveat": "Struktura odczytywana tutaj mieści się w liczbie całkowitej pod kreską, a nie w wyrażeniu algebraicznym. Wielomianową połowę tego standardu pokrywają węzły rozkładu na czynniki."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.6",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(C)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.SSE.A.2 is claimed at supporting and nowhere higher. Seeing 72 as 36 times 2 really is using structure to rewrite, and the checker proves the square factor by multiplying it back rather than by trusting a factoriser. But the standard is written about algebraic expressions in general, and this node prints only numbers.",
+        "TEKS": "A.11(A) is exact and is the whole node: numerical radical expressions involving square roots, simplified. Every band prints a radicand that holds a square, the reduction is proved by squaring back, and the answer is refused unless the number left under the bar is free of squares."
+      },
+      "bkt": {
+        "pInit": 0.14,
+        "pTransit": 0.26,
+        "pSlip": 0.09,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "root-splits-over-sum",
+          "text": "Writes the root of a sum as the sum of the roots."
+        },
+        {
+          "id": "half-the-radicand",
+          "text": "Treats a square root as a halving, so the root of 36 is written as 18."
+        },
+        {
+          "id": "perfect-square-left-inside",
+          "text": "Pulls out only part of the square factor and leaves a square under the bar."
+        },
+        {
+          "id": "coefficient-pulled-under-unsquared",
+          "text": "Moves the number outside under the bar without squaring it."
+        },
+        {
+          "id": "factor-not-a-square",
+          "text": "Takes out a factor that is not a square, so the number left under the bar is wrong."
+        },
+        {
+          "id": "square-of-a-root-not-cancelled",
+          "text": "Does not use that a root times itself is the number under the bar."
+        }
+      ]
+    },
+    {
+      "id": "radical-arith",
+      "prereqs": [
+        "radical-simplify",
+        "like-terms"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "Two roots add only when the number under the bar is the same. Two roots always multiply, and a root times itself is the number under the bar.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.11(A)",
+          "citation": "19 TAC §111.39(c)(11)(A)",
+          "text": "simplify numerical radical expressions involving square roots; and",
+          "depth": "core",
+          "caveat": "This node joins, opens and clears radicals. Reducing one radical to its shortest form is proved by the node before it, and this gate assumes it rather than re-testing it.",
+          "i18n": {
+            "es": {
+              "caveat": "Este nodo une, abre y despeja radicales. Reducir un radical a su forma más corta lo demuestra el nodo anterior, y esta puerta lo da por sabido en vez de volver a evaluarlo."
+            },
+            "pl": {
+              "caveat": "Ten węzeł łączy, otwiera i uwalnia pierwiastki. Sprowadzenie jednego pierwiastka do najkrótszej postaci sprawdza węzeł wcześniejszy, a ta brama to zakłada, zamiast badać ponownie."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "supporting",
+          "caveat": "Two roots that share a number under the bar are read as like terms, which is structure. The standard also covers polynomial structure, which the factoring nodes carry.",
+          "i18n": {
+            "es": {
+              "caveat": "Dos raíces que comparten el número bajo la barra se leen como términos semejantes, y eso es estructura. El estándar cubre además la estructura polinómica, de la que se encargan los nodos de factorización."
+            },
+            "pl": {
+              "caveat": "Dwa pierwiastki o tej samej liczbie pod kreską czyta się jak wyrazy podobne, a to jest struktura. Standard obejmuje też strukturę wielomianową, którą niosą węzły rozkładu na czynniki."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.B",
+          "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity.",
+          "depth": "supporting",
+          "caveat": "A root has to be read as one quantity before it can be counted or multiplied. The full expectation also covers expressions this unit never prints.",
+          "i18n": {
+            "es": {
+              "caveat": "Hay que leer una raíz como una sola cantidad antes de contarla o multiplicarla. La expectativa completa cubre además expresiones que esta unidad nunca imprime."
+            },
+            "pl": {
+              "caveat": "Pierwiastek trzeba odczytać jako jedną wielkość, zanim się go policzy albo pomnoży. Pełne oczekiwanie obejmuje też wyrażenia, których ta jednostka nigdy nie drukuje."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.8",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "Both CCSS rows are supporting. The mathematics here is numerical, and both standards are written about algebraic expressions; claiming either at core from numbers alone would be the kind of row a reviewer is right to challenge.",
+        "TEKS": "A.11(A) is core a second time, and the caveat says which half each node proves. The forms that clear a root off the bottom of a fraction are the reason: \"simplify\" in the expectation includes a form with no radical in a denominator, and an answer that leaves one is refused by the checker rather than by a rule of thumb."
+      },
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.25,
+        "pSlip": 0.1,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "unlike-radicands-added",
+          "text": "Adds two roots that hold different numbers under the bar."
+        },
+        {
+          "id": "both-parts-added",
+          "text": "Adds the numbers under the bar as well as the counts in front."
+        },
+        {
+          "id": "product-of-roots-added",
+          "text": "Adds the two numbers under the bar where the rule multiplies them."
+        },
+        {
+          "id": "whole-number-absorbed",
+          "text": "Merges a whole number into the number under the bar."
+        },
+        {
+          "id": "denominator-radical-left",
+          "text": "Leaves a root on the bottom and calls the answer finished."
+        },
+        {
+          "id": "square-of-a-root-not-cancelled",
+          "text": "Does not use that a root times itself is the number under the bar."
+        }
+      ]
+    },
+    {
+      "id": "factor-trinomial-monic",
+      "prereqs": [
+        "poly-multiply",
+        "factor-common"
+      ],
+      "worldSite": "span",
+      "bigIdea": "Multiplying two brackets makes a three-term expression. Factoring runs that backwards: find the pair of numbers that multiplies to the last term and adds to the middle one.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.10(E)",
+          "citation": "19 TAC §111.39(c)(10)(E)",
+          "text": "factor, if possible, trinomials with real factors in the form ax^2 + bx + c, including perfect square trinomials of degree two; and",
+          "depth": "supporting",
+          "caveat": "Only trinomials whose squared term carries a one are factored here. A squared term with a number in front is the next node, and the words \"if possible\" are never asked.",
+          "i18n": {
+            "es": {
+              "caveat": "Aquí solo se factorizan trinomios cuyo término al cuadrado lleva un uno. El término al cuadrado con un número delante es el nodo siguiente, y las palabras «si es posible» nunca se preguntan."
+            },
+            "pl": {
+              "caveat": "Tutaj rozkładamy tylko trójmiany, których wyraz kwadratowy ma jedynkę. Wyraz kwadratowy z liczbą z przodu to następny węzeł, a słów „jeśli to możliwe\" nigdy nie pytamy."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.10(D)",
+          "citation": "19 TAC §111.39(c)(10)(D)",
+          "text": "rewrite polynomial expressions of degree one and degree two in equivalent forms using the distributive property;",
+          "depth": "supporting",
+          "caveat": "Level 3 proves the forward direction of this expectation. This node runs it backwards, and the gate marks the product rather than the naming of the property.",
+          "i18n": {
+            "es": {
+              "caveat": "El Nivel 3 demuestra la dirección directa de esta expectativa. Este nodo la recorre al revés, y la puerta califica el producto, no el nombre de la propiedad."
+            },
+            "pl": {
+              "caveat": "Poziom 3 dowodzi tego oczekiwania w kierunku wprost. Ten węzeł idzie wstecz, a brama ocenia iloczyn, a nie nazwanie własności."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "core",
+          "caveat": "The rewriting is proved twice over: the answer is the same function at fourteen values AND it is a product. The standard also covers structures this unit never prints, such as a difference of two cubes.",
+          "i18n": {
+            "es": {
+              "caveat": "La reescritura se demuestra dos veces: la respuesta es la misma función en catorce valores Y además es un producto. El estándar cubre también estructuras que esta unidad nunca imprime, como una diferencia de cubos."
+            },
+            "pl": {
+              "caveat": "Przepisanie jest dowodzone dwukrotnie: odpowiedź to ta sama funkcja w czternastu wartościach ORAZ jest iloczynem. Standard obejmuje też struktury, których ta jednostka nie drukuje, na przykład różnicę sześcianów."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.A",
+          "text": "Interpret parts of an expression, such as terms, factors, and coefficients.",
+          "depth": "supporting",
+          "caveat": "The pair of numbers is chosen by reading the last term as a product and the middle term as a sum. The standard also names coefficients in expressions this node does not reach.",
+          "i18n": {
+            "es": {
+              "caveat": "La pareja de números se elige leyendo el último término como producto y el término del medio como suma. El estándar nombra además coeficientes en expresiones a las que este nodo no llega."
+            },
+            "pl": {
+              "caveat": "Parę liczb wybiera się, czytając ostatni wyraz jako iloczyn, a środkowy jako sumę. Standard nazywa też współczynniki w wyrażeniach, do których ten węzeł nie sięga."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.8",
+          "MP.2"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.SSE.A.2 is core here and the reason is the checker rather than the writing: `factored` refuses an answer that is merely equal to the prompt, so a learner who retypes the three-term expression fails on shape even though the identity holds. That is what makes \"rewrite\" a tested claim rather than an assumed one.",
+        "TEKS": "A.10(E) is deliberately SUPPORTING at this node and core at the next one. The expectation names the form ax^2 + bx + c, and a node that only ever prints a one in front of the squared term has not met it. A.10(D) is supporting for the same kind of reason from the other side: Level 3 already holds it at core in the forward direction."
+      },
+      "bkt": {
+        "pInit": 0.1,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "product-and-sum-swapped",
+          "text": "Chooses the pair that multiplies to the middle number and adds to the last one."
+        },
+        {
+          "id": "sign-both-positive",
+          "text": "Uses two plus signs whenever the last term is above zero."
+        },
+        {
+          "id": "constant-split-only",
+          "text": "Splits the last term and never checks the middle one."
+        },
+        {
+          "id": "answer-given-as-roots",
+          "text": "Answers with the two zeros where a product of two brackets was asked for."
+        },
+        {
+          "id": "gcf-not-taken-first",
+          "text": "Leaves a common factor inside the brackets instead of taking it out first."
+        },
+        {
+          "id": "perfect-square-constant-copied",
+          "text": "Copies the last term into the bracket instead of taking its root."
+        }
+      ]
+    },
+    {
+      "id": "factor-trinomial-lead",
+      "prereqs": [
+        "factor-trinomial-monic"
+      ],
+      "worldSite": "span",
+      "bigIdea": "When the squared term carries a number, that number has to be shared between the two brackets. The pair of numbers now has to multiply to the first coefficient times the last one.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.10(E)",
+          "citation": "19 TAC §111.39(c)(10)(E)",
+          "text": "factor, if possible, trinomials with real factors in the form ax^2 + bx + c, including perfect square trinomials of degree two; and",
+          "depth": "core",
+          "caveat": "Every clause that names a value is proved: the squared term carries a number, and a perfect square trinomial of degree two is one of the printed forms. The words \"if possible\" are not asked, because answering that a trinomial does not factor is a verdict this unit cannot print in three languages.",
+          "i18n": {
+            "es": {
+              "caveat": "Se demuestra toda cláusula que nombra un valor: el término al cuadrado lleva un número, y un trinomio cuadrado perfecto de grado dos es una de las formas impresas. Las palabras «si es posible» no se preguntan, porque responder que un trinomio no se factoriza es un veredicto que esta unidad no puede imprimir en tres idiomas."
+            },
+            "pl": {
+              "caveat": "Dowodzimy każdej klauzuli, która nazywa wartość: wyraz kwadratowy ma liczbę, a trójmian będący kwadratem sumy stopnia drugiego jest jedną z drukowanych postaci. Słów „jeśli to możliwe\" nie pytamy, bo odpowiedź, że trójmian się nie rozkłada, to werdykt, którego ta jednostka nie wydrukuje w trzech językach."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "core",
+          "caveat": "The rewriting is proved by identity and by shape. The standard also covers structures this unit never prints.",
+          "i18n": {
+            "es": {
+              "caveat": "La reescritura se demuestra por identidad y por forma. El estándar cubre también estructuras que esta unidad nunca imprime."
+            },
+            "pl": {
+              "caveat": "Przepisanie jest dowodzone przez tożsamość i przez kształt. Standard obejmuje też struktury, których ta jednostka nie drukuje."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.1.B",
+          "text": "Interpret complicated expressions by viewing one or more of their parts as a single entity.",
+          "depth": "supporting",
+          "caveat": "A bracket carrying both a number and a letter has to be read as one quantity. The full expectation also covers non-polynomial structure.",
+          "i18n": {
+            "es": {
+              "caveat": "Un paréntesis que lleva a la vez un número y una letra hay que leerlo como una sola cantidad. La expectativa completa cubre además estructuras no polinómicas."
+            },
+            "pl": {
+              "caveat": "Nawias niosący i liczbę, i literę trzeba odczytać jako jedną wielkość. Pełne oczekiwanie obejmuje także struktury niewielomianowe."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.1",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "Core on HSA.SSE.A.2 for the same reason as the node before it: the checker will not credit an answer that is equal to the prompt but is not a product.",
+        "TEKS": "This is where A.10(E) closes. The bank prints a1 x + c1 times a2 x + c2 with both front numbers above one from band three, and it prints perfect square trinomials of degree two from band two. It also guards, on every draw, that the three coefficients share no common factor, so a trinomial that still holds one is never handed out as if the whole expectation were a different question."
+      },
+      "bkt": {
+        "pInit": 0.09,
+        "pTransit": 0.23,
+        "pSlip": 0.1,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "leading-coefficient-ignored",
+          "text": "Factors as if the squared term carried a one."
+        },
+        {
+          "id": "leading-coefficient-in-both",
+          "text": "Puts the front number in both brackets, so the squared term grows."
+        },
+        {
+          "id": "outer-inner-swapped",
+          "text": "Puts the two constants on the wrong brackets, so the middle term is wrong."
+        },
+        {
+          "id": "perfect-square-constant-copied",
+          "text": "Copies the last term into the bracket instead of taking its root."
+        },
+        {
+          "id": "unfactorable-declared-early",
+          "text": "Reports that a trinomial does not factor after trying only one pair."
+        },
+        {
+          "id": "sign-both-positive",
+          "text": "Uses two plus signs whenever the last term is above zero."
+        }
+      ]
+    },
+    {
+      "id": "difference-of-squares",
+      "prereqs": [
+        "factor-trinomial-monic",
+        "exponent-power"
+      ],
+      "worldSite": "span",
+      "bigIdea": "Two squares with a minus between them come apart into a sum bracket and a difference bracket. Two squares with a plus between them do not come apart at all.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.10(F)",
+          "citation": "19 TAC §111.39(c)(10)(F)",
+          "text": "decide if a binomial can be written as the difference of two squares and, if possible, use the structure of a difference of two squares to rewrite the binomial.",
+          "depth": "supporting",
+          "caveat": "The rewriting half is proved: the answer must be the same expression at fourteen values and must be a product of two brackets. The deciding half is asked as a choice between two printed binomials, and the checker proves only the one the learner chose; it does not re-derive the refusal of the other.",
+          "i18n": {
+            "es": {
+              "caveat": "La mitad de reescritura queda demostrada: la respuesta debe ser la misma expresión en catorce valores y debe ser un producto de dos paréntesis. La mitad de decidir se plantea como una elección entre dos binomios impresos, y el verificador solo demuestra el que eligió el estudiante; no rederiva el rechazo del otro."
+            },
+            "pl": {
+              "caveat": "Połowa dotycząca przepisania jest dowiedziona: odpowiedź musi być tym samym wyrażeniem w czternastu wartościach i musi być iloczynem dwóch nawiasów. Połowę dotyczącą rozstrzygania stawiamy jako wybór między dwoma wydrukowanymi dwumianami, a weryfikator dowodzi tylko tego wybranego; nie wyprowadza odrzucenia drugiego."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "core",
+          "caveat": "Seeing a binomial as one square take away another is exactly using structure to rewrite. The standard also covers structures this unit never prints.",
+          "i18n": {
+            "es": {
+              "caveat": "Ver un binomio como un cuadrado menos otro es justamente usar la estructura para reescribir. El estándar cubre también estructuras que esta unidad nunca imprime."
+            },
+            "pl": {
+              "caveat": "Zobaczenie dwumianu jako kwadratu minus kwadrat to właśnie użycie struktury do przepisania. Standard obejmuje też struktury, których ta jednostka nie drukuje."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.8",
+          "MP.3"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.SSE.A.2 is core. The one family above degree two that this node prints — a common factor times a difference of two squares — is inside what the checker will factor, and the answer is refused unless every bracket is linear in the letter.",
+        "TEKS": "A.10(F) is SUPPORTING and the caveat says exactly why. The expectation has two verbs, \"decide\" and \"rewrite\", and only the second has a value an independent checker can re-derive. The deciding is really asked — one form prints two binomials and only one of them is a square take away a square — but a learner who chose wrongly is caught by the factoring, not by a proof that the other binomial refuses to come apart. Claiming core on the strength of the half that is provable is the kind of row that makes an alignment sheet stop being true."
+      },
+      "bkt": {
+        "pInit": 0.11,
+        "pTransit": 0.25,
+        "pSlip": 0.09,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "verbal"
+      ],
+      "misconceptions": [
+        {
+          "id": "sum-of-squares-factored",
+          "text": "Factors a sum of two squares as if it were a difference."
+        },
+        {
+          "id": "both-signs-same",
+          "text": "Writes two minus brackets, so the middle terms do not cancel."
+        },
+        {
+          "id": "coefficient-root-skipped",
+          "text": "Copies a square into the bracket instead of taking its root."
+        },
+        {
+          "id": "any-subtraction-called-a-difference-of-squares",
+          "text": "Calls any two terms with a minus between them a difference of two squares."
+        },
+        {
+          "id": "non-square-constant-accepted",
+          "text": "Accepts a number that is not a square as one of the two squares."
+        },
+        {
+          "id": "answer-given-as-roots",
+          "text": "Answers with the two zeros where a product of two brackets was asked for."
+        },
+        {
+          "id": "gcf-not-taken-first",
+          "text": "Leaves a common factor inside the brackets instead of taking it out first."
+        },
+        {
+          "id": "zero-always-a-zero",
+          "text": "Adds a zero of its own to every answer, because zero stands on one side."
+        }
+      ]
+    },
+    {
+      "id": "poly-divide",
+      "prereqs": [
+        "factor-trinomial-monic",
+        "exponent-quotient"
+      ],
+      "worldSite": "quarry",
+      "bigIdea": "Dividing one expression by another asks what the second must be multiplied by to give the first. The answer is only right when multiplying it back returns every term.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.10(C)",
+          "citation": "19 TAC §111.39(c)(10)(C)",
+          "text": "determine the quotient of a polynomial of degree one and polynomial of degree two when divided by a polynomial of degree one and polynomial of degree two when the degree of the divisor does not exceed the degree of the dividend;",
+          "depth": "core"
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.APR.D.6",
+          "text": "Rewrite simple rational expressions in different forms; write a(x)/b(x) in the form q(x) + r(x)/b(x), where a(x), b(x), q(x), and r(x) are polynomials with the degree of r(x) less than the degree of b(x), using inspection, long division, or, for the more complicated examples, a computer algebra system.",
+          "depth": "supporting",
+          "caveat": "The division is done and the leftover is named. The traditional pathway places this standard in Algebra II, and this node divides only by expressions of degree one and degree two, with a leftover of degree zero.",
+          "i18n": {
+            "es": {
+              "caveat": "La división se hace y se nombra lo que sobra. La secuencia tradicional sitúa este estándar en Álgebra II, y este nodo solo divide entre expresiones de grado uno y grado dos, con un resto de grado cero."
+            },
+            "pl": {
+              "caveat": "Dzielenie jest wykonane, a reszta nazwana. Tradycyjna ścieżka umieszcza ten standard w Algebrze II, a ten węzeł dzieli tylko przez wyrażenia stopnia pierwszego i drugiego, z resztą stopnia zerowego."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.A.2",
+          "text": "Use the structure of an expression to identify ways to rewrite it.",
+          "depth": "supporting",
+          "caveat": "The top is rewritten as a product before the division is read off. The standard also covers rewritings this node does not perform.",
+          "i18n": {
+            "es": {
+              "caveat": "La parte de arriba se reescribe como producto antes de leer la división. El estándar cubre además reescrituras que este nodo no realiza."
+            },
+            "pl": {
+              "caveat": "Górę przepisujemy jako iloczyn, zanim odczytamy dzielenie. Standard obejmuje też przepisania, których ten węzeł nie wykonuje."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.6",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(C)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "Nothing here is claimed at core, and that is deliberate: Common Core has no Algebra I standard for dividing one polynomial by another. HSA.APR.D.6 is the standard the mathematics belongs to, and its own pathway places it a course later, so it is cited at supporting with that said in the row.",
+        "TEKS": "A.10(C) is exact and it is core. The expectation names divisors of degree one AND of degree two, and the bank prints both: a monomial divisor and a binomial divisor of degree one, and — in `pd-square` — a divisor of degree two, whose degree equals the dividend's and whose leftover is the question. THE CHECKER NEVER DIVIDES: it multiplies the divisor by the claimed answer, adds any leftover, and requires every coefficient to come back, so no item depends on an excluded value."
+      },
+      "bkt": {
+        "pInit": 0.12,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "term-by-term-cancel",
+          "text": "Cancels a letter out of one term of the top and drops the rest."
+        },
+        {
+          "id": "one-term-divided-only",
+          "text": "Divides the first term and copies the others down unchanged."
+        },
+        {
+          "id": "remainder-written-as-a-term",
+          "text": "Reports the leftover as another term of the answer."
+        },
+        {
+          "id": "exponents-divided-not-subtracted",
+          "text": "Divides the counts above the letters where the rule subtracts them."
+        },
+        {
+          "id": "never-multiplied-back",
+          "text": "Gives an answer and never checks that the bottom times it returns the top."
+        }
+      ]
+    },
+    {
+      "id": "quadratic-zero-product",
+      "prereqs": [
+        "factor-trinomial-monic",
+        "both-sides"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "When two quantities multiply to zero, at least one of them is zero. So a rule written as two brackets is zero exactly where one bracket is zero, and those inputs are its zeros.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.7(B)",
+          "citation": "19 TAC §111.39(c)(7)(B)",
+          "text": "describe the relationship between the linear factors of quadratic expressions and the zeros of their associated quadratic functions; and",
+          "depth": "core",
+          "caveat": "The expectation says \"describe\". No sentence is asked for. The relationship is used in both directions and every reading is proved by putting it back into the printed statement.",
+          "i18n": {
+            "es": {
+              "caveat": "La expectativa dice «describir». No se pide ninguna frase. La relación se usa en ambos sentidos y toda lectura se demuestra sustituyéndola en el enunciado impreso."
+            },
+            "pl": {
+              "caveat": "Oczekiwanie mówi „opisz\". Nie prosimy o zdanie. Zależność jest używana w obie strony, a każdy odczyt dowodzimy, wstawiając go z powrotem do wydrukowanego zapisu."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.8(A)",
+          "citation": "19 TAC §111.39(c)(8)(A)",
+          "text": "solve quadratic equations having real solutions by factoring, taking square roots, completing the square, and applying the quadratic formula; and",
+          "depth": "supporting",
+          "caveat": "Only a product that already reads zero is solved here. The four methods the expectation names belong to the four nodes after this one.",
+          "i18n": {
+            "es": {
+              "caveat": "Aquí solo se resuelve un producto que ya vale cero. Los cuatro métodos que nombra la expectativa pertenecen a los cuatro nodos posteriores."
+            },
+            "pl": {
+              "caveat": "Tutaj rozwiązujemy tylko iloczyn, który już jest zerem. Cztery metody nazwane w oczekiwaniu należą do czterech kolejnych węzłów."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.B.3.A",
+          "text": "Factor a quadratic expression to reveal the zeros of the function it defines.",
+          "depth": "core",
+          "caveat": "The zeros are revealed by the factors, in both directions. Producing the factors from a three-term expression is the factoring nodes’ gate rather than this one.",
+          "i18n": {
+            "es": {
+              "caveat": "Los factores revelan los ceros, en ambos sentidos. Obtener los factores a partir de una expresión de tres términos es la puerta de los nodos de factorización, no de este."
+            },
+            "pl": {
+              "caveat": "Czynniki ujawniają miejsca zerowe, w obie strony. Wydobycie czynników z wyrażenia trójwyrazowego to brama węzłów rozkładu, nie tego."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.APR.B.3",
+          "text": "Identify zeros of polynomials when suitable factorizations are available, and use the zeros to construct a rough graph of the function defined by the polynomial.",
+          "depth": "supporting",
+          "caveat": "The zeros are identified from a factorisation that is already available. No rough graph is drawn: the renderer draws no curve.",
+          "i18n": {
+            "es": {
+              "caveat": "Los ceros se identifican a partir de una factorización ya disponible. No se dibuja ninguna gráfica aproximada: el motor no dibuja curvas."
+            },
+            "pl": {
+              "caveat": "Miejsca zerowe odczytujemy z gotowego rozkładu na czynniki. Nie rysujemy szkicu wykresu: silnik nie rysuje krzywych."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.7",
+          "MP.3"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(G)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.SSE.B.3.A is core and HSA.APR.B.3 is supporting, and the difference between them is one clause: APR.B.3 asks for a rough graph as well, and this product draws no curve at all.",
+        "TEKS": "A.7(B) is core here. The expectation is written with the verb \"describe\", and this node does not ask for a sentence; it asks the learner to USE the relationship, from factors to zeros and from a story to zeros, and it proves every answer by substitution. We read the expectation as content rather than as an essay and record that reading here so a reviewer can weigh it. One form is the reason the node exists at all: the same two brackets set equal to a number that is NOT zero have different answers, and the two-bracket rule does not reach them."
+      },
+      "bkt": {
+        "pInit": 0.13,
+        "pTransit": 0.27,
+        "pSlip": 0.09,
+        "pGuess": 0.12
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "sign-of-zero-copied",
+          "text": "Reads the zeros straight off the bracket signs, without turning them round."
+        },
+        {
+          "id": "zero-product-used-on-a-non-zero",
+          "text": "Uses the two-bracket rule when the other side is not zero."
+        },
+        {
+          "id": "one-zero-only",
+          "text": "Gives one zero and stops, because one bracket was enough."
+        },
+        {
+          "id": "zero-always-a-zero",
+          "text": "Adds a zero of its own to every answer, because zero stands on one side."
+        },
+        {
+          "id": "brackets-expanded-first-then-guessed",
+          "text": "Multiplies the brackets out and then reads a term as a zero."
+        }
+      ]
+    },
+    {
+      "id": "solve-by-factoring",
+      "prereqs": [
+        "quadratic-zero-product",
+        "factor-trinomial-lead"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "Before the two-bracket rule can be used, everything has to be on one side and zero on the other. Then factoring turns one hard statement into two easy ones.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.8(A)",
+          "citation": "19 TAC §111.39(c)(8)(A)",
+          "text": "solve quadratic equations having real solutions by factoring, taking square roots, completing the square, and applying the quadratic formula; and",
+          "depth": "core",
+          "caveat": "This node proves the factoring route. Taking square roots, completing the square and the formula are proved by the three nodes after it, and the expectation closes only when all four are held.",
+          "i18n": {
+            "es": {
+              "caveat": "Este nodo demuestra la vía de la factorización. Sacar raíces cuadradas, completar el cuadrado y la fórmula los demuestran los tres nodos siguientes, y la expectativa se cierra solo cuando se dominan los cuatro."
+            },
+            "pl": {
+              "caveat": "Ten węzeł dowodzi drogi przez rozkład na czynniki. Pierwiastkowanie obu stron, uzupełnianie do kwadratu i wzór dowodzą trzy kolejne węzły, a oczekiwanie zamyka się dopiero, gdy uczeń trzyma wszystkie cztery."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.4.B",
+          "text": "Solve quadratic equations by inspection (e.g., for x^2 = 49), taking square roots, completing the square, the quadratic formula and factoring, as appropriate to the initial form of the equation. Recognize when the quadratic formula gives complex solutions and write them as a ± bi for real numbers a and b.",
+          "depth": "core",
+          "caveat": "The factoring route is proved, and so is the rearranging that has to come first. The complex-solution clause is outside this course: no item prints a number that is not real.",
+          "i18n": {
+            "es": {
+              "caveat": "Se demuestra la vía de la factorización y también la reordenación previa. La cláusula de soluciones complejas queda fuera de este curso: ningún ítem imprime un número que no sea real."
+            },
+            "pl": {
+              "caveat": "Dowodzimy drogi przez rozkład na czynniki oraz poprzedzającego ją przekształcenia. Klauzula o rozwiązaniach zespolonych jest poza tym kursem: żadne zadanie nie drukuje liczby nierzeczywistej."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
+          "text": "Create equations and inequalities in one variable and use them to solve problems.",
+          "depth": "supporting",
+          "caveat": "One form builds the equation from a stated area before solving it. Most forms hand the learner the equation already written.",
+          "i18n": {
+            "es": {
+              "caveat": "Una de las formas construye la ecuación a partir de un área enunciada antes de resolverla. La mayoría entrega la ecuación ya escrita."
+            },
+            "pl": {
+              "caveat": "Jedna z postaci buduje równanie z podanego pola, zanim je rozwiąże. Większość podaje uczniowi równanie już zapisane."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.1",
+          "MP.7",
+          "MP.6"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.REI.B.4.B is core here and again at three later nodes, each with a caveat naming the route it proves. The complex-solution clause is never claimed anywhere in this course.",
+        "TEKS": "A.8(A) is core at four nodes, one per method, and each caveat says which method that node proves. That is the honest shape for an expectation whose subject is a list: no single gate can prove four methods, and a unit that claimed the whole expectation from one of them would be describing a course it did not build."
+      },
+      "bkt": {
+        "pInit": 0.09,
+        "pTransit": 0.24,
+        "pSlip": 0.1,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "not-set-to-zero",
+          "text": "Factors before moving everything to one side, then uses the other side as the target."
+        },
+        {
+          "id": "divides-by-the-letter",
+          "text": "Divides both sides by the letter and loses the solution zero."
+        },
+        {
+          "id": "constant-read-as-a-solution",
+          "text": "Reads a solution straight off the last term of the three-term expression."
+        },
+        {
+          "id": "bracket-constants-copied",
+          "text": "Factors correctly and then reports the bracket constants rather than their opposites."
+        },
+        {
+          "id": "negative-solution-discarded",
+          "text": "Throws away the solution below zero where the story allows it."
+        }
+      ]
+    },
+    {
+      "id": "square-root-method",
+      "prereqs": [
+        "quadratic-zero-product",
+        "radical-simplify"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "When a squared quantity equals a number, taking the root of both sides undoes the square. A square has two roots, one above zero and one below, so this gives two answers.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.8(A)",
+          "citation": "19 TAC §111.39(c)(8)(A)",
+          "text": "solve quadratic equations having real solutions by factoring, taking square roots, completing the square, and applying the quadratic formula; and",
+          "depth": "core",
+          "caveat": "This node proves the taking-square-roots route, including the case where no real answer exists. Factoring, completing the square and the formula are proved by the nodes around it.",
+          "i18n": {
+            "es": {
+              "caveat": "Este nodo demuestra la vía de sacar raíces cuadradas, incluido el caso sin respuesta real. La factorización, completar el cuadrado y la fórmula los demuestran los nodos vecinos."
+            },
+            "pl": {
+              "caveat": "Ten węzeł dowodzi drogi przez pierwiastkowanie obu stron, łącznie z przypadkiem bez rozwiązania rzeczywistego. Rozkład na czynniki, uzupełnianie do kwadratu i wzór dowodzą węzły sąsiednie."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.11(A)",
+          "citation": "19 TAC §111.39(c)(11)(A)",
+          "text": "simplify numerical radical expressions involving square roots; and",
+          "depth": "supporting",
+          "caveat": "A radical arrives from a root taken of both sides and is reduced before the answer is accepted. The gate here marks the solution set, not the reduction.",
+          "i18n": {
+            "es": {
+              "caveat": "Un radical aparece al sacar la raíz de ambos lados y se reduce antes de aceptar la respuesta. Aquí la puerta califica el conjunto solución, no la reducción."
+            },
+            "pl": {
+              "caveat": "Pierwiastek pojawia się po spierwiastkowaniu obu stron i zostaje uproszczony, zanim odpowiedź zostanie przyjęta. Brama ocenia tu zbiór rozwiązań, a nie samo uproszczenie."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.4.B",
+          "text": "Solve quadratic equations by inspection (e.g., for x^2 = 49), taking square roots, completing the square, the quadratic formula and factoring, as appropriate to the initial form of the equation. Recognize when the quadratic formula gives complex solutions and write them as a ± bi for real numbers a and b.",
+          "depth": "core",
+          "caveat": "Solving by inspection and by taking square roots is proved, on both the plain and the shifted form. The complex-solution clause is outside this course.",
+          "i18n": {
+            "es": {
+              "caveat": "Se demuestra resolver por inspección y sacando raíces cuadradas, en la forma simple y en la desplazada. La cláusula de soluciones complejas queda fuera de este curso."
+            },
+            "pl": {
+              "caveat": "Dowodzimy rozwiązywania przez wgląd i przez pierwiastkowanie, w postaci prostej i przesuniętej. Klauzula o rozwiązaniach zespolonych jest poza tym kursem."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.6",
+          "MP.2"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(C)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.REI.B.4.B names solving \"by inspection (e.g., for x^2 = 49)\" first and \"taking square roots\" second, and both are exactly this node. A learner who reports only the root above zero is caught by the checker, which compares the whole solution set and refuses a set of the wrong size.",
+        "TEKS": "A.8(A) core, square-roots route. One form is the honest refusal: a squared quantity equal to a number below zero has no real answer, and \"no solution\" is one of the two special answers this engine localises, so the item can be asked in Spanish and Polish without printing an English word."
+      },
+      "bkt": {
+        "pInit": 0.14,
+        "pTransit": 0.27,
+        "pSlip": 0.09,
+        "pGuess": 0.12
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "plus-only",
+          "text": "Reports one root and drops the one below zero."
+        },
+        {
+          "id": "root-taken-term-by-term",
+          "text": "Takes the root of each term separately instead of the whole side."
+        },
+        {
+          "id": "halves-instead-of-roots",
+          "text": "Halves the number instead of taking its root."
+        },
+        {
+          "id": "negative-radicand-forced",
+          "text": "Takes the root of a number below zero and reports two answers."
+        },
+        {
+          "id": "shift-undone-before-rooting",
+          "text": "Moves the shift across before taking the root, not after."
+        },
+        {
+          "id": "negative-solution-discarded",
+          "text": "Keeps the root below zero where the situation is a length."
+        },
+        {
+          "id": "perfect-square-left-inside",
+          "text": "Pulls out only part of the square factor and leaves a square under the bar."
+        },
+        {
+          "id": "zero-always-a-zero",
+          "text": "Adds a zero of its own to every answer, because zero stands on one side."
+        },
+        {
+          "id": "swapped-roles",
+          "text": "Swaps which quantity is which — the number under the bar for the one in front, or the input for the output."
+        }
+      ]
+    },
+    {
+      "id": "complete-the-square",
+      "prereqs": [
+        "square-root-method",
+        "factor-trinomial-lead",
+        "fraction-solve"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "Half the middle coefficient, squared, is the number that turns a two-term start into a perfect square. Adding it to both sides keeps the balance and makes a squared bracket appear.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.8(A)",
+          "citation": "19 TAC §111.39(c)(8)(A)",
+          "text": "solve quadratic equations having real solutions by factoring, taking square roots, completing the square, and applying the quadratic formula; and",
+          "depth": "core",
+          "caveat": "This node proves the completing-the-square route, including the case where the squared term carries a number that has to come out first. The other three methods are proved by the nodes around it.",
+          "i18n": {
+            "es": {
+              "caveat": "Este nodo demuestra la vía de completar el cuadrado, incluido el caso en que el término al cuadrado lleva un número que hay que sacar primero. Los otros tres métodos los demuestran los nodos vecinos."
+            },
+            "pl": {
+              "caveat": "Ten węzeł dowodzi drogi przez uzupełnianie do kwadratu, także wtedy, gdy wyraz kwadratowy ma liczbę, którą trzeba najpierw wyłączyć. Pozostałe trzy metody dowodzą węzły sąsiednie."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.6(B)",
+          "citation": "19 TAC §111.39(c)(6)(B)",
+          "text": "write equations of quadratic functions given the vertex and another point on the graph, write the equation in vertex form (f(x) = a(x - h)^2 + k), and rewrite the equation from vertex form to standard form (f(x) = ax^2 + bx + c); and",
+          "depth": "supporting",
+          "caveat": "Vertex form is produced from standard form and proved. Writing a rule from a turning point and a second reading is the later node, and it is not asked here.",
+          "i18n": {
+            "es": {
+              "caveat": "La forma de vértice se obtiene desde la forma estándar y se demuestra. Escribir una regla a partir de un punto de giro y una segunda lectura es el nodo posterior, y aquí no se pide."
+            },
+            "pl": {
+              "caveat": "Postać kanoniczna powstaje z postaci ogólnej i jest dowodzona. Zapisanie reguły z wierzchołka i drugiego odczytu to późniejszy węzeł i tutaj o to nie pytamy."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.B.3.B",
+          "text": "Complete the square in a quadratic expression to reveal the maximum or minimum value of the function it defines.",
+          "depth": "core",
+          "caveat": "The square is completed and the value at the turn appears in the answer. Naming which of maximum and minimum it is belongs to the features node.",
+          "i18n": {
+            "es": {
+              "caveat": "Se completa el cuadrado y el valor en el giro aparece en la respuesta. Nombrar si es máximo o mínimo corresponde al nodo de atributos."
+            },
+            "pl": {
+              "caveat": "Kwadrat zostaje uzupełniony, a wartość w wierzchołku pojawia się w odpowiedzi. Nazwanie jej maksimum albo minimum należy do węzła o cechach."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.4.A",
+          "text": "Use the method of completing the square to transform any quadratic equation in x into an equation of the form (x - p)^2 = q that has the same solutions. Derive the quadratic formula from this form.",
+          "depth": "supporting",
+          "caveat": "The transformation into a squared bracket equal to a number is produced and proved. Deriving the formula from that form is stated in the next node and is never asked of the learner.",
+          "i18n": {
+            "es": {
+              "caveat": "Se obtiene y se demuestra la transformación a un paréntesis al cuadrado igual a un número. Deducir la fórmula a partir de esa forma se enuncia en el nodo siguiente y nunca se le pide al estudiante."
+            },
+            "pl": {
+              "caveat": "Przekształcenie do postaci kwadratu nawiasu równego liczbie jest wykonane i dowiedzione. Wyprowadzenie wzoru z tej postaci podajemy w następnym węźle i nigdy o nie nie prosimy ucznia."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.1",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(F)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSA.SSE.B.3.B is core: the answer must be one squared bracket plus a constant, and the checker refuses standard form even though standard form is identically equal. HSA.REI.B.4.A is supporting because its second sentence asks for a derivation, and a derivation is not a value an independent checker can re-derive.",
+        "TEKS": "A.8(A) core, completing-the-square route. A.6(B) is supporting here and core one node later, so a reviewer can see which half of that three-clause expectation each node carries."
+      },
+      "bkt": {
+        "pInit": 0.07,
+        "pTransit": 0.22,
+        "pSlip": 0.11,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "half-b-not-squared",
+          "text": "Adds half the middle number rather than its square."
+        },
+        {
+          "id": "added-one-side-only",
+          "text": "Adds the new number to one side and leaves the other side alone."
+        },
+        {
+          "id": "leading-coefficient-not-divided-out",
+          "text": "Completes the square without taking the front number out first."
+        },
+        {
+          "id": "bracket-sign-copied",
+          "text": "Copies the sign of the middle term into the bracket."
+        },
+        {
+          "id": "constant-dropped",
+          "text": "Builds the squared bracket and loses the number that was left over."
+        },
+        {
+          "id": "perfect-square-left-inside",
+          "text": "Pulls out only part of the square factor and leaves a square under the bar."
+        },
+        {
+          "id": "plus-only",
+          "text": "Reports one root and drops the one below zero."
+        }
+      ]
+    },
+    {
+      "id": "quadratic-formula",
+      "prereqs": [
+        "complete-the-square",
+        "solve-by-factoring",
+        "radical-arith"
+      ],
+      "worldSite": "spire",
+      "bigIdea": "Completing the square on a general squared rule gives one formula that works every time. The part under the root says how many real answers there are.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.8(A)",
+          "citation": "19 TAC §111.39(c)(8)(A)",
+          "text": "solve quadratic equations having real solutions by factoring, taking square roots, completing the square, and applying the quadratic formula; and",
+          "depth": "core",
+          "caveat": "This node proves the formula route, including the reading of the part under the root that says there is no real answer. The other three methods are proved by the nodes before it.",
+          "i18n": {
+            "es": {
+              "caveat": "Este nodo demuestra la vía de la fórmula, incluida la lectura de la parte bajo la raíz que dice que no hay respuesta real. Los otros tres métodos los demuestran los nodos anteriores."
+            },
+            "pl": {
+              "caveat": "Ten węzeł dowodzi drogi przez wzór, łącznie z odczytem części pod pierwiastkiem, która mówi, że rozwiązania rzeczywistego nie ma. Pozostałe trzy metody dowodzą węzły wcześniejsze."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.REI.B.4.B",
+          "text": "Solve quadratic equations by inspection (e.g., for x^2 = 49), taking square roots, completing the square, the quadratic formula and factoring, as appropriate to the initial form of the equation. Recognize when the quadratic formula gives complex solutions and write them as a ± bi for real numbers a and b.",
+          "depth": "core",
+          "caveat": "The formula route is proved, on rational and on irrational answers alike. The complex-solution clause is outside this course: an equation whose part under the root is below zero is answered \"no solution\".",
+          "i18n": {
+            "es": {
+              "caveat": "Se demuestra la vía de la fórmula, tanto con respuestas racionales como irracionales. La cláusula de soluciones complejas queda fuera de este curso: una ecuación con la parte bajo la raíz por debajo de cero se responde «sin solución»."
+            },
+            "pl": {
+              "caveat": "Dowodzimy drogi przez wzór, zarówno dla odpowiedzi wymiernych, jak i niewymiernych. Klauzula o rozwiązaniach zespolonych jest poza tym kursem: równanie, którego część pod pierwiastkiem jest ujemna, ma odpowiedź „brak rozwiązania\"."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
+          "text": "Create equations and inequalities in one variable and use them to solve problems.",
+          "depth": "supporting",
+          "caveat": "One form builds the equation from a thrown object before solving it. Most forms hand the learner the equation already written.",
+          "i18n": {
+            "es": {
+              "caveat": "Una de las formas construye la ecuación a partir de un objeto lanzado antes de resolverla. La mayoría entrega la ecuación ya escrita."
+            },
+            "pl": {
+              "caveat": "Jedna z postaci buduje równanie z rzuconego przedmiotu, zanim je rozwiąże. Większość podaje uczniowi równanie już zapisane."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.6",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(C)",
+          "A.1(D)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "The irrational answers are the reason this node exists in a bank that refuses decimals. The checker works in exact arithmetic widened to include one square root, so a root such as 1 + the root of 5 is compared exactly and is then put back into the printed equation, which must come to exactly zero.",
+        "TEKS": "A.8(A) core, formula route. This closes the expectation: with this node held, all four of the methods it names have been proved, one node each."
+      },
+      "bkt": {
+        "pInit": 0.06,
+        "pTransit": 0.22,
+        "pSlip": 0.11,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "minus-b-forgotten",
+          "text": "Uses the middle number as it stands rather than its opposite."
+        },
+        {
+          "id": "discriminant-sign-slip",
+          "text": "Works the part under the root out as a sum, or squares a minus to a minus."
+        },
+        {
+          "id": "denominator-under-one-term-only",
+          "text": "Divides only the root by twice the first number."
+        },
+        {
+          "id": "negative-discriminant-rooted",
+          "text": "Takes the root of a number below zero and reports two real answers."
+        },
+        {
+          "id": "a-read-as-one",
+          "text": "Reads the first number as one when the equation still carries one."
+        },
+        {
+          "id": "perfect-square-left-inside",
+          "text": "Pulls out only part of the square factor and leaves a square under the bar."
+        }
+      ]
+    },
+    {
+      "id": "parabola-features",
+      "prereqs": [
+        "solve-by-factoring",
+        "graph-linear",
+        "function-notation"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "A squared rule draws a curve that falls, turns and rises again. The turning point, the line through it, the crossings and the highest or lowest value are all read from the same three numbers.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.7(A)",
+          "citation": "19 TAC §111.39(c)(7)(A)",
+          "text": "graph quadratic functions on the coordinate plane and use the graph to identify key attributes, if possible, including x-intercept, y-intercept, zeros, maximum value, minimum values, vertex, and the equation of the axis of symmetry;",
+          "depth": "supporting",
+          "caveat": "Every attribute the expectation names is produced from the printed rule and re-derived exactly: both crossings, the zeros, the greatest or least value, the turning point and the equation of the line of symmetry. The graphing clause is NOT met, because the renderer draws straight segments and isolated points only and cannot draw a curve.",
+          "i18n": {
+            "es": {
+              "caveat": "Se obtiene y se rederiva con exactitud cada atributo que nombra la expectativa: ambos cortes, los ceros, el valor mayor o menor, el punto de giro y la ecuación del eje de simetría. La cláusula de graficar NO se cumple, porque el motor solo dibuja segmentos rectos y puntos sueltos, y no puede dibujar una curva."
+            },
+            "pl": {
+              "caveat": "Każdy atrybut nazwany w oczekiwaniu powstaje z wydrukowanej reguły i jest dokładnie wyprowadzany ponownie: oba przecięcia, miejsca zerowe, wartość największa lub najmniejsza, wierzchołek i równanie osi symetrii. Klauzula o rysowaniu wykresu NIE jest spełniona, bo silnik rysuje tylko odcinki proste i pojedyncze punkty i nie potrafi narysować krzywej."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.6(A)",
+          "citation": "19 TAC §111.39(c)(6)(A)",
+          "text": "determine the domain and range of quadratic functions and represent the domain and range using inequalities;",
+          "depth": "supporting",
+          "caveat": "The range is produced as an inequality and proved by an identity that reproduces the printed rule. The domain is not asked: every rule of degree two accepts every real number, so the answer would be recall rather than a derivation.",
+          "i18n": {
+            "es": {
+              "caveat": "El rango se obtiene como desigualdad y se demuestra con una identidad que reproduce la regla impresa. El dominio no se pregunta: toda regla de grado dos acepta cualquier número real, así que la respuesta sería memoria y no una deducción."
+            },
+            "pl": {
+              "caveat": "Zbiór wartości powstaje jako nierówność i jest dowodzony tożsamością odtwarzającą wydrukowaną regułę. O dziedzinę nie pytamy: każda reguła stopnia drugiego przyjmuje każdą liczbę rzeczywistą, więc odpowiedź byłaby pamięciowa, a nie wyprowadzona."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.C.8.A",
+          "text": "Use the process of factoring and completing the square in a quadratic function to show zeros, extreme values, and symmetry of the graph, and interpret these in terms of a context.",
+          "depth": "core",
+          "caveat": "Factoring and completing the square are what produce the zeros, the value at the turn and the line of symmetry, and one form asks for them inside a situation. The graph itself is not drawn.",
+          "i18n": {
+            "es": {
+              "caveat": "La factorización y completar el cuadrado son lo que produce los ceros, el valor en el giro y el eje de simetría, y una de las formas los pide dentro de una situación. La gráfica en sí no se dibuja."
+            },
+            "pl": {
+              "caveat": "Rozkład na czynniki i uzupełnianie do kwadratu dają miejsca zerowe, wartość w wierzchołku i oś symetrii, a jedna z postaci pyta o nie w sytuacji. Samego wykresu nie rysujemy."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.C.7.A",
+          "text": "Graph linear and quadratic functions and show intercepts, maxima, and minima.",
+          "depth": "supporting",
+          "caveat": "The intercepts, the maximum and the minimum are produced exactly. No graph is drawn, and the standard asks for one.",
+          "i18n": {
+            "es": {
+              "caveat": "Los cortes, el máximo y el mínimo se obtienen con exactitud. No se dibuja ninguna gráfica, y el estándar pide una."
+            },
+            "pl": {
+              "caveat": "Punkty przecięcia, maksimum i minimum powstają dokładnie. Nie rysujemy żadnego wykresu, a standard go wymaga."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.B.4",
+          "text": "For a function that models a relationship between two quantities, interpret key features of graphs and tables in terms of the quantities, and sketch graphs showing key features given a verbal description of the relationship. Key features include: intercepts; intervals where the function is increasing, decreasing, positive, or negative; relative maximums and minimums; symmetries; end behavior; and periodicity.",
+          "depth": "supporting",
+          "caveat": "Key features are read off a printed rule and off a table of readings. No graph is read and none is sketched, and the standard names both.",
+          "i18n": {
+            "es": {
+              "caveat": "Los atributos clave se leen de una regla impresa y de una tabla de lecturas. No se lee ninguna gráfica ni se bosqueja ninguna, y el estándar nombra ambas cosas."
+            },
+            "pl": {
+              "caveat": "Kluczowe cechy odczytujemy z wydrukowanej reguły i z tabeli odczytów. Żadnego wykresu nie czytamy ani nie szkicujemy, a standard wymienia jedno i drugie."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.2",
+          "MP.7",
+          "MP.4"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(E)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "Only HSF.IF.C.8.A is core, and that is the one row here whose whole subject is a process rather than a picture. Everything else in this node is cited at supporting with the drawing named as the missing part, because this product cannot draw a parabola and a claim that says otherwise would be found in five minutes by anyone who opened it.",
+        "TEKS": "A.7(A) is the most attractive over-claim in the strand and it is refused. Every attribute the expectation lists is a finite quantity that the checker re-derives exactly, and the bank asks for all of them; but the expectation opens with \"graph quadratic functions on the coordinate plane and use the graph to identify\", and this node never draws the graph. A.6(A) is supporting for a different reason, and the caveat says which half is missing. The non-symbolic reading is a TABLE of readings whose rule the checker recovers by exact least squares, not a picture."
+      },
+      "bkt": {
+        "pInit": 0.08,
+        "pTransit": 0.23,
+        "pSlip": 0.1,
+        "pGuess": 0.11
+      },
+      "requiredReps": [
+        "symbolic",
+        "table"
+      ],
+      "misconceptions": [
+        {
+          "id": "turning-point-sign-wrong",
+          "text": "Works the input at the turn out without turning the middle number round."
+        },
+        {
+          "id": "constant-called-the-turn",
+          "text": "Reports the last term of the rule as the value at the turn."
+        },
+        {
+          "id": "axis-given-as-a-number",
+          "text": "Answers the line of symmetry with a bare number where an equation was asked for."
+        },
+        {
+          "id": "range-written-about-the-input",
+          "text": "States the set of outputs using the input letter."
+        },
+        {
+          "id": "highest-and-lowest-swapped",
+          "text": "Reads the turn as the greatest value where the curve opens upwards."
+        },
+        {
+          "id": "constant-rate-assumed",
+          "text": "Uses one steady rate of change across readings that curve."
+        },
+        {
+          "id": "swapped-roles",
+          "text": "Swaps which quantity is which — the number under the bar for the one in front, or the input for the output."
+        }
+      ]
+    },
+    {
+      "id": "quadratic-from-vertex",
+      "prereqs": [
+        "complete-the-square",
+        "parabola-features"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "A squared rule can be written with its turning point showing, or as the product of the two brackets that are zero where the rule is. The two spellings describe the same curve.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.6(B)",
+          "citation": "19 TAC §111.39(c)(6)(B)",
+          "text": "write equations of quadratic functions given the vertex and another point on the graph, write the equation in vertex form (f(x) = a(x - h)^2 + k), and rewrite the equation from vertex form to standard form (f(x) = ax^2 + bx + c); and",
+          "depth": "core",
+          "caveat": "Two of the three clauses are proved with the turning point given: the rule is written in vertex form, and a rule in vertex form is rewritten to standard form. Building a rule from a turning point and a second reading ALONE is not asked, because such a prompt shows no rule for the checker to read.",
+          "i18n": {
+            "es": {
+              "caveat": "Con el punto de giro dado se demuestran dos de las tres cláusulas: la regla se escribe en forma de vértice, y una regla en forma de vértice se reescribe en forma estándar. Construir una regla SOLO a partir de un punto de giro y una segunda lectura no se pide, porque ese enunciado no muestra ninguna regla que el verificador pueda leer."
+            },
+            "pl": {
+              "caveat": "Przy podanym wierzchołku dowodzimy dwóch z trzech klauzul: reguła zostaje zapisana w postaci kanonicznej, a reguła w postaci kanonicznej przepisana do ogólnej. Zbudowania reguły WYŁĄCZNIE z wierzchołka i drugiego odczytu nie wymagamy, bo takie polecenie nie pokazuje reguły, którą weryfikator mógłby odczytać."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.6(C)",
+          "citation": "19 TAC §111.39(c)(6)(C)",
+          "text": "write quadratic functions when given real solutions and graphs of their related equations.",
+          "depth": "supporting",
+          "caveat": "The learner is given the real solutions and writes the rule as a product of two brackets. The graphs half of the expectation is not met, because no curve is drawn.",
+          "i18n": {
+            "es": {
+              "caveat": "Al estudiante se le dan las soluciones reales y escribe la regla como producto de dos paréntesis. La mitad de las gráficas no se cumple, porque no se dibuja ninguna curva."
+            },
+            "pl": {
+              "caveat": "Uczeń dostaje rozwiązania rzeczywiste i zapisuje regułę jako iloczyn dwóch nawiasów. Połowa dotycząca wykresów nie jest spełniona, bo nie rysujemy żadnej krzywej."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.SSE.B.3.A",
+          "text": "Factor a quadratic expression to reveal the zeros of the function it defines.",
+          "depth": "supporting",
+          "caveat": "A rule is written as a product whose brackets are its zeros, in both directions. Revealing the zeros of an unfactored expression is the factoring nodes’ gate.",
+          "i18n": {
+            "es": {
+              "caveat": "Una regla se escribe como producto cuyos paréntesis son sus ceros, en ambos sentidos. Revelar los ceros de una expresión sin factorizar es la puerta de los nodos de factorización."
+            },
+            "pl": {
+              "caveat": "Reguła zostaje zapisana jako iloczyn, którego nawiasy są jej miejscami zerowymi, w obie strony. Ujawnienie miejsc zerowych wyrażenia nierozłożonego to brama węzłów rozkładu."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.2",
+          "text": "Create equations in two or more variables to represent relationships between quantities; graph equations on coordinate axes with labels and scales.",
+          "depth": "supporting",
+          "caveat": "A rule in two quantities is written, in two spellings. It is never graphed with labels and scales, because the renderer draws no curve.",
+          "i18n": {
+            "es": {
+              "caveat": "Se escribe una regla en dos cantidades, en dos formas. Nunca se grafica con rótulos ni escalas, porque el motor no dibuja curvas."
+            },
+            "pl": {
+              "caveat": "Zapisujemy regułę w dwóch wielkościach, w dwóch postaciach. Nigdy jej nie rysujemy z opisami i skalą, bo silnik nie rysuje krzywych."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.7",
+          "MP.2",
+          "MP.8"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(D)",
+          "A.1(E)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "Both CCSS rows are supporting. A.SSE.3a is core one node earlier, where the factors are produced rather than handed over; A.CED.2 loses its graphing clause to the same renderer limit that costs A.7(A) its core claim.",
+        "TEKS": "A.6(B) is core and the caveat is precise about which clause is missing and why. The expectation lists three things: write the equation given the vertex and another point, write it in vertex form, and rewrite it from vertex form to standard form. The last two are proved. The first is refused, because a prompt that carries only two points carries no notation an independent checker can re-derive an answer from, and this unit ships no item it cannot re-derive."
+      },
+      "bkt": {
+        "pInit": 0.07,
+        "pTransit": 0.22,
+        "pSlip": 0.11,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "symbolic",
+        "context"
+      ],
+      "misconceptions": [
+        {
+          "id": "turn-sign-copied",
+          "text": "Copies the sign of the turning point straight into the bracket."
+        },
+        {
+          "id": "stretch-assumed-one",
+          "text": "Writes the squared form with no multiplier, so a second reading is not met."
+        },
+        {
+          "id": "bracket-squared-term-by-term",
+          "text": "Squares each term of the bracket separately."
+        },
+        {
+          "id": "zeros-used-as-the-turn",
+          "text": "Builds the rule from the zeros as if they were the turning point."
+        },
+        {
+          "id": "leading-multiplier-dropped",
+          "text": "Writes the two brackets and ignores a stated multiplier."
+        }
+      ]
+    },
+    {
+      "id": "quadratic-model",
+      "prereqs": [
+        "quadratic-formula",
+        "parabola-features"
+      ],
+      "worldSite": "shoal",
+      "bigIdea": "A thrown object, a fenced area and a price against takings all follow a squared rule. The turning point is the greatest height, the largest area or the best price, and the zeros are where the story ends.",
+      "alignment": [
+        {
+          "framework": "TEKS",
+          "code": "A.6(C)",
+          "citation": "19 TAC §111.39(c)(6)(C)",
+          "text": "write quadratic functions when given real solutions and graphs of their related equations.",
+          "depth": "supporting",
+          "caveat": "A squared rule is read inside a situation, and its greatest value, its best input and the time it reaches zero are produced. Writing the rule from stated solutions is the node before this one, and no graph is drawn.",
+          "i18n": {
+            "es": {
+              "caveat": "Se lee una regla al cuadrado dentro de una situación y se obtienen su valor mayor, su mejor entrada y el momento en que llega a cero. Escribir la regla a partir de soluciones dadas es el nodo anterior, y no se dibuja ninguna gráfica."
+            },
+            "pl": {
+              "caveat": "Regułę kwadratową czytamy w sytuacji i wyznaczamy jej największą wartość, najlepsze wejście oraz moment, w którym osiąga zero. Zapisanie reguły z podanych rozwiązań to węzeł wcześniejszy, a wykresu nie rysujemy."
+            }
+          }
+        },
+        {
+          "framework": "TEKS",
+          "code": "A.7(A)",
+          "citation": "19 TAC §111.39(c)(7)(A)",
+          "text": "graph quadratic functions on the coordinate plane and use the graph to identify key attributes, if possible, including x-intercept, y-intercept, zeros, maximum value, minimum values, vertex, and the equation of the axis of symmetry;",
+          "depth": "supporting",
+          "caveat": "The key attributes are produced inside real-world problems, which is what the expectation asks them to be used for. No graph is drawn.",
+          "i18n": {
+            "es": {
+              "caveat": "Los atributos clave se obtienen dentro de problemas del mundo real, que es para lo que la expectativa pide usarlos. No se dibuja ninguna gráfica."
+            },
+            "pl": {
+              "caveat": "Kluczowe cechy powstają w zadaniach z życia, czyli tak, jak wymaga tego oczekiwanie. Wykresu nie rysujemy."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSF.IF.B.4",
+          "text": "For a function that models a relationship between two quantities, interpret key features of graphs and tables in terms of the quantities, and sketch graphs showing key features given a verbal description of the relationship. Key features include: intercepts; intervals where the function is increasing, decreasing, positive, or negative; relative maximums and minimums; symmetries; end behavior; and periodicity.",
+          "depth": "core",
+          "caveat": "The key features of a printed rule and of a table of readings are interpreted in the quantities of the situation. No graph is sketched, and the standard names sketching as well.",
+          "i18n": {
+            "es": {
+              "caveat": "Los atributos clave de una regla impresa y de una tabla de lecturas se interpretan en las cantidades de la situación. No se bosqueja ninguna gráfica, y el estándar también nombra bosquejar."
+            },
+            "pl": {
+              "caveat": "Kluczowe cechy wydrukowanej reguły i tabeli odczytów interpretujemy w wielkościach sytuacji. Nie szkicujemy wykresu, a standard wymienia także szkicowanie."
+            }
+          }
+        },
+        {
+          "framework": "CCSS-M",
+          "code": "CCSS.MATH.CONTENT.HSA.CED.A.1",
+          "text": "Create equations and inequalities in one variable and use them to solve problems.",
+          "depth": "supporting",
+          "caveat": "The landing forms build an equation from the story and solve it. The reading forms are handed the rule already written.",
+          "i18n": {
+            "es": {
+              "caveat": "Las formas de aterrizaje construyen una ecuación a partir del relato y la resuelven. A las formas de lectura se les entrega la regla ya escrita."
+            },
+            "pl": {
+              "caveat": "Postacie o lądowaniu budują równanie z opowieści i je rozwiązują. Postacie odczytujące dostają regułę już zapisaną."
+            }
+          }
+        }
+      ],
+      "practices": {
+        "CCSS-M": [
+          "MP.4",
+          "MP.2",
+          "MP.1"
+        ],
+        "TEKS": [
+          "A.1(A)",
+          "A.1(B)",
+          "A.1(E)"
+        ]
+      },
+      "alignmentNote": {
+        "CCSS-M": "HSF.IF.B.4 is the one core row, and it is core because interpretation in context is the whole node: every item names a quantity — a height, an area, a price, a time — and the answer is that quantity. The sketching clause is named in the caveat and is not claimed.",
+        "TEKS": "Both TEKS rows are supporting and both caveats name the drawing. The most useful thing this node does for A.7(A) is the part the expectation calls \"in mathematical and real-world problems\": the attributes are asked for as the greatest height, the largest area and the best price rather than as a vertex, so a learner who can find a turning point and cannot say what it means does not clear the gate."
+      },
+      "bkt": {
+        "pInit": 0.06,
+        "pTransit": 0.21,
+        "pSlip": 0.11,
+        "pGuess": 0.1
+      },
+      "requiredReps": [
+        "context",
+        "table"
+      ],
+      "misconceptions": [
+        {
+          "id": "turn-coordinates-swapped",
+          "text": "Reports the input at the turn as the value at the turn."
+        },
+        {
+          "id": "impossible-zero-chosen",
+          "text": "Chooses the solution the story cannot carry, such as a time before the launch."
+        },
+        {
+          "id": "constant-rate-assumed",
+          "text": "Uses one steady rate of change across readings that curve."
+        },
+        {
+          "id": "start-value-called-the-greatest",
+          "text": "Reports the value at the start as the largest value the rule reaches."
+        },
+        {
+          "id": "zero-called-the-turn",
+          "text": "Reports where the rule reads zero as where it turns round."
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { heightAt, ISLAND_R } from './world.js';
 import { t } from '../i18n/index.js';
 import './field.css';
+// An updraft is ground that does not hold you, and the seating searches have
+// to know where they are. (src/world/clearings.js)
+import { lift as registerLift, pushOutOfRooms } from './clearings.js';
 
 /**
  * THE DRIFT — what happens in the world when nobody is asking you a question.
@@ -316,6 +319,19 @@ export function createDrift(opts = {}) {
   const columns = [];
   /** Plant an updraft. `earned` ones came out of a cache and are warmer. */
   function addColumn(x, z, height = 62, radius = 7.5, earned = false) {
+    // A standing column may not sit in a room the world has already given a
+    // cadet a reason to walk into: he arrives, the ground lets go, and the
+    // composition gate reads `not standing on a surface` from every bearing at
+    // once. A flare bought out of a cache is the player's own doing and stays
+    // exactly where he put it.
+    if (!earned) {
+      // Far enough out that the whole seventeen-metre approach ring of the room
+      // is outside the column, and not one metre further: these coordinates
+      // were chosen for the flying and the flying is the reason they exist.
+      const q = pushOutOfRooms(x, z, radius);
+      if (heightAt(q.x, q.z) !== null) { x = q.x; z = q.z; }
+      registerLift(x, z, radius);
+    }
     const base = heightAt(x, z);
     const y0 = base === null ? 6 : base;
     const m = new THREE.Mesh(colGeo, colMat);

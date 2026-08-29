@@ -61,3 +61,34 @@ export function standalone(graph) {
   const ids = new Set(graph.nodes.map((n) => n.id));
   return { ...graph, nodes: graph.nodes.map((n) => ({ ...n, prereqs: n.prereqs.filter((p) => ids.has(p)) })) };
 }
+
+/**
+ * THE SHIPPED ROUTE, by the same rule `src/content/index.js` and
+ * `tools/route-proof.mjs` apply: `route.units` names it outright, and when it
+ * is null every unit the manifest itself calls `shipped` is on it.
+ *
+ * Tools that have to know the difference between "in front of a learner" and
+ * "on disk" read this. A unit that is not on the route is still generated,
+ * validated and simulated — it is simply never handed to somebody who did not
+ * ask for it with `?unit=` — so a defect in it is worth less than the same
+ * defect on the route, and the severity of a gate may follow that.
+ *
+ * @returns {{course:object, road:object[], off:object[], onRoute:(id:string)=>boolean}}
+ */
+export async function routeUnits(m = null) {
+  const man = m || await manifest();
+  const ROUTE = man.route || { course: man.default.course, units: null };
+  const course = man.courses.find((c) => c.id === ROUTE.course);
+  if (!course) throw new Error(`content/courses.json names route.course "${ROUTE.course}", which is not a course`);
+  const units = course.units || [];
+  const road = Array.isArray(ROUTE.units)
+    ? units.filter((u) => ROUTE.units.includes(u.id))
+    : units.filter((u) => (u.status || 'shipped') === 'shipped');
+  if (Array.isArray(ROUTE.units)) {
+    for (const id of ROUTE.units) {
+      if (!units.some((u) => u.id === id)) throw new Error(`route.units names "${id}", which course "${course.id}" does not define`);
+    }
+  }
+  const on = new Set(road.map((u) => u.id));
+  return { course, road, off: units.filter((u) => !on.has(u.id)), onRoute: (id) => on.has(id) };
+}

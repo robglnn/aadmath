@@ -1,0 +1,28 @@
+{
+  "file": "src/i18n/en.js",
+  "edits": [
+    ["shards: '«n|one:Cipher shard|other:Cipher shards»',", "shards: '«n|one:Cipher mote|other:Cipher motes»',"],
+    ["noShards: 'Not enough shards for that piece',", "noShards: 'Not enough motes for that piece',"],
+    ["shards: 'Shards +{n}',", "shards: 'Motes +{n}',"],
+    ["tray: 'Area shards',", "tray: 'Field pieces',"],
+    ["cost: '{n} shards',", "cost: '{n} motes',"],
+    ["needShards: '{n} shards needed',", "needShards: '{n} motes needed',"],
+    ["what: 'G — ninety shards plants a column of rising air", "what: 'G — ninety motes plants a column of rising air"],
+    ["costs six shards instead of eighteen", "costs six motes instead of eighteen"],
+    ["Costs a charter and two hundred and forty shards.", "Costs a charter and two hundred and forty motes."],
+    ["afford: '{n} shards — enough for {name}',", "afford: '{n} motes — enough for {name}',"],
+    ["      shard: 'Cipher shards — loose lattice, lying where the ground bled. Run through them and they are yours. Vault plates and squall flares are cut from that, so they are worth going out of your way for.',", "      mote: 'Cipher motes — loose lattice, lying where the ground bled. Run through them and they are yours. Vault plates and squall flares are cut from that, so they are worth going out of your way for.',"],
+    ["charged: 'The gold ones grew against an open rift, which is why they pay three times what a pale one does, and why standing here costs you shards every fifteen seconds. Seal that rift and the surges stop. The vein keeps paying.',", "charged: 'The gold ones grew against an open rift, which is why they pay three times what a pale one does — and why an open rift throws a surge ring out here every fifteen seconds and takes motes back off you. Seal that rift and the surges stop for good. The vein keeps paying.',"],
+    ["Sixty shards apiece, and there are three.", "Sixty motes apiece, and there are three."],
+    ["A hundred and twenty shards, and the air rises there for good afterwards.", "A hundred and twenty motes, and the air rises there for good afterwards."],
+    ["lede: 'A cipher shard is what a rift leaves behind when it closes. The foundry takes them, and hands back air you can stand on.',", "lede: 'A cipher mote is what a rift leaves behind when it closes. The foundry takes them, and hands back air you can stand on.',"],
+    ["unit: '«n|one:shard|other:shards»',", "unit: '«n|one:mote|other:motes»',"],
+    ["hailNone: 'Where shards are spent',", "hailNone: 'Where motes are spent',"],
+    ["note: 'Shards buy what is on the counter. Held lines open the rest.',", "note: 'Motes buy what is on the counter. Held lines open the rest.',"],
+    ["callout: 'Cadet — those shards are not a score.", "callout: 'Cadet — those motes are not a score."],
+    ["moteTake: '+{n} shards',", "moteTake: '+{n} motes',"],
+    ["surgeHit: 'Rift surge — {n} shards knocked loose',", "surgeHit: 'Rift surge — {n} motes knocked loose · jump the ring, or seal the rift',"],
+    ["cacheOpen: 'Cache broken open — {n} shards, and the air here rises for good',", "cacheOpen: 'Cache broken open — {n} motes, and the air here rises for good',"],
+    ["shardsFor: 'Cipher shards. The rig trades them for vault plates, flares and standing updrafts.',", "shardsFor: 'Cipher motes. The rig trades them for vault plates, flares and standing updrafts.',"]
+  ]
+}

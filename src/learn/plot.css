@@ -6,7 +6,17 @@
  * (`--rf-teal`, `--rf-gold`, `--rf-u`) and defines nothing global, so the rift
  * panel keeps its own stylesheet and this one cannot reach past its own surface.
  */
+/* HOW WIDE THE SURFACE IS — declared once, and everything on it follows.
+   The read-out and the SEAL key used to be 100% of the work box, so on a
+   1600x900 laptop a 419px chart sat under a 620px key: the instrument the
+   cadet has to act on was smaller than the button that ends the turn, and the
+   mathematics was the smallest thing on the screen. A second copy of this
+   expression on the bar would be the same defect `chartLattice` in plot.js
+   was written to end — two numbers computed apart, drifting — so there is ONE
+   number here and three readers of it.
+   `tools/check-figures.mjs --charts` measures the result in the real panel. */
 .rf-plot {
+  --rf-plot-w: min(calc(560px * var(--rf-u)), 90vw, 58vh);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -21,7 +31,7 @@
    which is a small target for no reason. `min(width, height)` spends both. */
 .rf-plot-stage {
   position: relative;
-  width: min(calc(420px * var(--rf-u)), 86vw, 52vh);
+  width: var(--rf-plot-w);
   max-width: 100%;
   flex: 0 1 auto;
   min-height: 0;
@@ -81,12 +91,18 @@
   font-size: calc(.62rem * var(--rf-u));
   letter-spacing: .16em;
   text-transform: uppercase;
+  max-width: min(var(--rf-plot-w), 100%);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .rf-plot-read .val { color: var(--rf-ink); letter-spacing: normal; text-transform: none; }
 .rf-plot-read .val .katex { color: var(--rf-teal); font-size: calc(1.05rem * var(--rf-u)); }
 .rf-plot-read.bad .val .katex { color: #ff8f7a; }
 
-.rf-plot-bar { display: flex; gap: calc(.4rem * var(--rf-u)); width: 100%; }
+.rf-plot-bar {
+  display: flex; gap: calc(.4rem * var(--rf-u));
+  width: min(var(--rf-plot-w), 100%);
+}
 .rf-plot-bar .rf-key { flex: 1 1 0; }
 
 /* The rig already scales itself through `--rf-u`, so a short viewport needs no
@@ -94,6 +110,6 @@
    width and very little height, and the surface is square, so the height is
    what to spend. */
 @media (max-height: 620px) {
-  .rf-plot-stage { width: min(calc(420px * var(--rf-u)), 62vh, 46vw); }
+  .rf-plot { --rf-plot-w: min(calc(560px * var(--rf-u)), 72vh, 46vw); }
   .rf-plot-read { font-size: calc(.55rem * var(--rf-u)); }
 }

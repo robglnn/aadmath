@@ -113,6 +113,27 @@ const claimed = [];       // [l, t, r, b] — everything spoken for, this frame
 const queue = [];         // requests awaiting a resolve
 
 /**
+ * A LABEL THIS LEDGER PLACES IS NOT FURNITURE THIS LEDGER MUST AVOID.
+ *
+ * `.field-tag` is in CHROME because `caches.js` and `span.js` write their own
+ * positions and never submit. `meet.js` does submit — and its labels are
+ * `.field-tag` too, so the sweep picked them up as immovable furniture sitting
+ * at LAST frame's position, and then the same frame asked for room at the same
+ * anchor. Measured on the frozen build, standing still 85 m off MEET 1: the
+ * middle statement flipped 48 px between two rows on 41 of 90 consecutive
+ * frames, and the other two labels were on screen for 45 of the 90 — a strobe,
+ * with `CROSSING LOCK` printed through `2x + y = 13` on the frames in between.
+ *
+ * So the elements the ledger served last frame are skipped by `measureChrome`.
+ * They are still claimed against one another INSIDE a frame, by `serve()`, which
+ * is what makes one site's three labels stack rather than collide. Keyed on the
+ * element, not on a class, so a layer that starts submitting tomorrow is right
+ * without editing the selector list.
+ */
+const served = new Set();     // elements the ledger placed THIS frame
+let servedLast = new Set();   // …and last frame, which is where they are now
+
+/**
  * Find the furniture. Expensive, so it runs on a timer — but what it caches is
  * the *elements* and their live computed-style objects, not their rectangles.
  * A card only enters or leaves the page occasionally; it changes size, position
@@ -144,6 +165,7 @@ function measureChrome() {
       if (o < FAINT) { gone = true; break; }
     }
     if (gone) continue;
+    if (servedLast.has(w.el)) continue;   // the ledger placed it; see `served`
     const r = w.el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) continue;
     if (r.right < 0 || r.bottom < 0 || r.left > W || r.top > H) continue;
@@ -160,6 +182,8 @@ export function beginTagFrame(time) {
   // Insurance: a layer submitted and nothing ever resolved (a module was busy
   // and returned early). Serve them late rather than leaving them stranded.
   if (queue.length) flush();
+  servedLast = new Set(served);
+  served.clear();
   frameKey = time;
   W = window.innerWidth;
   H = window.innerHeight;
@@ -190,6 +214,7 @@ export function beginTagFrame(time) {
  */
 export function submitTag(req) {
   queue.push(req);
+  if (req.measure) served.add(req.measure);
   // A layer that runs *after* the resolve still gets served, against whatever
   // is already spoken for. Order of update calls is not this module's problem.
   if (sealed) flush();

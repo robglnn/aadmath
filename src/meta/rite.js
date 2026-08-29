@@ -141,7 +141,10 @@ export class Rite {
     const n = L.next;
     this.next.textContent = n
       ? t('story.rite.next', {
-        verb: t('guide.verb.' + n.verb), skill: t('skills.' + n.skill), n: num(n.metres),
+        // lane C, one line: the objective can now be a place (a hanging cache,
+        // a span, a survey mark) whose name is not in the skills bundle. It is
+        // carried on the objective itself. (src/meta/objective.js)
+        verb: t('guide.verb.' + n.verb), skill: n.name || t('skills.' + n.skill), n: num(n.metres),
       })
       : t('story.rite.nextAny');
     // Long rank words in ES/PL cannot be allowed to letterspace themselves off

@@ -14,6 +14,16 @@
  * is read after each item to find out what was served, which is reading a fact
  * back rather than driving the game with it.
  *
+ * A HARNESS IS ONLY AS HONEST AS THE ACTS IT CAN PERFORM. Two in five items are
+ * missed on purpose, so the schedule sees a learner rather than a machine, and
+ * a miss is a state this thing has to be able to play out of. It could not: the
+ * typed value was attempted on the first pass only, so once a wrong answer had
+ * emptied the socket the harness's whole repertoire was Enter on nothing, and
+ * the card stayed up for ever. It reported that as three items and a repeated
+ * template. So the acts are now the acts a hand has — clear the socket, charge
+ * it, seal it, or press a reading — and a card that outlives twenty of them is
+ * reported by name instead of being counted as a walk.
+ *
  *   node tools/critic/templatewalk.mjs [--url …] [--items 20] [--locale es]
  *
  * It prints the template of every item in the order a cadet met them and fails
@@ -24,6 +34,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -55,6 +66,10 @@ const look = () => page.evaluate(() => ({
   open: !!window.__ascent.panel?.open,
   ui: !!window.__ascent.input?.uiOpen,
   seed: window.__ascent.panel?.item?.seed ?? null,
+  // Which instrument is on the surface. Only the keypad takes a typed value —
+  // choice, balance, sort and area are hands on the surface, not digits — so
+  // the harness has to know which acts it is allowed to attempt.
+  mode: window.__ascent.panel?.mode ?? null,
 }));
 
 /** A story beat has the frame. Give it back the way a player does. */
@@ -71,8 +86,16 @@ async function handBack() {
  * Walk to the nearest unlocked rift and open it — W held the whole way, the
  * arrows for steering, KeyE at the door. Nothing here knows any coordinates
  * the player cannot see, and nothing here opens a rift by calling anything.
+ *
+ * Returns `{ id, travelled }`. `travelled` is false when a card was ALREADY on
+ * the surface, because reading a card back is not an arrival and counting it as
+ * one is how this gate once printed "walking to 19 rift(s)" for three items: a
+ * card the harness could not answer stayed up, and each of the sixteen retries
+ * read the same stuck panel and logged another rift. Only `travelled` is
+ * counted, so the number in the report is the number of doors.
  */
 async function walkToARift() {
+  if (await page.evaluate(() => !!window.__ascent.panel?.open)) return { id: null, travelled: false };
   const target = await page.evaluate(() => {
     const a = window.__ascent;
     const r = a.rifts?.list?.filter((x) => !x.locked) ?? [];
@@ -84,7 +107,7 @@ async function walkToARift() {
     }
     return best ? { id: best.id, x: best.pos.x, z: best.pos.z } : null;
   });
-  if (!target) return null;
+  if (!target) return { id: null, travelled: false };
   let held = false, opened = false;
   for (let i = 0; i < 260 && !opened; i++) {
     const st = await look();
@@ -121,17 +144,18 @@ async function walkToARift() {
     }
   }
   if (held) await page.keyboard.up('KeyW');
-  return opened ? target.id : null;
+  return { id: opened ? target.id : null, travelled: opened };
 }
 
 const seq = [];
+const stuck = [];
 let walks = 0, lastSeed = null;
 for (let n = 0; n < WANT; n++) {
   // Reach an item that is not the one just answered.
   let live = null;
   for (let t = 0; t < 16 && !live; t++) {
-    const id = await walkToARift();
-    if (id) walks++;
+    const { travelled } = await walkToARift();
+    if (travelled) walks++;
     const it = await page.evaluate(() => {
       const x = window.__ascent.panel?.item;
       return x ? {
@@ -152,14 +176,27 @@ for (let n = 0; n < WANT; n++) {
   // close, and the sequence is the one a person would actually be given.
   //
   // A miss does not end the item. The rift answers it — a reason, a worked
-  // echo, and often the surface NARROWING to three readings to choose between —
+  // echo, and often the surface NARROWING to a few readings to choose between —
   // and the item is not done until the panel lets go of it. So the harness
-  // keeps resolving whatever is on screen, by the same two acts a player has
-  // (click the reading, or press Enter), until the panel closes or moves on.
+  // keeps resolving whatever is on screen, by the same three acts a hand has at
+  // the rig — press the reading, charge the socket, seal it — until the panel
+  // closes or moves on.
+  //
+  // THE THIRD ACT IS NOT OPTIONAL, and leaving it out is what broke this gate.
+  // A typed value used to be attempted on the FIRST pass only; every pass after
+  // it pressed Enter and nothing else. That is not a cadet. Miss a keypad item
+  // and the wrong value stays in the socket; miss twice and the surface narrows
+  // to a few readings; spend those on a wrong pick and `standDown()` in
+  // src/ui/rift.js hands the keypad back with the socket EMPTY — and `submit()`
+  // there is `if (settled || !entry) return`. From that moment Enter is a
+  // documented no-op and the harness had no act left that could answer at all.
+  // The card stayed up for ever, the retry loop above read it back sixteen
+  // times, and the gate reported three items and nineteen rifts. A person
+  // clears the socket and types the value again, so this does.
   const wrong = n % 5 === 2 || n % 5 === 4;
   const want = live.answer.replace(/\s+/g, '');
   let first = true;
-  for (let t = 0; t < 16; t++) {
+  for (let t = 0; t < 20; t++) {
     const st = await look();
     if (!st.open || st.seed !== live.seed) break;
     // Only the readings a hand could actually press. Once the item is answered
@@ -170,15 +207,32 @@ for (let n = 0; n < WANT; n++) {
       if (await o.isEnabled().catch(() => false)) opts.push(o);
     }
     if (opts.length) {
-      let idx = 0;
+      // The reading that CARRIES the answer, taken off the value the rig
+      // printed on it. Comparing rendered text cannot find it: KaTeX writes
+      // every value twice, once as HTML and once as MathML, so a reading of 94
+      // reads back as "9494" and the harness fell through to the first option
+      // on every choice surface in the game — answering, and missing, at
+      // chance, and never missing on purpose when it meant to.
+      let idx = -1;
       for (let i = 0; i < opts.length; i++) {
-        if ((await opts[i].innerText()).replace(/\s+/g, '') === want) { idx = i; break; }
+        const v = await opts[i].getAttribute('data-value');
+        if (v != null && v.replace(/\s+/g, '') === want) { idx = i; break; }
       }
+      if (idx < 0) {
+        for (let i = 0; i < opts.length; i++) {
+          if ((await opts[i].innerText()).replace(/\s+/g, '') === want) { idx = i; break; }
+        }
+      }
+      if (idx < 0) idx = 0;
       // The deliberate miss is spent once, on the first attempt. After that the
       // cadet is trying, which is what a real one does.
       await opts[first && wrong ? (idx + 1) % opts.length : idx].click({ timeout: 4000 }).catch(() => {});
-    } else if (first && /^-?\d+$/.test(want)) {
-      const typed = wrong ? String(Number(want) + 1) : want;
+    } else if (st.mode === 'keypad' && /^-?\d+$/.test(want)) {
+      // Backspace to empty first: the socket keeps whatever was last charged
+      // into it, and typing on top of a wrong value hands in a longer wrong
+      // value. The pad has that key, and a hand uses it.
+      const typed = first && wrong ? String(Number(want) + 1) : want;
+      for (let i = 0; i < 16; i++) await page.keyboard.press('Backspace');
       for (const ch of typed) {
         if (ch === '-') await page.keyboard.press('Minus');
         else await page.keyboard.press(ch);
@@ -190,6 +244,14 @@ for (let n = 0; n < WANT; n++) {
     }
     first = false;
     await page.waitForTimeout(750);
+  }
+  // Still holding the same card after twenty acts. Say so, by name: a harness
+  // that cannot finish an item is a fact about the harness or about the rig,
+  // and either way it is not "the running game repeats a template".
+  const end = await look();
+  if (end.open && end.seed === live.seed) {
+    stuck.push(`item ${seq.length} (${live.skill} · ${live.form} · ${end.mode}) never resolved`
+      + ' — the panel still holds it after twenty acts');
   }
 }
 await page.screenshot({ path: path.join(OUT, 'session.png') });
@@ -238,14 +300,29 @@ for (let a = 0; a + WINDOW <= seq.length; a++) {
   for (const [k, v] of c) if (v > WINDOW_CAP) problems.push(`"${k}" ${v} times inside items ${a + 1}-${a + WINDOW}`);
 }
 for (const [k, v] of total) if (v > SESSION_CAP) problems.push(`"${k}" ${v} times in ${seq.length} items`);
-if (seq.length < WANT) problems.push(`only ${seq.length} of ${WANT} items were played`);
-for (const e of errors.slice(0, 3)) problems.push(`console error: ${e}`);
+/* THE SEQUENCE HAS TO BE REACHED BEFORE IT CAN BE COUNTED, and a short one is
+   its own finding, not a repetition finding. Kept separate from `problems` so
+   the headline below can say which of the two actually happened: this gate
+   once printed "the running game repeats a template" over the line "only 3 of
+   20 items were played", which is a sentence about a walk that stopped, not
+   about a template. Three templates over three items repeats nothing. */
+const reach = [...stuck];
+if (seq.length < WANT) reach.push(`only ${seq.length} of ${WANT} items were played`);
+for (const e of errors.slice(0, 3)) reach.push(`console error: ${e}`);
 
 console.log(errors.length ? `\n  ${errors.length} console errors` : '\n  0 console errors');
 await browser.close();
-if (problems.length) {
-  console.error('\nFAIL — the running game repeats a template:');
+if (reach.length) {
+  console.error('\nFAIL — the session could not be played out:');
+  reach.forEach((p) => console.error('  ' + p));
   problems.forEach((p) => console.error('  ' + p));
   process.exit(1);
 }
-console.log('\nPASS — no template twice running, none more than twice in six, none more than five in twenty\n');
+if (problems.length) {
+  console.error('\nFAIL — the running game repeats a template:');
+  problems.forEach((p) => console.error('  ' + p));
+} else {
+  console.log('\nno template twice running, none more than twice in six, none more than five in twenty\n');
+}
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. */
+findings('check:templates', { scope: 'route' }).route(problems.map(String)).done();

@@ -1,0 +1,18 @@
+export default [
+  ["      openedNone: 'Hoy no se ha abierto nada. Eso cuestan las líneas largas, y las líneas largas son las que merecen la pena.',",
+    "      openedNone: 'Hoy no se ha abierto nada. Las líneas largas cuestan justo eso, y son las que merecen la pena.',"],
+  ["      doneWhy: 'El nivel 1 está completo. Lo que queda es mantenerlo.',",
+    "      doneWhy: 'El nivel 1 está completo. Ahora solo queda mantenerlo.',"],
+  ["    charterOpen: '{skill}. Ya tienes todo el equipo. Lo que queda es la isla, y es más grande de lo que has volado.',",
+    "    charterOpen: '{skill}. Ya tienes todo el equipo. Queda la isla, y es más grande de lo que has volado.',"],
+  ["      signHeldQuiet: 'Esa línea ni se estropea ni se reinicia. Hoy no ha quedado al alcance nada más arriba de la red — es una malla, no una escalera — y la línea queda guardada igual.',",
+    "      signHeldQuiet: 'Esa línea ni se estropea ni se reinicia. Hoy no ha quedado al alcance nada más arriba de la red. La red es una malla, no una escalera. La línea queda guardada igual.',"],
+  ["      sight: 'Demostrada al primer contacto: una pregunta en frío en lo más alto del banco y luego el resto de la tanda de prueba. Tres preguntas sin ayuda, sin nada de práctica delante.',",
+    "      sight: 'Demostrada al primer contacto. Una pregunta en frío en lo más alto del banco, y luego el resto de la tanda. Tres preguntas sin ayuda, sin nada de práctica delante.',"],
+  ["      long: 'La tanda de prueba se abrió por el camino largo: tres aciertos limpios seguidos y la confianza del modelo en el umbral completo.',",
+    "      long: 'La tanda de prueba se abrió por el camino largo. Tres aciertos limpios seguidos, y la confianza del modelo en el umbral completo.',"],
+  ["      cleanSight: 'Ninguna hizo falta. Esta línea salió adelante al primer contacto. La pregunta en frío es la primera de la propia tanda de prueba, y la fila de abajo la cuenta una sola vez.',",
+    "      cleanSight: 'Ninguna hizo falta. Esta línea salió adelante al primer contacto. La pregunta en frío es la primera de la propia tanda. La fila de abajo la cuenta una sola vez.',"],
+  ["      provingNote: 'Tres puntos por cada enunciado que sostienes dentro de una ronda de prueba: sin ayuda, en forma desconocida, banda de dificultad alta.',",
+    "      provingNote: 'Tres puntos por cada enunciado que sostienes dentro de una ronda de prueba. Sin ayuda, en forma desconocida, banda alta.',"],
+];

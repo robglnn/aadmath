@@ -30,9 +30,41 @@ export class Bus {
     try {
       const s = JSON.parse(localStorage.getItem(SAVE) || 'null');
       if (s && typeof s.muted === 'boolean') this.muted = s.muted;
-      if (s && typeof s.volume === 'number') this.volume = s.volume;
+      if (s && typeof s.volume === 'number') this.volume = Math.max(0, Math.min(1, s.volume));
     } catch { /* private mode */ }
+
+    /*
+     * A TAB THAT IS NOT ON SCREEN MAKES NO SOUND.
+     *
+     * `src/core/engine.js` already parks its own frame loop on
+     * `visibilitychange`, so `AudioDirector.update` stops being called — but the
+     * Web Audio graph is not the frame loop. Five looping noise sources, three
+     * rift oscillators and every gain the ambience last wrote go on rendering
+     * at exactly the level they were left at, for as long as the tab exists.
+     * Chrome does not suspend an AudioContext for a hidden tab; nothing does it
+     * for us. Measured on the shipped build: `ctx.state` stays `running` and the
+     * output keeps its level.
+     *
+     * This is a school Chromebook problem before it is a nicety. A student
+     * switches to a worksheet and ASCENT keeps playing wind over the top of it,
+     * and the only thing they can do about it is find the tab again.
+     */
+    this._hidden = typeof document !== 'undefined' && !!document.hidden;
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        // Cached rather than read on demand: `live` is asked this question by
+        // every voice in the graph on the way to being scheduled, which is a
+        // few hundred DOM reads a second for a fact that changes twice a day.
+        this._hidden = !!document.hidden;
+        if (!this.ctx) return;
+        if (this._hidden) this._park();
+        else this._resume();
+      });
+    }
   }
+
+  /** Whether the graph has any business rendering at all right now. */
+  get _dormant() { return this.muted || this._hidden; }
 
   onChange(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
   _emit() { for (const fn of this._listeners) fn(this); }
@@ -127,16 +159,42 @@ export class Bus {
     // A context created inside a gesture starts *running*, even when the
     // player left the game muted last time. Rendering a graph nobody can hear
     // is a phone battery being spent on nothing, so park it immediately.
-    if (this.muted) ctx.suspend().catch(() => {});
+    if (this._dormant) ctx.suspend().catch(() => {});
     else this._resume();
     this._emit();
     return true;
   }
 
+  /**
+   * Fade out, then suspend. The fade is short and nobody hears it — the point
+   * of it is that the graph is at zero before the browser gets round to
+   * honouring the suspend, so a slow park cannot leave a tail hanging.
+   */
+  _park() {
+    if (!this.ctx || !this.ready) return;
+    clearTimeout(this._parkT);
+    const t = this.t;
+    const g = this.out.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0, t + 0.15);
+    this._parkT = setTimeout(() => {
+      if (this._dormant && this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(() => {});
+    }, 260);
+  }
+
   _resume() {
     if (!this.ctx) return;
-    if (this.muted) return;
+    clearTimeout(this._parkT);
+    if (this._dormant) return;
     if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    if (this.ready) {
+      const t = this.t;
+      const g = this.out.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(this.volume, t + 0.20);
+    }
   }
 
   get t() { return this.ctx ? this.ctx.currentTime : 0; }
@@ -178,9 +236,9 @@ export class Bus {
       this.out.gain.linearRampToValueAtTime(this.muted ? 0 : this.volume, t + 0.14);
       // A muted context that keeps rendering is a phone battery being spent on
       // silence. Give the fade time to land, then park the whole graph.
-      clearTimeout(this._park);
-      if (this.muted) this._park = setTimeout(() => {
-        if (this.muted && this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(() => {});
+      clearTimeout(this._parkT);
+      if (this.muted) this._parkT = setTimeout(() => {
+        if (this._dormant && this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(() => {});
       }, 300);
       else this._resume();
     }
@@ -189,12 +247,35 @@ export class Bus {
 
   toggle() { this.setMuted(!this.muted); return this.muted; }
 
+  /**
+   * How loud, 0..1, persisted.
+   *
+   * A game with only a mute button has two settings, and the one a learner in a
+   * shared room actually wants — quieter — is not one of them. Setting it to
+   * zero is the same as muting and is treated as such, so the control never
+   * ends up lit, unmuted and silent with nothing to explain why.
+   */
   setVolume(v) {
-    this.volume = Math.max(0, Math.min(1, v));
+    const next = Math.max(0, Math.min(1, Number.isFinite(v) ? v : this.volume));
+    // ZERO IS MUTE, AND IT DOES NOT OVERWRITE THE LEVEL.
+    //
+    // Storing the zero looks obviously right and is a trap: the control then
+    // reads `muted: true, volume: 0`, and the next press of the button unmutes
+    // a graph whose output gain is nought. The player has an unmuted control, a
+    // running context and no sound, and nothing on screen explains it. So the
+    // level a learner set is kept, and turning the sound back on returns to it.
+    if (next <= 0.001) { if (!this.muted) this.setMuted(true); else this._emit(); return; }
+    const wasMuted = this.muted;
+    this.volume = next;
+    // …and raising it off the floor is how you turn the sound back on.
+    if (wasMuted) { this.setMuted(false); return; }
     this._save();
-    if (this.ready && !this.muted) this.out.gain.setTargetAtTime(this.volume, this.t, 0.05);
+    if (this.ready && !this._dormant) this.out.gain.setTargetAtTime(this.volume, this.t, 0.05);
     this._emit();
   }
+
+  /** One step of the control, in either direction. */
+  nudge(delta) { this.setVolume(this.volume + delta); }
 
   _save() {
     try { localStorage.setItem(SAVE, JSON.stringify({ muted: this.muted, volume: this.volume })); }
@@ -202,7 +283,7 @@ export class Bus {
   }
 
   /** True when there is a running graph to schedule against. */
-  get live() { return this.ready && !this.muted && this.ctx.state === 'running'; }
+  get live() { return this.ready && !this._dormant && this.ctx.state === 'running'; }
 
   /** Peak level, 0..1, for the interface meter. Cheap, and only when asked. */
   level() {

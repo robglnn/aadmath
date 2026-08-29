@@ -7,6 +7,11 @@ import {
 } from './terrain.js';
 import { zoneWeights, ZONE_INDEX } from './biomes.js';
 import { stoneMaterial } from './stone.js';
+// A monument stands in a clearing: the scatter batches below say they are
+// scenery, and src/world/clearings.js takes them out of the rooms the game
+// sends a cadet to. Nothing here decides WHERE those rooms are — they are not
+// seated yet when this file runs, which is the whole reason that file exists.
+import { carveable, obstruct } from './clearings.js';
 
 /**
  * Landmarks.
@@ -103,6 +108,7 @@ export function createCrystals(scene, quality) {
   });
   inst.instanceMatrix.needsUpdate = true;
   if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  inst.name = 'crystals';
   scene.add(inst);
 
   // a few of the cathedrals actually light their surroundings
@@ -125,8 +131,8 @@ export function createCrystals(scene, quality) {
 // ---------------------------------------------------------------------------
 function treeGeometry() {
   const parts = [];
-  const trunk = new THREE.CylinderGeometry(0.16, 0.42, 4.4, 6, 1);
-  trunk.translate(0, 2.2, 0);
+  const trunk = new THREE.CylinderGeometry(0.16, 0.42, 5.3, 6, 1);
+  trunk.translate(0, 2.65, 0);
   paint(trunk, 0.34, 0.30, 0.34);
   parts.push(trunk);
   const rand = rng(4242);
@@ -137,13 +143,14 @@ function treeGeometry() {
     frond.translate(0, len * 0.5, 0);
     frond.rotateX(0.5 + rand() * 0.5);
     frond.rotateY(a);
-    frond.translate(Math.cos(a) * 0.7, 4.0 + rand() * 1.6, Math.sin(a) * 0.7);
+    // hung above head height for the reason written at `SKIRT`
+    frond.translate(Math.cos(a) * 0.7, 4.9 + rand() * 1.6, Math.sin(a) * 0.7);
     const t = rand();
     paint(frond, 0.220 + t * 0.14, 0.500 - t * 0.06, 0.470 + t * 0.14);
     parts.push(frond);
   }
   const crown = new THREE.IcosahedronGeometry(1.15, 0);
-  crown.translate(0, 5.2, 0);
+  crown.translate(0, 6.1, 0);
   paint(crown, 0.360, 0.560, 0.610);
   parts.push(crown);
   return merge(parts);
@@ -179,8 +186,9 @@ export function createGrove(scene, quality) {
     ));
   });
   inst.instanceMatrix.needsUpdate = true;
+  inst.name = 'grove';
   scene.add(inst);
-  return inst;
+  return carveable(inst);
 }
 
 // ---------------------------------------------------------------------------
@@ -200,26 +208,61 @@ function trunk(r0, r1, h, seg = 6, lo = [0.150, 0.106, 0.078], hi = [0.250, 0.18
   return paintY(t, lo, hi, 0, h);
 }
 
+/**
+ * ---- THE SKIRT IS OFF THE GROUND, AND THAT IS NOT A STYLE CHOICE ----------
+ *
+ * This tree used to carry its lowest branch cone from **0.45 m**: a 1.76 m
+ * radius of solid green starting at the cadet's ankles, and at the sizes the
+ * scatter actually draws (up to ×2) a three-metre wall of it. Walk within two
+ * metres of one and you are *inside* the mesh — the escape instrument
+ * (tools/critic/_escape.mjs) then reads every one of its seventeen probe
+ * directions as blocked, including straight up, and the composition gate reads
+ * the frame as `walled in: 0% of the directions around him are open`.
+ *
+ * That was not a rare accident. Measured on this build, **107 of the 111
+ * "walled in" readings around the objectives the world seats were made of
+ * scatter, not of terrain** — the heightfield alone would have failed four of
+ * them. One spruce stood 1.4 m from the centre of `one-step-mul`'s dais.
+ *
+ * A conifer whose crown starts above head height is what a mature stand
+ * actually looks like, and it is what the reference games draw: in Breath of
+ * the Wild you walk *under* a wood and read the horizon between the trunks. So
+ * the canopy is lifted onto a real bole and the silhouette keeps its height —
+ * the tree is the same tree from thirty metres, and from two metres it is a
+ * trunk you can see past instead of a green wall you are standing inside.
+ *
+ * `SKIRT` is the number that matters: the underside of the lowest cone, in
+ * unscaled metres. A cadet's eye is 1.46 m up, and the smallest spruce the
+ * scatter draws is `MIN_TREE` (0.55), so 3.4 × 0.55 = 1.87 m clears him with
+ * margin at every size in the distribution.
+ */
+const SKIRT = 3.4;
+/** The smallest a scattered tree may be drawn. See `SKIRT`. */
+const MIN_TREE = 0.55;
 function spruceGeometry() {
-  const parts = [trunk(0.13, 0.34, 3.4, 6, [0.130, 0.098, 0.086], [0.220, 0.176, 0.150])];
+  const parts = [trunk(0.13, 0.29, SKIRT + 1.7, 6, [0.130, 0.098, 0.086], [0.220, 0.176, 0.150])];
   const rand = rng(1201);
   for (let i = 0; i < 4; i++) {
     const t = i / 4;
-    const c = new THREE.ConeGeometry(1.76 - t * 1.06, 3.3 - t * 0.55, 6);
-    c.translate((rand() - 0.5) * 0.16, 2.1 + i * 1.95, (rand() - 0.5) * 0.16);
+    const h = 3.0 - t * 0.5;
+    const c = new THREE.ConeGeometry(1.70 - t * 1.02, h, 6);
+    // the underside of cone 0 sits exactly on SKIRT; the rest step up from it
+    c.translate((rand() - 0.5) * 0.16, SKIRT + h * 0.5 + i * 1.72, (rand() - 0.5) * 0.16);
     const s = 0.90 + t * 0.28;
     paint(c, 0.128 * s, 0.268 * s, 0.212 * s);
     parts.push(c);
   }
   const tip = new THREE.ConeGeometry(0.42, 1.7, 5);
-  tip.translate(0, 10.1, 0);
+  tip.translate(0, SKIRT + 7.5, 0);
   paint(tip, 0.150, 0.290, 0.232);
   parts.push(tip);
   return merge(parts);
 }
 
 function broadleafGeometry() {
-  const parts = [trunk(0.22, 0.50, 3.6, 7)];
+  // Same rule as the spruce above: nothing but bole below `SKIRT`. The crown
+  // is the same crown; it now sits on a tree instead of on the cadet's head.
+  const parts = [trunk(0.20, 0.40, SKIRT + 0.7, 7)];
   const rand = rng(66);
   // three boughs, each one ending inside a canopy lobe
   const tips = [];
@@ -230,18 +273,18 @@ function broadleafGeometry() {
     b.translate(0, len * 0.5, 0);
     b.rotateZ(0.62 + rand() * 0.2);
     b.rotateY(a);
-    b.translate(0, 3.0, 0);
+    b.translate(0, SKIRT + 0.2, 0);
     paint(b, 0.200, 0.156, 0.116);
     parts.push(b);
     const reach = Math.sin(0.72) * len * 0.85;
-    tips.push([Math.cos(a) * reach, 3.0 + Math.cos(0.72) * len * 0.85, Math.sin(a) * reach]);
+    tips.push([Math.cos(a) * reach, SKIRT + 0.2 + Math.cos(0.72) * len * 0.85, Math.sin(a) * reach]);
   }
   // a full round crown: one core over the trunk, one lobe per bough, and a
   // scatter of small ones to break the silhouette
-  const lobes = [[0, 4.9, 0, 1.85], ...tips.map((t) => [t[0], t[1] + 0.9, t[2], 1.45])];
+  const lobes = [[0, SKIRT + 2.4, 0, 1.85], ...tips.map((t) => [t[0], t[1] + 0.9, t[2], 1.45])];
   for (let i = 0; i < 3; i++) {
     const a = rand() * 6.28, rr = 1.1 + rand() * 0.9;
-    lobes.push([Math.cos(a) * rr, 5.2 + rand() * 1.1, Math.sin(a) * rr, 0.95 + rand() * 0.5]);
+    lobes.push([Math.cos(a) * rr, SKIRT + 2.7 + rand() * 1.1, Math.sin(a) * rr, 0.95 + rand() * 0.5]);
   }
   for (const [lx, ly, lz, lr] of lobes) {
     const bl = new THREE.IcosahedronGeometry(lr, 0);
@@ -263,7 +306,7 @@ function broadleafGeometry() {
 function umbrellaGeometry() {
   const parts = [];
   const rand = rng(4004);
-  const bole = new THREE.CylinderGeometry(0.34, 1.05, 4.0, 8, 3);
+  const bole = new THREE.CylinderGeometry(0.30, 0.66, 4.0, 8, 3);
   bole.translate(0, 2.0, 0);
   bole.rotateZ(0.08);
   paintY(bole, [0.132, 0.098, 0.070], [0.256, 0.208, 0.150], 0, 4.0);
@@ -328,10 +371,13 @@ function fenTreeGeometry() {
     b.translate(0, 3.6 + rand() * 2.2, 0);
     paint(b, 0.230, 0.244, 0.220);
     parts.push(b);
-    // weed hanging off the limb
-    const w = new THREE.ConeGeometry(0.30, 2.2 + rand() * 1.6, 4);
+    // weed hanging off the limb. Its tip used to reach 1.5 m — head height on
+    // the smallest instance and a green curtain on the largest. It hangs from
+    // the limb now and stops above `SKIRT`, for the reason written there.
+    const wl = 2.2 + rand() * 1.6;
+    const w = new THREE.ConeGeometry(0.30, wl, 4);
     w.rotateX(Math.PI);
-    w.translate(Math.cos(a) * (1.4 + rand()), 3.4 + rand() * 1.8, Math.sin(a) * (1.4 + rand()));
+    w.translate(Math.cos(a) * (1.4 + rand()), SKIRT + wl * 0.5 + rand() * 1.3, Math.sin(a) * (1.4 + rand()));
     const t = rand();
     paint(w, 0.150 + t * 0.08, 0.320 + t * 0.10, 0.226 + t * 0.06);
     parts.push(w);
@@ -492,10 +538,15 @@ export function createVegetation(scene, quality) {
      *  - **Age.** Bigger trees are darker and bluer; saplings are bright and
      *     yellow-green.
      */
-    const size = 0.42 + Math.pow(rand(), 1.65) * 1.55;
+    // The floor matters as much as the spread. `SKIRT` is in unscaled metres,
+    // so the smallest instance is the one that decides whether a cadet can be
+    // inside a canopy at all: at 0.55 the lowest branch sits 1.87 m up, which
+    // clears a 1.46 m eye at every size the distribution draws. Below that the
+    // plant is a shrub, and the shrub list already exists for it.
+    const size = MIN_TREE + Math.pow(rand(), 1.65) * 1.45;
     const dry = clamp(1 - m * 1.35, 0, 1);
     const jit = rand();
-    const age = clamp((size - 0.42) / 1.55, 0, 1);
+    const age = clamp((size - MIN_TREE) / 1.45, 0, 1);
     const v = 0.74 + rand() * 0.46 - age * 0.14;
     const lean = 0.035 + Math.pow(rand(), 1.4) * 0.16;
     const leanA = Math.atan2(0.51, 0.86) + (rand() - 0.5) * 2.2;   // downwind, loosely
@@ -573,8 +624,9 @@ export function createVegetation(scene, quality) {
     }
     inst.instanceMatrix.needsUpdate = true;
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    inst.name = 'veg-' + key;
     scene.add(inst);
-    made.push(inst);
+    made.push(carveable(inst));
   }
   made.material = leafMat;
   return made;
@@ -634,8 +686,9 @@ export function createRocks(scene, quality) {
   });
   inst.instanceMatrix.needsUpdate = true;
   if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  inst.name = 'rocks';
   scene.add(inst);
-  return inst;
+  return carveable(inst);
 }
 
 // ---------------------------------------------------------------------------
@@ -693,6 +746,7 @@ export function createSummitRing(scene) {
   l.position.copy(core.position);
   g.add(l);
 
+  g.name = 'summit-ring';
   scene.add(g);
   return {
     group: g,
@@ -759,6 +813,10 @@ export function createHoodoos(scene, quality) {
     const tone = 0.82 + rand() * 0.36;
     const capped = rand() > 0.28;                 // some have lost their capstone
 
+    // A hoodoo is a solid column a cadet cannot walk through and the camera
+    // cannot see past. Nothing the game routes him to may be seated in one.
+    obstruct(x, z, girth * 1.6 + 4);
+
     let y = h - 0.6;
     const drums = 4 + Math.floor(rand() * 5);
     for (let k = 0; k < drums; k++) {
@@ -798,6 +856,7 @@ export function createHoodoos(scene, quality) {
     vertexColors: true, roughness: 0.95, flatShading: true,
   }));
   mesh.castShadow = true; mesh.receiveShadow = true;
+  mesh.name = 'hoodoos';
   scene.add(mesh);
   return mesh;
 }
@@ -834,6 +893,7 @@ export function createPlaza(scene) {
     const shaft = new THREE.CylinderGeometry(w * 0.74, w, hgt, major ? 8 : 6, 2);
     shaft.rotateY(-a + 0.4);
     shaft.translate(Math.cos(a) * 20.4, hgt * 0.5, Math.sin(a) * 20.4);
+    obstruct(Math.cos(a) * 20.4, Math.sin(a) * 20.4, w * 1.6 + 3.5);
     paintY(shaft, LO, HI, 0, hgt);
     parts.push(shaft);
     if (!broke) {
@@ -857,6 +917,12 @@ export function createPlaza(scene) {
   for (const s of [-1, 1]) {
     const leg = new THREE.CylinderGeometry(2.2, 3.6, 40, 9, 2);
     leg.translate(s * 16, -0.6, -46);
+    // The two legs of the north gate are 3.6 m of stone standing forty metres
+    // up, and they are the exact stone a cadet walked into on the way to
+    // `like-terms`: the escape instrument read every one of its seventeen
+    // directions blocked between half a metre and six. Nothing the game routes
+    // him to may be seated in them. (src/world/clearings.js)
+    obstruct(s * 16, -46, 11);
     paintY(leg, LO, HI, -20, 18);
     parts.push(leg);
     const shoulder = new THREE.BoxGeometry(5.8, 2.6, 4.8);
@@ -893,6 +959,7 @@ export function createPlaza(scene) {
   l.position.set(-9.5, 4.2, 6.5);
   g.add(l);
 
+  g.name = 'plaza';
   scene.add(g);
   return {
     group: g,
@@ -938,6 +1005,9 @@ export function createAqueduct(scene) {
     const pier = new THREE.BoxGeometry(3.4, pierH, 4.0);
     pier.rotateY(yaw);
     pier.translate(n.x, n.h + pierH * 0.5, n.z);
+    // Nothing the game routes a cadet to may be seated in this. The pier is
+    // 3.4 x 4.0; the radius is the pier plus the room to walk round it.
+    obstruct(n.x, n.z, 9);
     paintY(pier, [0.520, 0.492, 0.446], [0.700, 0.664, 0.596], n.h, n.h + pierH);
     parts.push(pier);
     const cap = new THREE.BoxGeometry(5.0, 1.2, 5.4);
@@ -966,6 +1036,7 @@ export function createAqueduct(scene) {
   const m = new THREE.Mesh(merged, stone);
   m.castShadow = true; m.receiveShadow = true;
   g.add(m);
+  g.name = 'aqueduct';
   scene.add(g);
   return { group: g, update() {} };
 }
@@ -1044,6 +1115,7 @@ export function createSkyIslands(scene, quality) {
   const mesh = new THREE.Mesh(merged, rockMat);
   mesh.frustumCulled = false;
   group.add(mesh);
+  group.name = 'sky-islands';
   scene.add(group);
   return group;
 }
@@ -1092,6 +1164,7 @@ export function createFloatingRocks(scene, quality) {
     inst.setColorAt(i, col);
   }
   if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  inst.name = 'floaters';
   scene.add(inst);
 
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sv = new THREE.Vector3();

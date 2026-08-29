@@ -22,6 +22,7 @@ import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DESKTOP, PORTRAIT, LANDSCAPE } from './_viewports.mjs';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://127.0.0.1:5173');
@@ -179,4 +180,8 @@ const failed = rows.filter((x) => !x.ok);
 await writeFile(path.join(OUT, 'nolocklayout.json'), JSON.stringify({ rows, errors }, null, 2));
 console.log(`\n${rows.length - failed.length}/${rows.length} frames clean · ${errors.length} console errors  ->  ${OUT}`);
 await browser.close();
-process.exit(failed.length || errors.length ? 1 : 0);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. */
+findings('check:locklayout', { scope: 'route' })
+  .route(failed.map((f) => `${f.size} ${f.loc}: the LOCKED notice ${f.shown ? `takes ${Math.round((f.frac || 0) * 100)}% of the frame` : 'never appeared'}`
+    + `${f.added && f.added.length ? ` — added: ${f.added.join('; ')}` : ''}`))
+  .route(errors.length ? [`${errors.length} console error(s): ${errors.slice(0, 3).join(' | ')}`] : []).done();

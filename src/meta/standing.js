@@ -38,7 +38,11 @@ export const CHECK_CAP = 12;
 export const LATTICE_WORTH = 2;
 export const LATTICE_CAP = 12;
 export const LINE_WORTH = 9;
-export const STANDING_MAX = SEAL_CAP + CHECK_CAP + LATTICE_CAP + LINE_WORTH * 10;
+/** The ceiling, for a lattice of `total` lines. Ten was the whole world once. */
+export function standingMax(total = 10) {
+  return SEAL_CAP + CHECK_CAP + LATTICE_CAP + LINE_WORTH * Math.max(1, total || 10);
+}
+export const STANDING_MAX = standingMax(10);
 
 export function blankLedger() {
   return { clean: 0, assisted: 0, checks: 0, slips: 0, best: 0 };
@@ -59,12 +63,19 @@ const sealTerm = (led) => Math.min(
 const checkTerm = (led) => Math.min(CHECK_CAP, (led.checks || 0) * CHECK_WORTH);
 const latticeTerm = (open) => Math.min(LATTICE_CAP, Math.max(0, open || 0) * LATTICE_WORTH);
 
-/** The four terms, for the dossier — progression you can read the arithmetic of. */
-export function breakdown(led, lines, open) {
+/**
+ * The four terms, for the dossier — progression you can read the arithmetic of.
+ *
+ * `total` is how many lines the lattice actually holds. It was ten, hard-coded,
+ * for as long as ten was the whole game; the road now composes a region at a
+ * time, and a bar whose fill exceeds its own cap is a readout that has stopped
+ * being true. (src/content/route.js)
+ */
+export function breakdown(led, lines, open, total = 10) {
   return [
     { id: 'seals', have: sealTerm(led), cap: SEAL_CAP },
     { id: 'proving', have: checkTerm(led), cap: CHECK_CAP },
     { id: 'lattice', have: latticeTerm(open), cap: LATTICE_CAP },
-    { id: 'lines', have: (lines || 0) * LINE_WORTH, cap: LINE_WORTH * 10 },
+    { id: 'lines', have: (lines || 0) * LINE_WORTH, cap: LINE_WORTH * Math.max(total || 10, lines || 0) },
   ];
 }

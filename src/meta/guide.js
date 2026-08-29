@@ -56,6 +56,9 @@ import { resolveObjective, countLines } from './objective.js';
    world and not about the learner, and it is declared as one. */
 import { FIG, tagFigure } from './progress.js';
 import { lexiconOf, createLexicon } from './lexicon.js';
+/* THE ONE DEFINITION OF LEFT (src/world/bearing.js). Read its header before
+   touching anything below that has a sign in it. */
+import { bearingWord } from '../world/bearing.js';
 
 /* THE CARD IS NEVER ALLOWED TO OFFER NOTHING.
  *
@@ -239,10 +242,20 @@ export function createGuide(opts) {
     return paintFrom(o);
   }
 
+  /* LANE C — four lines in this file, and this is the first of them. The
+     objective can now be a PLACE rather than a line — a hanging cache, a span,
+     a survey mark — because all five scheduler kinds used to mean "open a rift"
+     and across three measured eighteen-minute sittings nothing in a session
+     ever sent anybody to one. A place has a name of its own and no row in the
+     skills bundle, so it carries the localised one on `name`. The other three
+     lines are `labelOf` at the marker, the `field` row in `payLine`, and `name`
+     on `state()`. (src/meta/objective.js) */
+  const labelOf = (o) => (o && o.name) || (o && o.skill ? t('skills.' + o.skill) : '');
+
   function paintFrom(obj) {
     el.cap.textContent = t('guide.label');
     el.verb.textContent = t('guide.verb.' + obj.verb);
-    el.what.textContent = t('skills.' + obj.skill);
+    el.what.textContent = labelOf(obj);
     el.why.textContent = payLine(obj);
     /* The gloss defines the term the card uses, once, while the learner has
        held nothing yet — so *held* still arrives with its meaning even though
@@ -257,6 +270,10 @@ export function createGuide(opts) {
        line opens more of the lattice, which the sentence still says; how many
        more is a fact about the graph, not about them, and it belongs with the
        rest of the ledger in the report. */
+    /* LANE C: the objective can be a PLACE now, and a place pays something a
+       tear does not — it is mathematics you do with your feet, and it leaves a
+       permanent mark on the world. (src/meta/objective.js) */
+    if (o.pay === 'field') return t('guide.pay.field');
     if (o.pay === 'lines') return t('guide.pay.linesAny');
     // Name AND meaning. "Hold it and Kite trim is yours" named a thing this
     // game explains only on the card it hands you after you have won it.
@@ -265,21 +282,43 @@ export function createGuide(opts) {
     return t('guide.pay.calm');
   }
 
-  /** Ahead / left / right / behind, relative to where he is actually looking. */
+  /**
+   * WHICH WAY TO TURN, relative to where he is actually looking.
+   *
+   * ---- THE DEFECT THIS FUNCTION SHIPPED ----------------------------------
+   * This card told every player to turn the WRONG WAY, on every frame, in
+   * every locale, for as long as it has existed. The line was:
+   *
+   *     return (fwd.x * view.z - fwd.z * view.x) > 0 ? 'left' : 'right';
+   *
+   * That expression is `(eye→target) · cameraRight`, which is POSITIVE when the
+   * target is on the right (`src/world/bearing.js` derives it, once, and a
+   * sweep against `camera.project()` proves it). The two branches were the
+   * wrong way round. So the word said TO YOUR LEFT while the marker arrow six
+   * pixels away — which comes off `camera.project()` and therefore cannot be
+   * wrong about a side — pointed right, and the player was asked to choose
+   * between two instruments that disagreed.
+   *
+   * It is the second time this project has shipped a handedness inversion. The
+   * client reported the first himself: *"A and D movement for character are
+   * backwards."* Same class, different file. So the expression no longer lives
+   * at a call site: `side()` is the one definition, `tools/critic/handed.mjs`
+   * fails the build if a second one appears anywhere in `src/`, and the same
+   * gate walks the running game and compares this word against the pixels.
+   *
+   * ---- AND IT IS EIGHT WORDS NOW, NOT FOUR ------------------------------
+   * Ahead / left / right / behind has a worst case of 45°, which at 88 m — the
+   * measured gap between two rifts on this island — is 62 m of lateral miss.
+   * Eight halves it. `bearingWord` owns the bands and the reason for each.
+   */
   function relative(pos) {
     view.copy(pos).sub(camera.position);
     view.y = 0;
     if (view.lengthSq() < 1e-6) return 'ahead';
-    view.normalize();
     camera.getWorldDirection(fwd);
     fwd.y = 0;
     if (fwd.lengthSq() < 1e-6) return 'ahead';
-    fwd.normalize();
-    const dot = fwd.dot(view);
-    if (dot > 0.72) return 'ahead';
-    if (dot < -0.4) return 'behind';
-    // the sign of the cross product's y says which side of the look direction
-    return (fwd.x * view.z - fwd.z * view.x) > 0 ? 'left' : 'right';
+    return bearingWord(fwd.x, fwd.z, view.x, view.z);
   }
 
   function write(node, key, text) {
@@ -385,7 +424,7 @@ export function createGuide(opts) {
       // and there is a key on screen to act on it. Every other state, at every
       // distance, gets metres and a way to face.
       write(el.dir, 'dir', inHand ? t('guide.rel.here') : t('guide.rel.' + relative(aim.pos)));
-      placeMark(aim.aim || aim.pos, W, H, dist, inHand, aim.skill);
+      placeMark(aim.aim || aim.pos, W, H, dist, inHand, labelOf(aim));
     } else {
       pin.classList.remove('show');
     }
@@ -411,7 +450,7 @@ export function createGuide(opts) {
    * on screen that can still say *that way*: it goes when the tear is in hand
    * and there is a key to press instead.
    */
-  function placeMark(pos, W, H, dist, inHand, skill) {
+  function placeMark(pos, W, H, dist, inHand, name) {
     if (inHand) { pin.classList.remove('show'); return; }
     view.copy(pos).applyMatrix4(camera.matrixWorldInverse);
     const front = view.z < 0;
@@ -454,7 +493,7 @@ export function createGuide(opts) {
     // stopped hiding it in. A dead objective card is the defect being fixed
     // here; a TypeError in the frame that fixes it would be the same defect
     // wearing a different hat.
-    write(pinName, 'nm', off && skill ? t('skills.' + skill) : '');
+    write(pinName, 'nm', off && name ? name : '');
     write(pinDist, 'm', t('guide.metres', { n: num(Math.round(dist)) }));
     // The same metres the card quotes, from the same `dist` — one measurement,
     // two places, and the gate proves they are still the same number.
@@ -491,6 +530,11 @@ export function createGuide(opts) {
         ? rifts.plateDist(player.pos, o.rift) : player.pos.distanceTo(o.pos);
       return {
         verb: o.verb, skill: o.skill, kind: o.kind,
+        /* LANE C: the objective can be a place with a name of its own and no
+           row in the skills bundle. Carried here so `src/meta/rite.js` — the
+           one other surface that prints this sentence — does not have to look
+           it up in a bundle that has never held it. */
+        name: labelOf(o),
         // The same quantity the card prints and the key honours: horizontal, to
         // the plate you have to stand on.
         metres: Math.round(reach),

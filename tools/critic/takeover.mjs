@@ -58,6 +58,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { findings } from '../_findings.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i >= 0 ? process.argv[i + 1] : d; };
 const flag = (k) => process.argv.includes('--' + k);
@@ -911,4 +912,16 @@ console.log(`\n${ok ? 'PASS' : 'FAIL'} — chosen ${chose.length} vs imposed ${t
   + `, ${cards} learning cards`
   + (live.length ? `, ${live.length} console errors` : '')
   + `  ->  ${OUT}\n`);
-process.exit(ok ? 0 : 1);
+/* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. */
+{
+  const F = findings('check:takeover', { scope: 'route' });
+  if (!reallyPlayed) F.engine(`the run never reached enough learning cards to measure anything (${cards} cards) — nothing above is evidence`);
+  if (reallyPlayed && chose.length <= taken.length) {
+    F.route(`the sitting was taken over more often than it was chosen: ${chose.length} chosen travel(s) against `
+      + `${taken.length} imposed, ${beat.length} opening beat(s), ${corner.length} corner card(s), `
+      + `${interrupted.length} tear(s) that interrupted a build, a glide or a sprint, `
+      + `${onATimer.length} learning card(s) that opened on a timer, unasked`);
+  }
+  if (live.length) F.route(`${live.length} console error(s) during the sitting: ${live.slice(0, 3).map((e) => e.text).join(' | ')}`);
+  F.done();
+}

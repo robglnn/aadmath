@@ -33,7 +33,7 @@
  *   · the footer read "Type the value that makes the statement true" while the
  *     task was to type an expression.
  *
- * So this file checks three things that nothing else checks:
+ * So this file checks four things that nothing else checks:
  *
  *   A. AGREEMENT — every quantity a figure declares is a quantity the item's own
  *      mathematics declares, and the figure re-derives the item's own answer.
@@ -45,19 +45,32 @@
  *      the clip box with slack to spare. This is the one that would have caught
  *      the shipped defect, because A, B and the whole existing gate suite all
  *      passed while the picture on screen said something else.
+ *   D. THE CHART (--render) — the coordinate figures, in the REAL `RiftPanel`,
+ *      at every viewport `check:layout` covers and in all three locales: every
+ *      numbered tick on a drawn gridline, every gridline a whole square, every
+ *      reading drawn at the pixel the numerals name, and type big enough to
+ *      read. A and C both passed a chart whose lines were stepped on one
+ *      expression and whose numbers were stepped on another, so a cadet who
+ *      counted squares from a numbered tick read the point wrong — see the
+ *      long note over section D below.
  *
  *   node tools/check-figures.mjs              # A and B, every form × band × locale
- *   node tools/check-figures.mjs --render     # C, in a real browser
- *   node tools/check-figures.mjs --self-test  # prove A, B and C can all fail
+ *   node tools/check-figures.mjs --render     # C and D, in a real browser
+ *   node tools/check-figures.mjs --charts     # D on its own
+ *   node tools/check-figures.mjs --self-test  # prove A, B, C and D can all fail
+ *   node tools/check-figures.mjs --shots DIR  # the evidence, in pixels
  *   node tools/check-figures.mjs --list       # print every figure the bank makes
  */
 import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listenFree } from './_freeport.mjs';
 import { generate, SKILLS, FORMS_BY_SKILL } from '../src/learn/generators.js';
 import { equivalent, solveLinear } from '../src/learn/parser.js';
 import { eq as req } from '../src/learn/rational.js';
 import { allUnits, loadUnit } from './_courses.mjs';
+import { ALL as VIEWPORTS } from './critic/_viewports.mjs';
+import { findings } from './_findings.mjs';
 
 /**
  * Every course the manifest ships, not just the one `generators.js` registers
@@ -118,7 +131,19 @@ export const REWRITE_ASKS = new Set([
   'l3.ask.onePower', 'l3.ask.oneExpression', 'l3.ask.whatIsLeft',
   'l3.ask.combinedTotal', 'l3.ask.plateArea', 'l3.ask.factoredForm',
   'l3.ask.areaOnePower', 'l3.ask.wholeOnePower', 'l3.ask.shareOnePower',
-  'l3.ask.whichIsRight',
+  // Level 4's factoring and dividing bank. Each of these four shows an
+  // expression and marks an equivalent one, and each names the rewriting as
+  // the task in as many words, in all three locales:
+  //   'l4.ask.writeAsProduct'   "Write this as a product of brackets."
+  //   'l4.ask.areaAsProduct'    "Write the area as its two sides."
+  //   'l4.ask.writeTheQuotient' "Write the answer to this division."
+  //   'l4.ask.otherSide'        "Write the other side." (the area is on top)
+  // `l3.ask.whichIsRight` and `l4.ask.whichIsRight` used to be on this list.
+  // They are gone from the bank: "Which answer is right?" was printed over a
+  // keypad with no answers on the card, so the dispute forms now end in the
+  // task their own skill asks and are classified under that ask instead.
+  'l4.ask.writeAsProduct', 'l4.ask.areaAsProduct', 'l4.ask.writeTheQuotient',
+  'l4.ask.otherSide',
 ]);
 
 const norm = (s) => String(s ?? '').replace(/\\left|\\right/g, '').replace(/\s+/g, '');
@@ -383,14 +408,38 @@ export const FORM_ASK = {
   'xp-context': 'l3.ask.areaOnePower',
   'xw-context': 'l3.ask.wholeOnePower',
   'xq-context': 'l3.ask.shareOnePower',
-  // The dispute forms. "Two cadets multiplied two powers of one letter and
-  // disagree about the new count. Which cadet is right?" — the stem states the
-  // rewriting as the task in as many words and then asks the learner to
-  // adjudicate it. The display is the problem, the marked value is what the
-  // right cadet got, and the learner chooses between cadets rather than
-  // transcribing anything.
-  'xp-dispute': 'l3.ask.whichIsRight',
-  'pa-dispute': 'l3.ask.whichIsRight',
+  // The dispute forms. The situation says two cadets disagree; the question
+  // after it states the rewriting, exactly as the plain forms of the same
+  // skill do. (It used to read "Which cadet is right?" over a keypad with no
+  // cadets' answers anywhere on the card.)
+  'xp-dispute': 'l3.ask.onePower',
+  'pa-dispute': 'l3.ask.whatIsLeft',
+  // --- Level 4, the factoring and dividing bank ----------------------------
+  // Only the forms whose DISPLAY is a bare expression are listed. Every other
+  // Level 4 form prints a named rule ("f\left(x\right) = ...") or an equation,
+  // which `equivalent()` cannot read as one expression, so `auditSelfAnswering`
+  // never reaches them. Read off src/content/packs/algebra1-l4.js form by form.
+  'fm-plus': 'l4.ask.writeAsProduct',
+  'fm-signs': 'l4.ask.writeAsProduct',
+  'fm-square': 'l4.ask.writeAsProduct',
+  'fm-gcf': 'l4.ask.writeAsProduct',
+  'fm-area': 'l4.ask.areaAsProduct',
+  'fm-dispute': 'l4.ask.writeAsProduct',
+  'fl-simple': 'l4.ask.writeAsProduct',
+  'fl-signs': 'l4.ask.writeAsProduct',
+  'fl-square': 'l4.ask.writeAsProduct',
+  'fl-both': 'l4.ask.writeAsProduct',
+  'fl-area': 'l4.ask.areaAsProduct',
+  'fl-dispute': 'l4.ask.writeAsProduct',
+  'dq-plain': 'l4.ask.writeAsProduct',
+  'dq-coef': 'l4.ask.writeAsProduct',
+  'dq-gcf': 'l4.ask.writeAsProduct',
+  'dq-plate': 'l4.ask.areaAsProduct',
+  'pd-mono': 'l4.ask.writeTheQuotient',
+  'pd-exact': 'l4.ask.writeTheQuotient',
+  'pd-lead': 'l4.ask.writeTheQuotient',
+  'pd-side': 'l4.ask.otherSide',
+  'pd-dispute': 'l4.ask.writeTheQuotient',
 };
 
 /** The whole bank, every band, many seeds, all three locales. */
@@ -498,7 +547,72 @@ const SLACK = 0.12;   // of the label box, on each side, that must stay unused
  * which pulls in the real `rift.css` through the real bundler, and serves the
  * result as static files. Nothing can reload underneath it.
  */
-async function serveFrozen() {
+/**
+ * THE HARNESS PAGE — two surfaces, one frozen build.
+ *
+ * `window.__figureHtml` is the real `figureHtml`, for the label pass.
+ * `window.__show` mounts the real `RiftPanel` — the shipping class, its own
+ * stylesheet, the two orientation sheets `src/main.js` loads last, strict
+ * KaTeX, and every generator pack the manifest names — and puts one item on
+ * it. The geometry pass measures THAT: the figure at the size a learner is
+ * actually handed, inside the panel that decides that size. Measuring a
+ * figure outside the panel would prove nothing about the complaint, which is
+ * that the panel hands it 224 px.
+ *
+ * The pack list is the manifest and never a list kept up to date by hand: a
+ * lab that registers the core bank alone sees ten skills of sixty-two and
+ * prints the same word either way (`check:coverage`), and every coordinate
+ * figure in this product lives in `algebra1-l2`.
+ */
+const HARNESS_HTML = '<!doctype html><html><head><meta charset="utf-8">'
+  + '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
+  + '<title>figure harness</title>'
+  + '<style>html,body{margin:0;height:100%;background:#06070f;overflow:hidden}'
+  + '#ui{position:absolute;inset:0}</style></head>'
+  + '<body><div id="ui"></div><div id="stage"></div>'
+  + '<script type="module" src="./harness.js"></script></body></html>';
+
+const HARNESS_SRC = (rel) => [
+  "import 'katex/dist/katex.min.css';",
+  "import '" + rel('src/ui/style.css') + "';",
+  "import { figureHtml, RiftPanel } from '" + rel('src/ui/rift.js') + "';",
+  "import { safeGenerate } from '" + rel('src/learn/generators.js') + "';",
+  "import { setLocale } from '" + rel('src/i18n/index.js') + "';",
+  "import { registerPack } from '" + rel('src/content/registry.js') + "';",
+  "import manifest from '" + rel('content/courses.json') + "';",
+  // LAST, exactly as src/main.js loads them: the orientation sheets compose the
+  // phone frame, and a harness that leaves them out photographs a desktop
+  // layout at phone dimensions — the defect tools/critic/landscape.mjs exists
+  // to have caught once already.
+  "import '" + rel('src/ui/landscape.css') + "';",
+  "import '" + rel('src/ui/portrait.css') + "';",
+  "const PACKS = import.meta.glob('../../../../src/content/packs/*.js', { eager: true, import: 'default' });",
+  'for (const course of manifest.courses) {',
+  '  for (const unit of course.units || []) {',
+  '    if (!unit.pack) continue;',
+  "    const pack = PACKS['../../../../src/content/packs/' + unit.pack + '.js'];",
+  "    if (!pack) throw new Error('the manifest names a generator pack that is not there: ' + unit.pack);",
+  '    registerPack(pack);',
+  '  }',
+  '}',
+  'window.__figureHtml = figureHtml;',
+  "const panel = new RiftPanel(document.getElementById('ui'));",
+  'window.__panel = panel;',
+  'window.__show = (spec) => {',
+  "  setLocale(spec.locale || 'en');",
+  '  const item = safeGenerate(spec.skill, spec.d, spec.seed, { locale: spec.locale, form: spec.form, record: false });',
+  '  panel.show(item, {',
+  "    title: '', skillId: item.skill, tier: 0, kind: 'learn',",
+  "    scaffold: 'none', example: null, streak: 0,",
+  '    onAnswer() { return { gained: 1, pL: 1, prev: 0.5 }; },',
+  '    onClose() {},',
+  '  });',
+  '  return { form: item.form, mode: panel.mode, figure: item.figure };',
+  '};',
+  'window.__ready = true;',
+].join('\n') + '\n';
+
+export async function serveFrozen() {
   const { build } = await import('vite');
   const { mkdtemp, writeFile, rm, readFile } = await import('node:fs/promises');
   const { createServer } = await import('node:http');
@@ -509,13 +623,9 @@ async function serveFrozen() {
   await (await import('node:fs/promises')).mkdir(stage, { recursive: true });
   // The entry lives inside the repo so it resolves `src/ui/rift.js` and its CSS
   // exactly as the game does.
-  await writeFile(path.join(stage, 'harness.js'),
-    `import { figureHtml } from '${path.relative(stage, path.join(ROOT, 'src/ui/rift.js')).replace(/\\/g, '/')}';\n`
-    + `window.__figureHtml = figureHtml;\n`
-    + `window.__ready = true;\n`);
-  await writeFile(path.join(stage, 'index.html'),
-    `<!doctype html><html><head><meta charset="utf-8"><title>figure harness</title></head>`
-    + `<body><div id="stage"></div><script type="module" src="./harness.js"></script></body></html>`);
+  const srcRel = (f) => path.relative(stage, path.join(ROOT, f)).replace(/\\/g, '/');
+  await writeFile(path.join(stage, 'harness.js'), HARNESS_SRC(srcRel));
+  await writeFile(path.join(stage, 'index.html'), HARNESS_HTML);
 
   const out = await mkdtemp(path.join(os.tmpdir(), 'ascent-fig-'));
   await build({
@@ -528,7 +638,6 @@ async function serveFrozen() {
 
   // The built html lands under the entry's path relative to root.
   const rel = path.relative(ROOT, path.join(stage, 'index.html'));
-  const port = 4700 + Math.floor(Math.random() * 500);
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
     '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.svg': 'image/svg+xml',
     '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json' };
@@ -540,7 +649,8 @@ async function serveFrozen() {
       res.end(body);
     } catch { res.writeHead(404); res.end('no'); }
   });
-  await new Promise((r) => server.listen(port, '127.0.0.1', r));
+  // Port 0, not a random one in a range: see tools/_freeport.mjs.
+  const port = await listenFree(server);
   return {
     base: `http://127.0.0.1:${port}/${rel.split(path.sep).join('/')}`,
     stop: async () => { server.close(); await rm(out, { recursive: true, force: true }); await rm(stage, { recursive: true, force: true }); },
@@ -663,6 +773,487 @@ export async function auditRendered({ samples = null, geometry = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// D. THE CHART — does the picture say what the axes say, at a size that can
+//    be read?
+//
+// A and C ask whether a LABEL says what the item says. This asks the question
+// one layer down, of every coordinate figure: is the drawing the cadet counts
+// squares on the drawing the numerals describe? Two faults were live at once,
+// and neither is visible to any check that reads an item's data.
+//
+//   · THE NUMBERS WERE NOT ON THE LINES. The gridlines were stepped on
+//     `round(R/5)` and the numerals on `round(R/3)` — two expressions computed
+//     apart from one another, in two files. Over the 36 (kind, range) pairs the
+//     bank draws, 30 had at least one numeral off every gridline, and at the
+//     commonest range of all — ±10, the default — NOT ONE of the six numerals
+//     sat on a line. At ±9 the lattice was not even anchored on the origin: the
+//     axes crossed at zero and the nearest gridlines stood at ±1, so counting
+//     squares out from the origin was wrong for every reading on the chart.
+//     A cadet who trusts the picture reads the point wrong and is marked wrong
+//     for it. That is a figure that teaches a wrong answer.
+//   · IT WAS TOO SMALL TO READ. The coordinate surface that carries the whole
+//     question was handed 224x224 CSS px inside a 1600x900 window, with 9 px
+//     numerals — smaller than the keys used to answer it. The mathematics was
+//     the smallest thing on the screen.
+//
+// `src/learn/generators.js` already carries the rule this pass enforces for
+// figures: *the mathematics we check must be the mathematics we display.* It
+// was enforced for notation and not for drawings.
+//
+// So this drives the REAL `RiftPanel` at every viewport `check:layout` covers,
+// in all three locales, and measures the drawing off the DOM. Nothing here
+// re-derives a pixel from the renderer's own formula — that would only check
+// the code against itself. Every rule compares two things the page produced
+// independently of each other:
+//
+//   D1 ON-GRID    every numbered tick's pixel is some gridline's pixel.
+//   D2 LINEAR     the numerals are one consistent scale: fit the axis map from
+//                 the numerals alone and every numeral must lie on that fit.
+//   D3 ORIGIN     the drawn axis stands where the numerals say zero is.
+//   D4 LATTICE    the gridlines are evenly spaced, and one gap is a whole
+//                 number of chart units under that same fit.
+//   D5 PLACED     every reading the item declares at (a, b) is drawn at the
+//                 pixel the NUMERALS say (a, b) is — not at the pixel the
+//                 renderer believes it is.
+//   D6 LEGIBLE    a grid square is big enough to count, and the numerals are
+//                 not the smallest type in the panel.
+//   D7 PRINCIPAL  a figure the cadet must ACT on to answer — the coordinate
+//                 surface — is not drawn smaller than the controls under it.
+//                 (A figure that is only read has to be legible, D6; a figure
+//                 that is the instrument has to be reachable.)
+// ---------------------------------------------------------------------------
+
+/** The figure kinds that are drawn on numbered axes. */
+export const CHART_KINDS = new Set(['plot', 'line', 'lines']);
+
+/**
+ * A grid square smaller than this cannot be counted: one CSS px of stroke and
+ * under three of gap is a wash on the 1x panel of a school Chromebook, and
+ * counting squares is how a cadet reads a point off a chart.
+ *
+ * Four and not a taste. Measured on this tree, at the tightest place the panel
+ * ever puts a chart — 844x390, where the drawing gets 179 CSS px — a unit
+ * lattice holds down to ±16 (4.6 px a square) and the next range up is 4.35.
+ * `chartLattice` in src/learn/plot.js coarsens at exactly that point, so the
+ * threshold and the renderer meet in a measured gap rather than a guess, and
+ * the honest charts either side of it are all clear of it.
+ */
+export const MIN_SQUARE_PX = 4;
+
+/**
+ * Pixel tolerances. Sub-pixel on purpose: every rule here compares two
+ * renderings of ONE number — where the line went and where the number went —
+ * so anything past half a pixel is a disagreement, not a rounding.
+ */
+const ON_GRID_PX = 0.75;
+const PLACED_PX = 1.25;
+
+/**
+ * One sample per (form, drawn range), or per (kind, drawn range).
+ *
+ * The range is what decides the lattice, and the form is what decides the
+ * readings drawn on it. The two sweeps below want different halves of that:
+ * the rules about the LATTICE and the READINGS need every form; the rules
+ * about SIZE need every viewport and every locale, and do not care which form
+ * drew the chart. Sweeping the product of all four would be five minutes of
+ * build to say the same thing three times over.
+ */
+export function geometrySamples({ seeds = 60, key = 'form' } = {}) {
+  const out = [];
+  const seen = new Set();
+  for (const skill of SKILLS) {
+    for (const f of FORMS_BY_SKILL[skill] || []) {
+      for (let d = f.dMin; d <= f.dMax; d++) {
+        for (let s = 0; s < seeds; s++) {
+          let item;
+          try { item = generate(skill, d, 8101 + s * 4409, { form: f.id, locale: 'en', record: false }); } catch { continue; }
+          const fig = item.figure;
+          if (!fig || !CHART_KINDS.has(fig.kind)) continue;
+          const range = Math.max(4, Math.round(fig.range || 10));
+          const id = key === 'kind' ? `${fig.kind}/${range}` : `${f.id}/${range}`;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          out.push({ skill, form: f.id, d, seed: item.seed, kind: fig.kind, range });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Read one chart off the page.
+ *
+ * Injected whole, so the numbers come out of the same layout the cadet is
+ * looking at. It measures and reports; it decides nothing — every rule is
+ * applied in node, where it can be read next to the reason it exists.
+ */
+const MEASURE_CHART = async ({ specs, badGrid }) => {
+  const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
+  const out = [];
+  for (const spec of specs) {
+    let shown;
+    try { shown = window.__show(spec); } catch (e) { out.push({ spec, fatal: String(e && e.message || e) }); continue; }
+    // The panel re-cuts itself on a rAF, and the fit pass bisects. Two frames,
+    // a macrotask, then two more: measuring mid-bisect reads a size no cadet
+    // is ever shown.
+    await settle();
+    await new Promise((r) => setTimeout(r, 0));
+    await settle();
+    const panel = window.__panel;
+    let svg = panel.el.querySelector('.rf-plot-stage svg, .rf-fig.grid svg');
+    if (!svg) { out.push({ spec, fatal: 'the panel drew no chart for a chart-bearing item' }); continue; }
+    // The self-test plants a chart whose numerals step differently from its
+    // lines, in the same panel, measured by this same code — so "the gate
+    // would have caught it" is a demonstration and not a claim.
+    if (badGrid) {
+      const g = svg.querySelector('g') || svg;
+      // eslint-disable-next-line no-new-func
+      new Function('svg', 'g', badGrid)(svg, g);
+    }
+    const vb = svg.viewBox.baseVal;
+    const box = svg.getBoundingClientRect();
+    const scale = vb && vb.width ? box.width / vb.width : 1;
+
+    const lines = [...svg.querySelectorAll('path.gl')].map((el) => rectOf(el));
+    const vGrid = lines.filter((r) => r.h > r.w).map((r) => +(r.x + r.w / 2).toFixed(3)).sort((a, b) => a - b);
+    const hGrid = lines.filter((r) => r.w > r.h).map((r) => +(r.y + r.h / 2).toFixed(3)).sort((a, b) => a - b);
+    const axes = [...svg.querySelectorAll('path.ax')].map((el) => rectOf(el));
+    const axV = axes.filter((r) => r.h > r.w).map((r) => +(r.x + r.w / 2).toFixed(3));
+    const axH = axes.filter((r) => r.w > r.h).map((r) => +(r.y + r.h / 2).toFixed(3));
+
+    const numeral = (el) => {
+      const r = rectOf(el);
+      const fs = parseFloat(getComputedStyle(el).fontSize) || 0;
+      return {
+        v: Number(el.textContent.trim()),
+        raw: el.textContent.trim(),
+        axis: el.dataset.axis,
+        cx: +(r.x + r.w / 2).toFixed(3), cy: +(r.y + r.h / 2).toFixed(3),
+        x0: +r.x.toFixed(3), x1: +(r.x + r.w).toFixed(3),
+        y0: +r.y.toFixed(3), y1: +(r.y + r.h).toFixed(3),
+        w: +r.w.toFixed(2), h: +r.h.toFixed(2),
+        fontPx: +(fs * scale).toFixed(2),
+      };
+    };
+    const nums = [...svg.querySelectorAll('text[data-axis]')].map(numeral);
+
+    const readings = [...svg.querySelectorAll('circle.anchor, circle.pt, circle.mk')].map((el) => {
+      const r = rectOf(el);
+      return { cx: +(r.x + r.w / 2).toFixed(3), cy: +(r.y + r.h / 2).toFixed(3), cls: el.getAttribute('class') };
+    });
+
+    // The type the cadet reads everywhere else in this panel. The numerals may
+    // not be the smallest of it.
+    let minType = Infinity;
+    let minTypeWhere = '';
+    for (const sel of ['.rf-ask', '.rf-help', '.rf-key', '.rf-reading', '.rf-plot-read', '.rf-socket']) {
+      for (const el of panel.el.querySelectorAll(sel)) {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        const fs = parseFloat(getComputedStyle(el).fontSize) || 0;
+        if (fs > 0 && fs < minType) { minType = fs; minTypeWhere = sel; }
+      }
+    }
+
+    // The answer surface: the controls that end the turn.
+    let answerW = 0;
+    let answerWhere = '';
+    for (const sel of ['.rf-pad', '.rf-keys', '.rf-readings', '.rf-narrow', '.rf-bays', '.rf-plot-bar']) {
+      for (const el of panel.el.querySelectorAll(sel)) {
+        const r = el.getBoundingClientRect();
+        if (r.width > answerW) { answerW = r.width; answerWhere = sel; }
+      }
+    }
+
+    out.push({
+      spec, mode: shown.mode, figure: shown.figure,
+      svg: { w: +box.width.toFixed(1), h: +box.height.toFixed(1) },
+      vGrid, hGrid, axV, axH, nums, readings,
+      minType: minType === Infinity ? null : +minType.toFixed(2), minTypeWhere,
+      answerW: +answerW.toFixed(1), answerWhere,
+    });
+  }
+  return out;
+};
+
+/**
+ * Fit an axis map from the numerals ALONE.
+ *
+ * Least squares over (value, pixel). The renderer's own X()/Y() are never
+ * consulted: the whole point is that the picture is checked against the
+ * numbering, by somebody who was not told how either was computed.
+ */
+function fitAxis(pts) {
+  const n = pts.length;
+  if (n < 2) return null;
+  const sv = pts.reduce((a, p) => a + p.v, 0);
+  const sp = pts.reduce((a, p) => a + p.p, 0);
+  const svv = pts.reduce((a, p) => a + p.v * p.v, 0);
+  const svp = pts.reduce((a, p) => a + p.v * p.p, 0);
+  const den = n * svv - sv * sv;
+  if (!den) return null;
+  const k = (n * svp - sv * sp) / den;
+  const c = (sp - k * sv) / n;
+  const resid = Math.max(...pts.map((p) => Math.abs(k * p.v + c - p.p)));
+  return { k, c, resid, at: (v) => k * v + c };
+}
+
+/** Every rule, over one measured chart. */
+export function auditChart(m) {
+  const out = [];
+  const s = m.spec;
+  const where = `${s.skill}/${s.form} d${s.d} seed ${s.seed} (${s.kind} ±${s.range})`;
+  if (m.fatal) return [`${where}: ${m.fatal}`];
+
+  const fig = m.figure || {};
+  const xs = m.nums.filter((t) => t.axis === 'x');
+  const ys = m.nums.filter((t) => t.axis === 'y');
+
+  // A chart with no numbers on it is a decoration, and a numeral that does not
+  // say which axis it belongs to cannot be checked against one.
+  if (m.nums.some((t) => !Number.isFinite(t.v))) {
+    out.push(`${where}: a numeral on the axes reads "${m.nums.find((t) => !Number.isFinite(t.v)).raw}", which is not a number`);
+  }
+  if (xs.length < 2 || ys.length < 2) {
+    out.push(`${where}: the chart carries ${xs.length} numeral(s) on x and ${ys.length} on y`
+      + ' — a trace nobody can read a value off is a decoration');
+    return out;
+  }
+  // The renderer DECLARES which axis each numeral is on; the declaration is
+  // checked against the geometry rather than believed.
+  // A row of numerals is a row because their boxes share a band, not because
+  // their centres agree: the y numerals are right-aligned, so "-8" and "8"
+  // have different centres and the same edge.
+  const band = (list, a, b) => Math.max(...list.map((t) => t[a])) <= Math.min(...list.map((t) => t[b])) + 1;
+  if (!band(xs, 'y0', 'y1')) out.push(`${where}: the numerals declared as the x scale do not sit in one band`);
+  if (!band(ys, 'x0', 'x1')) out.push(`${where}: the numerals declared as the y scale do not sit in one band`);
+
+  // D2 LINEAR
+  const fx = fitAxis(xs.map((t) => ({ v: t.v, p: t.cx })));
+  const fy = fitAxis(ys.map((t) => ({ v: t.v, p: t.cy })));
+  if (!fx || !fy) { out.push(`${where}: the numerals do not describe a scale`); return out; }
+  for (const [name, f, list] of [['x', fx, xs], ['y', fy, ys]]) {
+    if (f.resid > 0.75) {
+      const worst = list.map((t) => ({ t, e: Math.abs(f.at(t.v) - (name === 'x' ? t.cx : t.cy)) }))
+        .sort((a, b) => b.e - a.e)[0];
+      out.push(`${where}: the ${name} numerals are not one scale — "${worst.t.raw}" is ${worst.e.toFixed(2)}px`
+        + ' from where the rest of them put it');
+    }
+  }
+
+  // D1 ON-GRID — the rule this pass exists for.
+  const near = (p, list) => list.reduce((best, g) => Math.min(best, Math.abs(g - p)), Infinity);
+  for (const [name, list, grid, key] of [['x', xs, m.vGrid, 'cx'], ['y', ys, m.hGrid, 'cy']]) {
+    if (!grid.length) { out.push(`${where}: the ${name} axis is numbered but no gridlines are drawn across it`); continue; }
+    const off = list.filter((t) => near(t[key], grid) > ON_GRID_PX);
+    if (off.length) {
+      out.push(`${where}: ${off.length} of ${list.length} numbered ticks on ${name} DO NOT SIT ON A GRIDLINE`
+        + ` — ${off.slice(0, 6).map((t) => `${t.raw} is ${near(t[key], grid).toFixed(1)}px off the nearest line`).join(', ')}.`
+        + ' A cadet counting squares from a numbered tick reads the chart wrong.');
+    }
+  }
+
+  // D4 LATTICE — evenly spaced, and one gap is a whole number of chart units.
+  for (const [name, grid, f] of [['x', m.vGrid, fx], ['y', m.hGrid, fy]]) {
+    if (grid.length < 3) continue;
+    const gaps = grid.slice(1).map((g, i) => g - grid[i]);
+    const lo = Math.min(...gaps), hi = Math.max(...gaps);
+    if (hi - lo > 0.75) {
+      out.push(`${where}: the ${name} gridlines are not evenly spaced (${lo.toFixed(1)}px to ${hi.toFixed(1)}px)`);
+      continue;
+    }
+    const units = Math.abs(((lo + hi) / 2) / f.k);
+    if (Math.abs(units - Math.round(units)) > 0.02) {
+      out.push(`${where}: one ${name} grid square is ${units.toFixed(3)} chart units — not a whole number,`
+        + ' so no count of squares is a count of anything');
+    }
+  }
+
+  // D3 ORIGIN — the drawn axis stands where the numerals put zero.
+  if (m.axV.length !== 1 || m.axH.length !== 1) {
+    out.push(`${where}: the chart draws ${m.axV.length} upright axis line(s) and ${m.axH.length} level one(s)`);
+  } else {
+    const dx = Math.abs(m.axV[0] - fx.at(0));
+    const dy = Math.abs(m.axH[0] - fy.at(0));
+    if (dx > ON_GRID_PX) out.push(`${where}: the y axis is drawn ${dx.toFixed(2)}px from where the x numerals put zero`);
+    if (dy > ON_GRID_PX) out.push(`${where}: the x axis is drawn ${dy.toFixed(2)}px from where the y numerals put zero`);
+    if (near(m.axV[0], m.vGrid) > ON_GRID_PX) out.push(`${where}: the origin is not on the lattice — the y axis stands ${near(m.axV[0], m.vGrid).toFixed(1)}px off the nearest gridline`);
+    if (near(m.axH[0], m.hGrid) > ON_GRID_PX) out.push(`${where}: the origin is not on the lattice — the x axis stands ${near(m.axH[0], m.hGrid).toFixed(1)}px off the nearest gridline`);
+  }
+
+  // D5 PLACED — the readings the ITEM declares, at the pixel the NUMERALS name.
+  const R = s.range;
+  const declared = [];
+  for (const p of fig.points || []) if (Math.abs(p[0]) <= R && Math.abs(p[1]) <= R) declared.push(p);
+  if (fig.showMark && fig.mark) declared.push(fig.mark);
+  for (const [a, b] of declared) {
+    const px = fx.at(a), py = fy.at(b);
+    const hit = m.readings.some((c) => Math.hypot(c.cx - px, c.cy - py) <= PLACED_PX);
+    if (!hit) {
+      const closest = m.readings.map((c) => Math.hypot(c.cx - px, c.cy - py)).sort((x, y) => x - y)[0];
+      out.push(`${where}: the item plots (${a}, ${b}) and the axes put that at (${px.toFixed(1)}, ${py.toFixed(1)}),`
+        + ` where nothing is drawn (nearest reading ${Number.isFinite(closest) ? closest.toFixed(1) + 'px away' : 'none on the chart'}).`
+        + ' The dot and the numbers are two different claims.');
+    }
+  }
+  if (m.readings.length !== declared.length) {
+    out.push(`${where}: the item declares ${declared.length} reading(s) inside the window and the chart draws ${m.readings.length}`);
+  }
+
+  // D6 LEGIBLE
+  const square = Math.min(
+    m.vGrid.length > 1 ? m.vGrid[1] - m.vGrid[0] : Infinity,
+    m.hGrid.length > 1 ? m.hGrid[1] - m.hGrid[0] : Infinity,
+  );
+  if (Number.isFinite(square) && square < MIN_SQUARE_PX) {
+    out.push(`${where}: a grid square is ${square.toFixed(2)} CSS px (need ${MIN_SQUARE_PX})`
+      + ` in a ${m.svg.w}x${m.svg.h} drawing — the squares merge, so they cannot be counted`);
+  }
+  const tick = Math.min(...m.nums.map((t) => t.fontPx));
+  if (m.minType != null && tick < m.minType - 0.25) {
+    out.push(`${where}: the axis numerals are set at ${tick.toFixed(1)}px against ${m.minType.toFixed(1)}px`
+      + ` on ${m.minTypeWhere} — the mathematics is the smallest type in the panel`);
+  }
+
+  // D7 PRINCIPAL — the figure the cadet ACTS on.
+  if (m.mode === 'plot' && m.answerW > 0 && m.svg.w < m.answerW - 1) {
+    out.push(`${where}: the coordinate surface is ${m.svg.w}px wide and the controls under it (${m.answerWhere})`
+      + ` are ${m.answerW}px — the instrument the cadet has to act on is smaller than the button that ends the turn`);
+  }
+
+  return out;
+}
+
+/**
+ * Drive the real panel over the whole capture matrix.
+ *
+ * Every viewport `check:layout` covers, every locale, because the panel's fit
+ * pass decides the figure's size from how much room the SENTENCE left it —
+ * and the Polish sentence is the long one.
+ */
+export async function auditCharts({ passes = null } = {}) {
+  const { chromium } = await import('playwright');
+  const runs = passes || DEFAULT_PASSES();
+  const server = await serveFrozen();
+  const browser = await chromium.launch();
+  const problems = [];
+  const found = new Map(runs.map((r) => [r, []]));
+  let measured = 0;
+  try {
+    const page = await browser.newPage({ viewport: { width: VIEWPORTS[0].w, height: VIEWPORTS[0].h } });
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+    await page.goto(server.base, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 });
+    for (const run of runs) {
+      for (const vp of run.viewports) {
+        await page.setViewportSize({ width: vp.w, height: vp.h });
+        // The panel re-cuts itself off a `resize`, on a frame. Measuring before
+        // that lands photographs the LAST viewport's layout at this one's size.
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+        for (const locale of run.locales) {
+          const specs = run.specs.map((x) => ({ ...x, locale }));
+          const got = await page.evaluate(MEASURE_CHART, { specs, badGrid: run.badGrid || null });
+          for (const m of got) {
+            measured++;
+            for (const p of auditChart(m)) {
+              const line = `${vp.name} ${locale}: ${p}`;
+              problems.push(line);
+              found.get(run).push(line);
+            }
+          }
+        }
+      }
+    }
+    if (errors.length) problems.push(`console errors while drawing charts: ${errors.slice(0, 3).join(' | ')}`);
+  } finally {
+    await browser.close();
+    await server.stop();
+  }
+  return { problems, measured, passes: runs, byPass: runs.map((r) => ({ ...r, problems: found.get(r) })) };
+}
+
+/**
+ * The two sweeps, and why they are two.
+ *
+ *  · WIDE — one chart per (kind, range) over every viewport `check:layout`
+ *    covers and all three locales. This is the pass the SIZE rules need: the
+ *    panel's fit decides the drawing's size out of the room the SENTENCE left
+ *    it, and the Polish sentence is the long one.
+ *  · DEEP — every form the bank can draw a chart with, at the reference
+ *    laptop, in all three locales. This is the pass the LATTICE and READING
+ *    rules need: they turn on which form drew the chart, not on the window.
+ *
+ * Every rule runs on every measurement in both. The split is only about which
+ * axis each is swept along, because the product of all four is five minutes of
+ * browser to say the same thing three times.
+ */
+export function DEFAULT_PASSES() {
+  const laptop = VIEWPORTS.find((v) => v.name === '1600x900') || VIEWPORTS[0];
+  return [
+    { name: 'wide', specs: geometrySamples({ key: 'kind' }), viewports: VIEWPORTS, locales: LOCALES },
+    { name: 'deep', specs: geometrySamples(), viewports: [laptop], locales: LOCALES },
+  ];
+}
+
+/**
+ * The evidence, in pixels: one coordinate item on the real panel, photographed
+ * at the sizes a cadet holds. Same harness, same build, same item and seed
+ * before and after, so the two frames differ only by the code under test.
+ *
+ *   node tools/check-figures.mjs --shots shots/figures-before
+ */
+export async function shootCharts(outDir, { specs = null, viewports = null, locales = ['en'] } = {}) {
+  const { chromium } = await import('playwright');
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const list = specs || geometrySamples().filter((x) => x.kind === 'plot' && x.range === 10).slice(0, 1)
+    .concat(geometrySamples().filter((x) => x.kind === 'line' && x.range === 10).slice(0, 1));
+  const vps = viewports || [
+    { name: '1600x900', w: 1600, h: 900 },
+    { name: '390x844', w: 390, h: 844 },
+  ];
+  await mkdir(outDir, { recursive: true });
+  const server = await serveFrozen();
+  const browser = await chromium.launch();
+  const shot = [];
+  try {
+    const page = await browser.newPage({ viewport: { width: vps[0].w, height: vps[0].h } });
+    await page.goto(server.base, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 });
+    for (const vp of vps) {
+      await page.setViewportSize({ width: vp.w, height: vp.h });
+      // The panel re-cuts itself off a `resize`, on a frame — photograph before
+      // that lands and the frame is the last viewport's composition at this
+      // one's size.
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      for (const locale of locales) {
+        for (const spec of list) {
+          const size = await page.evaluate(async (sp) => {
+            window.__show(sp);
+            const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            await settle(); await new Promise((r) => setTimeout(r, 0)); await settle();
+            const svg = window.__panel.el.querySelector('.rf-plot-stage svg, .rf-fig.grid svg');
+            const r = svg ? svg.getBoundingClientRect() : null;
+            return r ? { w: +r.width.toFixed(1), h: +r.height.toFixed(1) } : null;
+          }, { ...spec, locale });
+          const name = `${spec.form}-r${spec.range}-${vp.name}-${locale}.png`;
+          await page.screenshot({ path: path.join(outDir, name) });
+          shot.push({ name, size });
+        }
+      }
+    }
+    await writeFile(path.join(outDir, 'sizes.json'), JSON.stringify(shot, null, 2));
+  } finally {
+    await browser.close();
+    await server.stop();
+  }
+  return shot;
+}
+
+// ---------------------------------------------------------------------------
 // Prove the gate can fail.
 // ---------------------------------------------------------------------------
 
@@ -764,6 +1355,150 @@ const SHIPPED_RECT_SVG = `
       </foreignObject>
     </svg></div>\`;`;
 
+/**
+ * D. PUT THE SHIPPED LATTICE BACK, AND PROVE THE CHART PASS REJECTS IT.
+ *
+ * The body below is the geometry exactly as it shipped — gridlines on
+ * `round(R/5)`, numerals on `round(R/3)`, in a 16-unit pad — redrawn into the
+ * real panel and measured by the identical code that measures the real
+ * renderer. It is the same demonstration `SHIPPED_RECT_SVG` is for the label
+ * pass: not a claim that the gate would have caught it, a showing.
+ */
+const SHIPPED_LATTICE = `
+  const NS = 'http://www.w3.org/2000/svg';
+  const fig = window.__panel.item.figure;
+  const R = Math.max(4, Math.round(fig.range || 10));
+  const S = 300, pad = 16, k = (S - pad * 2) / (2 * R);
+  const X = (x) => pad + (x + R) * k;
+  const Y = (y) => pad + (R - y) * k;
+  for (const el of svg.querySelectorAll('path.gl, path.ax, text[data-axis]')) el.remove();
+  const mk = (t, a, text) => {
+    const n = document.createElementNS(NS, t);
+    for (const key in a) n.setAttribute(key, a[key]);
+    if (text != null) n.textContent = text;
+    g.appendChild(n);
+  };
+  for (let i = -R; i <= R; i += Math.max(1, Math.round(R / 5))) {
+    mk('path', { d: 'M' + X(i) + ' ' + pad + ' V' + (S - pad), class: 'gl' });
+    mk('path', { d: 'M' + pad + ' ' + Y(i) + ' H' + (S - pad), class: 'gl' });
+  }
+  mk('path', { d: 'M' + X(0) + ' ' + pad + ' V' + (S - pad), class: 'ax' });
+  mk('path', { d: 'M' + pad + ' ' + Y(0) + ' H' + (S - pad), class: 'ax' });
+  const lab = Math.max(2, Math.round(R / 3));
+  for (let i = -R + (R % lab); i <= R; i += lab) {
+    if (i === 0 || Math.abs(i) > R - 1) continue;
+    mk('text', { x: X(i), y: Y(0) + 12, 'text-anchor': 'middle', 'data-axis': 'x',
+                 fill: 'rgba(159,179,208,.8)', 'font-size': 9 }, String(i));
+    mk('text', { x: X(0) - 6, y: Y(i) + 3.2, 'text-anchor': 'end', 'data-axis': 'y',
+                 fill: 'rgba(159,179,208,.8)', 'font-size': 9 }, String(i));
+  }
+`;
+
+/**
+ * THE NARROW PLANTS: the numbering off by one step, and nothing else wrong.
+ *
+ * "Off by one step" has two honest readings, and the first draft of this
+ * self-test only planted a third one that is not a defect at all: sliding
+ * every numeral by exactly one gridline pitch on a UNIT lattice lands it on
+ * the next gridline, which is a mislabelled chart but not an off-grid one.
+ * The gate said so — it caught nothing, and it was right to. So:
+ *
+ *  · SLID_HALF_A_SQUARE — the numerals fall BETWEEN the lines, which is what
+ *    the two disagreeing steps did in pixels. D1 must fire.
+ *  · RENUMBERED_ONE_STEP — the numerals stay exactly where they are drawn and
+ *    every one of them is moved one step along in VALUE. Nothing about the
+ *    picture is malformed: the ticks are on lines, the scale is linear, the
+ *    squares are whole. The only thing wrong is that the chart now says a
+ *    different point is (a, b) — so D3 and D5 must fire, off the readings and
+ *    the origin, and if they do not this gate is only a shape check.
+ */
+const SLID_HALF_A_SQUARE = `
+  const xs = [...svg.querySelectorAll('path.gl')]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.height > r.width)
+    .map((r) => r.x + r.width / 2).sort((a, b) => a - b);
+  const step = xs.length > 1 ? xs[1] - xs[0] : 0;
+  const unit = svg.viewBox.baseVal.width / svg.getBoundingClientRect().width;
+  for (const t of svg.querySelectorAll('text[data-axis]')) {
+    if (t.dataset.axis === 'x') t.setAttribute('x', parseFloat(t.getAttribute('x')) + step * unit * 0.5);
+    else t.setAttribute('y', parseFloat(t.getAttribute('y')) - step * unit * 0.5);
+  }
+`;
+
+const RENUMBERED_ONE_STEP = `
+  const vals = [...svg.querySelectorAll('text[data-axis="x"]')]
+    .map((t) => Number(t.textContent)).sort((a, b) => a - b);
+  const jump = vals.length > 1 ? vals[1] - vals[0] : 1;
+  for (const t of svg.querySelectorAll('text[data-axis]')) {
+    t.textContent = String(Number(t.textContent) + jump);
+  }
+`;
+
+/** A reading drawn one square from where its own axes put it. */
+const READING_NUDGED = `
+  const xs = [...svg.querySelectorAll('path.gl')]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.height > r.width)
+    .map((r) => r.x + r.width / 2).sort((a, b) => a - b);
+  const step = xs.length > 1 ? xs[1] - xs[0] : 0;
+  const unit = svg.viewBox.baseVal.width / svg.getBoundingClientRect().width;
+  for (const c of svg.querySelectorAll('circle.anchor, circle.pt, circle.mk')) {
+    c.setAttribute('cx', parseFloat(c.getAttribute('cx')) + step * unit);
+  }
+`;
+
+/** The drawing cut back to the size the complaint reported. */
+const DRAWN_TOO_SMALL = `
+  svg.style.width = '110px';
+`;
+
+/**
+ * Clean first, then each plant, all inside ONE frozen build and one browser —
+ * the same charts, the same panel, the same measuring code. The clean pass is
+ * the half that matters as much as the plants: a rule that also fires on the
+ * honest chart beside it is a rule somebody switches off.
+ */
+async function selfTestCharts() {
+  const laptop = VIEWPORTS.find((v) => v.name === '1600x900') || VIEWPORTS[0];
+  const all = geometrySamples({ key: 'kind' });
+  // The two ranges the shipped steps disagreed worst on, one of each kind, and
+  // one range they happened to agree on — the honest chart on the safe side.
+  const pick = (kind, range) => all.find((x) => x.kind === kind && x.range === range);
+  const specs = [pick('plot', 10), pick('line', 10), pick('plot', 9), pick('line', 7)].filter(Boolean);
+  const passes = [
+    { name: 'clean', specs, viewports: [laptop], locales: ['en'] },
+    { name: 'the shipped lattice put back', specs, viewports: [laptop], locales: ['en'], badGrid: SHIPPED_LATTICE },
+    { name: 'the numbering slid half a square', specs, viewports: [laptop], locales: ['en'], badGrid: SLID_HALF_A_SQUARE },
+    { name: 'the numbering renumbered one step out', specs, viewports: [laptop], locales: ['en'], badGrid: RENUMBERED_ONE_STEP },
+    { name: 'a reading drawn one square off', specs, viewports: [laptop], locales: ['en'], badGrid: READING_NUDGED },
+    { name: 'the drawing cut to 110px', specs, viewports: [laptop], locales: ['en'], badGrid: DRAWN_TOO_SMALL },
+  ];
+  const { byPass } = await auditCharts({ passes });
+  const by = Object.fromEntries(byPass.map((r) => [r.name, r.problems]));
+  const hit = (name, re) => (by[name] || []).filter((p) => re.test(p));
+  const clean = by.clean || [];
+  const shipped = hit('the shipped lattice put back', /DO NOT SIT ON A GRIDLINE/);
+  const slid = hit('the numbering slid half a square', /DO NOT SIT ON A GRIDLINE/);
+  const renum = hit('the numbering renumbered one step out', /numerals put zero|two different claims/);
+  const nudged = hit('a reading drawn one square off', /two different claims/);
+  const small = hit('the drawing cut to 110px', /grid square is|smallest type/);
+  const ok = clean.length === 0 && shipped.length > 0 && slid.length > 0
+    && renum.length > 0 && nudged.length > 0 && small.length > 0;
+  console.log(`  D charts: ${ok ? 'PASS' : 'FAIL'}`);
+  console.log(`     today's lattice over ${specs.length} charts: ${clean.length} problem(s)`);
+  for (const p of clean.slice(0, 4)) console.log('       · ' + p);
+  const say = (name, found, what) => {
+    console.log(`     ${name}: ${found.length} ${what}`);
+    for (const p of found.slice(0, 2)) console.log('       · ' + p);
+  };
+  say('the shipped lattice put back', shipped, `off-grid finding(s) of ${(by['the shipped lattice put back'] || []).length} in all`);
+  say('the numbering slid half a square', slid, 'off-grid finding(s)');
+  say('the numbering renumbered one step out', renum, 'finding(s) on the origin or the readings');
+  say('a reading drawn one square off', nudged, 'finding(s)');
+  say('the drawing cut to 110px', small, 'finding(s)');
+  return ok;
+}
+
 async function selfTestRendered() {
   const rects = figureSamples().filter((s) => s.figure.kind === 'rect').slice(0, 8);
   if (!rects.length) { console.log('  C legibility: FAIL — no rect figures to measure'); return false; }
@@ -798,22 +1533,45 @@ if (invokedDirectly) {
     const a = selfTestAgreement();
     const b = selfTestSelfAnswering();
     const c = args.includes('--no-render') ? true : await selfTestRendered();
-    const ok = a && b && c;
+    const d = args.includes('--no-render') ? true : await selfTestCharts();
+    const ok = a && b && c && d;
     console.log(ok ? '\nself-test: PASS — every branch of the gate was watched to fail.'
       : '\nself-test: FAIL — a branch of the gate did not catch its planted defect.');
     process.exit(ok ? 0 : 1);
   }
-  if (args.includes('--render')) {
-    const { problems, measured, total } = await auditRendered();
+  if (args.includes('--shots')) {
+    const dir = path.resolve(args[args.indexOf('--shots') + 1] || 'shots/figures');
+    const shot = await shootCharts(dir);
+    for (const s2 of shot) console.log(`  ${s2.name.padEnd(46)} drawing ${s2.size ? `${s2.size.w}x${s2.size.h}` : 'MISSING'} CSS px`);
+    console.log(`\n  ${shot.length} frame(s) in ${dir}`);
+    process.exit(0);
+  }
+  if (args.includes('--render') || args.includes('--charts')) {
+    const onlyCharts = args.includes('--charts');
     console.log('ASCENT — figure legibility (real browser, real rift.js, real rift.css)');
-    console.log(`  ${measured}/${total} drawings measured`);
+    const problems = [];
+    if (!onlyCharts) {
+      const r = await auditRendered();
+      console.log(`  labels:  ${r.measured}/${r.total} drawings measured`);
+      problems.push(...r.problems);
+    }
+    const c = await auditCharts();
+    for (const r of c.passes) {
+      console.log(`  charts (${r.name}): ${r.specs.length} coordinate figure(s)`
+        + ` x ${r.viewports.length} viewport(s) x ${r.locales.length} locale(s)`);
+    }
+    console.log(`  charts:  ${c.measured} measured drawings`);
+    problems.push(...c.problems);
     if (problems.length) {
       console.error(`\n  ${problems.length} problem(s):`);
-      for (const p of problems) console.error('   · ' + p);
+      for (const p of problems.slice(0, 60)) console.error('   · ' + p);
+      if (problems.length > 60) console.error(`   … and ${problems.length - 60} more`);
       console.error('\nFAIL — a drawing does not say what the item says.');
       process.exit(1);
     }
-    console.log('\n  PASS — every label renders in full, inside its drawing, in all three languages');
+    console.log('\n  PASS — every label renders in full inside its drawing, every numbered tick sits on a');
+    console.log('         gridline, every reading is drawn where the axes put it, and the mathematics is');
+    console.log('         not the smallest thing in the panel — at every viewport, in all three languages');
     process.exit(0);
   }
   const { problems, checked, seen } = auditFigures();
@@ -823,8 +1581,12 @@ if (invokedDirectly) {
   if (problems.length) {
     console.error(`\n  ${problems.length} problem(s):`);
     for (const p of problems.slice(0, 40)) console.error('   · ' + p);
-    console.error('\nFAIL — a drawing contradicts its item, or a question is answered by its own display.');
-    process.exit(1);
+    console.error('\na drawing contradicts its item, or a question is answered by its own display.');
+  } else {
+    console.log('\n  every figure re-derives its item\'s answer, and no question is answered by its display');
   }
-  console.log('\n  PASS — every figure re-derives its item\'s answer, and no question is answered by its display');
+  /* THE LEDGER OWNS THE EXIT CODE — tools/_findings.mjs. A drawing that says
+     something the prose beside it does not is a card a learner reads wrong,
+     whichever unit it is drawn in. */
+  findings('check:figures', { scope: 'sweep' }).route(problems.map(String)).done();
 }

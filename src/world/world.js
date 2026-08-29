@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { SUN_DIR, KEY, HEMI, BOUNCE, RIM, AIR, COVER } from './daylight.js';
+import { SUN_DIR, KEY, HEMI, BOUNCE, DECK, RIM, SHADE, AIR, COVER } from './daylight.js';
 import { createSky, PALETTE } from './sky.js';
-import { buildIsland, ISLAND_R, heightAt, onGround, slopeAt, LAKE, PEAK } from './terrain.js';
+import { buildIsland, ISLAND_R, heightAt, onGround, slopeAt, skylineAt, LAKE, PEAK } from './terrain.js';
 import { createGrass } from './grass.js';
 import { createWater } from './water.js';
 import {
@@ -16,8 +16,20 @@ import { installAir } from './air.js';
 import { createRanges, createInversion } from './ranges.js';
 import { createFarlands, FARLANDS } from './farlands.js';
 import { createDeeps } from './deeps.js';
+// A monument stands in a clearing. `carve()` is deliberately NOT called during
+// assembly: nothing the game routes a cadet to has been seated yet when this
+// file runs — the lattice, the gates, the survey and the spans are all built
+// after `createWorld` returns — so the clearing is cut on the first frame,
+// which is the first moment every room in the world is known. See
+// src/world/clearings.js for why that ordering is the defect and not a taste.
+import { carve as carveClearings } from './clearings.js';
 
-export { ISLAND_R, heightAt, onGround, slopeAt, LAKE, PEAK, FARLANDS };
+export { ISLAND_R, heightAt, onGround, slopeAt, skylineAt, LAKE, PEAK, FARLANDS };
+// The walkability of the island, as facts rather than as a straight line:
+// which ground leads home, which way out of the ground that does not, and the
+// real walked route between two places. (src/world/paths.js)
+export { escapable, wayOut, routeFrom, headingTo, walkMetres, warmRoutes, routeStats } from './paths.js';
+import { escapable, wayOut, routeFrom, headingTo, walkMetres, warmRoutes, routeStats } from './paths.js';
 
 /** The wind that everything on the island agrees about. */
 export const WIND = new THREE.Vector2(0.86, 0.51);
@@ -107,6 +119,15 @@ export function createWorld(scene, quality = 1, camera = null) {
   // or the shadow lifts off the boots it belongs to.
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.018;
+  // ---- AND A CAST SHADOW IS NOT A HOLE IN THE FRAME ----------------------
+  //
+  // three's own floor: `getShadow()` ends `mix(1.0, shadow, shadowIntensity)`.
+  // Measured on the shipped build, the plaza's obelisk threw a shadow across
+  // half of the first frame of the game at RGB 0,0,0, and switching this
+  // light's `castShadow` off took that framing from 57.9% of the frame black
+  // to 0.00% — so the dead region was the shadow. See SHADE in daylight.js for
+  // why an ambient light was tried first and could not pay for it.
+  sun.shadow.intensity = SHADE.intensity;
   scene.add(sun);
   scene.add(sun.target);
 
@@ -123,6 +144,31 @@ export function createWorld(scene, quality = 1, camera = null) {
   bounce.position.set(sunDir.x * -220, 70, sunDir.z * -220);
   scene.add(bounce);
 
+  // ---- THE DECK, AS A LIGHT -----------------------------------------------
+  //
+  // Everything above this line is light from ABOVE. This island is not on a
+  // planet; it hangs over a lit cloud sea (src/world/deeps.js), and after the
+  // sun the brightest thing in the frame is the deck below the horizon line.
+  //
+  // It was a term in two shaders and it is now a light, and that is the whole
+  // of the change: terrain.js and grass.js added the deck to themselves and
+  // the other seventy-odd lit materials in `src/` had nothing at all, so every
+  // prop, hoodoo, landmark, floating shard, rift frame and span in this world
+  // came out of the tone map at RGB 0,0,0 on every face that pointed down. See
+  // the block on `DECK` in daylight.js.
+  //
+  // A hemisphere pointed DOWN is exactly the right shape for it and costs one
+  // unrolled loop iteration: a face that points straight down receives all of
+  // it, a vertical face half of it, and an upward-facing face — which is the
+  // ground the cadet's shadow is read on — receives none, because the ground
+  // colour is black.
+  const deck = new THREE.HemisphereLight(DECK.color, 0x000000, DECK.light);
+  deck.position.set(0, -1, 0);
+  // src/fx/scene.js caps stray hemisphere lights at HEMI.intensity; this one is
+  // authored, not stray, and says so rather than being quietly clamped.
+  deck.userData.deck = true;
+  scene.add(deck);
+
   // The kicker. It is parked *behind whatever the lens is looking at* and
   // updated with the camera, so grass tips, rock edges, monolith corners and
   // the cadet's shoulders all carry a hot warm contour against the shade. This
@@ -135,6 +181,10 @@ export function createWorld(scene, quality = 1, camera = null) {
 
   // ---------------- ground ----------------
   const ground = buildIsland(quality);
+  // The walk graph, built now rather than on the frame something first asks:
+  // thirteen thousand cells and two flood fills off the table the mesh was just
+  // drawn from. (src/world/paths.js)
+  warmRoutes();
   scene.add(ground);
   const groundU = ground.material.userData.uniforms;
 
@@ -177,6 +227,11 @@ export function createWorld(scene, quality = 1, camera = null) {
 
   function update(dt, t) {
     if (camera) camPos.copy(camera.position);
+    // On the first frame, and then again only when something new seats itself
+    // mid-session — an errand mark that moves, a span that relocalises.
+    // `carve()` spends each reservation exactly once and returns on an integer
+    // compare when there is nothing new, so this is free after boot.
+    carveClearings();
     sky.update(t);
     inversion.update(t);
     farlands.update(t);
@@ -285,6 +340,10 @@ export function createWorld(scene, quality = 1, camera = null) {
     get shadowSpan() { return shadowS * 2; },
     // the far world, and the one heightfield, reachable from the critic surface
     FARLANDS, heightAt, ISLAND_R,
+    // …and where a cadet can actually WALK. `escapable` is the one thing the
+    // boots ask the world about themselves (src/player/locomotion.js); the rest
+    // is for anything that wants to point somewhere honestly, and for the gate.
+    escapable, wayOut, routeFrom, headingTo, walkMetres, routeStats,
     landmarks: { summit, plaza, wreck, cathedral, arch, reckoning, tower },
   };
 }

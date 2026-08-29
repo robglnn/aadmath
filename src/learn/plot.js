@@ -33,6 +33,171 @@ const el = (name, attrs = {}) => {
   return n;
 };
 
+// ---------------------------------------------------------------------------
+// THE LATTICE — one computation, every rendering.
+//
+// The gridlines used to be stepped on `round(R/5)` and the numerals on
+// `round(R/3)`, in two expressions written apart from one another — and in two
+// files, because `gridSvg` in src/ui/rift.js draws the same chart for the items
+// a cadet only reads. Two steps with no common multiple means the numbers are
+// not on the lines: over the 36 (kind, range) pairs this bank draws, 30 had a
+// numeral off every gridline, and at ±10 — the default range, the commonest of
+// all — not one of the six numerals sat on a line. At ±9 the lattice was not
+// even anchored on the origin: the axes crossed at zero and the nearest lines
+// stood at ±1, so counting squares out from the origin was wrong for every
+// reading on the chart.
+//
+// A cadet who counts squares from a numbered tick then reads the point wrong,
+// and is marked wrong for trusting the picture we drew. That is the graph half
+// of the defect `tools/check-figures.mjs` was written for, and the rule
+// `src/learn/generators.js` states for notation says the same thing about it:
+// THE MATHEMATICS WE CHECK MUST BE THE MATHEMATICS WE DISPLAY.
+//
+// So there is one lattice. The lines come out of it, the numbers come out of
+// it, and the map from a reading to a pixel comes out of it. Nothing downstream
+// may compute a second one. `tools/check-figures.mjs --charts` asserts the
+// result off the rendered DOM — every numeral on a line, every line a whole
+// square, every plotted reading at the pixel the numerals name — so this is a
+// checked claim and not a comment.
+// ---------------------------------------------------------------------------
+
+/** The drawing's own units. Every chart in the product is 300 of them square. */
+export const CHART_S = 300;
+/** Room outside the lattice for the numerals and the axis names. */
+export const CHART_PAD = 26;
+/** The numerals, in those same units. Nine was unreadable — see plot.css. */
+export const CHART_TICK = 15;
+
+/** The steps an axis may be numbered on. Anything else reads as arbitrary. */
+const TICK_LADDER = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 25, 30, 40, 50, 60, 100];
+
+/**
+ * The lattice for a chart of ±`range`.
+ *
+ * @returns {{R:number,k:number,step:number,labelStep:number,lines:number[],
+ *            labels:number[],X:(n:number)=>number,Y:(n:number)=>number,
+ *            S:number,pad:number,tick:number}}
+ */
+export function chartLattice(range, { S = CHART_S, pad = CHART_PAD, tick = CHART_TICK } = {}) {
+  const R = Math.max(4, Math.round(Number(range) || 10));
+  const k = (S - pad * 2) / (2 * R);
+  const X = (x) => pad + (x + R) * k;
+  const Y = (y) => pad + (R - y) * k;
+
+  // A LINE AT EVERY WHOLE NUMBER, while a whole number is worth drawing. The
+  // bank plots its readings on whole numbers, so a unit lattice is what puts
+  // every one of them on a crossing and makes one counted square worth exactly
+  // one — which is the whole of how a cadet reads a point off a chart.
+  //
+  // It cannot hold at every range. A ±21 chart is 43 unit squares a side, and
+  // on a 844x390 phone the panel gives the drawing 179 CSS px: 3.5 px a square,
+  // one of which is the line. That is a wash, not a lattice — measured, by
+  // `tools/check-figures.mjs --charts`, which is why the number below is 16 and
+  // not a preference. Past it the squares double up and the numbering doubles
+  // with them, because the numbering is a multiple of THIS step and is never
+  // computed beside it.
+  const step = R <= 16 ? 1 : Math.ceil(R / 16);
+  const lines = [];
+  for (let i = 0; i <= R; i += step) { lines.push(i); if (i) lines.push(-i); }
+  lines.sort((a, b) => a - b);
+
+  // THE NUMBERED TICKS ARE A WHOLE MULTIPLE OF THAT STEP. That is the whole of
+  // the fix. Which multiple is decided by the widest numeral the choice will
+  // actually draw, so two numerals can never touch — and it is decided against
+  // the same `k` the lines are drawn on rather than a second guess at the size.
+  let labelStep = step;
+  for (const n of TICK_LADDER) {
+    const L = step * n;
+    labelStep = L;
+    const top = Math.floor(R / L) * L;
+    if (!top) continue;
+    const chars = String(top).length + 1;                 // room for the sign
+    if (L * k >= chars * tick * 0.62 * 1.4) break;
+  }
+  const labels = [];
+  for (let i = labelStep; i <= R; i += labelStep) { labels.push(i); labels.push(-i); }
+  labels.sort((a, b) => a - b);
+
+  return { R, k, step, labelStep, lines, labels, X, Y, S, pad, tick };
+}
+
+/** A gridline that is also a numbered one is drawn brighter, so the eye has
+ *  something to count FROM. Inline, not a class, because the same nodes are
+ *  drawn into two panels with two stylesheets and only one of them is ours. */
+const MAJOR_STYLE = 'stroke:rgba(126,190,255,.36);stroke-width:1.4';
+const TICK_FILL = 'rgba(203,220,244,.94)';
+/** A dark rim under a numeral, so a number sitting on a line stays a number. */
+const TICK_HALO = { stroke: '#0a1018', 'stroke-width': 2.6, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };
+const AXIS_FILL = 'rgba(120,235,255,.95)';
+
+/**
+ * The lattice as drawing instructions: `{ t, a, text }` per node.
+ *
+ * Returned as data rather than as markup or as DOM because the two renderers
+ * that need it build in different worlds — `mountPlot` in real SVG elements,
+ * `gridSvg` in a string — and neither may be allowed to re-derive a position.
+ */
+export function chartNodes(P, { only = 'all' } = {}) {
+  if (only === 'labels') return tickNodes(P);
+  const { S, pad, X, Y, lines, labelStep } = P;
+  const out = [];
+  const major = (v) => v !== 0 && Math.abs(v) % labelStep === 0;
+  for (const i of lines) {
+    const a = major(i) ? { class: 'gl', style: MAJOR_STYLE } : { class: 'gl' };
+    out.push({ t: 'path', a: { d: `M${X(i)} ${pad} V${S - pad}`, ...a } });
+    out.push({ t: 'path', a: { d: `M${pad} ${Y(i)} H${S - pad}`, ...a } });
+  }
+  // The axes ride ON the lattice — they are the i = 0 lines drawn again, in the
+  // brighter hand. Drawn apart from it, the origin can drift off the squares,
+  // and at ±9 it did.
+  out.push({ t: 'path', a: { d: `M${X(0)} ${pad} V${S - pad}`, class: 'ax' } });
+  out.push({ t: 'path', a: { d: `M${pad} ${Y(0)} H${S - pad}`, class: 'ax' } });
+  return only === 'lines' ? out : out.concat(tickNodes(P));
+}
+
+/**
+ * The numbers, on their own, so a renderer can put them ON TOP of the trace.
+ *
+ * They cluster along the axes, which is exactly where a trace through the
+ * origin crosses, and a numeral with a 2.4px glowing line drawn over it is a
+ * numeral nobody reads. Same one computation either way — this is an order of
+ * painting, not a second lattice.
+ */
+function tickNodes(P) {
+  const { S, pad, tick, X, Y, labels } = P;
+  const out = [];
+  for (const i of labels) {
+    out.push({ t: 'text', text: String(i), a: {
+      x: X(i), y: Y(0) + tick * 0.92, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+      'data-axis': 'x', fill: TICK_FILL, 'font-size': tick, ...TICK_HALO } });
+    out.push({ t: 'text', text: String(i), a: {
+      x: X(0) - tick * 0.6, y: Y(i), 'text-anchor': 'end', 'dominant-baseline': 'central',
+      'data-axis': 'y', fill: TICK_FILL, 'font-size': tick, ...TICK_HALO } });
+  }
+  // i18n-allow: the names of the axes, in the notation the item itself renders.
+  out.push({ t: 'text', text: 'x', a: {
+    x: S - pad - 2, y: Y(0) - tick * 0.72, 'text-anchor': 'end',
+    fill: AXIS_FILL, 'font-size': tick, 'font-style': 'italic', ...TICK_HALO } });
+  out.push({ t: 'text', text: 'y', a: {
+    x: X(0) + tick * 0.5, y: pad + tick * 0.55, 'dominant-baseline': 'central',
+    fill: AXIS_FILL, 'font-size': tick, 'font-style': 'italic', ...TICK_HALO } });
+  return out;
+}
+
+/* Written by code point, not by the glyph: a bare double quote inside a
+   character class reads to tools/check-i18n.mjs as the opening of a prose
+   string, and the finding it raises is a false one nobody can act on. */
+const XML_ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '\u0022': '&quot;' };
+const esc = (v) => String(v).replace(/[&<>\u0022]/g, (c) => XML_ESC[c]);
+
+/** The same nodes as a string, for a renderer that builds markup. */
+export function chartMarkup(P, opts) {
+  return chartNodes(P, opts)
+    .map((n) => `<${n.t} ${Object.entries(n.a).map(([k, v]) => `${k}="${esc(v)}"`).join(' ')}`
+      + (n.text == null ? '/>' : `>${esc(n.text)}</${n.t}>`))
+    .join('');
+}
+
 /** "y = 3x - 2", "y = -x", "y = 4" — the one spelling both sides compare. */
 export function lineTex(m, b) {
   const slope = isZero(m) ? '' : reqq(m, R(1)) ? 'x' : reqq(m, R(-1)) ? '-x' : `${texOf(m)}x`;
@@ -60,13 +225,14 @@ export function mountPlot(work, ctx) {
   const fig = item?.figure;
   if (!fig || fig.kind !== 'plot' || !fig.target) return null;
   const target = { m: R(fig.target.m), b: R(fig.target.b) };
-  const RANGE = Math.max(4, Math.round(fig.range || 10));
 
   // ---------------------------------------------------------------- geometry
-  const S = 300, pad = 18;
-  const k = (S - pad * 2) / (2 * RANGE);
-  const X = (x) => pad + (x + RANGE) * k;
-  const Y = (y) => pad + (RANGE - y) * k;
+  // One lattice, shared with the numbering and with `gridSvg` in src/ui/rift.js
+  // — see `chartLattice` above. Nothing here recomputes a step, a pixel, or
+  // even the range: `RANGE` is the lattice's own, so the surface a knob can
+  // reach and the surface that is drawn are the same surface by construction.
+  const P = chartLattice(fig.range);
+  const { R: RANGE, S, pad, k, X, Y } = P;
   const unX = (px) => Math.round((px - pad) / k - RANGE);
   const unY = (py) => Math.round(RANGE - (py - pad) / k);
   const clamp = (n) => Math.max(-RANGE, Math.min(RANGE, n));
@@ -101,30 +267,15 @@ export function mountPlot(work, ctx) {
   const svg = el('svg', { viewBox: `0 0 ${S} ${S}`, role: 'application', 'aria-label': t('rift.plot.aria') });
   stage.appendChild(svg);
 
+  const draw = (nodes, into) => {
+    for (const n of nodes) {
+      const node = el(n.t, n.a);
+      if (n.text != null) node.textContent = n.text;
+      into.appendChild(node);
+    }
+  };
   const grid = el('g');
-  const step = Math.max(1, Math.round(RANGE / 5));
-  for (let i = -RANGE; i <= RANGE; i += step) {
-    grid.appendChild(el('path', { d: `M${X(i)} ${pad} V${S - pad}`, class: 'gl' }));
-    grid.appendChild(el('path', { d: `M${pad} ${Y(i)} H${S - pad}`, class: 'gl' }));
-  }
-  grid.appendChild(el('path', { d: `M${X(0)} ${pad} V${S - pad}`, class: 'ax' }));
-  grid.appendChild(el('path', { d: `M${pad} ${Y(0)} H${S - pad}`, class: 'ax' }));
-  const lab = Math.max(2, Math.round(RANGE / 3));
-  for (let i = -RANGE + (RANGE % lab); i <= RANGE; i += lab) {
-    if (i === 0 || Math.abs(i) > RANGE - 1) continue;
-    const a = el('text', { x: X(i), y: Y(0) + 12, 'text-anchor': 'middle', fill: 'rgba(159,179,208,.8)', 'font-size': 9 });
-    a.textContent = String(i);
-    const c = el('text', { x: X(0) - 6, y: Y(i) + 3.2, 'text-anchor': 'end', fill: 'rgba(159,179,208,.8)', 'font-size': 9 });
-    c.textContent = String(i);
-    grid.appendChild(a);
-    grid.appendChild(c);
-  }
-  const ax = el('text', { x: S - pad - 2, y: Y(0) - 7, 'text-anchor': 'end', fill: 'rgba(95,230,255,.85)', 'font-size': 11, 'font-style': 'italic' });
-  ax.textContent = 'x';   // i18n-allow: the name of an axis in the notation the item renders
-  const ay = el('text', { x: X(0) + 7, y: pad + 10, fill: 'rgba(95,230,255,.85)', 'font-size': 11, 'font-style': 'italic' });
-  ay.textContent = 'y';   // i18n-allow: the name of an axis in the notation the item renders
-  grid.appendChild(ax);
-  grid.appendChild(ay);
+  draw(chartNodes(P, { only: 'lines' }), grid);
   svg.appendChild(grid);
 
   // The readings the question is about, marked but not draggable.
@@ -136,6 +287,13 @@ export function mountPlot(work, ctx) {
 
   const drawn = el('path', { class: 'drawn' });
   svg.appendChild(drawn);
+
+  // The numbers go on LAST, over the trace. The cadet drags a glowing line
+  // straight through the origin, which is where the numerals are, and a number
+  // under that line is a number nobody reads.
+  const numerals = el('g');
+  draw(chartNodes(P, { only: 'labels' }), numerals);
+  svg.appendChild(numerals);
 
   // A KNOB IS TWO CIRCLES: one you can see, and one you can hit.
   //

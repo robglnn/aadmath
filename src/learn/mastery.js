@@ -830,6 +830,11 @@ export class MasteryEngine {
     // four notations for "substitute a value into an expression" are four
     // skeletons and one act. See `actOf` in generators.js.
     this.recentActs = [];
+    // Which served item the four lists above were last stamped with, so that a
+    // card answered twice is one entry in them and not two. `taskFor` mints the
+    // stamp (`s.lastServed.seq`); `observe` reads it. See THE DIVERSITY MEMORY
+    // COUNTS ITEMS, NOT TAPS.
+    this.shapeStamp = null;
     // …and every skeleton this sitting has served at all, so the scheduler can
     // prefer one this learner has not met yet over one it has merely not met
     // recently. Cleared with the sitting, like the bank's own situation ledger.
@@ -846,6 +851,25 @@ export class MasteryEngine {
      */
     this.sittingId = 1;
     this.lastObservedAt = null;
+    /**
+     * WHAT LOADING THIS RECORD TOOK BACK.
+     *
+     * `load()` withdraws a claim that was granted over a shape standing at
+     * nought — see the block at the foot of this file. That is the right call
+     * and it has always been made. What it did not do was leave a trace a
+     * caller could read: the product reloads from localStorage on EVERY visit,
+     * so a line held at the end of Tuesday could be open again on Wednesday's
+     * first frame with nothing said to the learner and no re-check offered.
+     * "Mastery claims must be honest in both directions" has no clause that
+     * exempts the direction that takes something away.
+     *
+     * One entry per line withdrawn, in load order: `{ id, forms }` where
+     * `forms` are the shapes that were never once solved. Empty on a fresh
+     * record and on any record with nothing to take back. Read by
+     * src/meta/withdrawn.js, which is what tells the learner.
+     * @type {{id:string, forms:string[]}[]}
+     */
+    this.withdrewOnLoad = [];
     // How many items this sitting landed on a line that was already held when
     // it was served. The number the telemetry that opened this file could not
     // see, so it is counted here and reported by tools/simulate.mjs.
@@ -2519,19 +2543,49 @@ export class MasteryEngine {
     // world this learner had genuinely never worked in?
     const wasNovel = (!!meta.form && !(s.formsSeen[meta.form]?.seen))
       || (!!meta.scene && !(meta.scene in s.scenesSeen));
-    if (meta.rep) { this.recentReps.push(meta.rep); if (this.recentReps.length > 8) this.recentReps.shift(); }
+    /* THE DIVERSITY MEMORY COUNTS ITEMS, NOT TAPS — the same rule the gate
+       ledger below already states, applied to the lists that decide what the
+       learner is shown next.
+
+       A card stays on the surface until it comes out right, so ONE item reports
+       here two or three times: once wrong, then again with the echo up. Every
+       one of those reports used to push its own copy into these lists, so a
+       missed item filled two of the six slots the window rules read. The
+       windows are sized in items — `skeletonWindow: 6` means "six questions" to
+       everyone who reads it, and to the learner — and a memory kept in taps is
+       shorter than the number it is named for, by exactly the rate the learner
+       misses. Six slots covered barely four questions for a cadet missing two
+       in five, and `varySkeleton` cleared a template it had served two
+       questions ago because the taps in between had already pushed it out of
+       sight.
+
+       So the learner it failed was the struggling one, which is the wrong way
+       round: a cadet who is missing is the cadet who most needs the shape to
+       change. `tools/critic/templatewalk.mjs` walks it and reads the same three
+       templates inside six consecutive questions; `tools/validate-items.mjs`
+       cannot, because a simulated learner answers each item exactly once and so
+       never sees the gap between a tap and a question.
+
+       `s.lastServed.seq` is `++this.served`, set once in `taskFor` for each item
+       actually handed out, so it is the stamp for "this question" — the same
+       stamp `formsSeen.items` is already counted on. Retries share it. */
+    const shapeStamp = s.lastServed?.seq ?? null;
+    const firstTap = shapeStamp == null || this.shapeStamp !== shapeStamp;
+    if (firstTap) this.shapeStamp = shapeStamp;
+
+    if (firstTap && meta.rep) { this.recentReps.push(meta.rep); if (this.recentReps.length > 8) this.recentReps.shift(); }
     // The shapes the last few items actually arrived in, across every skill.
     // Per-skill form counts cannot see "the same template five times in nine
     // items" when the templates belong to different skills, and cannot see it
     // even within one skill when the form's own bank of situations keeps it
     // looking novel. See `varyShape`.
-    if (meta.form) { this.recentForms.push(meta.form); if (this.recentForms.length > 8) this.recentForms.shift(); }
+    if (firstTap && meta.form) { this.recentForms.push(meta.form); if (this.recentForms.length > 8) this.recentForms.shift(); }
     // …and the same thing one level coarser: the sentence pattern, not the
     // form. Two forms can be one template — a straight trace read at a value
     // is the same item in eval-expr and in two-step — and a cadet counts
     // templates, not form ids. See `varySkeleton`.
     const skeleton = meta.skeleton || skeletonFor(id, meta.form);
-    if (skeleton) {
+    if (firstTap && skeleton) {
       this.recentSkeletons.push(skeleton);
       if (this.recentSkeletons.length > 16) this.recentSkeletons.shift();
       this.skeletonsSeen[skeleton] = (this.skeletonsSeen[skeleton] || 0) + 1;
@@ -2540,7 +2594,7 @@ export class MasteryEngine {
     // notations for one substitution are four skeletons and one act, and the
     // act is the number a learner reports back. See `actOf` in generators.js.
     const actId = meta.act || actFor(id, meta.form);
-    if (actId) {
+    if (firstTap && actId) {
       this.recentActs.push(actId);
       if (this.recentActs.length > 16) this.recentActs.shift();
       this.actsSeen[actId] = (this.actsSeen[actId] || 0) + 1;
@@ -3398,6 +3452,9 @@ export class MasteryEngine {
     // sitting, and every shape is worth meeting again after a real break.
     this.recentSkeletons = Array.isArray(saved.recentSkeletons) ? saved.recentSkeletons.slice(-16) : [];
     this.recentActs = Array.isArray(saved.recentActs) ? saved.recentActs.slice(-16) : [];
+    // No item is mid-answer across a reload, so the next one that reports is a
+    // new question whatever stamp it carries.
+    this.shapeStamp = null;
     this.skeletonsSeen = Object.create(null);
     this.actsSeen = Object.create(null);
     // A reload is not a sitting. Whatever budget the last one had spent, the
@@ -3470,8 +3527,18 @@ export class MasteryEngine {
     // withdrawn over" rather than silently changing a badge overnight. Nothing
     // else about the record moves — `everMastered`, `provenBy` and the whole
     // history stay exactly as they were, because the learner did do that work.
+    //
+    // AND IT IS SAID OUT LOUD. The withdrawal itself is old and correct; what
+    // was missing is that nothing downstream could tell it had happened. A
+    // learner who held a line on Tuesday and finds it open on Wednesday, with
+    // no word and no re-check offered, has had a claim taken back in silence —
+    // which is the hollow-mastery failure inverted, and this project's rule
+    // about honest claims does not have a direction. Every withdrawal is
+    // recorded here, and src/meta/withdrawn.js is what says it.
     for (const s of this.state.values()) {
-      if (!s.mastered || !this.weakForms(s).length) continue;
+      if (!s.mastered) continue;
+      const holes = this.weakForms(s);
+      if (!holes.length) continue;
       s.mastered = false;
       s.lapsePending = false;
       s.reopenedFor = 'formFloor';
@@ -3482,6 +3549,7 @@ export class MasteryEngine {
       s.dueAt = null;
       s.dueTime = null;
       s.check = null;
+      this.withdrewOnLoad.push({ id: s.id, forms: holes.slice() });
     }
   }
 }

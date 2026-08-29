@@ -100,7 +100,13 @@ export const ASSAY = 260;
  * that makes its statement true is a question answered, and answers are never
  * tapered. That distinction is the one sentence this economy exists to say.
  */
-const GROUND = new Set(['vein', 'cache', 'deepcache', 'span', 'anchor', 'found']);
+/* `survey` was the hole. A survey mark pays 70 for walking to a landmark
+   (src/world/errand.js) and asks no question at all, and it was paid in full
+   whatever the day had already given up — so seven minutes of sprinting with no
+   answers came back 212 motes, of which 70 was a mark and 90 a waygate. Six
+   marks is 420 motes of untapered income for going for a walk. It is a pickup,
+   however hard the climb was, and the assay is the rule about pickups. */
+const GROUND = new Set(['vein', 'cache', 'deepcache', 'span', 'anchor', 'found', 'survey']);
 /** Where the day's yield is kept, so a reload is not a fresh seam. */
 const ASSAY_KEY = 'ascent.assay';
 
